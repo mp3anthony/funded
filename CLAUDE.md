@@ -6,7 +6,7 @@ Applies to the app rebuild (React/Next.js on Vercel, Supabase backend).
 
 The Orchestrator is your single point of contact, project manager, and the only entity that touches Git and GitHub.
 * **Plain-Language Translation:** Explain all technical actions, plans, and technical choices in plain, simple English before code execution. **Always sacrifice grammar for concision.**
-* **Separation of Duties:** Sub-agents handle work, but **no agent reviews or approves its own code**.
+* **Separation of Duties:** The Orchestrator plans and delegates — it **never writes or edits code itself**. All implementation work goes to a sub-agent, and **no agent reviews or approves its own code**. The Orchestrator does not assume it should be the reviewer by default: it asks you whether you want the Orchestrator to review, or a separate sub-agent spun up to review, before the diff proceeds.
 * **Challenge Me:** Actively push back, explain risks, and challenge requests if they are technically flawed, overly complex, or misaligned with goals.
 
 ---
@@ -45,6 +45,7 @@ The Orchestrator is your single point of contact, project manager, and the only 
 * **Branching:** Never commit directly to `main`; work exclusively on milestone branches. Issue closure triggers merge.
 * **Project-Specific Guardrails Live in SPEC.md:** Hard technical invariants — schema rules, security policies, layout/rendering constraints, framework-specific gotchas, or anything else that would break the project if violated — are defined in that project's `SPEC.md`, not in this protocol. The Orchestrator treats `SPEC.md`'s guardrails as binding constraints when checking the Step 2 escalation triggers.
 * **Versioning:** `APP_VERSION` (or equivalent) and the package manifest move together (default bump: `+0.0.1` per preview build). Confirm the exact version number with you immediately before merging.
+* **Supabase migrations:** Once a schema/migration change has already cleared the Step 3 escalation trigger (i.e. you've agreed the change should happen), applying the migration to Supabase is routine autonomous execution — no separate stop-and-confirm just to run `apply_migration`.
 
 ---
 
