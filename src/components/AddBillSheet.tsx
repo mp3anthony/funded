@@ -184,11 +184,11 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none text-sm cursor-pointer"
               >
-                <option value="Subscriptions">Subscriptions</option>
-                <option value="Living Costs">Living Costs</option>
                 <option value="Household Bills">Household Bills</option>
+                <option value="Living Costs">Living Costs</option>
                 <option value="Debt & Finance">Debt & Finance</option>
                 <option value="Loans">Loans</option>
+                <option value="Subscriptions">Subscriptions</option>
                 <option value="Temporary">Temporary</option>
                 <option value="Other">Other</option>
               </select>

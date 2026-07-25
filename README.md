@@ -380,14 +380,14 @@ Ensure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are config
 
 ## Contributing
 
-This is a solo project developed under a structured **Lead Developer Liaison Protocol**: a single orchestrator session is the sole point of contact and routes every request to specialised subagents (Interviewer, Issue logger, Investigator, Planner, Implementation, Docs, Code Reviewer). The full protocol lives in [`.agents/AGENTS.md`](.agents/AGENTS.md) — the short version:
+This is a solo project developed under a structured **Lead Developer Liaison Protocol**: a single orchestrator session is the sole point of contact and delegates to a sub-agent team, but never merges or approves its own code. The full protocol lives in [`CLAUDE.md`](CLAUDE.md) — the short version:
 
-- **Issues & PRDs** are tracked as GitHub issues on `mp3anthony/funded` via the `gh` CLI, triaged with canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `ready-for-testing`, `wontfix`).
-- **Problem Agreement** — the problem must be fully scoped — is reached before any investigation or planning. **Plan Agreement** — an approved implementation plan, including rejected alternatives — is reached before any code is written.
-- **Every change goes on a branch**, which triggers an automatic Vercel preview deployment for testing before merge.
-- **Preview testing is iPhone-only** (Apple iPhone 17, iOS/WebKit), but code must be written to work correctly on **both** iOS and Android. Android is exercised post-merge on `main` by real users; anything they hit routes back through the normal reporting flow.
-- **Closing the linked GitHub issue is the go-ahead to merge** into `main`. The version number is decided with Anthony at merge time (see Versioning).
-- Decision records live in [`docs/decisions/`](docs/decisions/); domain terms in [`docs/GLOSSARY.md`](docs/GLOSSARY.md).
+- **Issues & PRDs** are tracked as GitHub issues on `mp3anthony/funded` via the `gh` CLI, triaged with canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `needs-mobile-test`, `needs-merge-approval`).
+- **Problem Agreement** — the problem must be fully scoped and the issue filed with a testing checklist — is reached before any work starts.
+- **Once a plan is approved, the agent team works autonomously**, only interrupting for database migrations/RLS changes or locked architecture decisions.
+- **Every change goes on a branch**, which triggers an automatic Vercel preview deployment.
+- **Changes touching mobile layout, styling, or native browser behaviour** are labelled `needs-mobile-test` for iPhone/WebKit verification; code must still be written to work correctly on **both** iOS and Android, but Android is exercised post-merge on `main` by real users. **Backend/platform-agnostic changes** are labelled `needs-merge-approval` — checklist pre-ticked, just needs your go-ahead.
+- **Closing the linked GitHub issue is the go-ahead to merge** into `main`. The version number is confirmed with Anthony at merge time (see Versioning).
 
 ### Code conventions
 
@@ -400,11 +400,11 @@ This is a solo project developed under a structured **Lead Developer Liaison Pro
 
 ## Versioning
 
-The app is currently at **v0.9.1** (shown at the bottom of the Settings screen). Until it's declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.1` → `v0.9.2` → `v0.9.3` …). `v0.9.0` was deliberately skipped.
+The current version is shown at the bottom of the Settings screen and tracked in `package.json` — not restated here, so this doc can't drift out of sync with it. Until the app is declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.x` → `v0.9.x+1` …). `v0.9.0` was deliberately skipped.
 
 > **Note:** This table is a loose guideline, not an enforced rule. The actual version applied at each
-> merge is decided with Anthony directly at merge time, via the Version check step in
-> [`.agents/AGENTS.md`](.agents/AGENTS.md).
+> merge is decided with Anthony directly at merge time, via the Versioning step in
+> [`CLAUDE.md`](CLAUDE.md).
 
 | Milestone | Version |
 |-----------|---------|

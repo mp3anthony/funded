@@ -201,12 +201,12 @@ export default function EditGoalSheet({
                 className="w-full rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none text-sm"
               >
                 <option value="Home & Living">Home & Living</option>
-                <option value="Debt & Finance">Debt & Finance</option>
                 <option value="Vacation & Travel">Vacation & Travel</option>
+                <option value="Wish List">Wish List</option>
+                <option value="Education">Education</option>
+                <option value="Debt & Finance">Debt & Finance</option>
                 <option value="Savings">Savings</option>
                 <option value="Emergency">Emergency</option>
-                <option value="Short-Term">Short-Term</option>
-                <option value="Education">Education</option>
                 <option value="Other">Other</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-muted">

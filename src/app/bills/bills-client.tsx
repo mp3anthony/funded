@@ -10,15 +10,16 @@ import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
 import PageHeader from "@/components/PageHeader";
 import FrequencyToggle from "@/components/FrequencyToggle";
 import { convertAmount } from "@/lib/utils";
+import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 
 type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
 
 const BILL_CATEGORIES = [
-  "Subscriptions",
-  "Living Costs",
   "Household Bills",
+  "Living Costs",
   "Debt & Finance",
   "Loans",
+  "Subscriptions",
   "Temporary",
   "Other",
 ];
@@ -29,7 +30,7 @@ const BILL_CATEGORY_REMAP: Record<string, string> = {
 };
 
 export default function BillsClient() {
-  const { bills, billSplits, members: householdMembers } = useApp();
+  const { bills, billSplits, members: householdMembers, session } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
 
@@ -52,22 +53,15 @@ export default function BillsClient() {
   };
   useEffect(() => {
     setIsMounted(true);
-    const savedOrder = localStorage.getItem("billCategoryOrder");
-    if (savedOrder) {
-      try {
-        const parsed: string[] = JSON.parse(savedOrder);
-        const cleaned = Array.from(
-          new Set(
-            parsed
-              .map((c) => BILL_CATEGORY_REMAP[c] || c)
-              .filter((c) => BILL_CATEGORIES.includes(c))
-          )
-        );
-        setCategoryOrder(cleaned);
-        localStorage.setItem("billCategoryOrder", JSON.stringify(cleaned));
-      } catch (e) {}
-    }
   }, []);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    loadCategoryOrder(userId, "bill_category_order", "billCategoryOrder", BILL_CATEGORY_REMAP, BILL_CATEGORIES)
+      .then(setCategoryOrder)
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const billId = searchParams?.get("billId");
@@ -363,7 +357,9 @@ export default function BillsClient() {
         categories={allCategories}
         onSave={(newOrder) => {
           setCategoryOrder(newOrder);
-          localStorage.setItem("billCategoryOrder", JSON.stringify(newOrder));
+          if (session?.user?.id) {
+            saveCategoryOrder(session.user.id, "bill_category_order", newOrder).catch(() => {});
+          }
         }}
       />
     </div>
