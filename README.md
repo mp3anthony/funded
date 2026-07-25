@@ -400,7 +400,7 @@ This is a solo project developed under a structured **Lead Developer Liaison Pro
 
 ## Versioning
 
-The app is currently at **v0.9.1** (shown at the bottom of the Settings screen). Until it's declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.1` → `v0.9.2` → `v0.9.3` …). `v0.9.0` was deliberately skipped.
+The current version is shown at the bottom of the Settings screen and tracked in `package.json` — not restated here, so this doc can't drift out of sync with it. Until the app is declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.x` → `v0.9.x+1` …). `v0.9.0` was deliberately skipped.
 
 > **Note:** This table is a loose guideline, not an enforced rule. The actual version applied at each
 > merge is decided with Anthony directly at merge time, via the Versioning step in
