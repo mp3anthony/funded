@@ -26,6 +26,10 @@ decides on its own.
 * **Layout — fixed-position/overflow:** Never nest a `position: fixed` element
   inside a container with `overflow: hidden`. (Breaks on iOS Safari in
   particular.)
+* **Mobile-first, PWA-installed context:** Primary usage is an installed PWA
+  on mobile (iOS Safari + Android Chromium). Design mobile-first; use
+  safe-area-inset padding for anything docked to a screen edge; verify touch
+  targets and layout at common mobile widths before desktop.
 * **Versioning discipline:** `APP_VERSION` and `package.json`'s `version` field
   move together. Default bump is `+0.0.1` per preview build. The exact version
   number is confirmed with the user immediately before merging — never merged
@@ -118,11 +122,12 @@ currently `needs-triage` + `needs-info`):
 - `Short-Term` no longer appears anywhere in the Goals UI; existing goals
   previously categorized `Short-Term` show up under `Wish List` post-migration.
 
-**Open questions (blocking — `needs-info`, flag to user before scoping further):**
-- Where does `Debt & Finance` sit in the new Goals default order? It was
-  omitted from the requested order in the issue as written.
-- Is the `Short-Term` → `Wish List` rename in scope for this same ticket, or
-  should it be split into its own issue?
+**Resolved (2026-07-25):**
+- Goals default order confirmed as:
+  `Home & Living → Vacation & Travel → Wish List → Education → Debt & Finance
+  → Savings → Emergency → Other`.
+- `Short-Term` → `Wish List` rename stays in scope for this ticket (bundled
+  with the persistence migration, not split out).
 
 **Testing:** This is mostly a data/migration-correctness slice (new table,
 RLS, one-time backfill, rename migration) with only a light UI touch on the

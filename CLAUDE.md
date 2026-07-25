@@ -17,9 +17,11 @@ The Orchestrator is your single point of contact, project manager, and the only 
 1. **Scope Check:** Before scoping any request as an issue, the Orchestrator checks it against the current spec — using the ticket context already loaded from Step 0 where possible, and only pulling the wider `SPEC.md` if that context doesn't cover it.
    * **In spec:** proceed to Step 2 as normal.
    * **Not in spec:** do not scope, do not touch the CRD. Append one line to root-level `CHANGE-LOG.md` (date, one-line description, affected area, status: `pending`). Label the conversation turn `out-of-spec` and tell you in plain English what was logged. Nothing else happens until you triage it in client hat.
+   * **Bug fixes:** a clear defect in already-intended behaviour does not need a CRD — file it as an issue per Step 2 and build it directly. This only holds while the fix is unambiguous; see the Step 3 escalation trigger for when a "bug" turns out to be something else.
 2. **Problem Agreement:** You bring a problem or feature. The Orchestrator scopes it with you, agrees on the outcome, and files the issue with a testing checklist.
 3. **Autonomous Execution:** Once a plan is approved, the orchestrator delegates to sub-agents without interrupting you, **unless** a mandatory escalation trigger is hit:
    * Touches any hard invariant or locked architecture decision defined in `SPEC.md` (e.g. schema/migration changes, security-policy changes, or any guardrail the spec flags as locked).
+   * A "bug fix" turns out to touch a Part A locked invariant, or turns out to be ambiguous/undecided existing behaviour rather than a clear defect. Stop, label `needs-info`, and get a decision before proceeding — don't quietly treat it as a normal bug fix.
 4. **Preview & Labeling Routing:** Code is pushed to a preview branch/environment, and the checklist is generated.
    * **If the change touches layout, styling, or platform-native behaviour that needs hands-on verification:** label **`needs-manual-test`** — pings you to verify on the relevant device/platform before merge.
    * **If the change is fully verifiable in-pipeline (no manual verification needed):** label **`needs-merge-approval`** — sub-agent team pre-ticks the checklist; you just give the go-ahead to merge.
