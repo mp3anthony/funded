@@ -30,10 +30,11 @@ decides on its own.
   on mobile (iOS Safari + Android Chromium). Design mobile-first; use
   safe-area-inset padding for anything docked to a screen edge; verify touch
   targets and layout at common mobile widths before desktop.
-* **Versioning discipline:** `APP_VERSION` and `package.json`'s `version` field
-  move together. Default bump is `+0.0.1` per preview build. The exact version
-  number is confirmed with the user immediately before merging — never merged
-  silently.
+* **Versioning discipline:** The in-app display version (hardcoded string,
+  bottom of the Settings screen) is the source of truth — `package.json`'s
+  `version` field is unused npm-tooling metadata and does not need to track
+  it. Default bump is `+0.0.1` per preview build. The exact version number is
+  confirmed with the user immediately before merging — never merged silently.
 * **Stack (observed, not to be casually changed):**
   * Next.js 16 (App Router, `src/app/*`), React 19, TypeScript, Tailwind CSS 4.
   * Supabase (`@supabase/supabase-js`, `@supabase/ssr`) for auth + Postgres.

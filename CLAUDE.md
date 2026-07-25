@@ -44,7 +44,7 @@ The Orchestrator is your single point of contact, project manager, and the only 
 
 * **Branching:** Never commit directly to `main`; work exclusively on milestone branches. Issue closure triggers merge.
 * **Project-Specific Guardrails Live in SPEC.md:** Hard technical invariants — schema rules, security policies, layout/rendering constraints, framework-specific gotchas, or anything else that would break the project if violated — are defined in that project's `SPEC.md`, not in this protocol. The Orchestrator treats `SPEC.md`'s guardrails as binding constraints when checking the Step 2 escalation triggers.
-* **Versioning:** `APP_VERSION` (or equivalent) and the package manifest move together (default bump: `+0.0.1` per preview build). Confirm the exact version number with you immediately before merging.
+* **Versioning:** The project's chosen source of truth for its display version (see `SPEC.md` for which file that is — not assumed to be the package manifest) gets a default bump of `+0.0.1` per preview build. Confirm the exact version number with you immediately before merging.
 * **Supabase migrations:** Once a schema/migration change has already cleared the Step 3 escalation trigger (i.e. you've agreed the change should happen), applying the migration to Supabase is routine autonomous execution — no separate stop-and-confirm just to run `apply_migration`.
 
 ---
