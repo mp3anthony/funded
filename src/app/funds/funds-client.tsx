@@ -10,15 +10,16 @@ import AddAmountModal from "@/components/AddAmountModal";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
 import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
+import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 
 const GOAL_CATEGORIES = [
   "Home & Living",
-  "Debt & Finance",
   "Vacation & Travel",
+  "Wish List",
+  "Education",
+  "Debt & Finance",
   "Savings",
   "Emergency",
-  "Short-Term",
-  "Education",
   "Other",
 ];
 
@@ -30,10 +31,11 @@ const GOAL_CATEGORY_REMAP: Record<string, string> = {
   "Transport": "Vacation & Travel",
   "Debt Payoff": "Debt & Finance",
   "Interest Free Payment": "Debt & Finance",
+  "Short-Term": "Wish List",
 };
 
 export default function FundsClient() {
-  const { funds, deleteGoal, addToGoal } = useApp();
+  const { funds, deleteGoal, addToGoal, session } = useApp();
   const currentUser = useCurrentUser();
 
   // ── Local UI state ────────────────────────────────────────────────
@@ -56,22 +58,12 @@ export default function FundsClient() {
   };
 
   useEffect(() => {
-    const savedOrder = localStorage.getItem("goalCategoryOrder");
-    if (savedOrder) {
-      try {
-        const parsed: string[] = JSON.parse(savedOrder);
-        const cleaned = Array.from(
-          new Set(
-            parsed
-              .map((c) => GOAL_CATEGORY_REMAP[c] || c)
-              .filter((c) => GOAL_CATEGORIES.includes(c))
-          )
-        );
-        setCategoryOrder(cleaned);
-        localStorage.setItem("goalCategoryOrder", JSON.stringify(cleaned));
-      } catch (e) {}
-    }
-  }, []);
+    const userId = session?.user?.id;
+    if (!userId) return;
+    loadCategoryOrder(userId, "goal_category_order", "goalCategoryOrder", GOAL_CATEGORY_REMAP, GOAL_CATEGORIES)
+      .then(setCategoryOrder)
+      .catch(() => {});
+  }, [session?.user?.id]);
 
   // ── Derived summary values ────────────────────────────────────────
   const totalSaved = funds.reduce((sum, f) => sum + f.currentAmount, 0);
@@ -183,7 +175,7 @@ export default function FundsClient() {
                 <option value="Vacation & Travel">Vacation & Travel</option>
                 <option value="Savings">Savings</option>
                 <option value="Emergency">Emergency</option>
-                <option value="Short-Term">Short-Term</option>
+                <option value="Wish List">Wish List</option>
                 <option value="Education">Education</option>
                 <option value="Other">Other</option>
               </select>
@@ -384,7 +376,9 @@ export default function FundsClient() {
         categories={allCategories}
         onSave={(newOrder) => {
           setCategoryOrder(newOrder);
-          localStorage.setItem("goalCategoryOrder", JSON.stringify(newOrder));
+          if (session?.user?.id) {
+            saveCategoryOrder(session.user.id, "goal_category_order", newOrder).catch(() => {});
+          }
         }}
       />
     </div>

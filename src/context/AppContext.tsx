@@ -350,7 +350,7 @@ function getFundStyle(category: string) {
         accentText: "text-primary",
         icon: Shield,
       };
-    case "Short-Term":
+    case "Wish List":
       return {
         bgLight: "bg-cyan-500/10 text-cyan-500",
         barColor: "bg-cyan-500",

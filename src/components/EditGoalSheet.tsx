@@ -205,7 +205,7 @@ export default function EditGoalSheet({
                 <option value="Vacation & Travel">Vacation & Travel</option>
                 <option value="Savings">Savings</option>
                 <option value="Emergency">Emergency</option>
-                <option value="Short-Term">Short-Term</option>
+                <option value="Wish List">Wish List</option>
                 <option value="Education">Education</option>
                 <option value="Other">Other</option>
               </select>
