@@ -56,6 +56,14 @@ suggested Part C order (which had it last) — Anthony picked it up directly.
     directly — unless they turn out to touch a Part A locked invariant or be
     ambiguous, in which case escalate per Step 3.
 
+## Environment notes
+
+- **Global CLI tools installed on Anthony's machine** (`pipx`, `markitdown[all]`,
+  `ffmpeg` via winget) and documented in a new `CLAUDE.md` §"Global CLI tools
+  available" section — committed on branch `docs/global-cli-tools`, not yet
+  merged to `main`. Anthony wants it folded into the next patch rather than
+  merged standalone.
+
 ## What's next (separate sessions)
 
 1. **Slice 1 (Issue #71) — PWA stale-cache bug.** Still open, still has two
