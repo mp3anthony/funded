@@ -6,15 +6,25 @@
 
 ## → START HERE NEXT SESSION
 
-Anthony is testing **[PR #76](https://github.com/mp3anthony/funded/pull/76)** on
-device between sessions. Open on his result:
+**Device testing on [PR #76](https://github.com/mp3anthony/funded/pull/76) is done
+except one check. 7 of 8 passed, no merge blockers found.**
 
-1. **If the cold-open flash is gone** → merge #76 and **close #73**. See "#73 is
-   closeable on #76" below — this reverses an earlier call in this session, read it
-   before deciding.
-2. **Then #74** — the warm-reload empty-overwrite. This is the mechanism that most
-   likely matches Anthony's original report. **Blocked on his decision** between the
-   four approaches in the issue body; ask first thing if he hasn't decided.
+Passed on device: cold open (no stuck wheel, **no "Fully Funded" flash**),
+throttled cold open, sign-out/sign-in (no Onboarding flash), onboarding still
+reachable for a new signup, warm resume via repeated app-switching (no flash, no
+spinner, "very quick load"), v0.9.4 showing in Settings.
+
+**Outstanding: the ~1 hour token-refresh check** (PR checklist line 109) — same
+app-switch gesture as the warm-resume test, but only after the app has sat 60–90
+minutes so the login token has expired and renewed. Anthony said he would run it
+and open a new session to close this out.
+
+1. **Confirm the hour check passed, then merge #76 and close #73.** The cold-open
+   result already settles the open question — see "#73 is closeable on #76" below.
+2. **Then #74 — but re-establish its priority first, don't just start building.**
+   See "What the clean warm-resume result does and doesn't tell us" below. It is
+   also still **blocked on Anthony's decision** between the four approaches in the
+   issue body; ask first thing.
 
 Do **not** re-investigate the health-score flash. Three diagnoses have been made,
 two were wrong, and all three are written up in #73's body. Read that, not the code.
@@ -113,8 +123,31 @@ its `finally`. The gate never opens against empty arrays. So the cold-open crite
 should be satisfied without any component change — which is exactly what A2
 prescribes.
 
-**Contingent on the device test.** If Anthony still sees a flash on a genuine
-force-quit-and-reopen, the trace above is wrong and #73 needs rethinking.
+**Confirmed on device.** Anthony ran a genuine force-quit-and-reopen and saw no
+"Fully Funded" flash. The trace above held. #73 closes with #76.
+
+## What the clean warm-resume result does and doesn't tell us
+
+Anthony's warm-resume test (repeated app-switching) was **also** clean — no flash.
+Do **not** read that as refuting #74.
+
+Mid-session the Orchestrator told him a clean warm result would mean its model of
+the warm path was wrong. That was sloppy and is withdrawn. The distinction that
+matters:
+
+- **#74's defect is certain at the code level.** `if (billsRes.data)` at
+  `src/context/AppContext.tsx:846` — `[]` is truthy, so a successful zero-row result
+  *does* overwrite loaded arrays. That is not in question.
+- **What is unknown is how often the RLS-empty condition actually occurs.** That is
+  a frequency question, and a few app-switches over minutes cannot answer it.
+
+Anthony's original report was the rank one level down, then **two days later**
+"Fully Funded" — a days-apart intermittent. He also noted he has not seen the quirk
+"in a while", which means recent absence is weak evidence either way.
+
+So: #74 remains a real defect. Its **priority** is now genuinely open rather than
+assumed-urgent, and that should be settled with Anthony before building — not
+defaulted to.
 
 ## The clean split to hold in mind
 
