@@ -9,50 +9,98 @@ of this spec.
 
 ---
 
-## Part A — Technical Guardrails (Locked Invariants)
+## Part A — Technical Guardrails
 
-These are binding constraints. Per the liaison protocol, any change touching
-one of these is a mandatory escalation trigger, not something a sub-agent
-decides on its own.
+Part A is split into two sections, and the split is load-bearing:
+
+* **A1 — Locked invariants** are **escalation gates**. A change touching one is
+  a mandatory stop-and-ask under liaison protocol Step 3. A sub-agent does not
+  decide these alone.
+* **A2 — Standing rules** are binding on how code gets written, but there is no
+  decision for the user to make. A sub-agent follows them and proceeds without
+  interrupting. Violating one is a defect, not an escalation.
+
+If a rule is a genuine "should we?" question, it belongs in A1. If it is a
+"here's how this codebase does it", it belongs in A2. Process steps belong in
+`CLAUDE.md`, not here.
+
+### A1 — Locked invariants (mandatory escalation)
 
 * **RLS mandatory:** Every Postgres table must have Row Level Security policies.
-  This is already the established pattern in this repo — see
-  `supabase/rls_policies.sql`, `supabase/secure_rls_policies.sql`, and the
-  various `fix_*_rls*.sql` migrations. Any new table ships with RLS from the
-  start; no exceptions.
-* **Next.js viewport API:** Use the official `export const viewport: Viewport`
-  export for viewport/theme-color config. Never hand-roll `<meta name="viewport">`
-  or theme-color meta tags in `layout.tsx`.
-* **Layout — fixed-position/overflow:** Never nest a `position: fixed` element
-  inside a container with `overflow: hidden`. (Breaks on iOS Safari in
-  particular.)
-* **Mobile-first, PWA-installed context:** Primary usage is an installed PWA
-  on mobile (iOS Safari + Android Chromium). Design mobile-first; use
-  safe-area-inset padding for anything docked to a screen edge; verify touch
-  targets and layout at common mobile widths before desktop.
-* **Versioning discipline:** The in-app display version (hardcoded string,
-  bottom of the Settings screen) is the source of truth — `package.json`'s
-  `version` field is unused npm-tooling metadata and does not need to track
-  it. Default bump is `+0.0.1` per preview build. The exact version number is
-  confirmed with the user immediately before merging — never merged silently.
-* **Stack (observed, not to be casually changed):**
+  Established pattern — see `supabase/rls_policies.sql`,
+  `supabase/secure_rls_policies.sql`, and the various `fix_*_rls*.sql`
+  migrations. Any new table ships with RLS from the start; no exceptions.
+  (Largely subsumed by the migration escalation trigger — a new table implies a
+  migration — but stated explicitly because the consequence is data exposure.)
+* **Service-role key is server-only.** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS
+  entirely. Its only current use is the cron route
+  (`src/app/api/cron/push-reminders/route.ts:37`). Any new use, or any code path
+  that reads it outside a server-side route, requires approval first. If it
+  reaches client code, every user gets full read/write on the database. Highest
+  consequence rule in this spec.
+* **Amounts must be normalised via `convertAmount` before comparison**
+  (`src/lib/utils.ts:225`). Weekly, fortnightly and monthly frequencies coexist
+  throughout the app. Comparing or summing raw amounts across frequencies
+  produces silently wrong money — the figures still look plausible, so tests and
+  eyeballing both miss it. Locked because the failure mode is incorrect money,
+  undetected.
+* **Stack changes:** adding, replacing or removing a **core dependency or
+  framework** requires approval. Working within the existing stack does not.
+  Current stack:
   * Next.js 16 (App Router, `src/app/*`), React 19, TypeScript, Tailwind CSS 4.
   * Supabase (`@supabase/supabase-js`, `@supabase/ssr`) for auth + Postgres.
     Client wrapper lives at `src/lib/supabase.ts`.
   * PWA with a hand-written service worker at `public/sw.js` (not
     next-pwa/Workbox-generated) plus Web Push (`web-push`, `src/lib/pushClient.ts`).
-  * Supabase Edge Functions exist for some server-side logic (e.g.
+  * Supabase Edge Functions for some server-side logic (e.g.
     `supabase/functions/join-household`).
-  * Migrations live in `supabase/migrations/` as timestamped SQL files —
-    schema changes should follow that convention rather than editing
-    `supabase/schema.sql` directly.
-* **Branching:** Never commit directly to `main`; work on milestone branches.
-  Issue closure triggers merge. (Restated from the liaison protocol, since it's
-  a hard invariant in practice, not just a process note.)
+  * Migrations live in `supabase/migrations/` as timestamped SQL files — schema
+    changes follow that convention rather than editing `supabase/schema.sql`
+    directly.
+* **Branching — absolute prohibition, not a gate:** never commit directly to
+  `main`; work on milestone branches. Issue closure triggers merge. There is no
+  version of this to approve, so it is listed here as forbidden rather than as a
+  stop-and-ask.
 
-Open item for the user to confirm: this list was assembled by reading the old
-`CLAUDE.md` plus a skim of `package.json`, `src/`, and `supabase/`. It's
-probably not exhaustive — flag anything else that should be locked here.
+### A2 — Standing rules (follow, do not escalate)
+
+* **All date parsing goes through `parseBillDate`** (`src/lib/utils.ts:18`).
+  `new Date("2026-07-30")` parses as **UTC midnight**, which is the previous day
+  in Sydney — raw parsing puts every bill due-date comparison off by one.
+  Server-side "what day is it" logic uses `todayInZone`
+  (`src/lib/notifications/timezone.ts:8`) instead. Fails silently when broken.
+* **`cacheComponents: true`** (`next.config.ts:4`). This is why route handlers
+  cannot use `export const runtime` — see the explanatory comment at
+  `src/app/api/cron/push-reminders/route.ts:7`. Note-level rather than locked
+  because it surfaces as a build error, not a silent bug: an agent that gets it
+  wrong finds out immediately.
+* **Notification dismissal is mark-as-read, never delete**
+  (`src/context/AppContext.tsx:2864`). The row must survive so its `dedupe_key`
+  persists; otherwise both reminder generators resurrect dismissed reminders.
+  Do not "tidy" this into a real delete.
+* **Computed displays must gate on `isDataLoading`.** Rendering a derived value
+  against not-yet-loaded state shows a confidently wrong number that then snaps
+  to the real one. Generalised from issue #73, where empty household state scores
+  exactly 85 and flashes "Fully Funded" on every cold open. **Caveat: #73 is not
+  fixed yet**, so this rule currently describes intended behaviour, not actual —
+  revisit the wording once #73 ships and the real shape of the fix is known.
+* **Layout — fixed-position/overflow:** never nest a `position: fixed` element
+  inside a container with `overflow: hidden`. Breaks on iOS Safari in particular.
+  Note-level rather than locked because this class of change carries
+  `needs-manual-test` and reaches the user on-device before merge anyway.
+* **Next.js viewport API:** use the official `export const viewport: Viewport`
+  export for viewport/theme-color config. Never hand-roll `<meta name="viewport">`
+  or theme-color meta tags in `layout.tsx`.
+* **Mobile-first, PWA-installed context:** primary usage is an installed PWA on
+  mobile (iOS Safari + Android Chromium). Design mobile-first; use
+  safe-area-inset padding for anything docked to a screen edge; verify touch
+  targets and layout at common mobile widths before desktop. A design principle,
+  not a gate — there is nothing here to approve.
+* **Versioning discipline:** the in-app display version (hardcoded string,
+  bottom of the Settings screen) is the source of truth — `package.json`'s
+  `version` field is unused npm-tooling metadata and does not need to track it.
+  Default bump is `+0.0.1` per preview build. Confirming the exact number before
+  merge is a process step owned by `CLAUDE.md` §4, not an escalation trigger.
 
 ---
 
