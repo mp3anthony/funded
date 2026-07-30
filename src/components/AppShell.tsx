@@ -160,9 +160,11 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
   // gap where auth has just resolved (session truthy) but isOnboarded is still
   // its false default and loadData hasn't confirmed the household yet. Without
   // this guard the gate wins that gap and flashes "create or join" before the
-  // home screen (see #49). isDataLoading is set true the instant the session
-  // resolves (AppContext), so we stay on the loading wheel until loadData has
-  // genuinely determined whether a household exists.
+  // home screen (see #49). isDataLoading now starts true and is only cleared
+  // once loadData has genuinely determined whether a household exists (#73), so
+  // this gate cannot open on unresolved state. A genuinely not-onboarded user
+  // still reaches Onboarding: loadData finds no household membership, sets
+  // isOnboarded false and isDataLoading false, and this gate then opens.
   if (isMounted && !isAuthLoading && session && !isOnboarded && !isDataLoading) {
     return (
       <>

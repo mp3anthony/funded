@@ -710,7 +710,18 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   /* ── Auth ────────────────────────────────── */
   const [session, setSession] = useState<Session | null>(initialSession);
   const [isAuthLoading, setIsAuthLoading] = useState(!initialSession);
-  const [isDataLoading, setIsDataLoading] = useState(!initialIsOnboarded && !!initialSession);
+  // Pessimistic by design: assume household data is NOT loaded until loadData
+  // proves otherwise. AppShell's gate (src/components/AppShell.tsx:176) is the
+  // app's single loading gate, so any render where this is wrongly false hands
+  // every dashboard component empty arrays to compute against — the cold-open
+  // "Fully Funded" flash in #73 (empty state scores exactly 85, clearing the
+  // >= 80 threshold). The previous initialiser was
+  // `!initialIsOnboarded && !!initialSession`, which is optimistic in exactly
+  // the case that matters (an already-onboarded user). There is no
+  // server-provided initial data — <AppProvider> is mounted with no props
+  // (src/app/layout.tsx:104) and every data array below starts as [] — so
+  // "already loaded" is never a legitimate starting assumption.
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -772,7 +783,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     if (isAuthLoading || !session?.user) {
       console.log('loadData skipped - isAuthLoading:', isAuthLoading, 'session:', session ? 'exists' : 'null');
       setIsOnboarded(false);
-      setIsDataLoading(false);
+      // Only clear the loading flag once auth has actually resolved. This effect
+      // also fires on mount while isAuthLoading is still true; clearing it there
+      // would immediately undo the pessimistic initialiser above, leaving the
+      // gate dependent purely on setIsAuthLoading(false) and setIsDataLoading(true)
+      // happening to land in the same React batch — the exact fragility behind
+      // #49 and #73. Once auth HAS resolved with no session, clearing is
+      // required so the /login redirect isn't stuck behind the loading wheel.
+      if (!isAuthLoading) setIsDataLoading(false);
       return;
     }
     if (!dbHouseholdId && !isOnboarded) {
