@@ -79,7 +79,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   persists; otherwise both reminder generators resurrect dismissed reminders.
   Do not "tidy" this into a real delete.
 * **The `isDataLoading` gate is centralised in `AppShell` — do not add
-  per-component gates.** `src/components/AppShell.tsx:176` withholds *all*
+  per-component gates.** `src/components/AppShell.tsx:182` withholds *all*
   children while `session && isDataLoading`, so a component-level
   `if (isDataLoading)` guard inside a page or card is unreachable dead code. The
   rule for new dashboard content is therefore: rely on the AppShell gate, and if

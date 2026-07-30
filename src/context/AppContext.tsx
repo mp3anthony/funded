@@ -711,15 +711,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [session, setSession] = useState<Session | null>(initialSession);
   const [isAuthLoading, setIsAuthLoading] = useState(!initialSession);
   // Pessimistic by design: assume household data is NOT loaded until loadData
-  // proves otherwise. AppShell's gate (src/components/AppShell.tsx:176) is the
+  // proves otherwise. AppShell's gate (src/components/AppShell.tsx:182) is the
   // app's single loading gate, so any render where this is wrongly false hands
   // every dashboard component empty arrays to compute against — the cold-open
   // "Fully Funded" flash in #73 (empty state scores exactly 85, clearing the
   // >= 80 threshold). The previous initialiser was
-  // `!initialIsOnboarded && !!initialSession`, which is optimistic in exactly
-  // the case that matters (an already-onboarded user). There is no
-  // server-provided initial data — <AppProvider> is mounted with no props
-  // (src/app/layout.tsx:104) and every data array below starts as [] — so
+  // `!initialIsOnboarded && !!initialSession`, which evaluated to false for
+  // every user unconditionally — not conditionally on onboarding. This
+  // function's defaults are `initialSession = null, initialIsOnboarded = false`
+  // and the sole mount site passes no props (src/app/layout.tsx:104), so the
+  // expression was always `true && false`. There is no server-provided initial
+  // data of any kind, and every data array below starts as [], so
   // "already loaded" is never a legitimate starting assumption.
   const [isDataLoading, setIsDataLoading] = useState(true);
 
