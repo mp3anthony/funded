@@ -78,12 +78,23 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   (`src/context/AppContext.tsx:2864`). The row must survive so its `dedupe_key`
   persists; otherwise both reminder generators resurrect dismissed reminders.
   Do not "tidy" this into a real delete.
-* **Computed displays must gate on `isDataLoading`.** Rendering a derived value
-  against not-yet-loaded state shows a confidently wrong number that then snaps
-  to the real one. Generalised from issue #73, where empty household state scores
-  exactly 85 and flashes "Fully Funded" on every cold open. **Caveat: #73 is not
-  fixed yet**, so this rule currently describes intended behaviour, not actual —
-  revisit the wording once #73 ships and the real shape of the fix is known.
+* **The `isDataLoading` gate is centralised in `AppShell` — do not add
+  per-component gates.** `src/components/AppShell.tsx:176` withholds *all*
+  children while `session && isDataLoading`, so a component-level
+  `if (isDataLoading)` guard inside a page or card is unreachable dead code. The
+  rule for new dashboard content is therefore: rely on the AppShell gate, and if
+  a derived value still renders against empty state, the defect is in the gate's
+  inputs, not in the component.
+  Corollary, and the actual cause of issue #73: **any state that AppShell's gate
+  depends on must be initialised pessimistically.** `isDataLoading` was
+  initialised to `!initialIsOnboarded && !!initialSession`
+  (`src/context/AppContext.tsx:713`), which is `false` for an already-onboarded
+  user — so the gate opened for one render before
+  `supabase.auth.getSession().then(...)` could set it true, and every computed
+  display on the dashboard rendered against empty arrays. Rendering a derived
+  value against not-yet-loaded state shows a confidently wrong number that then
+  snaps to the real one; for the health score, empty state computes to exactly 85
+  and reads "Fully Funded".
 * **Layout — fixed-position/overflow:** never nest a `position: fixed` element
   inside a container with `overflow: hidden`. Breaks on iOS Safari in particular.
   Note-level rather than locked because this class of change carries
