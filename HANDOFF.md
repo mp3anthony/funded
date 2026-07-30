@@ -71,6 +71,24 @@ notification appears 5–10 seconds *after* opening the app. Cause found:
 Not filed as an issue yet — deliberately left for Anthony to decide whether it
 goes in before or as part of the notifications CRD work.
 
+### Issue #71 body cleaned up
+
+`#71` pointed at `docs/decisions/pwa-stale-cache-nav-slowness.md` for its full
+findings. **There is no `docs/` directory in this repo** — Anthony deleted it
+deliberately. Confirmed there is no glossary anywhere either, so the issue's
+`Glossary entry: Service worker cache version` line was a second dead pointer.
+
+Both dead references removed from the issue body. The *content* that mattered was
+preserved and moved inline as an **"Already ruled out (with evidence)"** section —
+Vercel 503 load-shedding, code regression, full-page reloads, Supabase accounts —
+so nobody re-investigates eliminated dead ends.
+
+Lost for good: the doc's "quick re-diagnosis procedure". Not recoverable, and not
+needed — root cause is confirmed and written into the issue.
+
+Swept the repo and all other issues for further references to the deleted docs:
+none live.
+
 ### Out-of-spec items logged to `CHANGE-LOG.md` (7 entries, all `pending`)
 
 1. **Notifications overhaul** — user-chosen delivery time (e.g. 6pm local),
@@ -104,20 +122,68 @@ goes in before or as part of the notifications CRD work.
   calculation in Direct Pay mode (sums `billSplits` rather than contributions).
   Waiting on real direct-pay testers is the right call.
 
-## What's next (Anthony's stated order)
+## What's next (Anthony's stated order — reordered at end of this session)
 
-1. **Issue #73** — health score cold-open flash. Next session. Small, isolated,
-   no Part A invariants touched, fully specified in the issue.
-2. **CRD interview** — session after that. Covers the dynamic/interactive
-   overhaul (the gauge is one of several ideas Anthony has, more to come),
-   dashboard, bills-vs-expenses, and the notifications feature. Run the `crd`
-   skill live.
-3. Then, slotted per the CRD outcome: notification delivery bug (above),
-   **#71** PWA stale cache, **#37** household timezone UI.
+### → NEXT SESSION: finalise `SPEC.md` Part A guardrails
 
-Still outstanding from prior sessions:
-- **Confirm `SPEC.md` Part A guardrails** — still flagged as "probably not
-  exhaustive", Anthony hasn't done a pass yet.
+This is a **conversation, not a build**. Anthony answers, the Orchestrator edits
+`SPEC.md` Part A and deletes the "probably not exhaustive" note at the bottom of
+it. Expect ~20 minutes.
+
+Why it matters: Part A is the **escalation boundary**. Anything listed there means
+a sub-agent must stop and ask before touching it. Too little on the list and
+agents silently change things that break the app; too much and Anthony gets
+interrupted constantly. That trade is his call, not the Orchestrator's.
+
+**Part 1 — confirm the 7 existing entries.** RLS mandatory · Next.js viewport API ·
+no `fixed` inside `overflow:hidden` · mobile-first PWA · versioning discipline ·
+stack · branching. Straight yes/no per entry; all 7 expected to stand.
+
+**Part 2 — rule on 6 candidates.** These already behave like invariants in the
+codebase but are not written down. Investigation is **already done — do not
+re-derive**. For each, Anthony says **lock it** (agents must escalate), **note it**
+(written down, no escalation) or **bin it**:
+
+1. **`cacheComponents: true`** (`next.config.ts:4`) — this is why route handlers
+   cannot use `export const runtime`. Already explained in a comment at
+   `src/app/api/cron/push-reminders/route.ts:7`. A sub-agent adding an API route
+   would hit this blind.
+2. **All date parsing goes through `parseBillDate`** (`src/lib/utils.ts:18`).
+   Exists because `new Date("2026-07-30")` parses as **UTC midnight** — the
+   previous day in Sydney — which would put every bill due-date comparison off by
+   one. Server-side day logic uses `todayInZone` instead. Silent when broken.
+3. **Service-role key is server-only.** Used in the cron route to bypass RLS. If
+   it ever reaches client code, every user gets full database access. Highest
+   consequence rule on this list.
+4. **Notification dismissal is mark-as-read, never delete**
+   (`src/context/AppContext.tsx:2867`). The row must survive so its `dedupe_key`
+   persists, otherwise dismissed reminders resurrect. Someone "tidying" this into
+   a real delete reintroduces the bug.
+5. **Amounts must be normalised via `convertAmount` before comparison.**
+   Weekly/fortnightly/monthly coexist throughout. Comparing raw amounts across
+   frequencies produces silently wrong money.
+6. **Computed displays must gate on `isDataLoading`.** This is #73's lesson
+   generalised, to stop the same class of bug recurring elsewhere.
+
+### → SESSION AFTER: `CHANGE-LOG.md` triage + CRD interview
+
+Anthony puts the client hat on, triages the 7 pending entries, then the `crd`
+skill is run live. Covers the dynamic/interactive overhaul (the swipeable gauge is
+**one of several ideas** — Anthony has more to bring), the dashboard, bills-vs-
+expenses, and the notifications feature.
+
+### → QUEUED BUILD WORK (nothing blocking it)
+
+- **Issue #73** — health score cold-open flash. **The only shovel-ready ticket.**
+  Small, isolated, no Part A invariants touched, fully specified. Was originally
+  slated for next session; Anthony moved the guardrails work ahead of it. Can be
+  pulled forward any time.
+- **Notification delivery bug** — diagnosed above, not yet filed. Anthony to
+  decide whether it goes in on its own or folds into the notifications CRD work.
+- **#71** PWA stale cache — two open implementation-shape questions (cache-busting
+  mechanism, offline tradeoff) to resolve at kickoff.
+- **#37** household timezone UI — one open question (any member vs admin-only).
+  Note this is now **load-bearing** for the notifications feature.
 
 ## Reference
 
@@ -125,7 +191,8 @@ Still outstanding from prior sessions:
 - Working spec: [`SPEC.md`](SPEC.md) — Part A guardrails + Slices 1 (#71) and
   3 (#37) still open. Part C order now largely superseded by the list above.
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — **no longer empty**,
-  7 pending entries awaiting Anthony's triage in client hat.
-- Issue #73: https://github.com/mp3anthony/funded/issues/73 (open — next up)
-- Issue #71: https://github.com/mp3anthony/funded/issues/71 (open)
+  7 pending entries awaiting Anthony's triage in client hat (session after next).
+- Issue #73: https://github.com/mp3anthony/funded/issues/73 (open — shovel-ready)
+- Issue #71: https://github.com/mp3anthony/funded/issues/71 (open — body cleaned
+  up this session)
 - Issue #37: https://github.com/mp3anthony/funded/issues/37 (open)
