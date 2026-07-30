@@ -85,16 +85,30 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   rule for new dashboard content is therefore: rely on the AppShell gate, and if
   a derived value still renders against empty state, the defect is in the gate's
   inputs, not in the component.
-  Corollary, and the actual cause of issue #73: **any state that AppShell's gate
-  depends on must be initialised pessimistically.** `isDataLoading` was
-  initialised to `!initialIsOnboarded && !!initialSession`
-  (`src/context/AppContext.tsx:713`), which is `false` for an already-onboarded
-  user — so the gate opened for one render before
-  `supabase.auth.getSession().then(...)` could set it true, and every computed
-  display on the dashboard rendered against empty arrays. Rendering a derived
-  value against not-yet-loaded state shows a confidently wrong number that then
-  snaps to the real one; for the health score, empty state computes to exactly 85
-  and reads "Fully Funded".
+  First corollary: **any state the gate depends on must be initialised
+  pessimistically.** `isDataLoading` is `useState(true)` and must stay that way.
+  `<AppProvider>` is mounted with **no props** (`src/app/layout.tsx:104` —
+  server-side session prefetch was removed deliberately for #47, because reading
+  `cookies()` in the root layout forces the whole app dynamic under
+  `cacheComponents`), and every data array initialises to `[]`. So "data is
+  already loaded" is never a legitimate starting assumption, and any initialiser
+  that can evaluate `false` opens the gate against empty state.
+
+  Second corollary: **an open gate is not the only way a computed display sees
+  empty state.** A warm reload deliberately does not raise `isDataLoading`
+  (`src/context/AppContext.tsx:796`) so the wheel doesn't flash over a working
+  app on every token refresh — which means the gate is open for the whole
+  reload. Writes during that window must not transiently empty loaded state.
+  `if (res.data)` is not sufficient: `[]` is truthy, and a successful RLS query
+  with no token applied returns zero rows and no error. See issue #74.
+
+  **The canary:** empty state computes to exactly **85** in
+  `calculateHealthScore` (`src/lib/utils.ts:88`) —
+  `(100 × 0.4) + (50 × 0.3) + (100 × 0.3)` — which clears the `>= 80` threshold
+  in `src/components/HealthScoreCard.tsx:34`. So an unexplained "Fully Funded"
+  is a reliable symptom that something has handed the dashboard empty arrays.
+  Two separate mechanisms have produced it; treat it as a signal to look at
+  loading state, not at the scoring formula.
 * **Layout — fixed-position/overflow:** never nest a `position: fixed` element
   inside a container with `overflow: hidden`. Breaks on iOS Safari in particular.
   Note-level rather than locked because this class of change carries
