@@ -18,8 +18,24 @@ papers over every bug in this ticket. The first implementation pass would have p
 checklist that only tested cold starts — that is precisely how its regression got through
 review-by-checklist and had to be caught by code review instead.
 
-If testing passes → confirm the version number → merge → close #75.
-If testing fails → the failure mode tells you which door; see the PR body's table.
+**If testing passes** → confirm the version number with Anthony → merge → close #75.
+
+**If testing fails** → get the exact symptom before touching code. The three most likely
+readings, in order:
+
+- **Sees the previous user's data after an in-tab switch** → the user-scoped resolution ref, or
+  something else reading `isOnboarded` / `dbHouseholdId` as if they were user-scoped. They are
+  not, and are never cleared.
+- **"Fully Funded" with an empty dashboard** → something handed the dashboard empty arrays.
+  Loading state, never the scoring formula. See the 85 canary under Traps.
+- **A new user cannot onboard after an in-tab switch, with no error shown** → the
+  `createHousehold` adopt path. This was the exact regression the first pass introduced.
+
+Any fix goes as a **new commit on this same branch** — the branch is already pushed and the PR
+is open, so do not rewrite history, and never commit to `main`.
+
+Branch is 3 commits ahead of `origin/main` and 0 behind, so no conflict is expected. Re-check
+before merging in case `main` has moved since.
 
 Next after that: **`CHANGE-LOG.md` triage + the CRD interview** (bottom of this file).
 
