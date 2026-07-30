@@ -334,7 +334,7 @@ export default function SettingsClient() {
           Leave household
         </button>
         <div className="text-center pt-8 pb-2">
-          <div className="font-mono text-[10px] tracking-wider text-subtle/70">funded. v0.9.3</div>
+          <div className="font-mono text-[10px] tracking-wider text-subtle/70">funded. v0.9.4</div>
           <div className="font-mono text-[10px] text-subtle/50 mt-1">Concept &amp; development · Anthony Paull</div>
         </div>
       </section>

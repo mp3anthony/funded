@@ -55,3 +55,10 @@ The Orchestrator is your single point of contact, project manager, and the only 
 * **`SPEC.md`** — vertically-sliced spec derived from the CRD, **including this project's own technical guardrails** (stack, schema, layout, security rules, locked architecture decisions). This is the working reference during builds.
 * **`CHANGE-LOG.md`** — append-only inbox for out-of-spec requests. Read/written cheaply; triaged on demand.
 * **`HANDOFF.md`** — rolling session state, updated at wrap-up, read first at session start. Records exactly which ticket/section of `SPEC.md` was last active, so a new session usually doesn't need to re-read the full spec.
+
+---
+
+## Global CLI tools available
+
+* `markitdown` — installed globally via pipx, converts PDF/DOCX/PPTX/XLSX/images/audio/HTML to Markdown. Usage: `markitdown path-to-file.ext -o output.md`
+* `ffmpeg` was installed alongside it (via winget) to enable full audio/video transcription support in markitdown.
