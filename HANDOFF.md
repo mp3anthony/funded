@@ -1,19 +1,28 @@
 # Handoff
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-01
 **Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed, PR open.
-**App version:** `v0.9.5` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
+**App version:** `v0.9.7` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
 immediately before merging.
 
 ## → START HERE NEXT SESSION
 
 **Nothing is in flight. The tree is clean and compiles.**
 
-[PR #77](https://github.com/mp3anthony/funded/pull/77) closes #75 and is labelled
-`ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — use the
-[canonical-format checklist in this PR comment](https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683),
-not the "Testing checklist" section in the PR body (that section is now historical — kept as the
-record of what review round 2 signed off on). Nothing else should start on this branch.
+[PR #77](https://github.com/mp3anthony/funded/pull/77) now closes #75, #78, and #79, and is
+labelled `ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — Anthony ran
+checklist item 1 (cold-start new-user) last session, which surfaced two more bugs (#78, #79),
+both filed and fixed on this same branch per his instruction to fold everything into one PR/close
+cycle. He's testing the rest tomorrow. Use the
+[canonical-format checklist in this PR comment](https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683)
+— now 13 items, updated this session — not the "Testing checklist" section in the PR body (that
+section is historical, kept as the record of what review round 2 signed off on for #75 only; the
+PR body has a new "Folded into this PR after round 2" section summarizing #78/#79 instead of
+editing that historical checklist). Nothing else should start on this branch.
+
+**What to do with tomorrow's results:** if everything passes, confirm `v0.9.7` with Anthony, merge,
+close #75/#78/#79. If something fails, get the exact symptom before touching code — same
+discipline as below, now across three issues' worth of checklist items instead of one.
 
 **Manual-test checklists are now a standard format, codified in `CLAUDE.md` §2 Step 4:** numbered
 scenario → bold setup steps → one ✅ pass line → a ❌ line only for a specific named failure mode.
@@ -125,15 +134,31 @@ Two things came out of that worth carrying forward:
 - **529 Overloaded killed four implementation runs in the previous session.** If it recurs,
   prefer a **fresh** agent with a tight self-contained brief and exact line anchors over
   resuming one with a long transcript.
+- **`isolation: "worktree"` sub-agents can end up on the wrong base branch.** Twice this session,
+  an agent's sandbox had a stale/unrelated branch checked out (byte-identical to `main`, missing
+  every #75/#78 commit) instead of the real target branch — and once the real branch was already
+  checked out in the main working tree, the agent couldn't check it out a second time in its own
+  worktree at all. Both times the agent worked around it by creating its own branch off the
+  correct tip and committing there. **Always verify after an implementer agent reports a commit**:
+  check its commit's parent is actually the branch tip you expected, then bring it in with
+  `git cherry-pick <hash>` from the real checkout (safe here specifically because the commit sits
+  directly on top of the current tip — for a diverged history, this needs a rebase instead) and
+  clean up the leftover worktree/branch with `git worktree remove --force` + `git branch -D`.
+  Don't assume "the agent committed" means "the commit is on the branch you asked for."
+- **`gh api ... -f field=@path` silently does NOT read the file on this Windows/gh setup** — it
+  posts the literal string `@path` as the field value instead. Use `-F` (capital) instead, which
+  does the file read correctly. Caught only because the PR comment update was verified by
+  re-fetching it afterward — always verify a `gh api` PATCH/POST that embeds file content by
+  reading it back, don't trust a 200 response alone.
 
 ## Unfiled follow-ups from #75 — Anthony to triage
 
 Full detail in [PR #77](https://github.com/mp3anthony/funded/pull/77)'s body.
 
-1. **Onboarding steps 2–5 may be unreachable.** `createHousehold`'s create path sets
-   `setIsOnboarded(true)`, dropping `AppShell`'s gate the moment step 1 completes — so payment
-   mode, payday and first-bill never render. Identical in `main`. **Confirm against real app
-   behaviour before filing** — Anthony will know from using it.
+1. ~~**Onboarding steps 2–5 may be unreachable.**~~ **Resolved as #78.** Confirmed exactly as
+   suspected: `createHousehold`'s create path was setting `setIsOnboarded(true)`, dropping
+   `AppShell`'s gate the moment step 1 completed. Fixed — only `completeOnboarding()` (step 5's
+   "Enter App") sets that flag now. Commit on this branch, folded into PR #77.
 2. **`joinHousehold` step 2's rollback trusts unvalidated cached state.** Decides whether to
    cascade-delete a household from `backupState.members`, which is `[]` whenever the members
    query silently errored. Reachable from the normal `loadData` path. The natural successor
@@ -149,6 +174,36 @@ Full detail in [PR #77](https://github.com/mp3anthony/funded/pull/77)'s body.
    Standing argument for the deferred `UNIQUE` constraint.
 7. **No in-app recovery for an already-duplicated user.** Guards prevent new cases, don't
    repair existing ones. Nobody is in that state.
+
+## #78 and #79 — found and fixed this session, folded into PR #77
+
+Anthony ran PR #77's checklist item 1 (cold-start, new user) and reported feedback rather than a
+plain pass/fail. That surfaced two bugs neither the #75 work nor its checklist covered:
+
+- **[#78](https://github.com/mp3anthony/funded/issues/78)** — `createHousehold`'s create path set
+  `isOnboarded` true the instant step 1 finished, unmounting the wizard before steps 2–5 ever
+  rendered. This was unfiled follow-up 1 above, confirmed by Anthony actually hitting it. Fixed:
+  only `completeOnboarding()` sets that flag now. `v0.9.5` → `v0.9.6`.
+- **[#79](https://github.com/mp3anthony/funded/issues/79)** — with #78 fixed and steps 2–4
+  actually reachable, Anthony went through them, entered a payday and a bill, saw no error — and
+  neither showed up anywhere afterward, even after a full app close and relaunch (not just a
+  reload, which ruled out stale client state as the explanation). Root cause: `handleNext()` fired
+  `updateHouseholdPaymentMode`/`addPayday`/`addBill` without awaiting them or checking for
+  failure, so the wizard could reach "Setup Complete" with nothing actually saved. Fixed to match
+  step 1's existing await/error/block-advance pattern. `v0.9.6` → `v0.9.7`.
+
+Both were built by an implementer sub-agent and checked by a separate reviewer sub-agent (no agent
+reviewed its own code, per protocol). The reviewer caught one real regression in the first #79
+attempt — the Back button wasn't disabled during a save, so backing out mid-write while the save
+was still in flight could silently bounce the wizard forward again once it resolved, or show the
+resulting error banner on the wrong step. A follow-up commit fixed that; **Anthony chose not to
+re-review the follow-up commit itself** ("looks good for both" — his call, noted per protocol
+rather than assumed).
+
+Both fixes went on the **same branch** (`issue-75-auth-loaddata-hazards`), not new branches or a
+new PR — Anthony's explicit call, to close everything out in one PR/merge cycle rather than three.
+The PR #77 body has a new "Folded into this PR after round 2" section documenting this; the
+canonical checklist comment has three new items (11–13) covering both.
 
 ## The other open tickets
 
@@ -233,8 +288,9 @@ Findings to carry in:
 - Working spec: [`SPEC.md`](SPEC.md) — **Part A final (A1/A2)**. Part B Slices 1 (#71) and 3
   (#37) still open. Two stale line citations, see follow-up 5.
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — pending entries awaiting triage.
-- **Awaiting test: PR #77** https://github.com/mp3anthony/funded/pull/77 (closes #75, `v0.9.5`)
+- **Awaiting test: PR #77** https://github.com/mp3anthony/funded/pull/77 (closes #75, #78, #79 —
+  `v0.9.7`)
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
-- Open: #75 (PR up), #74, #71, #37
+- Open: #75, #78, #79 (all PR up, same PR), #74, #71, #37
