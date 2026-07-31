@@ -1,6 +1,6 @@
 # Handoff
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 **Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed, PR open.
 **App version:** `v0.9.5` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
 immediately before merging.
@@ -10,8 +10,15 @@ immediately before merging.
 **Nothing is in flight. The tree is clean and compiles.**
 
 [PR #77](https://github.com/mp3anthony/funded/pull/77) closes #75 and is labelled
-`ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — the checklist is
-in the PR body. Nothing else should start on this branch.
+`ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — use the
+[canonical-format checklist in this PR comment](https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683),
+not the "Testing checklist" section in the PR body (that section is now historical — kept as the
+record of what review round 2 signed off on). Nothing else should start on this branch.
+
+**Manual-test checklists are now a standard format, codified in `CLAUDE.md` §2 Step 4:** numbered
+scenario → bold setup steps → one ✅ pass line → a ❌ line only for a specific named failure mode.
+Anthony asked for this because bare checklists weren't building his understanding of *what* each
+test actually catches — new checklists should explain the why, not just the click-path.
 
 **The user-switch cases must be done in a single tab without reloading.** A fresh page load
 papers over every bug in this ticket. The first implementation pass would have passed a
