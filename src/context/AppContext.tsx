@@ -1385,7 +1385,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // This user now demonstrably has a household, so a later query failure
       // must not clear isOnboarded and send them back here (#75 item 3).
       resolvedHouseholdUserIdRef.current = activeUser.id;
-      setIsOnboarded(true);
+      // Do NOT setIsOnboarded(true) here — that would unmount the onboarding
+      // wizard mid-flow (#78). completeOnboarding() on step 5's "Enter App" is
+      // the only thing that should flip this.
 
       return household.id;
 
