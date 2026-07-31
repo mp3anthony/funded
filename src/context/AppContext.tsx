@@ -1635,7 +1635,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating household payment mode:", error);
-        return;
+        throw error;
       }
 
       setIsJointFund(jointFundVal);
@@ -1645,6 +1645,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update payment mode:", err);
+      throw err;
     }
   }
 
@@ -1999,7 +2000,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error inserting payday:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -2007,6 +2008,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to add payday:", err);
+      throw err;
     }
   }
 

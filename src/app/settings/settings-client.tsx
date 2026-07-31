@@ -54,6 +54,7 @@ export default function SettingsClient() {
   /* Payment mode confirm flow */
   const [tempMode, setTempMode] = useState<boolean | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [modeChangeError, setModeChangeError] = useState<string | null>(null);
 
   /* Reused sheets */
   const [isContributionOpen, setIsContributionOpen] = useState(false);
@@ -147,13 +148,21 @@ export default function SettingsClient() {
   function handleModeChangeClick(newMode: boolean) {
     if (newMode === isJointFund) return;
     setTempMode(newMode);
+    setModeChangeError(null);
     setShowPaymentModeDialog(false);
     setShowConfirm(true);
   }
 
   async function handleConfirmModeChange() {
     if (tempMode !== null) {
-      await updateHouseholdPaymentMode(tempMode);
+      try {
+        setModeChangeError(null);
+        await updateHouseholdPaymentMode(tempMode);
+      } catch (err) {
+        const error = err as Error;
+        setModeChangeError(error.message || "Failed to update payment mode. Please try again.");
+        return;
+      }
     }
     setTempMode(null);
     setShowConfirm(false);
@@ -161,6 +170,7 @@ export default function SettingsClient() {
 
   function handleCancelModeChange() {
     setTempMode(null);
+    setModeChangeError(null);
     setShowConfirm(false);
   }
 
@@ -334,7 +344,7 @@ export default function SettingsClient() {
           Leave household
         </button>
         <div className="text-center pt-8 pb-2">
-          <div className="font-mono text-[10px] tracking-wider text-subtle/70">funded. v0.9.6</div>
+          <div className="font-mono text-[10px] tracking-wider text-subtle/70">funded. v0.9.7</div>
           <div className="font-mono text-[10px] text-subtle/50 mt-1">Concept &amp; development · Anthony Paull</div>
         </div>
       </section>
@@ -546,6 +556,12 @@ export default function SettingsClient() {
         }
       >
         <div className="flex flex-col gap-3">
+          {modeChangeError && (
+            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+              <span className="font-bold">Failed to update payment mode:</span><br/>
+              {modeChangeError}
+            </div>
+          )}
           <div className="font-mono text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
           <p className="text-[15px] leading-relaxed text-foreground">
             Switching to <span className="text-primary font-semibold">{tempMode ? "Joint Fund" : "Direct Pay"}</span> will reset every bill&apos;s contributor splits.
