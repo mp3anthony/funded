@@ -557,7 +557,8 @@ export default function Onboarding() {
               {currentStep > 1 ? (
                 <button
                   onClick={handleBack}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-[2px] border border-border text-sm font-bold text-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-[2px] border border-border text-sm font-bold text-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back
