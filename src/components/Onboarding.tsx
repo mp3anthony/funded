@@ -45,7 +45,7 @@ export default function Onboarding() {
   /* Step 4 — First Bill */
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
-  const [billFrequency, setBillFrequency] = useState("Monthly");
+  const [billFrequency, setBillFrequency] = useState("monthly");
 
   /* ── Navigation ─────────────────────────────── */
   async function handleNext() {
@@ -491,10 +491,10 @@ export default function Onboarding() {
                         onChange={(e) => setBillFrequency(e.target.value)}
                         className="w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
                       >
-                        <option value="Weekly">Weekly</option>
-                        <option value="Fortnightly">Fortnightly</option>
-                        <option value="Monthly">Monthly</option>
-                        <option value="Yearly">Yearly</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="fortnightly">Fortnightly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
                       </select>
                     </div>
                   </div>
