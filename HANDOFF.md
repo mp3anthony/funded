@@ -1,28 +1,29 @@
 # Handoff
 
-**Last updated:** 2026-08-01
+**Last updated:** 2026-08-01 (later session — #80 folded in)
 **Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed, PR open.
-**App version:** `v0.9.7` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
+**App version:** `v0.9.8` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
 immediately before merging.
 
 ## → START HERE NEXT SESSION
 
 **Nothing is in flight. The tree is clean and compiles.**
 
-[PR #77](https://github.com/mp3anthony/funded/pull/77) now closes #75, #78, and #79, and is
-labelled `ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — Anthony ran
-checklist item 1 (cold-start new-user) last session, which surfaced two more bugs (#78, #79),
-both filed and fixed on this same branch per his instruction to fold everything into one PR/close
-cycle. He's testing the rest tomorrow. Use the
+[PR #77](https://github.com/mp3anthony/funded/pull/77) now closes #75, #78, #79, and #80, and is
+labelled `ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — while
+testing checklist item 11 (onboarding payday+bill, added for #79), Anthony hit a new failure on
+the First Bill step. Diagnosed and fixed same-session as #80, folded into this same branch per
+the established pattern of closing everything out in one PR/merge cycle. Use the
 [canonical-format checklist in this PR comment](https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683)
-— now 13 items, updated this session — not the "Testing checklist" section in the PR body (that
+— now 14 items, updated this session — not the "Testing checklist" section in the PR body (that
 section is historical, kept as the record of what review round 2 signed off on for #75 only; the
-PR body has a new "Folded into this PR after round 2" section summarizing #78/#79 instead of
-editing that historical checklist). Nothing else should start on this branch.
+PR body has "Folded into this PR after round 2" and "Folded into this PR — third round" sections
+summarizing #78/#79 and #80 instead of editing that historical checklist). Nothing else should
+start on this branch.
 
-**What to do with tomorrow's results:** if everything passes, confirm `v0.9.7` with Anthony, merge,
-close #75/#78/#79. If something fails, get the exact symptom before touching code — same
-discipline as below, now across three issues' worth of checklist items instead of one.
+**What to do with results:** if everything passes, confirm `v0.9.8` with Anthony, merge,
+close #75/#78/#79/#80. If something fails, get the exact symptom before touching code — same
+discipline as below, now across four issues' worth of checklist items.
 
 **Manual-test checklists are now a standard format, codified in `CLAUDE.md` §2 Step 4:** numbered
 scenario → bold setup steps → one ✅ pass line → a ❌ line only for a specific named failure mode.
@@ -50,7 +51,7 @@ readings, in order:
 Any fix goes as a **new commit on this same branch** — the branch is already pushed and the PR
 is open, so do not rewrite history, and never commit to `main`.
 
-Branch is 3 commits ahead of `origin/main` and 0 behind, so no conflict is expected. Re-check
+Branch is 13 commits ahead of `origin/main` and 0 behind, so no conflict is expected. Re-check
 before merging in case `main` has moved since.
 
 Next after that: **`CHANGE-LOG.md` triage + the CRD interview** (bottom of this file).
@@ -218,6 +219,31 @@ new PR — Anthony's explicit call, to close everything out in one PR/merge cycl
 The PR #77 body has a new "Folded into this PR after round 2" section documenting this; the
 canonical checklist comment has three new items (11–13) covering both.
 
+## #80 — found and fixed this session, folded into PR #77
+
+Anthony was working through checklist item 11 (#79's onboarding payday+bill test) and hit a new,
+unrelated failure on Step 4 ("First Bill"): every save failed with a raw Postgres error rendered
+straight into the UI — `new row for relation "bills" violates check constraint
+"bills_frequency_check"`.
+
+Root cause: `Onboarding.tsx`'s bill-frequency `<select>` used capitalized option values
+(`"Weekly"`, `"Fortnightly"`, `"Monthly"`, `"Yearly"`) and defaulted `billFrequency` state to
+`"Monthly"`. The `bills` table's check constraint only permits lowercase
+(`weekly`/`fortnightly`/`monthly`/`yearly`) — see
+`supabase/migrations/20260707005200_update_frequency_data_to_fortnightly.sql`. This was the only
+frequency picker in the app built this way; `FrequencyToggle.tsx` and `AddBillSheet.tsx` already
+used the correct lowercase convention. Pure frontend fix, no schema/migration involved, so it
+qualified as an unambiguous bug fix under `CLAUDE.md` §1 — no CRD needed.
+
+Filed as [#80](https://github.com/mp3anthony/funded/issues/80), fixed by a sub-agent (Orchestrator
+never edits code directly), diff verified by the orchestrator before commit. `v0.9.7` → `v0.9.8`.
+New checklist item 14 covers it — enter each of the four frequency options on Step 4 and confirm
+no failure banner, then confirm the saved bill on the Bills page shows the frequency actually
+picked.
+
+Same branch, same PR as #75/#78/#79 — Anthony's now-established call to close everything out in
+one PR/merge cycle rather than a new branch per bug found during testing.
+
 ## The other open tickets
 
 **[#74 — successful-but-empty query results wipe loaded household data](https://github.com/mp3anthony/funded/issues/74)**
@@ -301,9 +327,9 @@ Findings to carry in:
 - Working spec: [`SPEC.md`](SPEC.md) — **Part A final (A1/A2)**. Part B Slices 1 (#71) and 3
   (#37) still open. Two stale line citations, see follow-up 5.
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — pending entries awaiting triage.
-- **Awaiting test: PR #77** https://github.com/mp3anthony/funded/pull/77 (closes #75, #78, #79 —
-  `v0.9.7`)
+- **Awaiting test: PR #77** https://github.com/mp3anthony/funded/pull/77 (closes #75, #78, #79,
+  #80 — `v0.9.8`)
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
-- Open: #75, #78, #79 (all PR up, same PR), #74, #71, #37
+- Open: #75, #78, #79, #80 (all PR up, same PR), #74, #71, #37
