@@ -55,6 +55,19 @@ before merging in case `main` has moved since.
 
 Next after that: **`CHANGE-LOG.md` triage + the CRD interview** (bottom of this file).
 
+## Out-of-band: Supabase test-user cleanup (this session, unrelated to #75/#77)
+
+Not ticket work — Anthony asked to delete three test users from Supabase Auth after the
+dashboard's own delete kept failing. Root cause: `household_members`, `notification_settings`,
+and `notifications` had `user_id → auth.users.id` as `NO ACTION` instead of `CASCADE` (the other
+four user-referencing tables — `households`, `push_subscriptions`, `user_preferences`, and
+`funds` via `SET NULL` — were already correct). Fixed with migration
+`cascade_delete_user_fks`, then deleted `slmg.anthony@gmail.com`,
+`blueprintmusic.info@gmail.com`, `blueprintmusic.info+9.6@gmail.com` and their households.
+Verified first that each of the three owned a household with no other members and no stray
+`notifications.household_id` rows, so nothing else was in the blast radius. Auth-dashboard user
+deletion should work normally from here on. No code changed, no commit — Supabase only.
+
 ## What #75 was
 
 Three pre-existing hazards in the auth/`loadData` path, built as one change because they share
