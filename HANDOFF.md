@@ -1,13 +1,24 @@
 # Handoff
 
-**Last updated:** 2026-08-01 (later session — #80 folded in)
+**Last updated:** 2026-08-01 (later session — #80 folded in, `pr-browser-triage` skill added)
 **Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed, PR open.
 **App version:** `v0.9.8` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
 immediately before merging.
 
 ## → START HERE NEXT SESSION
 
-**Nothing is in flight. The tree is clean and compiles.**
+**First thing: run the new `pr-browser-triage` skill (`.claude/skills/pr-browser-triage/`)
+against PR #77 as its first real test.** Anthony is deliberately using this PR as the trial run
+rather than testing it separately. It was built this session but never executed — walk through it
+for real, and if the classification table, the approval gate, or the final report don't feel
+right, fix the skill before relying on it further. It explicitly does not touch GitHub (no
+ticking checklist items, no comments) — that stays manual regardless of what it finds.
+
+After that: Anthony does the remaining real-device pass on his iPhone (everything the skill
+correctly leaves as "real device only" — see checklist items 8, 9, 12, 13 in the canonical PR
+comment, plus anything WebKit/PWA-specific the skill's Partial bucket surfaces).
+
+**Nothing else is in flight. The tree is clean and compiles.**
 
 [PR #77](https://github.com/mp3anthony/funded/pull/77) now closes #75, #78, #79, and #80, and is
 labelled `ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — while
