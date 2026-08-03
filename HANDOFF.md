@@ -37,10 +37,11 @@ again for some other Supabase-mutating tool: the fix is the same, add an explici
 that exact tool name in settings.local.json, a skill/self-edit route won't get through.
 
 **Done this session:**
-- Filed **[#81](https://github.com/mp3anthony/funded/issues/81)** for the join-by-code deploy gap
-  (Anthony's call: own issue, not folded into PR #77's diff). **Redeployed** `join-household`
-  (now version 2, ACTIVE) and commented the retest results on #81 — left it **open** for Anthony to
-  close, since item 6's open question is adjacent to it.
+- Filed, fixed, and **closed [#81](https://github.com/mp3anthony/funded/issues/81)** for the
+  join-by-code deploy gap (Anthony's call: own issue, not folded into PR #77's diff). Redeployed
+  `join-household` (now version 2, ACTIVE), retested, then Anthony had it closed since #81's actual
+  scope (the stale function) was fixed — item 6's open question below is tracked separately, not as
+  a reason to keep #81 open.
 - **Items 5 and 7 retested and passed, with database evidence, not just UI**: item 5's new
   membership row has `user_id` set correctly (previously always `null`); item 7's switch fully
   deleted the old household/membership and correctly claimed the new one.
@@ -422,10 +423,10 @@ only lands if a live `push_subscriptions` row exists, so if permission was never
 expired the subscription, the cron delivers nothing silently. **Anthony to decide: own issue, or
 folds into the notifications CRD.**
 
-**Join-by-code was broken in production — filed and fixed as [#81](https://github.com/mp3anthony/funded/issues/81).**
+**Join-by-code was broken in production — filed, fixed, and closed as [#81](https://github.com/mp3anthony/funded/issues/81).**
 Anthony's call: own issue, not folded into PR #77 (the redeploy is unrelated to #75's diff and
 doesn't block that PR's merge). Edge function redeployed and retested this session — see
-"→ START HERE NEXT SESSION" at the top of this file. Left open for Anthony to close.
+"→ START HERE NEXT SESSION" at the top of this file.
 
 ## `SPEC.md` Part A at a glance
 
@@ -480,8 +481,8 @@ Findings to carry in:
 - **Awaiting test: PR #77** https://github.com/mp3anthony/funded/pull/77 (closes #75, #78, #79,
   #80 — `v0.9.5`; checklist status tracked live in the
   [canonical PR comment](https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683))
-- **Join-by-code fixed:** [#81](https://github.com/mp3anthony/funded/issues/81) — redeployed and
-  retested this session, left open for Anthony to close.
+- **Join-by-code fixed and closed:** [#81](https://github.com/mp3anthony/funded/issues/81) —
+  redeployed and retested this session.
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
