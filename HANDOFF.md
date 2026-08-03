@@ -1,47 +1,67 @@
 # Handoff
 
-**Last updated:** 2026-08-03 (later session — `pr-browser-triage` skill run for real against
-PR #77, found a live join-by-code outage)
-**Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed, PR open.
-**App version:** `v0.9.8` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
-immediately before merging.
+**Last updated:** 2026-08-03 (later session still — checklist ticked off on PR #77, join-by-code
+filed as its own issue, version rolled back to v0.9.5, hit an Auto Mode permission wall)
+**Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed except for this session's 2 new
+commits, PR open.
+**App version:** `v0.9.5` on the branch (`v0.9.4` on `main`). Anthony's explicit call this
+session: the whole PR (covering #75/#78/#79/#80) counts as **one** preview build, not four
+incremental +0.0.1 bumps — so the display string was rolled back from `v0.9.8` to `v0.9.5`. Already
+confirmed with Anthony; don't re-ask at merge time, just re-verify the string still reads `v0.9.5`.
 
 ## → START HERE NEXT SESSION
 
-**Blocking finding, needs Anthony's decision before anything else: join-by-code is broken in
-production right now, and the fix already exists — it just isn't deployed.** Full writeup below
-under "`pr-browser-triage` run against PR #77 — trial results". Short version: the **deployed**
-`join-household` Supabase edge function is stale (version 1, never redeployed) and its insert
-omits `user_id` entirely. Every join-by-code — in prod, not just this branch — creates an orphaned
-`household_members` row the app can never recognize; the joining user is silently stuck on
-"create or join" forever, even after a full reload, with **no error shown**. The local repo's copy
-of `supabase/functions/join-household/index.ts` already has the correct insert (sets
-`user_id: user.id`, plus a client-side "claim orphaned record" recovery path in
-`AppContext.tsx`'s `joinHousehold`) — this is a **deploy gap, not a code bug**, and not something
-introduced by this branch.
+**This session hit a hard permissions wall.** Two Supabase-mutating tool calls —
+`deploy_edge_function` (to fix join-by-code) and `execute_sql` (to confirm a throwaway test
+account's email, the same method used for all prior test-account setup) — were both **denied
+outright by the environment's Auto Mode classifier**, even though Anthony had already said "go
+ahead" in chat. The tool error is explicit that verbal chat approval isn't enough — it needs either
+a Bash/tool permission rule added in settings, or the action run manually outside this harness. No
+further attempts were made past the second block, per the tool's own instruction to stop and ask
+rather than look for workarounds.
 
-**Ask Anthony:**
-1. OK to redeploy `join-household` now via `deploy_edge_function` (or `supabase functions deploy
-   join-household`)? This unblocks checklist items 6 and 7 below, which couldn't be tested because
-   they both depend on a working join.
-2. File this as its own GitHub issue, or fold the retest into PR #77 like #78/#79/#80 were?
-   It's unrelated to #75's actual diff but was found while testing it, same pattern as before.
-3. Six disposable Supabase test accounts/households from this session need a cleanup decision —
-   list is under "Test data created" below. Same category as the out-of-band cleanup entry further
-   down this file.
+**What this blocked:**
+- The actual redeploy of `join-household` (issue **[#81](https://github.com/mp3anthony/funded/issues/81)**,
+  filed this session) never happened. Join-by-code is still broken in production.
+- Checklist items 5, 6, 7 on PR #77 are still failing/blocked — they need a live join to test and
+  the deployed function is still the stale, broken one.
+- Item 10 (version string) couldn't get a fresh **live browser screenshot** against `v0.9.5` —
+  the source change is confirmed correct (trivial static JSX string, not computed), but proving it
+  in a running signed-in session needed a fresh confirmed test account, which needed the blocked
+  `execute_sql` call.
 
-**The `pr-browser-triage` skill itself worked as designed** — no fixes needed to the skill based on
-this run. It classified all 14 checklist items, the approval gate held (nothing ran until Anthony
-said go), and it found a real, previously-unknown production bug rather than rubber-stamping a
-pass. Full classification table and per-item results are in the writeup below.
+**Ask Anthony:** how do you want the redeploy and the SQL confirm to actually happen — add a
+permission rule so future sessions can do this directly, or would you rather run
+`supabase functions deploy join-household` (CLI not installed in this environment, would need
+linking first) and the email-confirm yourself?
 
-After the join fix lands and items 6/7 are retested: Anthony still owes the real-device pass on his
-iPhone for everything the skill correctly left as "real device only" — checklist items 3, 3b, 8, 9,
-11, 12, 13 (sub-second visual flashes, DevTools-offline conditions, and the true force-close/
-relaunch semantic none of which a desktop Chromium tab can faithfully reproduce).
+**Done this session, no blockers:**
+- Filed **[#81](https://github.com/mp3anthony/funded/issues/81)** for the join-by-code deploy gap,
+  as its own issue (Anthony's call) — tracked separately from PR #77, not blocking its merge.
+- Version string rolled back `v0.9.8` → `v0.9.5` in `settings-client.tsx` (uncommitted at time of
+  writing — see "Commit outstanding" below).
+- **PR #77's canonical checklist comment is now ticked off** — 6 of 14 items marked `[x]` with a
+  **Status** line each (1, 2, 4, 10, 14, matching last session's pass results). Items 5/6/7 marked
+  `[ ]`, pointing at #81. Items 3, 3b, 8, 9, 11, 12, 13 marked `[ ]`, each with a one-line reason
+  it needs Anthony's real device. This is now the single place to check remaining work — see
+  https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683.
+- One more disposable test account created this session and left unconfirmed:
+  `version-check.session2@example.com` (password `TriageCheck!2026`) — signed up but never
+  confirmed, since the confirm step is exactly what got blocked. Same cleanup category as the six
+  below, plus this one.
 
-**Nothing else is in flight. The tree is clean and compiles — this session found a bug, it didn't
-write any code.**
+**Commit outstanding:** the version-string edit (`settings-client.tsx`, `v0.9.8` → `v0.9.5`) is
+sitting uncommitted in the working tree as of this handoff — commit it as a new commit on this same
+branch (`chore: roll back display version to v0.9.5`) before anything else next session, then push
+along with the prior unpushed commit (branch is currently 1 ahead of `origin` from last session's
+HANDOFF update, now 2 ahead once this commit lands).
+
+**The `pr-browser-triage` skill itself worked as designed** last session — no fixes needed to the
+skill based on that run. It classified all 14 checklist items, the approval gate held (nothing ran
+until Anthony said go), and it found a real, previously-unknown production bug rather than
+rubber-stamping a pass. Full classification table and per-item results are in the writeup below.
+
+**Nothing else is in flight beyond the outstanding commit above.**
 
 [PR #77](https://github.com/mp3anthony/funded/pull/77) now closes #75, #78, #79, and #80, and is
 labelled `ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — while
@@ -55,9 +75,10 @@ PR body has "Folded into this PR after round 2" and "Folded into this PR — thi
 summarizing #78/#79 and #80 instead of editing that historical checklist). Nothing else should
 start on this branch.
 
-**What to do with results:** if everything passes, confirm `v0.9.8` with Anthony, merge,
-close #75/#78/#79/#80. If something fails, get the exact symptom before touching code — same
-discipline as below, now across four issues' worth of checklist items.
+**What to do with results:** if everything passes, confirm `v0.9.5` with Anthony (already confirmed
+once this session — just re-verify the string still reads that), merge, close #75/#78/#79/#80. If
+something fails, get the exact symptom before touching code — same discipline as below, now across
+four issues' worth of checklist items.
 
 **Manual-test checklists are now a standard format, codified in `CLAUDE.md` §2 Step 4:** numbered
 scenario → bold setup steps → one ✅ pass line → a ❌ line only for a specific named failure mode.
@@ -401,13 +422,10 @@ only lands if a live `push_subscriptions` row exists, so if permission was never
 expired the subscription, the cron delivers nothing silently. **Anthony to decide: own issue, or
 folds into the notifications CRD.**
 
-**Join-by-code is broken in production — diagnosed, still NOT filed.** Found this session via
-`pr-browser-triage` against PR #77. The deployed `join-household` edge function never got
-redeployed after a fix that already exists in the local repo — see the full writeup above under
-"`pr-browser-triage` run against PR #77 — trial results". Every real join-by-code right now
-creates an orphaned membership row with no visible error; the user is stuck on Onboarding forever.
-The fix is a redeploy, not new code. **Anthony to decide: redeploy now, own issue, or fold into
-PR #77's retest of checklist items 6/7.**
+**Join-by-code is broken in production — filed as [#81](https://github.com/mp3anthony/funded/issues/81).**
+Anthony's call: own issue, not folded into PR #77 (the redeploy is unrelated to #75's diff and
+doesn't block that PR's merge). Redeploy itself is still blocked — see "→ START HERE NEXT SESSION"
+at the top of this file for why.
 
 ## `SPEC.md` Part A at a glance
 
@@ -460,7 +478,10 @@ Findings to carry in:
   (#37) still open. Two stale line citations, see follow-up 5.
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — pending entries awaiting triage.
 - **Awaiting test: PR #77** https://github.com/mp3anthony/funded/pull/77 (closes #75, #78, #79,
-  #80 — `v0.9.8`)
+  #80 — `v0.9.5`; checklist status tracked live in the
+  [canonical PR comment](https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683))
+- **Join-by-code redeploy blocked:** [#81](https://github.com/mp3anthony/funded/issues/81) — needs
+  a permission rule or manual `supabase functions deploy` before it can move.
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
