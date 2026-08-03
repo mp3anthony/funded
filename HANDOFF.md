@@ -49,11 +49,10 @@ that exact tool name in settings.local.json, a skill/self-edit route won't get t
   signed-in browser session, not just in source.
 - **PR #77's canonical checklist comment reflects all of the above** — 8/14 checked
   (1, 2, 4, 5, 7, 10, 14), each with a **Status** line and real evidence, not just a checkmark.
-- Test accounts created this session (all disposable, all confirmed via the same
-  `email_confirmed_at` SQL trick as before): `pr77triage.e5join@example.com` (joined C1d),
-  `pr77triage.g6refuse@example.com` (created then switched into C1c),
-  `version-check.session2@example.com` (unconfirmed, never used further). Same cleanup-decision
-  category as the six from last session, listed below.
+- Test accounts created this session (`pr77triage.e5join@example.com`, `pr77triage.g6refuse@example.com`,
+  `version-check.session2@example.com`) and all six from last session (`pr77triage.c1`–`c1e`,
+  `join1`) — **all deleted** per Anthony's request, along with their households. Nothing test-related
+  left in Supabase from either session.
 - Committed: `21c4dee` (version rollback + HANDOFF update). All commits pushed? **Check before
   next session** — verify `git status` / `git push` if not already done.
 
@@ -191,8 +190,11 @@ update since none of these throwaway addresses can receive real confirmation ema
 | `pr77triage.c1e@example.com` | C1e Triage Household | Car Insurance $1,200 (yearly) | Used for items 2 (revisited) and 10 |
 | `pr77triage.join1@example.com` | none (orphaned membership under C1b) | — | Demonstrates the item-5 bug directly; still stuck on Onboarding |
 
-None of these have been deleted. Same category of cleanup as the entry below — Anthony to decide
-whether/when.
+**Deleted** in a later session (2026-08-03) per Anthony's request — all 5 households and all 6
+accounts, including `join1`'s orphaned membership. Verified beforehand that each household's
+member list was exactly these test accounts (no real users mixed in) and no `notifications` rows
+referenced them; deleted `households` first (cascades to members/bills/funds/paydays), then the
+`auth.users` rows.
 
 **Caveat, not a confirmed bug:** early on, `c1`'s onboarding appeared to skip the First Bill step
 entirely (dashboard showed "Fully Funded" / $0 — the 85-canary shape). Investigated by re-running
