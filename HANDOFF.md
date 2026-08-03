@@ -1,24 +1,47 @@
 # Handoff
 
-**Last updated:** 2026-08-01 (later session — #80 folded in, `pr-browser-triage` skill added)
+**Last updated:** 2026-08-03 (later session — `pr-browser-triage` skill run for real against
+PR #77, found a live join-by-code outage)
 **Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed, PR open.
 **App version:** `v0.9.8` on the branch (`v0.9.4` on `main`). Confirm the number with Anthony
 immediately before merging.
 
 ## → START HERE NEXT SESSION
 
-**First thing: run the new `pr-browser-triage` skill (`.claude/skills/pr-browser-triage/`)
-against PR #77 as its first real test.** Anthony is deliberately using this PR as the trial run
-rather than testing it separately. It was built this session but never executed — walk through it
-for real, and if the classification table, the approval gate, or the final report don't feel
-right, fix the skill before relying on it further. It explicitly does not touch GitHub (no
-ticking checklist items, no comments) — that stays manual regardless of what it finds.
+**Blocking finding, needs Anthony's decision before anything else: join-by-code is broken in
+production right now, and the fix already exists — it just isn't deployed.** Full writeup below
+under "`pr-browser-triage` run against PR #77 — trial results". Short version: the **deployed**
+`join-household` Supabase edge function is stale (version 1, never redeployed) and its insert
+omits `user_id` entirely. Every join-by-code — in prod, not just this branch — creates an orphaned
+`household_members` row the app can never recognize; the joining user is silently stuck on
+"create or join" forever, even after a full reload, with **no error shown**. The local repo's copy
+of `supabase/functions/join-household/index.ts` already has the correct insert (sets
+`user_id: user.id`, plus a client-side "claim orphaned record" recovery path in
+`AppContext.tsx`'s `joinHousehold`) — this is a **deploy gap, not a code bug**, and not something
+introduced by this branch.
 
-After that: Anthony does the remaining real-device pass on his iPhone (everything the skill
-correctly leaves as "real device only" — see checklist items 8, 9, 12, 13 in the canonical PR
-comment, plus anything WebKit/PWA-specific the skill's Partial bucket surfaces).
+**Ask Anthony:**
+1. OK to redeploy `join-household` now via `deploy_edge_function` (or `supabase functions deploy
+   join-household`)? This unblocks checklist items 6 and 7 below, which couldn't be tested because
+   they both depend on a working join.
+2. File this as its own GitHub issue, or fold the retest into PR #77 like #78/#79/#80 were?
+   It's unrelated to #75's actual diff but was found while testing it, same pattern as before.
+3. Six disposable Supabase test accounts/households from this session need a cleanup decision —
+   list is under "Test data created" below. Same category as the out-of-band cleanup entry further
+   down this file.
 
-**Nothing else is in flight. The tree is clean and compiles.**
+**The `pr-browser-triage` skill itself worked as designed** — no fixes needed to the skill based on
+this run. It classified all 14 checklist items, the approval gate held (nothing ran until Anthony
+said go), and it found a real, previously-unknown production bug rather than rubber-stamping a
+pass. Full classification table and per-item results are in the writeup below.
+
+After the join fix lands and items 6/7 are retested: Anthony still owes the real-device pass on his
+iPhone for everything the skill correctly left as "real device only" — checklist items 3, 3b, 8, 9,
+11, 12, 13 (sub-second visual flashes, DevTools-offline conditions, and the true force-close/
+relaunch semantic none of which a desktop Chromium tab can faithfully reproduce).
+
+**Nothing else is in flight. The tree is clean and compiles — this session found a bug, it didn't
+write any code.**
 
 [PR #77](https://github.com/mp3anthony/funded/pull/77) now closes #75, #78, #79, and #80, and is
 labelled `ready-for-testing`. It is **waiting on Anthony's hands-on device testing** — while
@@ -66,6 +89,96 @@ Branch is 13 commits ahead of `origin/main` and 0 behind, so no conflict is expe
 before merging in case `main` has moved since.
 
 Next after that: **`CHANGE-LOG.md` triage + the CRD interview** (bottom of this file).
+
+## `pr-browser-triage` run against PR #77 — trial results
+
+This was the skill's first real execution (built last session, never run). Source checklist: the
+[canonical PR comment](https://github.com/mp3anthony/funded/pull/77#issuecomment-5139199683), 14
+items, confirmed as superseding the PR body's checklist.
+
+**Classification** (by an independent sub-agent, reviewed and approved by the orchestrating
+session before anything executed — the approval-gate step worked correctly):
+
+| # | Item | Verdict | Why |
+|---|---|---|---|
+| 1 | Cold start, new user | Full | Plain form/DOM flow |
+| 2 | Warm reload | Full | Hard reload is a real reload in Chromium |
+| 3 | In-tab switch, B's household | Partial | "Not even one frame" is sub-second flash timing |
+| 3b | In-tab switch via `/login` | Partial | Same flash-timing issue as #3 |
+| 4 | In-tab switch, brand-new user | Full | Final state checkable via DOM/URL, no timing involved |
+| 5 | Join by code, new user | Full | Plain form flow |
+| 6 | Join by code, already has one | Full | Exact error text + resulting household readable from DOM |
+| 7 | Legitimate household switch | Full | Settings flow, readable end-state |
+| 8 | No empty-dashboard flash | Partial | Explicit sub-second flash, Anthony's own note says "screen-record it" |
+| 9 | Offline behaviour | Partial | No DevTools offline/throttle control in the browser tool |
+| 10 | Version string | Full | Trivial text read |
+| 11 | Onboarding + force-close/relaunch | Partial | A new tab is a degraded stand-in for true PWA process-kill semantics |
+| 12 | Save failure shown during onboarding | Partial | Needs offline, same gap as #9 |
+| 13 | Back button locked during save | Partial | Also needs offline |
+| 14 | First Bill saves on every frequency | Full | Pure form interaction × 4, fully scriptable |
+
+8 Full, 7 Partial (counting 3b separately), 0 Not-testable. Anthony approved running the 8 Full
+items.
+
+**Execution — all against a local `npm run dev` server (port 3000, config now saved at
+`.claude/launch.json`), using disposable Supabase test accounts rather than Anthony's real A/B
+accounts (no real credentials were available in-session, and using throwaways kept this run out of
+his real data):**
+
+| # | Item | Result | Evidence |
+|---|---|---|---|
+| 1 | Cold start, new user | ✅ Pass | Fresh signup → create household → completed clean, reached dashboard |
+| 2 | Warm reload | ✅ Pass | Hard reload kept household name + bill; landed on dashboard, no create/join flash |
+| 4 | In-tab switch, brand-new user | ✅ Pass | Sign-out → fresh signup, no reload → onboarding completed cleanly |
+| 10 | Version string | ✅ Pass | Settings reads exactly `funded. v0.9.8` |
+| 14 | First Bill saves on every frequency | ✅ Pass | Weekly/Fortnightly/Monthly/Yearly all saved correctly (lowercase values), confirmed directly against the `bills` table — no constraint error on any |
+| **5** | **Join by code, new user** | ❌ **Fail** | UI shows "Successfully Joined!" then dumps the user back on "create or join" — even after a full reload. Root cause below. |
+| 6 | Join by code, already has one | ⏸ Blocked | Depends on a working join |
+| 7 | Legitimate household switch | ⏸ Blocked | Same dependency |
+
+**Root cause of the item 5 failure** (confirmed directly in the database, not inferred): the
+**deployed** `join-household` edge function —
+
+```ts
+.insert({ household_id: household.id, name: userName, email: userEmail, role: "member", invitation_status: "accepted" })
+```
+
+— never sets `user_id`. Every join creates a `household_members` row with `user_id = null`.
+`loadData`'s STEP 1 query (`.eq('user_id', session.user.id)`) then correctly finds no membership,
+so the user lands back on Onboarding — permanently, since nothing about the state ever changes on
+retry. Confirmed via `mcp__bdb49bb0…__list_edge_functions` / `get_edge_function`: the deployed
+function is **version 1**, `created_at` equals `updated_at` — deployed exactly once, never updated
+since. The **local** repo's `supabase/functions/join-household/index.ts` already has the fix
+(`user_id: user.id` on insert, plus a "claim an unclaimed record" branch for the
+already-a-member case), and `AppContext.tsx`'s client-side `joinHousehold` already has its own
+matching fallback and recovery logic for the same case. The fix has clearly been written and
+committed at some point — it just was never pushed with `supabase functions deploy`. This
+predates and is unrelated to the #75/#77 diff; it was only surfaced by actually exercising the
+join flow end-to-end, which no prior manual pass had done because Anthony's real test accounts
+(A/B) already have households and never route through the "brand-new user joins" path.
+
+**Test data created this session** (all disposable, all confirmed via SQL `email_confirmed_at`
+update since none of these throwaway addresses can receive real confirmation emails):
+
+| Email | Household | Bill (frequency) | Notes |
+|---|---|---|---|
+| `pr77triage.c1@example.com` | C1 Triage Household | none | Payday saved, bill step didn't save — see caveat below, not treated as a real bug |
+| `pr77triage.c1b@example.com` | C1b Triage Household | Rent $400 (weekly) | Used for item 2 (reload) |
+| `pr77triage.c1c@example.com` | C1c Triage Household | Internet $80 (fortnightly) | Used for item 4 (in-tab switch) |
+| `pr77triage.c1d@example.com` | C1d Triage Household | Gym $60 (monthly) | |
+| `pr77triage.c1e@example.com` | C1e Triage Household | Car Insurance $1,200 (yearly) | Used for items 2 (revisited) and 10 |
+| `pr77triage.join1@example.com` | none (orphaned membership under C1b) | — | Demonstrates the item-5 bug directly; still stuck on Onboarding |
+
+None of these have been deleted. Same category of cleanup as the entry below — Anthony to decide
+whether/when.
+
+**Caveat, not a confirmed bug:** early on, `c1`'s onboarding appeared to skip the First Bill step
+entirely (dashboard showed "Fully Funded" / $0 — the 85-canary shape). Investigated by re-running
+the identical flow slower, one action at a time instead of batching tool calls right after a page
+transition — it completed cleanly every time afterward (`c1b` through `c1e` all worked). Treating
+the `c1` incident as an artifact of firing browser-automation calls too fast against an
+in-flight page transition, not a product defect. Flagging for visibility only; if it ever
+resurfaces from a real user doing something unusually fast, it may be worth a second look.
 
 ## Out-of-band: Supabase test-user cleanup (this session, unrelated to #75/#77)
 
@@ -287,6 +400,14 @@ schedules the cron `0 20 * * *` = 20:00 **UTC** ≈ 6am Sydney; Vercel crons are
 only lands if a live `push_subscriptions` row exists, so if permission was never granted or iOS
 expired the subscription, the cron delivers nothing silently. **Anthony to decide: own issue, or
 folds into the notifications CRD.**
+
+**Join-by-code is broken in production — diagnosed, still NOT filed.** Found this session via
+`pr-browser-triage` against PR #77. The deployed `join-household` edge function never got
+redeployed after a fix that already exists in the local repo — see the full writeup above under
+"`pr-browser-triage` run against PR #77 — trial results". Every real join-by-code right now
+creates an orphaned membership row with no visible error; the user is stuck on Onboarding forever.
+The fix is a redeploy, not new code. **Anthony to decide: redeploy now, own issue, or fold into
+PR #77's retest of checklist items 6/7.**
 
 ## `SPEC.md` Part A at a glance
 
