@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useApp } from "@/context/AppContext";
+import { useApp, useCurrentUser } from "@/context/AppContext";
 import { supabase } from "@/lib/supabase";
 import { Clock } from "lucide-react";
 import {
@@ -22,7 +22,8 @@ import JoinHouseholdSheet from "./JoinHouseholdSheet";
 const TOTAL_STEPS = 5;
 
 export default function Onboarding() {
-  const { addPayday, addBill, completeOnboarding, createHousehold, updateHouseholdPaymentMode, session, joinHousehold } = useApp();
+  const { addPaySchedule, addBill, completeOnboarding, createHousehold, updateHouseholdPaymentMode, session, joinHousehold } = useApp();
+  const currentUser = useCurrentUser();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
@@ -81,10 +82,12 @@ export default function Onboarding() {
       setIsSaving(true);
       setStepError(null);
       try {
-        await addPayday({
-          id: Date.now(),
-          date: paydayDate,
+        await addPaySchedule({
+          member_id: String(currentUser.id),
+          frequency: "monthly",
+          is_fixed_amount: true,
           amount: parseFloat(payAmount),
+          next_pay_date: paydayDate,
         });
       } catch (err: any) {
         setStepError(err.message || String(err));
