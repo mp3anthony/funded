@@ -163,9 +163,9 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
   // home screen (see #49). isDataLoading now starts true (#73), so on the
   // cold-open path this gate stays shut until loadData has actually run.
   // That is NOT the same as "the gate only opens on a determined result":
-  // loadData also clears isDataLoading on its failure paths — households fetch
-  // error (AppContext.tsx:827), the catch via finally (:881) — and when auth
-  // resolved with no session (:795). So two routes reach this screen: a
+  // loadData also clears isDataLoading on its failure paths — membership error
+  // (AppContext.tsx:916), households error (:944), the catch via finally (:968)
+  // — and when auth resolved with no session (:879). Two routes reach here: a
   // genuinely not-onboarded user, whose loadData found no household membership;
   // and an already-onboarded user hitting a transient membership/household
   // error, which is a pre-existing #49-shaped hazard this gate does not fix.

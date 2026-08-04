@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { CheckCircle, Clock, AlertCircle, Plane, Shield, Car, PiggyBank, Home, BookOpen, CreditCard, TrendingUp, HelpCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { type Session } from "@supabase/supabase-js";
@@ -706,6 +706,28 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [isJointFund, setIsJointFund] = useState(false);
   const [joinCode, setJoinCode] = useState<string | null>(null);
   const [codeExpiresAt, setCodeExpiresAt] = useState<string | null>(null);
+  // Sticky record of WHICH user we have positively identified a household for
+  // this session — the user's id, not a bare boolean. A ref, not derived state,
+  // because the async functions that need it (loadData, createHousehold,
+  // joinHousehold, ensureHousehold) close over the render that scheduled them
+  // and cannot observe setState calls made since — including their own. Used to
+  // keep a *failed* query from clearing isOnboarded, which is what opens the #75
+  // item 3 trap door: an already-onboarded user shown "create or join", who can
+  // then create or join a second household and lock themselves out of their real
+  // data.
+  //
+  // Keyed by user id because it must not survive a user switch. The installed
+  // auth-js (2.108.2) emits only SIGNED_IN for signInWithPassword — no
+  // SIGNED_OUT first — and /login is reachable while already signed in, so user
+  // B can arrive with no null-session tick at all: loadData's no-session branch
+  // never runs, and a bare boolean would still read true. B's membership query
+  // then erroring would be read as "B is already onboarded", leaving isOnboarded
+  // true over user A's dbHouseholdId, household name and data arrays — B looking
+  // at A's dashboard. AppProvider never unmounts across sign-out/sign-in (both
+  // are client-side router navigations, no page reload), so none of that state
+  // is cleared for us. A user-id mismatch therefore counts as "unknown".
+  // Cleared on sign-out (see loadData's no-session branch).
+  const resolvedHouseholdUserIdRef = useRef<string | null>(null);
 
   /* ── Auth ────────────────────────────────── */
   const [session, setSession] = useState<Session | null>(initialSession);
@@ -725,24 +747,79 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // "already loaded" is never a legitimate starting assumption.
   const [isDataLoading, setIsDataLoading] = useState(true);
 
+  // Mirrors of the two values the loadData effect below depends on, as of the
+  // last time an auth callback dispatched them. Both auth callbacks fire outside
+  // React's render cycle from an effect with an empty dependency array, so they
+  // cannot read the live state (their closure is frozen at mount) — and they
+  // need to know whether the state change they are about to make will actually
+  // re-run that effect. See willRunLoadData below for why that matters (#75).
+  const lastDispatchedSessionRef = useRef<Session | null>(initialSession);
+  const isAuthLoadingRef = useRef(!initialSession);
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Auth useEffect - getSession result:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
-      setSession(session);
-      setIsAuthLoading(false);
-      // Mark data as loading in the same batch as the session resolving, so the
-      // very first render after auth knows "session found, data not yet checked".
-      // Without this, isDataLoading stays false until loadData runs one render
-      // later, and AppShell's Onboarding gate briefly wins the gap — the
-      // cold-start "create or join" flash (see #49). Only when a session exists;
-      // a null session must stay non-loading so the login redirect still fires.
-      if (session) setIsDataLoading(true);
-    });
+    // Raising isDataLoading is only safe when loadData is guaranteed to run and
+    // clear it again. The auth callbacks do NOT run loadData themselves; the
+    // effect below does, and it re-runs only when one of its dependencies
+    // changes identity — a genuinely new session object, or isAuthLoading
+    // flipping. supabase-js can emit a repeated INITIAL_SESSION / SIGNED_IN
+    // carrying the SAME session object; setSession then bails out (Object.is),
+    // isAuthLoading is already false, so the effect never re-fires and a raised
+    // flag is never cleared — a permanent full-screen wheel, since isDataLoading
+    // initialises true (#73) and AppShell's gate (src/components/AppShell.tsx:172,
+    // :182) is the app's only loading gate. This predicate is checked BEFORE the
+    // refs are updated, so it compares against what React currently holds.
+    // Deliberately narrow: it changes only *whether the flag is raised*, never
+    // when or how loadData is triggered (#75 item 1).
+    const willRunLoadData = (session: Session | null) =>
+      isAuthLoadingRef.current || lastDispatchedSessionRef.current !== session;
+
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        console.log('Auth useEffect - getSession result:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
+        const loadDataWillRun = willRunLoadData(session);
+        lastDispatchedSessionRef.current = session;
+        isAuthLoadingRef.current = false;
+        setSession(session);
+        setIsAuthLoading(false);
+        // Mark data as loading in the same batch as the session resolving, so the
+        // very first render after auth knows "session found, data not yet checked".
+        // Without this, isDataLoading stays false until loadData runs one render
+        // later, and AppShell's Onboarding gate briefly wins the gap — the
+        // cold-start "create or join" flash (see #49). Only when a session exists;
+        // a null session must stay non-loading so the login redirect still fires.
+        if (session && loadDataWillRun) setIsDataLoading(true);
+      })
+      .catch((err) => {
+        // getSession() reads from storage and can reject (corrupt/blocked local
+        // storage, a failed refresh round-trip). Unhandled, the rejection meant
+        // setIsAuthLoading(false) never ran, so isDataLoading — true from mount
+        // since #73 — never cleared: a permanent wheel, and AppShell never got
+        // far enough for the /login redirect to fire (#75 item 2).
+        console.error('[AppContext] auth.getSession() rejected:', err);
+
+        // If onAuthStateChange has already delivered a real session, it owns the
+        // auth state. Don't sign a working app out just because this parallel
+        // read failed — that path has already cleared isAuthLoading and will
+        // have raised/cleared isDataLoading correctly.
+        if (lastDispatchedSessionRef.current) return;
+
+        // Otherwise settle on a coherent "no session" state: auth resolved, no
+        // data to load. That is what AppShell's gate needs to stop showing the
+        // wheel and let the /login redirect happen.
+        isAuthLoadingRef.current = false;
+        setSession(null);
+        setIsAuthLoading(false);
+        setIsDataLoading(false);
+      });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth useEffect - onAuthStateChange event:', _event, 'session:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
+      const loadDataWillRun = willRunLoadData(session);
+      lastDispatchedSessionRef.current = session;
+      isAuthLoadingRef.current = false;
       setSession(session);
       setIsAuthLoading(false);
       // Only "session just established" events should enter the loading state.
@@ -752,7 +829,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // every session change. Mirror the codebase's existing convention that
       // treats INITIAL_SESSION and SIGNED_IN as the authoritative signals
       // (see src/app/auth/callback/page.tsx).
-      if (session && (_event === "INITIAL_SESSION" || _event === "SIGNED_IN")) {
+      // loadDataWillRun is the #75 item 1 guard: a repeated INITIAL_SESSION /
+      // SIGNED_IN carrying the same session object raises nothing, because
+      // nothing would come along to lower it.
+      if (session && (_event === "INITIAL_SESSION" || _event === "SIGNED_IN") && loadDataWillRun) {
         setIsDataLoading(true);
       }
     });
@@ -784,6 +864,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function loadData() {
     if (isAuthLoading || !session?.user) {
       console.log('loadData skipped - isAuthLoading:', isAuthLoading, 'session:', session ? 'exists' : 'null');
+      // No session means signed out (or never signed in): forget any household
+      // we had resolved, so the next user through doesn't inherit this one's
+      // "already onboarded" knowledge.
+      if (!isAuthLoading) resolvedHouseholdUserIdRef.current = null;
       setIsOnboarded(false);
       // Only clear the loading flag once auth has actually resolved. This effect
       // also fires on mount while isAuthLoading is still true; clearing it there
@@ -799,6 +883,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsDataLoading(true);
     }
     console.log('loadData running with authenticated session, user:', session.user.id);
+    // Do we already know THIS user has a household? Declared outside the try so
+    // the catch below can see it too. Deliberately consults only the user-keyed
+    // ref: isOnboarded and dbHouseholdId are not user-scoped and are never reset,
+    // so after a same-tab user switch they still hold the *previous* user's
+    // values — exactly the evidence this guard must not trust (see
+    // resolvedHouseholdUserIdRef's declaration). A same-user warm reload still
+    // matches its own id, so a transient error there keeps every loaded value in
+    // place, which is the whole point of the guard.
+    const knownOnboarded = resolvedHouseholdUserIdRef.current === session.user.id;
     try {
       // STEP 1: Get ONLY the household_id from membership (no nested join!)
       const { data: membership, error: memError } = await supabase
@@ -807,8 +900,28 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .eq('user_id', session.user.id)
         .maybeSingle();
 
-      if (memError || !membership?.household_id) {
+      // A failed query and a successful-but-empty one are NOT the same answer,
+      // and collapsing them is the root of #75 item 3. "The request errored"
+      // says nothing about whether a household exists; clearing isOnboarded on
+      // it hands an already-onboarded user to AppShell's Onboarding gate, where
+      // creating or joining produces a second household_members row. That row is
+      // fatal: this very query is .maybeSingle(), which errors (PGRST116) on
+      // more than one row, so every later load fails and the user's real bills,
+      // funds and paydays are stranded under the original household_id with no
+      // way back. So on an error for a user we already know is onboarded, leave
+      // every piece of loaded state exactly as it is and just stop loading.
+      if (memError) {
+        console.error('[loadData] Household membership query failed:', memError);
+        if (!knownOnboarded) setIsOnboarded(false);
+        setIsDataLoading(false);
+        return;
+      }
+
+      if (!membership?.household_id) {
+        // Successful query, no membership row — the one result that genuinely
+        // means "this user has no household yet".
         console.log('[loadData] No active household membership or user has no household yet');
+        resolvedHouseholdUserIdRef.current = null;
         setIsOnboarded(false);
         setIsDataLoading(false);
         return;
@@ -821,14 +934,19 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .eq('id', membership.household_id)
         .single();
 
+      // Same reasoning as STEP 1. Note there is no "successful but empty" case
+      // to separate out here: .single() reports zero rows AS an error, and we
+      // already hold a household_id that a membership row points at, so a
+      // failure here is a fetch problem rather than evidence of no household.
       if (hhError || !household) {
         console.error('[loadData] Failed to fetch household details:', hhError);
-        setIsOnboarded(false);
+        if (!knownOnboarded) setIsOnboarded(false);
         setIsDataLoading(false);
         return;
       }
 
       console.log('loadData - found household:', household.id, household.name, household.is_joint_fund);
+      resolvedHouseholdUserIdRef.current = session.user.id;
       setDbHouseholdId(household.id);
       setHouseholdNameState(household.name);
       setIsJointFund(!!household.is_joint_fund);
@@ -837,46 +955,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsOnboarded(true);
 
       // Fetch related data
-      const [billsRes, fundsRes, paydaysRes, membersRes, billSplitsRes] = await Promise.all([
-        supabase.from("bills").select("*").eq("household_id", household.id),
-        supabase.from("funds").select("*").eq("household_id", household.id),
-        supabase.from("paydays").select("*").eq("household_id", household.id),
-        supabase.from("household_members").select("*").eq("household_id", household.id),
-        supabase.from("bill_splits").select("*"),
-      ]);
-
-      if (billsRes.data) {
-        setBills(billsRes.data.map(mapBillFromDb));
-      }
-      if (fundsRes.data) {
-        setFunds(fundsRes.data.map(mapFundFromDb));
-      }
-      if (paydaysRes.data) {
-        setPaydays(paydaysRes.data.map(mapPaydayFromDb));
-      }
-
-      let loadedMembers: Member[] = [];
-      if (membersRes.data) {
-        loadedMembers = membersRes.data.map(mapMemberFromDb);
-      }
-      setMembers(loadedMembers);
-
-      if (billSplitsRes.data) {
-        // Filter bill splits locally to only load splits for current household's bills
-        const billIds = new Set((billsRes.data || []).map(b => b.id));
-        setBillSplits(billSplitsRes.data.filter((split: any) => billIds.has(split.bill_id)));
-      }
-
-      // Fetch payday schedule, history, contributions, and rules
-      await Promise.all([
-        fetchPayData(household.id),
-        fetchHouseholdContributions(household.id),
-        fetchContributionRules(household.id),
-        fetchNotifications(session.user.id, household.id)
-      ]);
+      await loadHouseholdRelatedData(household.id, session.user.id);
     } catch (err) {
       console.error('[loadData] Failed loading all household data:', err);
-      setIsOnboarded(false);
+      // A thrown request (network drop mid-load) is the same class of evidence
+      // as the query errors handled above: it does not mean "no household".
+      // Re-read the ref rather than reusing knownOnboarded — STEP 2 may have set
+      // it since, and if the throw came from the related-data fetches we have
+      // already positively identified the household.
+      if (resolvedHouseholdUserIdRef.current !== session.user.id && !knownOnboarded) setIsOnboarded(false);
     } finally {
       setIsDataLoading(false);
     }
@@ -885,6 +972,60 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   useEffect(() => {
     loadData();
   }, [isAuthLoading, session]);
+
+  /* ── Load a Known Household's Related Data ──── */
+  // Everything loadData does AFTER it has positively identified the household:
+  // the related-data fan-out, by household id. Extracted so the createHousehold
+  // and joinHousehold adopt paths — which already hold a verified household id —
+  // can hydrate directly instead of calling loadData(). Routing them through
+  // loadData meant re-running its membership .maybeSingle(), and if that failed
+  // again (the very failure that put the user on "create or join" in the first
+  // place) it returned early with the resolution ref now set: isOnboarded stayed
+  // true, isDataLoading cleared, and the dashboard rendered with bills, funds,
+  // paydays and members all still [] — which computes to exactly 85 in
+  // calculateHealthScore and displays "Fully Funded" (#73's false positive).
+  //
+  // Takes userId explicitly rather than reading session: the adopt paths get a
+  // fresher user from supabase.auth.getSession() than this render's closure.
+  async function loadHouseholdRelatedData(householdId: string, userId: string) {
+    const [billsRes, fundsRes, paydaysRes, membersRes, billSplitsRes] = await Promise.all([
+      supabase.from("bills").select("*").eq("household_id", householdId),
+      supabase.from("funds").select("*").eq("household_id", householdId),
+      supabase.from("paydays").select("*").eq("household_id", householdId),
+      supabase.from("household_members").select("*").eq("household_id", householdId),
+      supabase.from("bill_splits").select("*"),
+    ]);
+
+    if (billsRes.data) {
+      setBills(billsRes.data.map(mapBillFromDb));
+    }
+    if (fundsRes.data) {
+      setFunds(fundsRes.data.map(mapFundFromDb));
+    }
+    if (paydaysRes.data) {
+      setPaydays(paydaysRes.data.map(mapPaydayFromDb));
+    }
+
+    let loadedMembers: Member[] = [];
+    if (membersRes.data) {
+      loadedMembers = membersRes.data.map(mapMemberFromDb);
+    }
+    setMembers(loadedMembers);
+
+    if (billSplitsRes.data) {
+      // Filter bill splits locally to only load splits for current household's bills
+      const billIds = new Set((billsRes.data || []).map(b => b.id));
+      setBillSplits(billSplitsRes.data.filter((split: any) => billIds.has(split.bill_id)));
+    }
+
+    // Fetch payday schedule, history, contributions, and rules
+    await Promise.all([
+      fetchPayData(householdId),
+      fetchHouseholdContributions(householdId),
+      fetchContributionRules(householdId),
+      fetchNotifications(userId, householdId)
+    ]);
+  }
 
   /* ── Fetch Pay Data ─────────────────────────── */
   async function fetchPayData(householdId?: string) {
@@ -912,21 +1053,68 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function ensureHousehold(): Promise<string> {
     if (dbHouseholdId) return dbHouseholdId;
 
-    const { data: households } = await supabase
-      .from("households")
-      .select("id, name")
-      .limit(1);
-
-    if (households && households.length > 0) {
-      setDbHouseholdId(households[0].id);
-      setHouseholdNameState(households[0].name);
-      return households[0].id;
-    }
-
-    const nameToUse = householdName.trim() || "My Household";
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const userIdToUse = currentSession?.user?.id;
     console.log('ensureHousehold - currentSession:', currentSession ? 'exists' : 'null', 'userIdToUse:', userIdToUse);
+
+    // #75 item 3, door 3 — the same trap door as createHousehold and
+    // joinHousehold, reached from ~14 write paths (addBill, addFund, …). This
+    // used to select the first household RLS would hand back and, if that came
+    // back empty *or errored* (the error was discarded), insert a fresh
+    // household AND a household_members row with no membership check at all.
+    // Same fatal outcome: a second household_members row makes loadData's STEP 1
+    // .maybeSingle() error (PGRST116) on every later load, so the user's real
+    // bills, funds and paydays are stranded under the original household_id with
+    // no way back. The early return on dbHouseholdId above is not a membership
+    // check — dbHouseholdId is never reset to null anywhere, so it is stale after
+    // a same-tab user switch, and it is null on precisely the path that matters
+    // (a wrongly-shown "create or join" screen after a failed membership query).
+    if (userIdToUse) {
+      const { data: existingMembership, error: membershipError } = await supabase
+        .from("household_members")
+        .select("household_id")
+        .eq("user_id", userIdToUse)
+        // .limit(1) before .maybeSingle() on purpose: a plain .maybeSingle()
+        // errors on multiple rows, which would blind this guard in exactly the
+        // already-duplicated state where it matters most. The .order() makes the
+        // pick deterministic (oldest membership = the original household) rather
+        // than whichever row Postgres happens to return first.
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (membershipError) {
+        // Can't tell whether they already belong somewhere. Refuse rather than
+        // insert on a guess: every caller surfaces a thrown error and the write
+        // can be retried, whereas a duplicate membership row cannot be undone
+        // from the client.
+        console.error('[ensureHousehold] Existing membership check failed:', JSON.stringify(membershipError, null, 2));
+        throw new Error("Couldn't check your existing household. Please check your connection and try again.");
+      }
+
+      if (existingMembership?.household_id) {
+        const { data: existing, error: existingError } = await supabase
+          .from("households")
+          .select("id, name")
+          .eq("id", existingMembership.household_id)
+          .maybeSingle();
+
+        if (existingError || !existing) {
+          // A membership row we could read implies a household we can read
+          // (households RLS is membership-based), so this is a fetch problem.
+          // Don't fall through to the insert — that is the duplicate-row path.
+          console.error('[ensureHousehold] Failed to load the household this user already belongs to:', JSON.stringify(existingError, null, 2));
+          throw new Error("Couldn't open your existing household. Please check your connection and try again.");
+        }
+
+        resolvedHouseholdUserIdRef.current = userIdToUse;
+        setDbHouseholdId(existing.id);
+        setHouseholdNameState(existing.name);
+        return existing.id;
+      }
+    }
+
+    const nameToUse = householdName.trim() || "My Household";
 
     const insertData: any = { name: nameToUse, is_joint_fund: false };
     if (userIdToUse) {
@@ -965,6 +1153,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newMember) {
         setMembers([mapMemberFromDb(newMember)]);
       }
+      // A membership row now exists for this user, so a later query failure must
+      // not clear isOnboarded and route them to "create or join" (#75 item 3).
+      resolvedHouseholdUserIdRef.current = currentSession.user.id;
     }
 
     return newHousehold.id;
@@ -986,6 +1177,145 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (!name || name.trim() === '') {
         throw new Error('Pre-insert validation failed: Household name is required.');
+      }
+
+      // #75 item 3, door 1: never create a second household for a user who
+      // already belongs to one. Reaching this function does not prove the user
+      // is new — a transient membership-query failure in loadData can route an
+      // already-onboarded user to AppShell's Onboarding gate, and Onboarding
+      // step 1 calls this function directly (src/components/Onboarding.tsx:54).
+      // Nothing else stops it: households INSERT is WITH CHECK true,
+      // household_members INSERT is WITH CHECK true, and there is no unique
+      // index on household_members.user_id (a constraint was deliberately
+      // deferred pending the multi-household question — see #75). The second
+      // membership row is what actually breaks the account: loadData's STEP 1 is
+      // .maybeSingle(), which errors on more than one row, so every subsequent
+      // load fails forever and the real data is unreachable. The sibling helper
+      // ensureHousehold() runs its own equivalent membership check (:1072-1115),
+      // but Onboarding bypasses that function entirely by calling here.
+      //
+      // Deliberately does NOT seed from dbHouseholdId. That state is never reset
+      // to null anywhere, and AppProvider never unmounts across sign-out/sign-in,
+      // so after a same-tab user switch it still holds the PREVIOUS user's
+      // household id. Seeding from it skipped this query altogether and sent user
+      // B down the adopt branch below pointed at user A's household — which B has
+      // no membership for, so the households lookup returns nothing, B is bounced
+      // back to Onboarding step 1, and because the function still returned an id
+      // no error is shown. Every retry repeats it and B can never onboard. Always
+      // ask the database about activeUser.id instead.
+      const { data: existingMembership, error: membershipError } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('user_id', activeUser.id)
+        // .limit(1) before .maybeSingle() on purpose: a plain .maybeSingle()
+        // errors on multiple rows, which would blind this guard in exactly the
+        // already-duplicated state where it matters most. The .order() makes the
+        // pick deterministic (oldest membership = the original household) rather
+        // than whichever row Postgres happens to return first.
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (membershipError) {
+        // Can't tell whether they already have a household. Refuse rather than
+        // guess: Onboarding surfaces this message and the user can retry, which
+        // is recoverable. Creating on a guess is not.
+        console.error('[createHousehold] Existing membership check failed:', JSON.stringify(membershipError, null, 2));
+        throw new Error("Couldn't check your existing household. Please check your connection and try again.");
+      }
+
+      const existingHouseholdId = existingMembership?.household_id ?? null;
+
+      if (existingHouseholdId) {
+        console.warn('[createHousehold] User already belongs to household', existingHouseholdId, '— adopting it instead of creating a second one');
+        // Adopt, don't no-op: Onboarding awaits this and advances its wizard on
+        // success, and setIsOnboarded(true) drops AppShell's Onboarding gate
+        // altogether, so the user lands in their real household rather than
+        // sitting on a screen that silently did nothing.
+        const { data: existing, error: existingError } = await supabase
+          .from('households')
+          .select('id, name, join_code, code_expires_at, is_joint_fund')
+          .eq('id', existingHouseholdId)
+          .maybeSingle();
+
+        if (existingError || !existing) {
+          // Same reasoning as ensureHousehold's equivalent branch: a membership
+          // row we could read implies a household we can read (households RLS is
+          // membership-based), so this is a fetch problem, not evidence the
+          // household is gone. Discarding this error let the adopt path "succeed"
+          // with no name, no join code and no data while still returning an id —
+          // Onboarding advanced, AppShell bounced the user straight back to step
+          // 1, and nothing explained why. Throw instead: Onboarding catches and
+          // renders the message (src/components/Onboarding.tsx:55-58) so the user
+          // can retry.
+          console.error('[createHousehold] Failed to load the household this user already belongs to:', JSON.stringify(existingError, null, 2));
+          throw new Error("Couldn't open your existing household. Please check your connection and try again.");
+        }
+
+        // Hydrate bills/funds/paydays/members for the adopted household — unlike
+        // the create path below, this household is not empty. Call the helper
+        // directly rather than loadData(): loadData would re-run its membership
+        // .maybeSingle(), and if that failed again — the very failure that put
+        // the user on "create or join" in the first place — it returns early and
+        // we would be back to rendering the dashboard on empty arrays.
+        //
+        // Hydrate BEFORE committing any household state, and reveal the dashboard
+        // only once the data is actually in state. Two reasons, both #73-shaped:
+        //
+        // 1. The 85 canary. setIsOnboarded(true) followed by an await flushes
+        //    that batch mid-flight, and at that moment isDataLoading is false —
+        //    loadData cleared it (:916/:944) when it routed this user to
+        //    Onboarding, and nothing raises it again (loadData's own raise at
+        //    :882 is skipped once dbHouseholdId and isOnboarded are both truthy).
+        //    AppShell's gates therefore opened over bills/funds/paydays/members
+        //    still [], which computes to exactly 85 in calculateHealthScore
+        //    (src/lib/utils.ts:88) and clears the >= 80 "Fully Funded" threshold
+        //    (src/components/HealthScoreCard.tsx:34). Committing after the await
+        //    removes the window outright instead of covering it with a wheel.
+        //
+        // 2. loadHouseholdRelatedData has no try/catch and its Promise.all
+        //    propagates, so hydration CAN throw. Committing first made that
+        //    failure permanent: onboarded, empty arrays, and nothing re-runs
+        //    loadData (session and isAuthLoading are unchanged). Committing after
+        //    does NOT make a failed hydration side-effect-free — the helper's
+        //    first Promise.all (:991) can resolve and commit bills, funds,
+        //    paydays, members and billSplits before the second (:1022) rejects.
+        //    What it does guarantee is that none of the HOUSEHOLD state is
+        //    committed: dbHouseholdId, resolvedHouseholdUserIdRef and isOnboarded
+        //    are all untouched. Those three are what gate everything, so
+        //    Onboarding is still mounted (isOnboarded never flipped) and its
+        //    catch renders the message (src/components/Onboarding.tsx:55-58) on a
+        //    live component, and the retry re-runs the membership check from a
+        //    clean slate. Leaving dbHouseholdId and the ref set after a failed
+        //    hydration would also hand joinHousehold's door-2 guard a "trusted
+        //    household" with no members list behind it.
+        //
+        // The old "set the ref before hydrating so loadData's guards keep the
+        // user here" reasoning is obsolete: hydration no longer goes through
+        // loadData, and loadHouseholdRelatedData touches neither the ref nor
+        // isOnboarded.
+        //
+        // Deliberately does NOT raise isDataLoading first. AppShell's Onboarding
+        // gate is `!isOnboarded && !isDataLoading`
+        // (src/components/AppShell.tsx:172), so raising it would unmount
+        // Onboarding mid-hydration and destroy the very error state the failure
+        // path needs to display. isOnboarded staying false already holds the
+        // dashboard back. The finally still clears the flag unconditionally so
+        // neither path can leave the gate raised (#73's permanent wheel).
+        try {
+          await loadHouseholdRelatedData(existing.id, activeUser.id);
+
+          resolvedHouseholdUserIdRef.current = activeUser.id;
+          setDbHouseholdId(existing.id);
+          setHouseholdNameState(existing.name);
+          setIsJointFund(!!existing.is_joint_fund);
+          setJoinCode(existing.join_code || null);
+          setCodeExpiresAt(existing.code_expires_at || null);
+          setIsOnboarded(true);
+        } finally {
+          setIsDataLoading(false);
+        }
+        return existing.id;
       }
 
       // Verify the session user actually exists in auth.users via standard auth service
@@ -1052,7 +1382,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newMember) {
         setMembers([mapMemberFromDb(newMember)]);
       }
-      setIsOnboarded(true);
+      // This user now demonstrably has a household, so a later query failure
+      // must not clear isOnboarded and send them back here (#75 item 3).
+      resolvedHouseholdUserIdRef.current = activeUser.id;
+      // Do NOT setIsOnboarded(true) here — that would unmount the onboarding
+      // wizard mid-flow (#78). completeOnboarding() on step 5's "Enter App" is
+      // the only thing that should flip this.
 
       return household.id;
 
@@ -1300,7 +1635,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating household payment mode:", error);
-        return;
+        throw error;
       }
 
       setIsJointFund(jointFundVal);
@@ -1310,6 +1645,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update payment mode:", err);
+      throw err;
     }
   }
 
@@ -1664,7 +2000,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error inserting payday:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -1672,6 +2008,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to add payday:", err);
+      throw err;
     }
   }
 
@@ -1752,6 +2089,166 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function joinHousehold(code: string) {
     const sanitizedCode = code.trim().toUpperCase();
+
+    // #75 item 3, door 2. Deliberately runs BEFORE the backupState/try block
+    // below: that block's catch rolls every household field back to the cached
+    // values, which would immediately undo the recovery this guard performs.
+    //
+    // The question this gate has to answer is "do we already hold a household id
+    // we can TRUST for THIS user?" — and the presence of dbHouseholdId cannot
+    // answer it. That value is never reset to null anywhere and AppProvider never
+    // unmounts across sign-out/sign-in (both are client-side router navigations,
+    // no page reload), so after a same-tab user switch it still holds the
+    // PREVIOUS user's household. Gating on mere presence therefore skipped this
+    // entire check for exactly the user who needed it: A uses the app, B signs in
+    // on the same tab (reachable — /login works while already signed in, and the
+    // installed auth-js emits only SIGNED_IN for signInWithPassword, so there
+    // need be no null-session tick at all), B's loadData membership query errors
+    // transiently and drops B on "create or join" with dbHouseholdId still A's.
+    // B joins, the edge function adds a SECOND household_members row (it only
+    // checks membership within the household being joined, and there is no unique
+    // index on household_members.user_id), and step 2's cleanup below searches
+    // backupState.members — A's list — for B's email, finds nothing and cleans up
+    // nothing. B's real membership survives alongside the new one and loadData's
+    // .maybeSingle() then errors PGRST116 on every load, forever. Worse still, if
+    // B's email IS in A's member list with role "owner", step 2 cascade-deletes
+    // A's entire household.
+    //
+    // resolvedHouseholdUserIdRef is the user-scoped answer: it holds the id of
+    // the user we positively resolved a household for this session, is only ever
+    // set alongside setDbHouseholdId, and is cleared on sign-out (loadData's
+    // no-session branch). When it matches the current user, dbHouseholdId is
+    // genuinely theirs and joining another household is the supported switch —
+    // the guard steps aside and step 2 below removes the old household/membership
+    // as designed. When it does not match (stale from a previous user, or never
+    // resolved) we ask the database instead of guessing.
+    //
+    // Two paths this must not disturb: a genuinely new user has no membership row
+    // at all, so the query below finds nothing and the join proceeds untouched;
+    // and an invited user's unclaimed record has user_id = null, so it cannot
+    // match .eq('user_id', …) — the claim/recovery logic further down still runs.
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    const userId = currentSession?.user?.id || session?.user?.id;
+    const holdsTrustedHousehold =
+      !!dbHouseholdId && !!userId && resolvedHouseholdUserIdRef.current === userId;
+
+    if (userId && !holdsTrustedHousehold) {
+      // .limit(1) before .maybeSingle() so an already-duplicated user (who
+      // would make a bare .maybeSingle() error) is still detected. The
+      // .order() makes the pick deterministic (oldest membership = the
+      // original household) rather than whichever row Postgres happens to
+      // return first.
+      const { data: existingMembership, error: membershipError } = await supabase
+        .from("household_members")
+        .select("household_id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (membershipError) {
+        // Can't tell whether they already belong somewhere. Refuse; retrying is
+        // recoverable, a duplicate membership row is not.
+        console.error("[joinHousehold] Existing membership check failed:", membershipError);
+        throw new Error("Couldn't check your existing household. Please check your connection and try again.");
+      }
+
+      if (existingMembership?.household_id) {
+        console.warn("[joinHousehold] User already belongs to household", existingMembership.household_id, "— refusing join and restoring it");
+        const { data: existing, error: existingError } = await supabase
+          .from("households")
+          .select("id, name, join_code, code_expires_at, is_joint_fund")
+          .eq("id", existingMembership.household_id)
+          .maybeSingle();
+
+        if (existingError || !existing) {
+          // Same reasoning as ensureHousehold (:1102-1108) and createHousehold
+          // (:1241-1253): a membership row we could read implies a household we
+          // can read (households RLS is membership-based), so a failure here is
+          // a fetch problem, not evidence the household is gone.
+          //
+          // Throws BEFORE touching any state, and that ordering is the whole
+          // point. Two throws now leave this branch, but they are mutually
+          // exclusive — this one exits before the refusal throw below is
+          // reachable — and they must not be swapped. "We've reopened it"
+          // would be a lie here: nothing was reopened, and the honest advice is
+          // to retry. The refusal message is only true once the household has
+          // actually been hydrated.
+          //
+          // Committing dbHouseholdId and isOnboarded(true) regardless of the
+          // lookup is what made the old code incoherent: it dropped AppShell's
+          // Onboarding gate for a household with no name, no join code and no
+          // related data — the empty-arrays dashboard that computes to exactly
+          // 85 in calculateHealthScore and reads "Fully Funded" (#73). Leaving
+          // state untouched keeps the user where they were, which is also why
+          // this message is actually visible on the Onboarding path, unlike the
+          // refusal below.
+          //
+          // The join is still refused: throwing exits joinHousehold before the
+          // edge function is invoked, so no second household_members row can be
+          // created. Wording matches the sibling helpers and, like theirs,
+          // avoids JoinHouseholdSheet's "already a member" / "expired" /
+          // "Invalid" substring matches (src/components/JoinHouseholdSheet.tsx:76-84).
+          console.error("[joinHousehold] Failed to load the household this user already belongs to:", JSON.stringify(existingError, null, 2));
+          throw new Error("Couldn't open your existing household. Please check your connection and try again.");
+        }
+
+        // Hydrate first, commit second — the same ordering and for the same two
+        // reasons as createHousehold's adopt branch (:1255-1311). Briefly: a
+        // setIsOnboarded(true) before the await flushes mid-flight while
+        // isDataLoading is false, opening AppShell's gates over empty arrays,
+        // which computes to exactly 85 in calculateHealthScore
+        // (src/lib/utils.ts:88) and reads "Fully Funded"
+        // (src/components/HealthScoreCard.tsx:34); and loadHouseholdRelatedData
+        // can throw, which committing-first made permanent. Committing after does
+        // NOT make a failed hydration side-effect-free — the helper's first
+        // Promise.all (:991) can commit bills/funds/paydays/members/billSplits
+        // before the second (:1022) rejects. What it guarantees is that none of
+        // the household state is committed: dbHouseholdId,
+        // resolvedHouseholdUserIdRef and isOnboarded are untouched. Those three
+        // gate everything, so JoinHouseholdSheet is still mounted and its catch
+        // (src/components/JoinHouseholdSheet.tsx:73-84) shows the user what
+        // happened, and the retry starts from a clean slate.
+        //
+        // Leaving dbHouseholdId and the ref uncommitted on a failed hydration
+        // also matters here specifically: setting them would make the door-2 gate
+        // above read holdsTrustedHousehold === true on the retry, skipping the
+        // membership check and treating the next attempt as a supported switch —
+        // straight back into the duplicate-row hazard this guard exists to stop.
+        //
+        // Deliberately does NOT raise isDataLoading first: AppShell's Onboarding
+        // gate is `!isOnboarded && !isDataLoading`
+        // (src/components/AppShell.tsx:172), so raising it would unmount the
+        // sheet mid-hydration and swallow the error. The finally still clears the
+        // flag on both paths so neither can leave the gate raised.
+        try {
+          await loadHouseholdRelatedData(existing.id, userId);
+
+          resolvedHouseholdUserIdRef.current = userId;
+          setDbHouseholdId(existing.id);
+          setHouseholdNameState(existing.name);
+          setIsJointFund(!!existing.is_joint_fund);
+          setJoinCode(existing.join_code || null);
+          setCodeExpiresAt(existing.code_expires_at || null);
+          setIsOnboarded(true);
+        } finally {
+          setIsDataLoading(false);
+        }
+
+        // Throw rather than report success: we did not join the household they
+        // asked for. Reached only once the household above loaded AND hydrated
+        // cleanly, so "we've reopened it" is literally true — both failure cases
+        // threw their own, different messages earlier. The wording deliberately
+        // avoids JoinHouseholdSheet's "already a member" / "expired" / "Invalid"
+        // substring matches (src/components/JoinHouseholdSheet.tsx:76-84), which
+        // would otherwise rewrite it into a wrong explanation. That sheet only
+        // actually displays it on the Settings path; on the Onboarding path the
+        // setIsOnboarded(true) above unmounts the sheet before the throw lands,
+        // so the message is swallowed. Harmless — the user ends up in their real
+        // household either way — but don't rely on it being seen there.
+        throw new Error("You already belong to a household, so we've reopened it instead of joining a new one.");
+      }
+    }
 
     // Cache backup state for potential rollback on failure
     const backupState = {

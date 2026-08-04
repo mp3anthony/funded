@@ -25,6 +25,7 @@ The Orchestrator is your single point of contact, project manager, and the only 
 4. **Preview & Labeling Routing:** Code is pushed to a preview branch/environment, and the checklist is generated.
    * **If the change touches layout, styling, or platform-native behaviour that needs hands-on verification:** label **`needs-manual-test`** — pings you to verify on the relevant device/platform before merge.
    * **If the change is fully verifiable in-pipeline (no manual verification needed):** label **`needs-merge-approval`** — sub-agent team pre-ticks the checklist; you just give the go-ahead to merge.
+   * **Manual test checklist format (`needs-manual-test` only):** each scenario is a numbered item — a short bold title, then the exact setup steps, then one ✅ line stating the pass condition. Add a ❌ line only where there's a specific wrong-looking failure worth naming so you know it on sight (verbatim wording, an empty-state flash, a silent bounce-back). Call out explicitly any step that must happen without a reload / in a single tab / on a specific device — a fresh load can paper over the exact bug being tested.
 5. **Session Wrap-Up & Hand-Off:** When asked to wrap up or end the session, the orchestrator summarizes progress into a clean commit, updates the PR description, and updates a single root-level `HANDOFF.md` file — including exactly which ticket/section of `SPEC.md` was last active, so Step 0 of the next session can pick up without re-reading the whole spec.
 
 ---

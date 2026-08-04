@@ -27,6 +27,8 @@ export default function Onboarding() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [stepError, setStepError] = useState<string | null>(null);
 
   /* Step 1 — Welcome & Paths */
   const [localHouseholdName, setLocalHouseholdName] = useState("");
@@ -43,7 +45,7 @@ export default function Onboarding() {
   /* Step 4 — First Bill */
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
-  const [billFrequency, setBillFrequency] = useState("Monthly");
+  const [billFrequency, setBillFrequency] = useState("monthly");
 
   /* ── Navigation ─────────────────────────────── */
   async function handleNext() {
@@ -62,40 +64,71 @@ export default function Onboarding() {
     }
 
     if (currentStep === 2) {
-      updateHouseholdPaymentMode(paymentMode);
+      setIsSaving(true);
+      setStepError(null);
+      try {
+        await updateHouseholdPaymentMode(paymentMode);
+      } catch (err: any) {
+        setStepError(err.message || String(err));
+        setIsSaving(false);
+        return;
+      } finally {
+        setIsSaving(false);
+      }
     }
 
     if (currentStep === 3 && paydayDate && payAmount) {
-      addPayday({
-        id: Date.now(),
-        date: paydayDate,
-        amount: parseFloat(payAmount),
-      });
+      setIsSaving(true);
+      setStepError(null);
+      try {
+        await addPayday({
+          id: Date.now(),
+          date: paydayDate,
+          amount: parseFloat(payAmount),
+        });
+      } catch (err: any) {
+        setStepError(err.message || String(err));
+        setIsSaving(false);
+        return;
+      } finally {
+        setIsSaving(false);
+      }
     }
 
     if (currentStep === 4 && billName && billAmount) {
-      addBill({
-        id: Date.now(),
-        name: billName,
-        category: "Other",
-        dueDate: new Date().toLocaleDateString("en-US", {
-          month: "long",
-          day: "2-digit",
-          year: "numeric",
-        }),
-        amount: parseFloat(billAmount),
-        status: "Due Soon",
-        frequency: billFrequency,
-        statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
-        statusIcon: Clock,
-        categoryColor: "bg-secondary/10 text-secondary",
-      });
+      setIsSaving(true);
+      setStepError(null);
+      try {
+        await addBill({
+          id: Date.now(),
+          name: billName,
+          category: "Other",
+          dueDate: new Date().toLocaleDateString("en-US", {
+            month: "long",
+            day: "2-digit",
+            year: "numeric",
+          }),
+          amount: parseFloat(billAmount),
+          status: "Due Soon",
+          frequency: billFrequency,
+          statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+          statusIcon: Clock,
+          categoryColor: "bg-secondary/10 text-secondary",
+        });
+      } catch (err: any) {
+        setStepError(err.message || String(err));
+        setIsSaving(false);
+        return;
+      } finally {
+        setIsSaving(false);
+      }
     }
 
     setCurrentStep((s) => Math.min(s + 1, TOTAL_STEPS));
   }
 
   function handleBack() {
+    setStepError(null);
     setCurrentStep((s) => Math.max(s - 1, 1));
   }
 
@@ -272,6 +305,13 @@ export default function Onboarding() {
                   </p>
                 </div>
 
+                {stepError && (
+                  <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+                    <span className="font-bold">Failed to save:</span><br/>
+                    {stepError}
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {/* Direct Pay */}
                   <button
@@ -337,6 +377,12 @@ export default function Onboarding() {
                     When do you next get paid? We&apos;ll track it for you.
                   </p>
                 </div>
+                {stepError && (
+                  <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+                    <span className="font-bold">Failed to save:</span><br/>
+                    {stepError}
+                  </div>
+                )}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label
@@ -387,6 +433,12 @@ export default function Onboarding() {
                     Enter your first recurring bill so we can start tracking it.
                   </p>
                 </div>
+                {stepError && (
+                  <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+                    <span className="font-bold">Failed to save:</span><br/>
+                    {stepError}
+                  </div>
+                )}
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label
@@ -439,10 +491,10 @@ export default function Onboarding() {
                         onChange={(e) => setBillFrequency(e.target.value)}
                         className="w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
                       >
-                        <option value="Weekly">Weekly</option>
-                        <option value="Fortnightly">Fortnightly</option>
-                        <option value="Monthly">Monthly</option>
-                        <option value="Yearly">Yearly</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="fortnightly">Fortnightly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
                       </select>
                     </div>
                   </div>
@@ -505,7 +557,8 @@ export default function Onboarding() {
               {currentStep > 1 ? (
                 <button
                   onClick={handleBack}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-[2px] border border-border text-sm font-bold text-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer"
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-[2px] border border-border text-sm font-bold text-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back
@@ -516,10 +569,10 @@ export default function Onboarding() {
               {(currentStep > 1 || flowMode === "create") && (
                 <button
                   onClick={handleNext}
-                  disabled={!canProceed()}
+                  disabled={!canProceed() || isSaving}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-[2px] bg-primary text-primary-fg text-sm font-bold shadow-lg shadow-primary/25 hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 >
-                  Next
+                  {isSaving ? "Saving..." : "Next"}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               )}
