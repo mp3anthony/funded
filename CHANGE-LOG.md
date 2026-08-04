@@ -8,6 +8,6 @@ Format: `- YYYY-MM-DD — description — area — status: pending|triaged|rejec
 - 2026-07-30 — Bills vs Expenses split: "is this a bill or an expense?" choice on add, with expenses tracked separately from bills — bills data model + add/edit sheets — status: pending
 - 2026-07-30 — Dynamic visual overhaul: motion/animation and interactive design pass across the app — global UI/design system — status: pending
 - 2026-07-30 — Dashboard overhaul: replace the four static stat tiles (weekly income / weekly bills / joint fund surplus / total goals) with a swipeable dynamic gauge carrying the household-health rank colours — dashboard — status: pending
-- 2026-07-30 — Health score design question: should a household with no bills/goals/contributions set up score 85 ("Fully Funded")? Current formula says yes; may want a distinct "not set up yet" state — health score — status: pending
-- 2026-07-30 — Direct Pay mode behaviour unverified end-to-end; awaiting outsourced testers who use a direct-pay lifestyle before any rework is scoped — direct pay — status: pending
+- 2026-07-30 — Health score design question: should a household with no bills/goals/contributions set up score 85 ("Fully Funded")? Current formula says yes; may want a distinct "not set up yet" state — health score — status: triaged (filed as #87)
+- 2026-07-30 — Direct Pay mode behaviour unverified end-to-end; awaiting outsourced testers who use a direct-pay lifestyle before any rework is scoped — direct pay — status: triaged (filed as #88)
 

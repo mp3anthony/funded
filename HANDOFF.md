@@ -1,28 +1,86 @@
 # Handoff
 
-**Last updated:** 2026-08-05 — **PR #77 MERGED** (commit `41acb2d`, merge commit on `main`).
-Closes #75, #78, #79, #80 — #75 auto-closed on merge, #78/#79/#80 closed manually since GitHub
-didn't pick up the rest of the closing-keyword list. `v0.9.5` is now on `main`.
+**Last updated:** 2026-08-05 — **PR #86 MERGED**, closes #82 (payday persistence). `v0.9.5`
+stays on `main` (Anthony's explicit call — skipped the usual preview-build bump for this one).
+Session then did a full backlog recap + triage pass, filing every loose end that was floating
+outside GitHub. See "→ START HERE NEXT SESSION" below for what's left.
 
-## → START HERE NEXT SESSION — TOP PRIORITY: #82, payday persistence
+## → START HERE NEXT SESSION — CHANGE-LOG.md triage, 4 items need Anthony's input
 
-**[#82](https://github.com/mp3anthony/funded/issues/82) — payday entered during onboarding
-doesn't persist — is the very next thing to build.** Root cause already confirmed by reading
-code, not guessed: onboarding's `addPayday` (`AppContext.tsx`) writes to the `paydays` table;
-the Payday tab (`src/app/payday/payday-client.tsx`) reads `paySchedules`, loaded from a
-completely different table, `pay_schedules`. They never connect — anything entered in onboarding
-lands somewhere nothing displays. This is a *different* failure mode than #79 (which fixed writes
-being silently dropped on error — the write now succeeds every time, just into the wrong table).
+This session filed everything that *could* be filed without more input from Anthony (see
+"This session's recap/triage pass" below for the full list — 8 new issues, #87–#94). What's
+left is exactly the 4 `CHANGE-LOG.md` entries that need a real scoping conversation, not just
+a filing pass:
 
-**Anthony's explicit call on why this didn't block PR #77's merge:** real usage right now is only
-Anthony + Hannah, both already onboarded — nobody hits the onboarding path. **He will not create
-any new account between now and this fix except to retest it.** So this is not a "some day" item —
-it's the first thing to pick up next session, before anything else in the backlog below.
+1. **Notifications overhaul** — user-chosen delivery time (e.g. 6pm local), per-timezone
+   scheduling, new reminder types beyond the existing set. Depends on #37 (timezone decision).
+2. **Bills vs. Expenses split** — the biggest pending item. Not just an add-screen toggle:
+   dashboard totals, contribution splits, the reminder generator, and #70's category ordering
+   all read `bills` today, and each needs a deliberate decision once expenses exist separately.
+3. **Dynamic visual/motion overhaul** — no concrete scope yet; needs Anthony's design direction.
+4. **Dashboard overhaul** — replace the four static stat tiles with a swipeable health-gauge.
+   Anthony's flagged this as *one of several ideas* he wants to bring, not the only one.
 
-#82's issue body has two build options to weigh (minimal redirect to `pay_schedules` vs. folding
-in #84's full-parity form now) — Anthony's likely preference is the minimal fix, but it's flagged
-as a real choice, not decided yet. Build with a separate implementer + reviewer sub-agent, same
-as the rest of this PR's fixes.
+This is the `crd` skill conversation HANDOFF has been pointing at for a few sessions now —
+put the client hat on, work through these 4, and the `crd` skill can run live once they're
+scoped. The other 2 `CHANGE-LOG.md` entries (health-score empty-state question, Direct Pay
+testing gap) needed no further input and are already filed as #87/#88 — just pending Anthony's
+normal issue-priority triage now, not a special conversation.
+
+## This session's recap/triage pass (2026-08-05)
+
+Anthony asked for a full recap of every open concern — GitHub issues plus anything floating
+outside them — then to get as much of the "outside GitHub" pile actually into GitHub as
+possible. Result:
+
+**Filed without needing more info from Anthony** (8 new issues):
+- **[#87](https://github.com/mp3anthony/funded/issues/87)** — health-score empty-state design
+  question (`CHANGE-LOG.md` entry, the question itself was enough to file as-is).
+- **[#88](https://github.com/mp3anthony/funded/issues/88)** — Direct Pay untested end-to-end,
+  blocked on real testers, not a decision (`CHANGE-LOG.md` entry).
+- **[#89](https://github.com/mp3anthony/funded/issues/89)** through
+  **[#94](https://github.com/mp3anthony/funded/issues/94)** — the six previously-unfiled
+  follow-ups from the #75 investigation (see the old "Unfiled follow-ups from #75" section
+  below, now superseded — kept for historical context but every item there now has a real
+  issue number).
+
+**Left for next session** — the 4 `CHANGE-LOG.md` items above, because they need an actual
+scoping conversation with Anthony, not just a filing pass.
+
+**Two more loose items surfaced but NOT yet filed** — flagged to Anthony, filing deferred
+pending his call on scope/ownership:
+- **`HouseholdHealth.tsx`'s total-income figure reads from the orphaned `paydays` table** —
+  found today while fixing #82. Same table #82 just stopped onboarding from writing to;
+  `HouseholdHealth`'s income number has likely been wrong/empty independent of that fix.
+- **Notification delivery bug** (diagnosed a while back, never filed) — no real push arrives on
+  Android/iOS, a fallback notification appears 5–10s after opening the app instead. Root cause:
+  server cron is scheduled in UTC with no per-timezone logic (ties to #37), and push only fires
+  if a live `push_subscriptions` row exists. Anthony's call was "own issue, or fold into the
+  notifications CRD" — still undecided, so still unfiled.
+
+## #82 — payday persistence, fixed and merged this session
+
+**[#82](https://github.com/mp3anthony/funded/issues/82) — payday entered during onboarding never
+appeared on the Payday tab — CLOSED, fixed in [PR #86](https://github.com/mp3anthony/funded/pull/86).**
+Root cause: onboarding's `addPayday` wrote to the `paydays` table; the Payday tab reads
+`pay_schedules`, a completely different table that nothing in onboarding ever wrote to.
+
+Went with Option A (minimal) — `Onboarding.tsx`'s Step 3 now calls `addPaySchedule` instead of
+`addPayday`, with defaults matching the real Add Pay Schedule form (current user as member,
+monthly, fixed amount). No new fields, no schema change, `paydays`/`addPayday` and
+`HouseholdHealth.tsx` left untouched.
+
+**Verified end-to-end, not just by reading code:** disposable test signup through onboarding →
+confirmed via direct Supabase query the row landed in `pay_schedules` → Payday tab showed it
+immediately → survived a hard reload → test account/household cleaned up after. This was
+`needs-merge-approval`, not `needs-manual-test` (had to create that label — it didn't exist in
+the repo yet despite `CLAUDE.md` §3 naming it).
+
+Anthony's call on the version bump: skip it, stay at `v0.9.5` for this one (`CLAUDE.md` §4
+normally defaults to +0.0.1 per preview build).
+
+**Side effect worth knowing:** #84 (onboarding's payday step should mirror the real form) is now
+unblocked — it was tied to #82's root cause and touches the same code.
 
 ## Also filed this session, NOT blocking, ordinary backlog
 
@@ -310,29 +368,25 @@ Two things came out of that worth carrying forward:
   re-fetching it afterward — always verify a `gh api` PATCH/POST that embeds file content by
   reading it back, don't trust a 200 response alone.
 
-## Unfiled follow-ups from #75 — Anthony to triage
+## Follow-ups from #75 — ALL now filed as GitHub issues (2026-08-05)
 
-Full detail in [PR #77](https://github.com/mp3anthony/funded/pull/77)'s body.
+Full detail in [PR #77](https://github.com/mp3anthony/funded/pull/77)'s body. Kept here for
+historical context; every item below now has a real issue, so this list is superseded — go to
+the linked issue for current status, not this section.
 
-1. ~~**Onboarding steps 2–5 may be unreachable.**~~ **Resolved as #78.** Confirmed exactly as
-   suspected: `createHousehold`'s create path was setting `setIsOnboarded(true)`, dropping
-   `AppShell`'s gate the moment step 1 completed. Fixed — only `completeOnboarding()` (step 5's
-   "Enter App") sets that flag now. Commit on this branch, folded into PR #77.
-2. **`joinHousehold` step 2's rollback trusts unvalidated cached state.** Decides whether to
-   cascade-delete a household from `backupState.members`, which is `[]` whenever the members
-   query silently errored. Reachable from the normal `loadData` path. The natural successor
-   to #75.
-3. **Cross-user notification writes** — the generator sits in `AppProvider` above `AppShell`,
-   so it runs during Onboarding and can upsert `{ user_id: B, household_id: A }`. No
-   user-visible effect; data hygiene only.
+1. ~~**Onboarding steps 2–5 may be unreachable.**~~ **Resolved as #78** (closed).
+2. **`joinHousehold` step 2's rollback trusts unvalidated cached state.** Filed as
+   **[#89](https://github.com/mp3anthony/funded/issues/89)**.
+3. **Cross-user notification writes** — data hygiene only, no user-visible effect. Filed as
+   **[#90](https://github.com/mp3anthony/funded/issues/90)**.
 4. **`ensureHousehold` discards its `household_members` insert error** yet sets the resolution
-   ref regardless.
-5. **Two stale line citations in `SPEC.md`** (`:78`, `:99`) point at the wrong code. Already
-   wrong before this branch. `SPEC.md` is a governance doc — left alone deliberately.
-6. **The server is still not authoritative** — `join-household`'s edge function keeps its gap.
-   Standing argument for the deferred `UNIQUE` constraint.
-7. **No in-app recovery for an already-duplicated user.** Guards prevent new cases, don't
-   repair existing ones. Nobody is in that state.
+   ref regardless. Filed as **[#91](https://github.com/mp3anthony/funded/issues/91)**.
+5. **Stale line citations in `SPEC.md`.** Filed as
+   **[#92](https://github.com/mp3anthony/funded/issues/92)**.
+6. **The server is still not authoritative** — `join-household`'s edge function gap. Filed as
+   **[#93](https://github.com/mp3anthony/funded/issues/93)**.
+7. **No in-app recovery for an already-duplicated user.** Filed as
+   **[#94](https://github.com/mp3anthony/funded/issues/94)**.
 
 ## #78 and #79 — found and fixed this session, folded into PR #77
 
@@ -392,7 +446,7 @@ one PR/merge cycle rather than a new branch per bug found during testing.
 ## The other open tickets
 
 **[#82 — payday entered during onboarding doesn't persist](https://github.com/mp3anthony/funded/issues/82)**
-· `bug`, `ready-for-agent` · **top priority, see "→ START HERE NEXT SESSION" above.**
+· CLOSED, fixed in PR #86 — see "#82 — payday persistence" section above.
 
 **[#83](https://github.com/mp3anthony/funded/issues/83) / [#84](https://github.com/mp3anthony/funded/issues/84)**
 · `enhancement`, `ready-for-agent` · onboarding's bill/payday steps should mirror the real
@@ -424,14 +478,30 @@ question (any member vs admin-only). Now **load-bearing** for notifications: "no
 my local time" needs a timezone the user can set, and every household is currently hardcoded to
 `Australia/Sydney`. **Per-household vs per-user is undecided** and materially changes the build.
 
-**Notification delivery bug — diagnosed, still NOT filed.** Anthony gets no push on Android or
-iOS; instead a notification appears 5–10s *after* opening the app. Two reminder generators
-exist: the server cron (`src/app/api/cron/push-reminders/route.ts`) and a client-side copy in
-`AppContext` that runs on app load — the client path is the 5–10s symptom. `vercel.json`
-schedules the cron `0 20 * * *` = 20:00 **UTC** ≈ 6am Sydney; Vercel crons are UTC-only. Push
-only lands if a live `push_subscriptions` row exists, so if permission was never granted or iOS
-expired the subscription, the cron delivers nothing silently. **Anthony to decide: own issue, or
-folds into the notifications CRD.**
+**[#89](https://github.com/mp3anthony/funded/issues/89)–[#94](https://github.com/mp3anthony/funded/issues/94)**
+· the six #75 follow-ups, all filed 2026-08-05 — see "Follow-ups from #75" section above.
+
+**[#87](https://github.com/mp3anthony/funded/issues/87)** health-score empty-state design
+question, **[#88](https://github.com/mp3anthony/funded/issues/88)** Direct Pay untested
+end-to-end · both filed 2026-08-05 from `CHANGE-LOG.md`, no further input needed to file — see
+"This session's recap/triage pass" above.
+
+**Notification delivery bug — diagnosed, STILL not filed** (raised again in this session's
+recap, still Anthony's call to make). Anthony gets no push on Android or iOS; instead a
+notification appears 5–10s *after* opening the app. Two reminder generators exist: the server
+cron (`src/app/api/cron/push-reminders/route.ts`) and a client-side copy in `AppContext` that
+runs on app load — the client path is the 5–10s symptom. `vercel.json` schedules the cron
+`0 20 * * *` = 20:00 **UTC** ≈ 6am Sydney; Vercel crons are UTC-only. Push only lands if a live
+`push_subscriptions` row exists, so if permission was never granted or iOS expired the
+subscription, the cron delivers nothing silently. **Anthony to decide: own issue, or folds into
+the notifications CRD.**
+
+**`HouseholdHealth.tsx` reads total income from the orphaned `paydays` table — found 2026-08-05,
+STILL not filed.** Surfaced while fixing #82: `HouseholdHealth.tsx` computes its total-income
+figure from `paydays`, the same table #82 just stopped onboarding from writing to. That number
+has likely been wrong/empty independent of #82's fix. Flagged to Anthony, filing deferred
+pending his call on scope — same "own issue or fold into something bigger" shape as the
+notification bug above.
 
 **Join-by-code was broken in production — filed, fixed, and closed as [#81](https://github.com/mp3anthony/funded/issues/81).**
 Anthony's call: own issue, not folded into PR #77 (the redeploy is unrelated to #75's diff and
@@ -452,21 +522,27 @@ doesn't block that PR's merge). Edge function redeployed and retested this sessi
 
 ## Open process items
 
-- **Protocol labels don't match the repo.** `CLAUDE.md` §3 names `needs-manual-test`,
-  `needs-merge-approval` and `out-of-spec`; **none exist.** Actual labels: `bug`, `Change`,
-  `documentation`, `duplicate`, `enhancement`, `help wanted`, `invalid`, `question`, `wontfix`,
-  `Critical`, `Epic`, `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`,
-  `ready-for-testing`. `ready-for-testing` is the de facto equivalent of the first and was used
-  for PRs #76 and #77. Anthony to choose: rename the protocol to match the repo, or create the
-  missing labels. Five minutes, still undecided.
-- **`CHANGE-LOG.md` count discrepancy, unresolved.** An earlier handoff said "7 pending
-  entries" in three places but listed only **6**. Verify the real count at triage.
+- **Protocol labels don't fully match the repo, partially fixed.** `CLAUDE.md` §3 names
+  `needs-manual-test`, `needs-merge-approval` and `out-of-spec`. `needs-merge-approval` was
+  created this session (needed it for #82/PR #86). `needs-manual-test` and `out-of-spec` still
+  **don't exist**. Actual labels now: `bug`, `Change`, `documentation`, `duplicate`,
+  `enhancement`, `help wanted`, `invalid`, `question`, `wontfix`, `Critical`, `Epic`,
+  `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `ready-for-testing`,
+  `needs-merge-approval`. `ready-for-testing` is the de facto equivalent of `needs-manual-test`
+  and was used for PRs #76/#77. Anthony to choose: rename the protocol to match the repo, or
+  create the last two missing labels.
+- **`CHANGE-LOG.md` count discrepancy — RESOLVED this session.** Verified count is genuinely
+  **6** (matches the file). 2 of those 6 are now triaged/filed (#87, #88); 4 remain, see
+  "→ START HERE NEXT SESSION" at the top of this file.
 
-## Then: `CHANGE-LOG.md` triage + CRD interview
+## Then: `CHANGE-LOG.md` triage + CRD interview — 4 of 6 items left, see top of file
 
-Anthony puts the client hat on, triages the pending entries (count unverified), then the `crd`
-skill runs live. Covers the dynamic/interactive overhaul (the swipeable gauge is **one of
-several ideas** — he has more to bring), the dashboard, bills-vs-expenses, and notifications.
+2 of the original 6 `CHANGE-LOG.md` entries needed no further input and are already filed
+(#87, #88 — see "This session's recap/triage pass"). The remaining 4 are exactly what
+"→ START HERE NEXT SESSION" at the top of this file is pointing at: Anthony puts the client hat
+on, works through them, then the `crd` skill runs live. Covers the dynamic/interactive overhaul
+(the swipeable gauge is **one of several ideas** — he has more to bring), the dashboard,
+bills-vs-expenses, and notifications.
 
 Findings to carry in:
 
@@ -486,18 +562,33 @@ Findings to carry in:
 
 - Protocol: [`CLAUDE.md`](CLAUDE.md) — read first.
 - Working spec: [`SPEC.md`](SPEC.md) — **Part A final (A1/A2)**. Part B Slices 1 (#71) and 3
-  (#37) still open. Two stale line citations, see follow-up 5.
-- Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — pending entries awaiting triage.
+  (#37) still open. Stale line citations tracked as #92.
+- Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — 4 of 6 entries still pending triage (the
+  other 2 filed as #87/#88). See "→ START HERE NEXT SESSION" at the top of this file.
+- **Merged: PR #86** https://github.com/mp3anthony/funded/pull/86, closes #82 (payday
+  persistence). `v0.9.5` stays on `main`.
 - **Merged: PR #77** https://github.com/mp3anthony/funded/pull/77 (commit `41acb2d`, closes #75,
   #78, #79, #80 — `v0.9.5` now on `main`).
-- **Top priority next session:** [#82](https://github.com/mp3anthony/funded/issues/82) — payday
-  persistence, see top of this file.
-- Also filed, not urgent: [#83](https://github.com/mp3anthony/funded/issues/83),
+- **Top priority next session:** the 4 remaining `CHANGE-LOG.md` items, see top of this file.
+- Ready to build whenever: [#83](https://github.com/mp3anthony/funded/issues/83),
   [#84](https://github.com/mp3anthony/funded/issues/84),
   [#85](https://github.com/mp3anthony/funded/issues/85).
+- Needs Anthony's decision first: [#74](https://github.com/mp3anthony/funded/issues/74),
+  [#71](https://github.com/mp3anthony/funded/issues/71),
+  [#37](https://github.com/mp3anthony/funded/issues/37),
+  [#93](https://github.com/mp3anthony/funded/issues/93),
+  [#94](https://github.com/mp3anthony/funded/issues/94).
+- Filed 2026-08-05, low-priority backlog: [#87](https://github.com/mp3anthony/funded/issues/87),
+  [#88](https://github.com/mp3anthony/funded/issues/88),
+  [#89](https://github.com/mp3anthony/funded/issues/89),
+  [#90](https://github.com/mp3anthony/funded/issues/90),
+  [#91](https://github.com/mp3anthony/funded/issues/91),
+  [#92](https://github.com/mp3anthony/funded/issues/92).
+- Still genuinely unfiled, Anthony's call needed on scope: the notification delivery bug and
+  `HouseholdHealth.tsx`'s orphaned-`paydays`-table read. See "This session's recap/triage pass".
 - **Join-by-code fixed and closed:** [#81](https://github.com/mp3anthony/funded/issues/81) —
   redeployed and retested previous session.
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
-- Open: #82, #83, #84, #85, #74, #71, #37
+- Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94
