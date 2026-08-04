@@ -47,16 +47,19 @@ possible. Result:
 **Left for next session** — the 4 `CHANGE-LOG.md` items above, because they need an actual
 scoping conversation with Anthony, not just a filing pass.
 
-**Two more loose items surfaced but NOT yet filed** — flagged to Anthony, filing deferred
-pending his call on scope/ownership:
-- **`HouseholdHealth.tsx`'s total-income figure reads from the orphaned `paydays` table** —
-  found today while fixing #82. Same table #82 just stopped onboarding from writing to;
-  `HouseholdHealth`'s income number has likely been wrong/empty independent of that fix.
-- **Notification delivery bug** (diagnosed a while back, never filed) — no real push arrives on
-  Android/iOS, a fallback notification appears 5–10s after opening the app instead. Root cause:
+**Two more loose items surfaced, initially left unfiled, then filed on Anthony's explicit
+go-ahead the same session:**
+- **[#95](https://github.com/mp3anthony/funded/issues/95)** — `HouseholdHealth.tsx`'s
+  total-income figure reads from the orphaned `paydays` table. Found while fixing #82; same
+  table #82 just stopped onboarding from writing to.
+- **[#96](https://github.com/mp3anthony/funded/issues/96)** — no real push notifications
+  delivered; a client-side fallback fires 5–10s after opening the app instead. Root cause:
   server cron is scheduled in UTC with no per-timezone logic (ties to #37), and push only fires
-  if a live `push_subscriptions` row exists. Anthony's call was "own issue, or fold into the
-  notifications CRD" — still undecided, so still unfiled.
+  if a live `push_subscriptions` row exists.
+
+**Every loose thread from this recap is now in GitHub.** Nothing left floating outside issues
+except the 4 `CHANGE-LOG.md` entries above, which are pending a scoping conversation, not a
+filing pass.
 
 ## #82 — payday persistence, fixed and merged this session
 
@@ -486,22 +489,12 @@ question, **[#88](https://github.com/mp3anthony/funded/issues/88)** Direct Pay u
 end-to-end · both filed 2026-08-05 from `CHANGE-LOG.md`, no further input needed to file — see
 "This session's recap/triage pass" above.
 
-**Notification delivery bug — diagnosed, STILL not filed** (raised again in this session's
-recap, still Anthony's call to make). Anthony gets no push on Android or iOS; instead a
-notification appears 5–10s *after* opening the app. Two reminder generators exist: the server
-cron (`src/app/api/cron/push-reminders/route.ts`) and a client-side copy in `AppContext` that
-runs on app load — the client path is the 5–10s symptom. `vercel.json` schedules the cron
-`0 20 * * *` = 20:00 **UTC** ≈ 6am Sydney; Vercel crons are UTC-only. Push only lands if a live
-`push_subscriptions` row exists, so if permission was never granted or iOS expired the
-subscription, the cron delivers nothing silently. **Anthony to decide: own issue, or folds into
-the notifications CRD.**
+**[#95](https://github.com/mp3anthony/funded/issues/95)** — `HouseholdHealth.tsx` reads total
+income from the orphaned `paydays` table. Found while fixing #82, filed same session.
 
-**`HouseholdHealth.tsx` reads total income from the orphaned `paydays` table — found 2026-08-05,
-STILL not filed.** Surfaced while fixing #82: `HouseholdHealth.tsx` computes its total-income
-figure from `paydays`, the same table #82 just stopped onboarding from writing to. That number
-has likely been wrong/empty independent of #82's fix. Flagged to Anthony, filing deferred
-pending his call on scope — same "own issue or fold into something bigger" shape as the
-notification bug above.
+**[#96](https://github.com/mp3anthony/funded/issues/96)** — no real push notifications
+delivered; server cron scheduled in UTC with no per-timezone logic (ties to #37), push silently
+no-ops if the subscription row is dead. Diagnosed a while back, filed this session.
 
 **Join-by-code was broken in production — filed, fixed, and closed as [#81](https://github.com/mp3anthony/funded/issues/81).**
 Anthony's call: own issue, not folded into PR #77 (the redeploy is unrelated to #75's diff and
@@ -583,12 +576,15 @@ Findings to carry in:
   [#89](https://github.com/mp3anthony/funded/issues/89),
   [#90](https://github.com/mp3anthony/funded/issues/90),
   [#91](https://github.com/mp3anthony/funded/issues/91),
-  [#92](https://github.com/mp3anthony/funded/issues/92).
-- Still genuinely unfiled, Anthony's call needed on scope: the notification delivery bug and
-  `HouseholdHealth.tsx`'s orphaned-`paydays`-table read. See "This session's recap/triage pass".
+  [#92](https://github.com/mp3anthony/funded/issues/92),
+  [#95](https://github.com/mp3anthony/funded/issues/95),
+  [#96](https://github.com/mp3anthony/funded/issues/96).
+- **Everything from this session's recap is now in GitHub.** Nothing left floating outside
+  issues except the 4 `CHANGE-LOG.md` entries, which need a scoping conversation, not a filing
+  pass — see "→ START HERE NEXT SESSION" at the top of this file.
 - **Join-by-code fixed and closed:** [#81](https://github.com/mp3anthony/funded/issues/81) —
   redeployed and retested previous session.
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
-- Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94
+- Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96
