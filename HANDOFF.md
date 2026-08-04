@@ -1,9 +1,9 @@
 # Handoff
 
-**Last updated:** 2026-08-03 (later session still — checklist ticked off on PR #77, join-by-code
-fixed and retested, version rolled back to v0.9.5, hit and cleared an Auto Mode permission wall)
-**Branch:** `issue-75-auth-loaddata-hazards` — complete, pushed except for this session's commits,
-PR open.
+**Last updated:** 2026-08-04 (Supabase-only session — no code touched — cleaned up leftover test
+data and built a real Direct Pay test account for Anthony's own PR #77 manual testing)
+**Branch:** `issue-75-auth-loaddata-hazards` — unchanged this session, no new commits, working
+tree clean, PR still open.
 **App version:** `v0.9.5` on the branch (`v0.9.4` on `main`). Anthony's explicit call this
 session: the whole PR (covering #75/#78/#79/#80) counts as **one** preview build, not four
 incremental +0.0.1 bumps — so the display string was rolled back from `v0.9.8` to `v0.9.5`. Already
@@ -203,6 +203,52 @@ transition — it completed cleanly every time afterward (`c1b` through `c1e` al
 the `c1` incident as an artifact of firing browser-automation calls too fast against an
 in-flight page transition, not a product defect. Flagging for visibility only; if it ever
 resurfaces from a real user doing something unusually fast, it may be worth a second look.
+
+## Out-of-band: Supabase cleanup + Direct Pay test account (2026-08-04, unrelated to #75/#77)
+
+Anthony asked for a real Direct Pay test account so PR #77's untested Direct Pay logic (see
+"Findings to carry in" below) could actually be exercised, plus a full audit of what was left in
+Supabase after prior sessions' cleanups. Two findings before anything was touched:
+
+- **The 2026-08-03 cleanup entry below is inaccurate.** It claims `slmg.anthony@gmail.com`,
+  `blueprintmusic.info@gmail.com`, and `blueprintmusic.info+9.6@gmail.com` were deleted. On
+  inspection this session, `blueprintmusic.info@gmail.com` (household "Test house", 1 bill, 2
+  paydays), `test@example.com` (household "Test Household", 2 bills), and
+  `hmw.hannahmaewilson@gmail.com` (no household, orphaned `notification_settings`/
+  `push_subscriptions` rows) were all still present. Either the deletion silently failed or these
+  are unrelated re-created accounts — not investigated further, just corrected and cleaned up
+  properly this time with a blast-radius check first (each household had exactly 1 member, no
+  overlap with real users).
+- **A second, orphaned "The Paulls" household existed** (`9bb29e36…`, `is_joint_fund=false`, 0
+  members, 0 bills/funds/paydays/notifications) — distinct from the real one
+  (`4821ab06…`). Deleted, confirmed empty on every FK first.
+
+**Anthony's explicit call: only `anthonypaull.nz@outlook.com` and `slmg.hannah@gmail.com` (both
+on the real "The Paulls" household) should exist in Supabase, plus whatever fresh test account he
+creates.** All three stray users above were deleted (households first, cascades bills/funds/
+paydays/members, then the `auth.users` rows — the `cascade_delete_user_fks` migration from the
+prior session made this a clean one-shot with no follow-up orphan queries needed).
+
+Anthony then signed up fresh as `blueprintmusic.info@gmail.com`, completed onboarding, and chose
+**Direct Pay** at the joint-account step — household **"Paull's Direct"** (`1c3d1f83…`,
+`is_joint_fund=false`, single member `997ed18a…`, user `e3c4efac…`). Per his instruction, all 14
+bills and both funds were then cloned from the real household onto it, real names/amounts intact:
+
+- Deleted the single placeholder "Rent $550/week" bill onboarding had already created (would have
+  duplicated the real Rent bill once copied over).
+- Copied all 14 `bills` rows (`INSERT … SELECT` from `4821ab06…`), `assignee_id` remapped from
+  the real household's two members (Ants/Hannah) to the new household's single member `997ed18a…`
+  — Paull's Direct only has one person, so every bill is now assigned to it.
+- Copied both `funds` rows (Xbox Elite Controller $0/$200, Studio Monitors $0/$300), `owner_id`
+  remapped from the real owner (`4200aca8…`) to the new user `e3c4efac…`; `member_id` stayed
+  `null` on both (matches the source rows).
+- New IDs generated for every copied row — none of the original bill/fund IDs were reused.
+
+Anthony spot-checked the result in the app and confirmed it looks right, then went back to PR #77
+manual testing. **Current full Supabase user roster: exactly 3 users** —
+`anthonypaull.nz@outlook.com` + `slmg.hannah@gmail.com` (real, "The Paulls", joint fund) and
+`blueprintmusic.info@gmail.com` (test, "Paull's Direct", Direct Pay, 14 bills + 2 funds cloned
+from the real data). No code was touched this session — no commit needed beyond this file.
 
 ## Out-of-band: Supabase test-user cleanup (this session, unrelated to #75/#77)
 
