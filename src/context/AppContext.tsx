@@ -384,11 +384,22 @@ function generateRandomCode(): string {
   return code;
 }
 
+function toLocalYmd(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function parseDateForDb(dateStr: string): string {
+  if (!dateStr) return dateStr;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
   try {
-    const parsed = Date.parse(dateStr);
-    if (!isNaN(parsed)) {
-      return new Date(parsed).toISOString().split("T")[0];
+    const parsed = new Date(dateStr + "T00:00:00");
+    if (!isNaN(parsed.getTime())) {
+      return toLocalYmd(parsed);
     }
   } catch (e) {
     console.error("Failed to parse date for database:", dateStr);
@@ -2862,7 +2873,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         currentDate.setDate(currentDate.getDate() + 7); // Default fallback to avoid non-advanced date
       }
 
-      const newNextPayDate = currentDate.toISOString().split("T")[0];
+      const newNextPayDate = toLocalYmd(currentDate);
 
       const { data: updatedSchedule, error: scheduleErr } = await supabase
         .from("pay_schedules")
@@ -2967,7 +2978,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         let tempDate = new Date(nextPayDateObj);
 
         while (tempDate.getTime() < today.getTime()) {
-          const payDateStr = tempDate.toISOString().split("T")[0];
+          const payDateStr = toLocalYmd(tempDate);
           missedRecords.push({
             household_id: hId,
             member_id: schedule.member_id,
@@ -3002,7 +3013,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
             continue;
           }
 
-          const nextValidDateStr = tempDate.toISOString().split("T")[0];
+          const nextValidDateStr = toLocalYmd(tempDate);
           const { error: updateErr } = await supabase
             .from("pay_schedules")
             .update({ next_pay_date: nextValidDateStr })
