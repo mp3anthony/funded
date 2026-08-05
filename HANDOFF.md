@@ -1,54 +1,83 @@
 # Handoff
 
-**Last updated:** 2026-08-05 (later same day) — filed **[#101](https://github.com/mp3anthony/funded/issues/101)**,
-a `Critical` payday-countdown bug Anthony hit live (his wife's payday auto-logged as "missed"
-before local midnight). Root cause traced, **logged only, not built** — Anthony's explicit
-instruction this session. He's coming back next session to summarise all open issues fresh and
-pick one to tackle, which supersedes strict adherence to the "→ START HERE NEXT SESSION" queue
-below — but #101 is new, high-priority, and worth surfacing first regardless of that queue.
+**Last updated:** 2026-08-05 (later same day) — **[#101](https://github.com/mp3anthony/funded/issues/101)
+fixed, reviewed, verified end-to-end, and merged in [PR #103](https://github.com/mp3anthony/funded/pull/103).**
+`v0.9.5` → `v0.9.6`. Anthony is going to review the open issues himself and come back next
+session with the `needs-info` scoping answers (#97-#100) — that's the actual entry point next
+time, not a numbered queue here.
 
-## → START HERE NEXT SESSION — #101 is new and Critical; then needs-info issues; Anthony plans to re-summarise first
+## → START HERE NEXT SESSION — Anthony bringing needs-info scoping answers (#97-#100)
 
-**[#101](https://github.com/mp3anthony/funded/issues/101) — payday auto-logs as "missed" before
-local midnight, next-payday countdown drifts (e.g. weekly shows "in 5 days" not 7).** `bug`,
-`Critical`, `needs-triage`. Root cause traced, not guessed: `src/context/AppContext.tsx` writes
-`next_pay_date` via `date.toISOString().split("T")[0]` in four places (`logPay` — line 2865;
-`autoLogMissedPays` — lines 2970/3005; `parseDateForDb` — line 391). `toISOString()` converts to
-UTC first, and household default timezone is `Australia/Sydney` (UTC+10/+11, per #37) — so the
-stored date rolls back a day for any household ahead of UTC. That's what makes
-`autoLogMissedPays` (runs on every Payday tab load) think today's payday already passed, before
-the local day is actually over. Fix outline and a full testing checklist are already in the
-issue body — ready to hand to a sub-agent as soon as Anthony says go. Anthony explicitly said
-"just log it for now" this session — **do not start building without him confirming first.**
+Anthony said he'd review the open issues on his own and come back specifically to work through
+the `needs-info` decisions. **Run `gh issue list --label needs-info` at the start of the session**
+in case more have accumulated since — don't assume it's only these 4:
+**[#97](https://github.com/mp3anthony/funded/issues/97)** (notifications overhaul),
+**[#98](https://github.com/mp3anthony/funded/issues/98)** (bills vs expenses split),
+**[#99](https://github.com/mp3anthony/funded/issues/99)** (dynamic visual/motion overhaul),
+**[#100](https://github.com/mp3anthony/funded/issues/100)** (dashboard overhaul) — each carries
+its own "what's known" summary and explicit decisions-needed list in the issue body. Interview
+him against that list, record the outcome in the issue, relabel/close once scoped.
 
-Anthony said he'll open next session by summarising all open issues himself and picking one to
-tackle — treat that as the actual entry point next time, not necessarily the numbered list below.
-That said, the sequencing below is still the last explicit plan on record, so raise #101 first,
-then this list, and let Anthony redirect from there.
+Once every needs-info issue is resolved, the standing plan (agreed earlier 2026-08-05, still in
+force unless Anthony redirects) is:
 
-Anthony's explicit sequencing agreed in the earlier 2026-08-05 session (still the standing plan
-unless he redirects):
-
-1. **Needs-info issues first — no code work until they're all resolved.** Current needs-info
-   issues: **[#97](https://github.com/mp3anthony/funded/issues/97)** (notifications overhaul),
-   **[#98](https://github.com/mp3anthony/funded/issues/98)** (bills vs expenses split),
-   **[#99](https://github.com/mp3anthony/funded/issues/99)** (dynamic visual/motion overhaul),
-   **[#100](https://github.com/mp3anthony/funded/issues/100)** (dashboard overhaul) — each filed
-   with a "what's known" summary and an explicit list of decisions needed from Anthony (see each
-   issue body). Anthony will come back issue-by-issue, prompting to tackle one; the Orchestrator's
-   job is to interview him against that issue's decision list, record the outcome in the issue,
-   and relabel/close once scoped. **Run `gh issue list --label needs-info` at the start of any
-   future session** in case more accumulate — don't assume it's only these 4.
-2. **Once every needs-info issue is resolved:** full triage pass across ALL open issues (23 open
-   as of this session), then build a new vertically-sliced spec that sequences delivery of
+1. **Full triage pass across ALL open issues** (25 open as of this session — see full list at
+   the bottom of this file), then build a new vertically-sliced spec that sequences delivery of
    everything without blockers — so implementation (Orchestrator-delegated sub-agents) and
    testing can proceed cleanly slice by slice, to a standard Anthony signs off on. This extends/
    supersedes `SPEC.md`'s current open Part B slices (#71, #37) rather than starting from zero —
    Part A stays final and untouched.
-3. **Not this session, but on Anthony's radar for timeline context:** once the app is stable
+2. **Not this session, but on Anthony's radar for timeline context:** once the app is stable
    under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
    TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
    needed yet — noted here so a future session doesn't lose the thread.
+
+## #101 — payday timezone drift, fixed, reviewed, verified, and merged this session (2026-08-05)
+
+**[#101](https://github.com/mp3anthony/funded/issues/101) — CLOSED, fixed in
+[PR #103](https://github.com/mp3anthony/funded/pull/103).** Root cause: `src/context/AppContext.tsx`
+wrote `next_pay_date` via `date.toISOString().split("T")[0]` in four places (`parseDateForDb`,
+`logPay`, `autoLogMissedPays` x2). `toISOString()` converts to UTC first; the Date objects at
+those call sites represent **local midnight**, so for a UTC+ household (Sydney) the stored date
+rolled back one calendar day — making `autoLogMissedPays` (runs on every Payday tab load) treat
+today's payday as already missed before local midnight, which drifted the next-payday countdown
+(weekly showing "in 5 days" instead of 7).
+
+**Fix:** added `toLocalYmd(date)`, mirroring the already-correct pattern in `adjustAutopayBillDate`
+(`src/lib/utils.ts`), and swapped all four UTC-round-trip call sites to use it.
+
+**Two-round review caught a real regression, not just style nits** — worth repeating the pattern:
+round 1 (independent reviewer sub-agent, never the implementer) returned `NEEDS-REWORK`. The
+naive fix for `parseDateForDb` (swap its `Date.parse` + `toISOString` UTC round-trip for
+`toLocalYmd`) would have traded the Sydney bug for the *mirror-image* bug in negative-UTC-offset
+households (US etc.) — hitting bill due dates, invoice dates, fund/goal deadlines, and
+pay-schedule dates, not just payday. Caught by the reviewer actually tracing `Date.parse`'s
+UTC-anchored spec behavior for bare `"YYYY-MM-DD"` strings, empirically verified with
+`TZ=America/New_York`. Fixed by short-circuiting: every real caller of `parseDateForDb` already
+passes a plain date-only string, so it now returns that string unchanged with zero `Date`
+round-trip — timezone-invariant by construction. Round 2: approved.
+
+**Verified end-to-end, not just by reading code** (same standard as #82): disposable Supabase
+test account/household created, weekly pay schedule set to today, confirmed via direct query
+that no early auto-log fired; logged the pay, confirmed the UI countdown read "IN 7 DAYS" and
+`next_pay_date` advanced to exactly `+7 days` in Supabase; then set `next_pay_date` to 3 weeks in
+the past and confirmed `autoLogMissedPays` still correctly caught all 3 genuinely-missed pays at
+the right weekly-spaced dates without also flagging today. Run on this dev machine's actual local
+timezone (`Pacific/Auckland`, UTC+12 — a positive offset like Sydney, so it would have reproduced
+the original bug if the fix had regressed). Test account fully deleted afterward — verified
+first it was the only member of its household, no real data touched.
+
+`v0.9.5` → `v0.9.6`. `needs-merge-approval` — Anthony approved the merge and the version number
+in-session, no further manual test needed (pure date-serialization logic, no UI/layout/
+platform-native surface to check by hand).
+
+**Side finding, filed separately, not part of this diff:**
+**[#102](https://github.com/mp3anthony/funded/issues/102)** — `Onboarding.tsx`'s First Bill step
+sends a human-readable `dueDate` string (`"August 05, 2026"`) instead of `YYYY-MM-DD`. Latent,
+pre-existing, surfaced by the reviewer while checking `parseDateForDb`'s fallback branch — not
+currently visibly breaking onboarding (Postgres's lenient date parser likely accepts the format
+on insert) but fragile and inconsistent with every other add-bill path. Ordinary backlog,
+overlaps with #84 (same file, same class of onboarding-form fix).
 
 ## This session's work — CHANGE-LOG.md filed as issues (2026-08-05)
 
@@ -620,17 +649,20 @@ into the relevant issue body):
   (#37) still open. Stale line citations tracked as #92.
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — **empty of pending items.** All 6 entries
   are now GitHub issues (#87, #88, #97–#100).
+- **Merged: PR #103** https://github.com/mp3anthony/funded/pull/103, closes #101 (payday
+  timezone drift). `v0.9.5` → `v0.9.6`, now on `main`.
 - **Merged: PR #86** https://github.com/mp3anthony/funded/pull/86, closes #82 (payday
   persistence). `v0.9.5` stays on `main`.
 - **Merged: PR #77** https://github.com/mp3anthony/funded/pull/77 (commit `41acb2d`, closes #75,
   #78, #79, #80 — `v0.9.5` now on `main`).
-- **Top priority next session:** [#101](https://github.com/mp3anthony/funded/issues/101)
-  (`Critical`, payday countdown bug, logged not built) — raise it first, then work through
-  `needs-info` issues #97–#100 with Anthony, one at a time — see top of this file. Anthony plans
-  to re-summarise all open issues himself at the start of next session, so let him redirect.
+- **Top priority next session:** work through `needs-info` issues #97–#100 with Anthony, one at
+  a time — see top of this file. Anthony plans to review all open issues himself first and bring
+  the scoping answers back, so let him redirect from there.
 - Ready to build whenever: [#83](https://github.com/mp3anthony/funded/issues/83),
   [#84](https://github.com/mp3anthony/funded/issues/84),
-  [#85](https://github.com/mp3anthony/funded/issues/85).
+  [#85](https://github.com/mp3anthony/funded/issues/85),
+  [#102](https://github.com/mp3anthony/funded/issues/102) (overlaps #84 — same file, same class
+  of onboarding-form fix).
 - Needs Anthony's decision first: [#74](https://github.com/mp3anthony/funded/issues/74),
   [#71](https://github.com/mp3anthony/funded/issues/71),
   [#37](https://github.com/mp3anthony/funded/issues/37),
@@ -648,7 +680,9 @@ into the relevant issue body):
   [#91](https://github.com/mp3anthony/funded/issues/91),
   [#92](https://github.com/mp3anthony/funded/issues/92),
   [#95](https://github.com/mp3anthony/funded/issues/95),
-  [#96](https://github.com/mp3anthony/funded/issues/96).
+  [#96](https://github.com/mp3anthony/funded/issues/96),
+  [#102](https://github.com/mp3anthony/funded/issues/102) (filed this session, see "#101" section
+  above for context).
 - **Everything from this session's recap is now in GitHub, including the 4 `CHANGE-LOG.md`
   items** (filed as #97–#100). Nothing left floating outside issues at all.
 - **Join-by-code fixed and closed:** [#81](https://github.com/mp3anthony/funded/issues/81) —
@@ -656,5 +690,7 @@ into the relevant issue body):
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
+- Closed: #101 https://github.com/mp3anthony/funded/issues/101 (payday timezone drift, fixed in
+  PR #103 this session — see "#101" section above)
 - Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96, #97, #98,
-  #99, #100, #101 (new, `Critical`, logged not built — see top of file)
+  #99, #100, #102 (new this session, non-blocking backlog)
