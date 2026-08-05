@@ -1,33 +1,79 @@
 # Handoff
 
-**Last updated:** 2026-08-05 — **PR #86 MERGED**, closes #82 (payday persistence). `v0.9.5`
-stays on `main` (Anthony's explicit call — skipped the usual preview-build bump for this one).
-Session then did a full backlog recap + triage pass, filing every loose end that was floating
-outside GitHub. See "→ START HERE NEXT SESSION" below for what's left.
+**Last updated:** 2026-08-05 (later same day) — filed **[#101](https://github.com/mp3anthony/funded/issues/101)**,
+a `Critical` payday-countdown bug Anthony hit live (his wife's payday auto-logged as "missed"
+before local midnight). Root cause traced, **logged only, not built** — Anthony's explicit
+instruction this session. He's coming back next session to summarise all open issues fresh and
+pick one to tackle, which supersedes strict adherence to the "→ START HERE NEXT SESSION" queue
+below — but #101 is new, high-priority, and worth surfacing first regardless of that queue.
 
-## → START HERE NEXT SESSION — CHANGE-LOG.md triage, 4 items need Anthony's input
+## → START HERE NEXT SESSION — #101 is new and Critical; then needs-info issues; Anthony plans to re-summarise first
 
-This session filed everything that *could* be filed without more input from Anthony (see
-"This session's recap/triage pass" below for the full list — 8 new issues, #87–#94). What's
-left is exactly the 4 `CHANGE-LOG.md` entries that need a real scoping conversation, not just
-a filing pass:
+**[#101](https://github.com/mp3anthony/funded/issues/101) — payday auto-logs as "missed" before
+local midnight, next-payday countdown drifts (e.g. weekly shows "in 5 days" not 7).** `bug`,
+`Critical`, `needs-triage`. Root cause traced, not guessed: `src/context/AppContext.tsx` writes
+`next_pay_date` via `date.toISOString().split("T")[0]` in four places (`logPay` — line 2865;
+`autoLogMissedPays` — lines 2970/3005; `parseDateForDb` — line 391). `toISOString()` converts to
+UTC first, and household default timezone is `Australia/Sydney` (UTC+10/+11, per #37) — so the
+stored date rolls back a day for any household ahead of UTC. That's what makes
+`autoLogMissedPays` (runs on every Payday tab load) think today's payday already passed, before
+the local day is actually over. Fix outline and a full testing checklist are already in the
+issue body — ready to hand to a sub-agent as soon as Anthony says go. Anthony explicitly said
+"just log it for now" this session — **do not start building without him confirming first.**
 
-1. **Notifications overhaul** — user-chosen delivery time (e.g. 6pm local), per-timezone
-   scheduling, new reminder types beyond the existing set. Depends on #37 (timezone decision).
-2. **Bills vs. Expenses split** — the biggest pending item. Not just an add-screen toggle:
-   dashboard totals, contribution splits, the reminder generator, and #70's category ordering
-   all read `bills` today, and each needs a deliberate decision once expenses exist separately.
-3. **Dynamic visual/motion overhaul** — no concrete scope yet; needs Anthony's design direction.
-4. **Dashboard overhaul** — replace the four static stat tiles with a swipeable health-gauge.
-   Anthony's flagged this as *one of several ideas* he wants to bring, not the only one.
+Anthony said he'll open next session by summarising all open issues himself and picking one to
+tackle — treat that as the actual entry point next time, not necessarily the numbered list below.
+That said, the sequencing below is still the last explicit plan on record, so raise #101 first,
+then this list, and let Anthony redirect from there.
 
-This is the `crd` skill conversation HANDOFF has been pointing at for a few sessions now —
-put the client hat on, work through these 4, and the `crd` skill can run live once they're
-scoped. The other 2 `CHANGE-LOG.md` entries (health-score empty-state question, Direct Pay
-testing gap) needed no further input and are already filed as #87/#88 — just pending Anthony's
-normal issue-priority triage now, not a special conversation.
+Anthony's explicit sequencing agreed in the earlier 2026-08-05 session (still the standing plan
+unless he redirects):
 
-## This session's recap/triage pass (2026-08-05)
+1. **Needs-info issues first — no code work until they're all resolved.** Current needs-info
+   issues: **[#97](https://github.com/mp3anthony/funded/issues/97)** (notifications overhaul),
+   **[#98](https://github.com/mp3anthony/funded/issues/98)** (bills vs expenses split),
+   **[#99](https://github.com/mp3anthony/funded/issues/99)** (dynamic visual/motion overhaul),
+   **[#100](https://github.com/mp3anthony/funded/issues/100)** (dashboard overhaul) — each filed
+   with a "what's known" summary and an explicit list of decisions needed from Anthony (see each
+   issue body). Anthony will come back issue-by-issue, prompting to tackle one; the Orchestrator's
+   job is to interview him against that issue's decision list, record the outcome in the issue,
+   and relabel/close once scoped. **Run `gh issue list --label needs-info` at the start of any
+   future session** in case more accumulate — don't assume it's only these 4.
+2. **Once every needs-info issue is resolved:** full triage pass across ALL open issues (23 open
+   as of this session), then build a new vertically-sliced spec that sequences delivery of
+   everything without blockers — so implementation (Orchestrator-delegated sub-agents) and
+   testing can proceed cleanly slice by slice, to a standard Anthony signs off on. This extends/
+   supersedes `SPEC.md`'s current open Part B slices (#71, #37) rather than starting from zero —
+   Part A stays final and untouched.
+3. **Not this session, but on Anthony's radar for timeline context:** once the app is stable
+   under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
+   TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
+   needed yet — noted here so a future session doesn't lose the thread.
+
+## This session's work — CHANGE-LOG.md filed as issues (2026-08-05)
+
+Continuation of the same day's earlier recap/triage pass (below). Rather than waiting for a live
+scoping conversation, the remaining 4 `CHANGE-LOG.md` items — the ones the earlier pass this
+session had left for "next session" — were filed as GitHub issues on Anthony's request, each a
+placeholder carrying the same summary/decisions-needed writeup, so he can review them on his own
+time before coming back to scope each one:
+
+- **[#97](https://github.com/mp3anthony/funded/issues/97)** — Notifications overhaul
+- **[#98](https://github.com/mp3anthony/funded/issues/98)** — Bills vs Expenses split
+- **[#99](https://github.com/mp3anthony/funded/issues/99)** — Dynamic visual/motion overhaul
+- **[#100](https://github.com/mp3anthony/funded/issues/100)** — Dashboard overhaul
+
+All labeled `needs-info` — matches **[#88](https://github.com/mp3anthony/funded/issues/88)**'s
+precedent ("waiting on reporter for more information" is literally Anthony in this case). Anthony
+initially said "ready-for-human"; switched to `needs-info` once it was pointed out that
+`ready-for-human` means something different in `CLAUDE.md` §3 (partial agent/partial human
+execution, e.g. third-party dashboard config) and `needs-info` is the label whose actual
+definition matches this situation. `CHANGE-LOG.md`'s 4 entries updated to
+`status: triaged (filed as #NN, needs-info — waiting on Anthony's scoping answers)` — the file's
+pending list is now empty. Committed directly to `main` (docs-only, no code touched), consistent
+with how recent sessions have handled this kind of housekeeping.
+
+## Earlier this session: full backlog recap/triage pass (2026-08-05)
 
 Anthony asked for a full recap of every open concern — GitHub issues plus anything floating
 outside them — then to get as much of the "outside GitHub" pile actually into GitHub as
@@ -44,8 +90,11 @@ possible. Result:
   below, now superseded — kept for historical context but every item there now has a real
   issue number).
 
-**Left for next session** — the 4 `CHANGE-LOG.md` items above, because they need an actual
-scoping conversation with Anthony, not just a filing pass.
+**Originally left for next session** — the 4 `CHANGE-LOG.md` items above, because they need an
+actual scoping conversation with Anthony, not just a filing pass. **Superseded later the same
+session:** filed anyway as placeholder issues **#97–#100** (`needs-info`) so Anthony can review
+them on his own time before that conversation happens — see "This session's work — CHANGE-LOG.md
+filed as issues" above.
 
 **Two more loose items surfaced, initially left unfiled, then filed on Anthony's explicit
 go-ahead the same session:**
@@ -57,9 +106,8 @@ go-ahead the same session:**
   server cron is scheduled in UTC with no per-timezone logic (ties to #37), and push only fires
   if a live `push_subscriptions` row exists.
 
-**Every loose thread from this recap is now in GitHub.** Nothing left floating outside issues
-except the 4 `CHANGE-LOG.md` entries above, which are pending a scoping conversation, not a
-filing pass.
+**Every loose thread from this recap is now in GitHub, including the 4 `CHANGE-LOG.md` entries**
+(filed later the same session as #97–#100). `CHANGE-LOG.md` is now empty of pending items.
 
 ## #82 — payday persistence, fixed and merged this session
 
@@ -496,6 +544,12 @@ income from the orphaned `paydays` table. Found while fixing #82, filed same ses
 delivered; server cron scheduled in UTC with no per-timezone logic (ties to #37), push silently
 no-ops if the subscription row is dead. Diagnosed a while back, filed this session.
 
+**[#97](https://github.com/mp3anthony/funded/issues/97)–[#100](https://github.com/mp3anthony/funded/issues/100)**
+· notifications overhaul, bills-vs-expenses split, visual/motion overhaul, dashboard overhaul —
+the 4 `CHANGE-LOG.md` items that needed a real scoping conversation, filed as `needs-info`
+placeholders this session instead of waiting for that conversation live. **Work through these
+before any more coding** — see "→ START HERE NEXT SESSION" at the top of this file.
+
 **Join-by-code was broken in production — filed, fixed, and closed as [#81](https://github.com/mp3anthony/funded/issues/81).**
 Anthony's call: own issue, not folded into PR #77 (the redeploy is unrelated to #75's diff and
 doesn't block that PR's merge). Edge function redeployed and retested this session — see
@@ -524,20 +578,28 @@ doesn't block that PR's merge). Edge function redeployed and retested this sessi
   `needs-merge-approval`. `ready-for-testing` is the de facto equivalent of `needs-manual-test`
   and was used for PRs #76/#77. Anthony to choose: rename the protocol to match the repo, or
   create the last two missing labels.
-- **`CHANGE-LOG.md` count discrepancy — RESOLVED this session.** Verified count is genuinely
-  **6** (matches the file). 2 of those 6 are now triaged/filed (#87, #88); 4 remain, see
-  "→ START HERE NEXT SESSION" at the top of this file.
+- **`CHANGE-LOG.md` count discrepancy — RESOLVED, and now fully closed out.** Verified count was
+  genuinely 6; all 6 are now filed as issues (#87, #88 needed no further input; #97–#100 filed as
+  `needs-info` placeholders this session). `CHANGE-LOG.md`'s pending list is empty.
 
-## Then: `CHANGE-LOG.md` triage + CRD interview — 4 of 6 items left, see top of file
+## Then: needs-info issues one by one, then a new vertically-sliced spec — see top of file
 
-2 of the original 6 `CHANGE-LOG.md` entries needed no further input and are already filed
-(#87, #88 — see "This session's recap/triage pass"). The remaining 4 are exactly what
-"→ START HERE NEXT SESSION" at the top of this file is pointing at: Anthony puts the client hat
-on, works through them, then the `crd` skill runs live. Covers the dynamic/interactive overhaul
-(the swipeable gauge is **one of several ideas** — he has more to bring), the dashboard,
-bills-vs-expenses, and notifications.
+All 6 original `CHANGE-LOG.md` entries are now GitHub issues (#87, #88 needed no further input
+and are ordinary backlog now; #97–#100 are `needs-info`, each carrying its own decisions-needed
+list — see each issue body, not this file, for the specifics). Anthony's agreed sequencing,
+recorded in full at "→ START HERE NEXT SESSION" at the top of this file:
 
-Findings to carry in:
+1. Work through #97–#100 (and any other `needs-info` issue that shows up — check
+   `gh issue list --label needs-info`) one at a time, Anthony-initiated, before any more code
+   work.
+2. Once they're all resolved, triage the full open-issue list and write a new vertically-sliced
+   spec that sequences the rest of delivery without blockers, so agent-delegated implementation
+   and testing can run cleanly slice by slice.
+3. Licensing + app-store distribution comes after that, run alongside opening testing to people
+   beyond Anthony/Hannah — timeline context only, no action needed yet.
+
+Findings to carry in for whenever each `needs-info` issue gets its interview (also duplicated
+into the relevant issue body):
 
 - **The notifications mechanism works and is cheap:** run the cron **hourly** instead of daily
   and process each household only when its local hour matches its chosen notify hour. No new
@@ -556,13 +618,16 @@ Findings to carry in:
 - Protocol: [`CLAUDE.md`](CLAUDE.md) — read first.
 - Working spec: [`SPEC.md`](SPEC.md) — **Part A final (A1/A2)**. Part B Slices 1 (#71) and 3
   (#37) still open. Stale line citations tracked as #92.
-- Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — 4 of 6 entries still pending triage (the
-  other 2 filed as #87/#88). See "→ START HERE NEXT SESSION" at the top of this file.
+- Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — **empty of pending items.** All 6 entries
+  are now GitHub issues (#87, #88, #97–#100).
 - **Merged: PR #86** https://github.com/mp3anthony/funded/pull/86, closes #82 (payday
   persistence). `v0.9.5` stays on `main`.
 - **Merged: PR #77** https://github.com/mp3anthony/funded/pull/77 (commit `41acb2d`, closes #75,
   #78, #79, #80 — `v0.9.5` now on `main`).
-- **Top priority next session:** the 4 remaining `CHANGE-LOG.md` items, see top of this file.
+- **Top priority next session:** [#101](https://github.com/mp3anthony/funded/issues/101)
+  (`Critical`, payday countdown bug, logged not built) — raise it first, then work through
+  `needs-info` issues #97–#100 with Anthony, one at a time — see top of this file. Anthony plans
+  to re-summarise all open issues himself at the start of next session, so let him redirect.
 - Ready to build whenever: [#83](https://github.com/mp3anthony/funded/issues/83),
   [#84](https://github.com/mp3anthony/funded/issues/84),
   [#85](https://github.com/mp3anthony/funded/issues/85).
@@ -571,6 +636,11 @@ Findings to carry in:
   [#37](https://github.com/mp3anthony/funded/issues/37),
   [#93](https://github.com/mp3anthony/funded/issues/93),
   [#94](https://github.com/mp3anthony/funded/issues/94).
+- **`needs-info`, Anthony to interview-and-resolve next:**
+  [#97](https://github.com/mp3anthony/funded/issues/97),
+  [#98](https://github.com/mp3anthony/funded/issues/98),
+  [#99](https://github.com/mp3anthony/funded/issues/99),
+  [#100](https://github.com/mp3anthony/funded/issues/100).
 - Filed 2026-08-05, low-priority backlog: [#87](https://github.com/mp3anthony/funded/issues/87),
   [#88](https://github.com/mp3anthony/funded/issues/88),
   [#89](https://github.com/mp3anthony/funded/issues/89),
@@ -579,12 +649,12 @@ Findings to carry in:
   [#92](https://github.com/mp3anthony/funded/issues/92),
   [#95](https://github.com/mp3anthony/funded/issues/95),
   [#96](https://github.com/mp3anthony/funded/issues/96).
-- **Everything from this session's recap is now in GitHub.** Nothing left floating outside
-  issues except the 4 `CHANGE-LOG.md` entries, which need a scoping conversation, not a filing
-  pass — see "→ START HERE NEXT SESSION" at the top of this file.
+- **Everything from this session's recap is now in GitHub, including the 4 `CHANGE-LOG.md`
+  items** (filed as #97–#100). Nothing left floating outside issues at all.
 - **Join-by-code fixed and closed:** [#81](https://github.com/mp3anthony/funded/issues/81) —
   redeployed and retested previous session.
 - Merged: PR #76 https://github.com/mp3anthony/funded/pull/76 (`v0.9.4`)
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
-- Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96
+- Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96, #97, #98,
+  #99, #100, #101 (new, `Critical`, logged not built — see top of file)
