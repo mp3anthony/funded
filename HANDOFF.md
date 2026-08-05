@@ -1,13 +1,33 @@
 # Handoff
 
-**Last updated:** 2026-08-05 — the 4 remaining `CHANGE-LOG.md` items are now filed as GitHub
-issues **#97–#100**, all `needs-info`, instead of waiting for a live scoping conversation.
-`CHANGE-LOG.md` is empty of pending items — everything is in GitHub. See
-"→ START HERE NEXT SESSION" below for the agreed sequencing on what happens next.
+**Last updated:** 2026-08-05 (later same day) — filed **[#101](https://github.com/mp3anthony/funded/issues/101)**,
+a `Critical` payday-countdown bug Anthony hit live (his wife's payday auto-logged as "missed"
+before local midnight). Root cause traced, **logged only, not built** — Anthony's explicit
+instruction this session. He's coming back next session to summarise all open issues fresh and
+pick one to tackle, which supersedes strict adherence to the "→ START HERE NEXT SESSION" queue
+below — but #101 is new, high-priority, and worth surfacing first regardless of that queue.
 
-## → START HERE NEXT SESSION — work through needs-info issues with Anthony, no coding until they're clear
+## → START HERE NEXT SESSION — #101 is new and Critical; then needs-info issues; Anthony plans to re-summarise first
 
-Anthony's explicit sequencing for what comes next, agreed this session:
+**[#101](https://github.com/mp3anthony/funded/issues/101) — payday auto-logs as "missed" before
+local midnight, next-payday countdown drifts (e.g. weekly shows "in 5 days" not 7).** `bug`,
+`Critical`, `needs-triage`. Root cause traced, not guessed: `src/context/AppContext.tsx` writes
+`next_pay_date` via `date.toISOString().split("T")[0]` in four places (`logPay` — line 2865;
+`autoLogMissedPays` — lines 2970/3005; `parseDateForDb` — line 391). `toISOString()` converts to
+UTC first, and household default timezone is `Australia/Sydney` (UTC+10/+11, per #37) — so the
+stored date rolls back a day for any household ahead of UTC. That's what makes
+`autoLogMissedPays` (runs on every Payday tab load) think today's payday already passed, before
+the local day is actually over. Fix outline and a full testing checklist are already in the
+issue body — ready to hand to a sub-agent as soon as Anthony says go. Anthony explicitly said
+"just log it for now" this session — **do not start building without him confirming first.**
+
+Anthony said he'll open next session by summarising all open issues himself and picking one to
+tackle — treat that as the actual entry point next time, not necessarily the numbered list below.
+That said, the sequencing below is still the last explicit plan on record, so raise #101 first,
+then this list, and let Anthony redirect from there.
+
+Anthony's explicit sequencing agreed in the earlier 2026-08-05 session (still the standing plan
+unless he redirects):
 
 1. **Needs-info issues first — no code work until they're all resolved.** Current needs-info
    issues: **[#97](https://github.com/mp3anthony/funded/issues/97)** (notifications overhaul),
@@ -604,8 +624,10 @@ into the relevant issue body):
   persistence). `v0.9.5` stays on `main`.
 - **Merged: PR #77** https://github.com/mp3anthony/funded/pull/77 (commit `41acb2d`, closes #75,
   #78, #79, #80 — `v0.9.5` now on `main`).
-- **Top priority next session:** work through `needs-info` issues #97–#100 with Anthony, one at a
-  time, before any more code work — see top of this file.
+- **Top priority next session:** [#101](https://github.com/mp3anthony/funded/issues/101)
+  (`Critical`, payday countdown bug, logged not built) — raise it first, then work through
+  `needs-info` issues #97–#100 with Anthony, one at a time — see top of this file. Anthony plans
+  to re-summarise all open issues himself at the start of next session, so let him redirect.
 - Ready to build whenever: [#83](https://github.com/mp3anthony/funded/issues/83),
   [#84](https://github.com/mp3anthony/funded/issues/84),
   [#85](https://github.com/mp3anthony/funded/issues/85).
@@ -635,4 +657,4 @@ into the relevant issue body):
 - Closed: #73 https://github.com/mp3anthony/funded/issues/73 (kept as the written record of the
   health-score investigation and its two wrong diagnoses)
 - Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96, #97, #98,
-  #99, #100
+  #99, #100, #101 (new, `Critical`, logged not built — see top of file)
