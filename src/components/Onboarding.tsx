@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useApp, useCurrentUser } from "@/context/AppContext";
 import { supabase } from "@/lib/supabase";
-import { Clock } from "lucide-react";
 import {
   Home,
   Calendar,
@@ -42,11 +41,26 @@ export default function Onboarding() {
   /* Step 3 — Payday */
   const [paydayDate, setPaydayDate] = useState("");
   const [payAmount, setPayAmount] = useState("");
+  const [payFrequency, setPayFrequency] = useState<"weekly" | "fortnightly" | "monthly">("monthly");
+  const [isFixedPay, setIsFixedPay] = useState(true);
+  // Note (#84): the real Payday tab also has a Household Member dropdown.
+  // Omitted here on purpose — at this point in onboarding the current user
+  // is the only household member, so member stays implicit as currentUser.id.
 
   /* Step 4 — First Bill */
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billFrequency, setBillFrequency] = useState("monthly");
+  const [billCategory, setBillCategory] = useState("Other");
+  const [billInvoiceDate, setBillInvoiceDate] = useState("");
+  const [billDueDate, setBillDueDate] = useState("");
+  const [billPaymentType, setBillPaymentType] = useState<"Manual" | "Auto">("Manual");
+  const [billNotes, setBillNotes] = useState("");
+  // Note (#83): the real Add Bill card also has an Assignee dropdown and a
+  // "Paid By"/splits section. Both omitted here on purpose — no other
+  // household members exist yet at this point in onboarding, so
+  // assignee-choice/splits don't make sense. Assignee defaults to
+  // currentUser.id implicitly on save, and splits are sent as [].
 
   /* ── Navigation ─────────────────────────────── */
   async function handleNext() {
@@ -78,15 +92,15 @@ export default function Onboarding() {
       }
     }
 
-    if (currentStep === 3 && paydayDate && payAmount) {
+    if (currentStep === 3 && paydayDate && (!isFixedPay || payAmount)) {
       setIsSaving(true);
       setStepError(null);
       try {
         await addPaySchedule({
           member_id: String(currentUser.id),
-          frequency: "monthly",
-          is_fixed_amount: true,
-          amount: parseFloat(payAmount),
+          frequency: payFrequency,
+          is_fixed_amount: isFixedPay,
+          amount: isFixedPay ? parseFloat(payAmount) : null,
           next_pay_date: paydayDate,
         });
       } catch (err: any) {
@@ -98,26 +112,26 @@ export default function Onboarding() {
       }
     }
 
-    if (currentStep === 4 && billName && billAmount) {
+    if (currentStep === 4 && billName && billAmount && billDueDate) {
       setIsSaving(true);
       setStepError(null);
       try {
-        await addBill({
-          id: Date.now(),
-          name: billName,
-          category: "Other",
-          dueDate: new Date().toLocaleDateString("en-US", {
-            month: "long",
-            day: "2-digit",
-            year: "numeric",
-          }),
-          amount: parseFloat(billAmount),
-          status: "Due Soon",
-          frequency: billFrequency,
-          statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
-          statusIcon: Clock,
-          categoryColor: "bg-secondary/10 text-secondary",
-        });
+        // Same shape addBill() reads/inserts as AddBillSheet.tsx's handleSave,
+        // so a bill created here lands identically in the `bills` table.
+        await addBill(
+          {
+            name: billName,
+            amount: parseFloat(billAmount),
+            category: billCategory,
+            invoiceDate: billInvoiceDate,
+            dueDate: billDueDate,
+            paymentType: billPaymentType,
+            assignee: String(currentUser.id),
+            notes: billNotes,
+            frequency: billFrequency,
+          },
+          []
+        );
       } catch (err: any) {
         setStepError(err.message || String(err));
         setIsSaving(false);
@@ -139,8 +153,13 @@ export default function Onboarding() {
   function canProceed(): boolean {
     if (currentStep === 1) return flowMode === "create" && localHouseholdName.trim().length > 0;
     if (currentStep === 2) return true; // Payment mode has default selected
-    if (currentStep === 3) return paydayDate !== "" && payAmount !== "";
-    if (currentStep === 4) return billName.trim().length > 0 && billAmount !== "";
+    if (currentStep === 3)
+      return (
+        paydayDate !== "" &&
+        (!isFixedPay || (payAmount !== "" && !isNaN(Number(payAmount)) && Number(payAmount) > 0))
+      );
+    if (currentStep === 4)
+      return billName.trim().length > 0 && billAmount !== "" && billDueDate !== "";
     return true;
   }
 
@@ -404,25 +423,62 @@ export default function Onboarding() {
                   </div>
                   <div className="space-y-2">
                     <label
-                      htmlFor="ob-payamount"
+                      htmlFor="ob-payfreq"
                       className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
                     >
-                      Pay Amount
+                      Frequency
                     </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm font-mono">$</span>
-                      <input
-                        id="ob-payamount"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="2,500.00"
-                        value={payAmount}
-                        onChange={(e) => setPayAmount(e.target.value)}
-                        className="w-full pl-8 pr-4 py-3 rounded-[2px] bg-surface-raised border border-border font-mono text-primary text-sm font-semibold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
-                      />
-                    </div>
+                    <select
+                      id="ob-payfreq"
+                      value={payFrequency}
+                      onChange={(e) => setPayFrequency(e.target.value as "weekly" | "fortnightly" | "monthly")}
+                      className="w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="weekly">Weekly</option>
+                      <option value="fortnightly">Fortnightly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
                   </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="ob-paytype"
+                      className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
+                    >
+                      Pay Type
+                    </label>
+                    <select
+                      id="ob-paytype"
+                      value={isFixedPay ? "fixed" : "variable"}
+                      onChange={(e) => setIsFixedPay(e.target.value === "fixed")}
+                      className="w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="fixed">Fixed Pay Amount</option>
+                      <option value="variable">Variable Pay Amount</option>
+                    </select>
+                  </div>
+                  {isFixedPay && (
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="ob-payamount"
+                        className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
+                      >
+                        Pay Amount
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm font-mono">$</span>
+                        <input
+                          id="ob-payamount"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="2,500.00"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(e.target.value)}
+                          className="w-full pl-8 pr-4 py-3 rounded-[2px] bg-surface-raised border border-border font-mono text-primary text-sm font-semibold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -501,6 +557,92 @@ export default function Onboarding() {
                       </select>
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="ob-billcategory"
+                      className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
+                    >
+                      Category
+                    </label>
+                    <select
+                      id="ob-billcategory"
+                      value={billCategory}
+                      onChange={(e) => setBillCategory(e.target.value)}
+                      className="w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Household Bills">Household Bills</option>
+                      <option value="Living Costs">Living Costs</option>
+                      <option value="Debt & Finance">Debt & Finance</option>
+                      <option value="Loans">Loans</option>
+                      <option value="Subscriptions">Subscriptions</option>
+                      <option value="Temporary">Temporary</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="ob-billinvoicedate"
+                        className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
+                      >
+                        Invoice Date
+                      </label>
+                      <input
+                        id="ob-billinvoicedate"
+                        type="date"
+                        value={billInvoiceDate}
+                        onChange={(e) => setBillInvoiceDate(e.target.value)}
+                        className="w-full min-w-0 px-4 py-3 rounded-[2px] bg-surface-raised border border-border font-mono text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="ob-billduedate"
+                        className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
+                      >
+                        Due Date
+                      </label>
+                      <input
+                        id="ob-billduedate"
+                        type="date"
+                        value={billDueDate}
+                        onChange={(e) => setBillDueDate(e.target.value)}
+                        className="w-full min-w-0 px-4 py-3 rounded-[2px] bg-surface-raised border border-border font-mono text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="ob-billpaymenttype"
+                      className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
+                    >
+                      Payment Type
+                    </label>
+                    <select
+                      id="ob-billpaymenttype"
+                      value={billPaymentType}
+                      onChange={(e) => setBillPaymentType(e.target.value as "Manual" | "Auto")}
+                      className="w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Manual">Manual</option>
+                      <option value="Auto">Auto-Pay</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="ob-billnotes"
+                      className="block font-heading text-xs font-semibold tracking-wider uppercase text-subtle"
+                    >
+                      Notes
+                    </label>
+                    <textarea
+                      id="ob-billnotes"
+                      placeholder="Add any additional details or context here..."
+                      value={billNotes}
+                      onChange={(e) => setBillNotes(e.target.value)}
+                      className="w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border font-mono text-foreground text-sm min-h-[80px] resize-y focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -526,7 +668,9 @@ export default function Onboarding() {
                   <div className="flex flex-col items-center gap-1 py-3 px-2">
                     <span className="font-mono text-[9px] uppercase tracking-wider text-subtle">Payday</span>
                     <span className="font-mono text-sm font-semibold text-primary truncate max-w-full">
-                      ${Number(payAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {isFixedPay
+                        ? `$${Number(payAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : "Variable"}
                     </span>
                   </div>
                   <div className="flex flex-col items-center gap-1 py-3 px-2">
