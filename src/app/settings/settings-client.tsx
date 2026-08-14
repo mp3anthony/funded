@@ -22,7 +22,6 @@ import PageHeader from "@/components/PageHeader";
 import AvatarUpload from "@/components/AvatarUpload";
 import RemoveMemberModal from "@/components/RemoveMemberModal";
 import EditMemberModal from "@/components/EditMemberModal";
-import JoinHouseholdSheet from "@/components/JoinHouseholdSheet";
 import NotificationCenter from "@/components/NotificationCenter";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
@@ -49,6 +48,8 @@ export default function SettingsClient() {
     codeExpiresAt,
     regenerateJoinCode,
     notifications,
+    leaveHousehold,
+    deleteHousehold,
   } = useApp();
 
   /* Payment mode confirm flow */
@@ -60,7 +61,6 @@ export default function SettingsClient() {
   const [isContributionOpen, setIsContributionOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
-  const [isJoinSheetOpen, setIsJoinSheetOpen] = useState(false);
 
   /* Inline editorial dialogs */
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -71,6 +71,10 @@ export default function SettingsClient() {
   /* Member management modals */
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
   const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
+
+  /* Leave household */
+  const [isLeavingHousehold, setIsLeavingHousehold] = useState(false);
+  const [leaveHouseholdError, setLeaveHouseholdError] = useState<string | null>(null);
 
   /* Deep-link: open the Profile dialog when arriving via /settings?modal=profile
      (e.g. from the avatar-dropdown name button). Reactive to the query param so
@@ -187,6 +191,35 @@ export default function SettingsClient() {
       await regenerateJoinCode();
     } catch (err) {
       alert((err as Error)?.message || "Failed to generate code.");
+    }
+  }
+
+  /* #85: owner leaving tears down the whole household (matches the warning
+     text below); a plain member leaving only removes their own membership.
+     Both redirect to "/" on success (same pattern as
+     JoinHouseholdSheet.tsx:71) so the full reload lets AppShell's existing
+     onboarding gate show the create-or-join screen — no manual state
+     surgery here. */
+  async function handleLeaveHousehold() {
+    const warningText = isCurrentUserOwner
+      ? "WARNING: You're the owner. This will permanently delete this household and everything in it — bills, funds, paydays, and every member's access. You cannot undo this. Are you sure you want to continue?"
+      : "This will remove your membership from this household. The household and other members are unaffected, but you'll need to create or join a household again. You cannot undo this. Are you sure you want to continue?";
+
+    if (!confirm(warningText)) return;
+
+    setLeaveHouseholdError(null);
+    setIsLeavingHousehold(true);
+    try {
+      if (isCurrentUserOwner) {
+        await deleteHousehold();
+      } else {
+        await leaveHousehold();
+      }
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Failed to leave household:", err);
+      setLeaveHouseholdError((err as Error)?.message || "Failed to leave household. Please check your connection and try again.");
+      setIsLeavingHousehold(false);
     }
   }
 
@@ -330,21 +363,20 @@ export default function SettingsClient() {
       <section className="pt-8">
         <button
           type="button"
-          onClick={() => {
-            if (
-              confirm(
-                "WARNING: This will permanently delete your current household data (if you are the owner) or remove your membership (if you are a member). You cannot undo this. Are you sure you want to continue?"
-              )
-            ) {
-              setIsJoinSheetOpen(true);
-            }
-          }}
-          className="w-full text-left py-3 border-t border-border text-sm font-medium text-destructive"
+          onClick={handleLeaveHousehold}
+          disabled={isLeavingHousehold}
+          className="w-full text-left py-3 border-t border-border text-sm font-medium text-destructive disabled:opacity-50"
         >
-          Leave household
+          {isLeavingHousehold ? "Leaving household…" : "Leave household"}
         </button>
+        {leaveHouseholdError && (
+          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+            <span className="font-bold">Failed to leave household:</span><br/>
+            {leaveHouseholdError}
+          </div>
+        )}
         <div className="text-center pt-8 pb-2">
-          <div className="font-mono text-[10px] tracking-wider text-subtle/70">funded. v0.9.7</div>
+          <div className="font-mono text-[10px] tracking-wider text-subtle/70">funded. v0.9.8</div>
           <div className="font-mono text-[10px] text-subtle/50 mt-1">Concept &amp; development · Anthony Paull</div>
         </div>
       </section>
@@ -603,7 +635,6 @@ export default function SettingsClient() {
         isOpen={isNotificationCenterOpen}
         onClose={() => setIsNotificationCenterOpen(false)}
       />
-      <JoinHouseholdSheet isOpen={isJoinSheetOpen} onClose={() => setIsJoinSheetOpen(false)} />
     </div>
   );
 }

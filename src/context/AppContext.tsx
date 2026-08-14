@@ -595,6 +595,8 @@ interface AppContextValue {
   codeExpiresAt: string | null;
   regenerateJoinCode: () => Promise<void>;
   joinHousehold: (code: string) => Promise<void>;
+  leaveHousehold: () => Promise<void>;
+  deleteHousehold: () => Promise<void>;
 
   /* Bill Splits */
   billSplits: BillSplit[];
@@ -2503,6 +2505,100 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  // #85. Non-owner self-leave: delete only the caller's own household_members
+  // row, scoped to the current household (user_id + household_id). Existing
+  // RLS ("hm_delete_own" / "Users can delete household_members") already
+  // permits user_id = auth.uid() deletes, and every dependent row
+  // (pay_schedules, pay_history, contribution_rules, household_contributions,
+  // bill_splits — all keyed off member_id) cascades off that row automatically,
+  // so no extra cleanup queries are needed here. The household_id filter
+  // matters because of the documented #75 edge case in joinHousehold() below
+  // (~lines 2106-2262): a user can transiently end up with a second
+  // household_members row in a different household, and an unscoped
+  // user_id-only delete would wipe every membership the user has instead of
+  // just the one they're leaving. Reads but does not mutate dbHouseholdId:
+  // the caller (Settings) does a full-page redirect on success, which reloads
+  // AppContext from scratch and lets AppShell's existing onboarding gate take
+  // it from there.
+  async function leaveHousehold() {
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const userId = currentSession?.user?.id || session?.user?.id;
+
+      if (!userId) {
+        throw new Error("You need to be signed in to leave a household.");
+      }
+
+      if (!dbHouseholdId) {
+        throw new Error("No household to leave.");
+      }
+
+      const { error } = await supabase
+        .from("household_members")
+        .delete()
+        .eq("user_id", userId)
+        .eq("household_id", dbHouseholdId);
+
+      if (error) {
+        console.error("[leaveHousehold] Failed to delete membership row:", error);
+        throw new Error("Failed to leave household: " + error.message);
+      }
+    } catch (err) {
+      console.error("Failed to leave household:", err);
+      throw err;
+    }
+  }
+
+  // #85. Owner leaves: full household teardown. Routed through the
+  // delete-household edge function (service-role key, same pattern as
+  // join-household) because notifications.household_id has no cascade and its
+  // RLS only allows deleting your own rows — a plain client-side household
+  // delete would foreign-key-violate the moment any member has a notification
+  // row. The function re-verifies ownership server-side via
+  // is_household_owner(); it does not trust the client. On success every other
+  // table cascades off households.id automatically.
+  async function deleteHousehold() {
+    if (!dbHouseholdId) {
+      throw new Error("No household to delete.");
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-household", {
+        body: { householdId: dbHouseholdId },
+      });
+
+      if (!error && data && !data.error) {
+        return;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      if (error) {
+        let parsedError: Error | null = null;
+        if ((error as any).context) {
+          try {
+            const contextClone = (error as any).context.clone();
+            const errText = await contextClone.text();
+            const errBody = JSON.parse(errText);
+            if (errBody && errBody.error) {
+              parsedError = new Error(errBody.error);
+            }
+          } catch (jsonErr) {
+            console.error("[deleteHousehold] Failed to parse edge function error response:", jsonErr);
+          }
+        }
+        throw parsedError || error;
+      }
+
+      throw new Error("Failed to delete household.");
+    } catch (err) {
+      console.error("Failed to delete household:", err);
+      throw err;
+    }
+  }
+
   async function removeMember(id: string | number, reassignBillsTo?: string, reassignGoalsTo?: string) {
     try {
       // 1. Handle Bill Splits
@@ -3569,6 +3665,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     codeExpiresAt,
     regenerateJoinCode,
     joinHousehold,
+    leaveHousehold,
+    deleteHousehold,
     billSplits,
     setBillSplits,
     addBillSplit,
