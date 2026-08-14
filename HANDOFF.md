@@ -1,10 +1,10 @@
 # Handoff
 
-**Last updated:** 2026-08-05 (later same day) — **[#101](https://github.com/mp3anthony/funded/issues/101)
-fixed, reviewed, verified end-to-end, and merged in [PR #103](https://github.com/mp3anthony/funded/pull/103).**
-`v0.9.5` → `v0.9.6`. Anthony is going to review the open issues himself and come back next
-session with the `needs-info` scoping answers (#97-#100) — that's the actual entry point next
-time, not a numbered queue here.
+**Last updated:** 2026-08-14 — **[#85](https://github.com/mp3anthony/funded/issues/85)
+fixed, reviewed, verified end-to-end, and merged in [PR #105](https://github.com/mp3anthony/funded/pull/105).**
+`v0.9.7` → `v0.9.8`. Anthony picked #85 directly off the backlog this session rather than
+bringing needs-info answers — that queue (#97-#100) is still the standing next-session entry
+point below, untouched this session, unless Anthony redirects again like he just did.
 
 ## → START HERE NEXT SESSION — Anthony bringing needs-info scoping answers (#97-#100)
 
@@ -31,6 +31,65 @@ force unless Anthony redirects) is:
    under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
    TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
    needed yet — noted here so a future session doesn't lose the thread.
+
+## #85 — leave household, fixed, reviewed, verified, and merged this session (2026-08-14)
+
+**[#85](https://github.com/mp3anthony/funded/issues/85) — CLOSED, fixed in
+[PR #105](https://github.com/mp3anthony/funded/pull/105).** Filed as a narrow UI-routing bug
+("Leave household confirms, then wrongly opens a bare join-code sheet instead of the full
+create-or-join screen"). Investigating before building found the real scope was much bigger:
+**leave-household logic didn't exist anywhere in the codebase.** The confirm() dialog's warning
+text ("this will permanently delete... or remove your membership") described behavior that was
+never implemented — confirming just opened the join sheet, with nothing ever deleted. The narrow
+fix as filed would have looked fixed (right screen shown) while still silently no-op'ing
+underneath, since `joinHousehold()` (`src/context/AppContext.tsx`) detects the still-existing
+membership and refuses/restores it on any subsequent join attempt.
+
+Scope expanded on the issue with Anthony's sign-off (recorded in the issue comments) to build
+real leave functionality:
+
+- **Non-owner member leaves:** self-deletes their own `household_members` row, scoped to both
+  `user_id` **and** `household_id` (not `user_id` alone — see the round-1 review finding below).
+  Every dependent row (pay schedules/history, contributions, bill splits) already cascades off
+  `member_id`, so nothing else needed hand-rolling.
+- **Owner leaves:** full household teardown via a new `delete-household` Supabase edge function
+  (`supabase/functions/delete-household/index.ts`), mirroring the existing `join-household`
+  pattern. Needed because every table cascades cleanly off `households.id` **except**
+  `notifications` (`household_id` FK is `NO ACTION`, and its RLS only allows deleting your own
+  rows) — a plain client-side household delete would foreign-key-violate the moment any member
+  has a notification. The edge function runs server-side with the service-role key, re-derives
+  ownership via the existing `is_household_owner()` Postgres function (never trusts a client
+  claim), clears notifications for every member of the household, then deletes the household row.
+  **Anthony explicitly approved this as a sanctioned new use of the service-role key** before it
+  was built — flagged because `SPEC.md` calls new uses of that key a stop-and-ask item.
+- Settings button now branches on owner-vs-member and redirects to `/` on success so the app's
+  existing onboarding gate (`AppShell.tsx`) naturally shows the create-or-join screen.
+
+**Two-round independent review caught a real bug, not just style nits** — same pattern as #101.
+Round 1: **NEEDS-REWORK**. `leaveHousehold()` deleted by `user_id` alone with no `household_id`
+scoping — a real hazard given the documented #75 multi-membership edge case (a user can end up
+with a second `household_members` row in a different household). An unscoped delete would have
+silently wiped *all* of a user's memberships, not just the one they meant to leave. Also flagged
+dead `JoinHouseholdSheet`/`isJoinSheetOpen` state left behind in `settings-client.tsx` (its only
+call site in that file was the button being replaced). Both fixed — round 2: **APPROVED**.
+
+**Verified end-to-end against a disposable Supabase test setup, not just by reading code** (same
+standard as #101/#82): two throwaway accounts, real households with a bill/payday, and —
+specifically to prove cross-member cleanup — a seeded notification row for *each* user. All 4
+checklist scenarios run for real: member-leaves (household + owner's data survive, confirmed via
+direct query), rejoin-after-leave (no "already a member" refusal), owner-leaves-with-a-member-
+present (household/members/bills/funds/paydays/pay_schedules/**both users'** notifications all
+confirmed dropped to 0, and the other member's own session independently confirmed kicked back to
+onboarding — not just cosmetic on the actor's screen), and solo-owner-leaves. Browser tool's
+native `confirm()` dialogs are auto-suppressed (returns `false`) — had to override
+`window.confirm = () => true` via the JS-exec tool before each click to actually trigger the
+flow; worth remembering for any future manual-flow testing that hits a `confirm()`/`alert()`.
+Test accounts and all seeded data fully deleted afterward, verified zero remaining
+`household_members` rows for either test user first.
+
+`v0.9.7` → `v0.9.8`. `needs-merge-approval` — Anthony approved the merge and the version number
+in-session. No manual/device testing needed (business logic + an edge function, no layout/
+platform-native surface).
 
 ## #101 — payday timezone drift, fixed, reviewed, verified, and merged this session (2026-08-05)
 
@@ -534,7 +593,7 @@ in-app Add Bill card / Payday tab's pay-schedule form. Not time-sensitive; #84 w
 alongside #82 since it's the same form.
 
 **[#85 — Leave household should return to full onboarding, not a bare join-code box](https://github.com/mp3anthony/funded/issues/85)**
-· `bug`, `ready-for-agent` · not time-sensitive.
+· CLOSED, fixed in PR #105 — see "#85 — leave household" section above.
 
 **[#74 — successful-but-empty query results wipe loaded household data](https://github.com/mp3anthony/funded/issues/74)**
 · `bug`, `needs-triage` · **needs Anthony's approach decision before building.**
@@ -649,6 +708,8 @@ into the relevant issue body):
   (#37) still open. Stale line citations tracked as #92.
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — **empty of pending items.** All 6 entries
   are now GitHub issues (#87, #88, #97–#100).
+- **Merged: PR #105** https://github.com/mp3anthony/funded/pull/105, closes #85 (leave household
+  — full implementation, not just the routing fix). `v0.9.7` → `v0.9.8`, now on `main`.
 - **Merged: PR #103** https://github.com/mp3anthony/funded/pull/103, closes #101 (payday
   timezone drift). `v0.9.5` → `v0.9.6`, now on `main`.
 - **Merged: PR #86** https://github.com/mp3anthony/funded/pull/86, closes #82 (payday
@@ -660,7 +721,6 @@ into the relevant issue body):
   the scoping answers back, so let him redirect from there.
 - Ready to build whenever: [#83](https://github.com/mp3anthony/funded/issues/83),
   [#84](https://github.com/mp3anthony/funded/issues/84),
-  [#85](https://github.com/mp3anthony/funded/issues/85),
   [#102](https://github.com/mp3anthony/funded/issues/102) (overlaps #84 — same file, same class
   of onboarding-form fix).
 - Needs Anthony's decision first: [#74](https://github.com/mp3anthony/funded/issues/74),
@@ -692,5 +752,7 @@ into the relevant issue body):
   health-score investigation and its two wrong diagnoses)
 - Closed: #101 https://github.com/mp3anthony/funded/issues/101 (payday timezone drift, fixed in
   PR #103 this session — see "#101" section above)
-- Open: #83, #84, #85, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96, #97, #98,
-  #99, #100, #102 (new this session, non-blocking backlog)
+- Open: #83, #84, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96, #97, #98,
+  #99, #100, #102 (non-blocking backlog)
+- Closed: #85 https://github.com/mp3anthony/funded/issues/85 (leave household, fixed in PR #105
+  this session — see "#85" section above)
