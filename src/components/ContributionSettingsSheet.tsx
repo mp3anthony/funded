@@ -328,17 +328,28 @@ function computeMemberIncomes(
       return { member, blocked: true, reason: "missing pay schedule" };
     }
 
+    const fixedSchedules = schedules.filter((s) => s.is_fixed_amount);
+    const variableSchedules = schedules.filter((s) => !s.is_fixed_amount);
+
     let monthlyIncome = 0;
-    for (const schedule of schedules) {
-      if (schedule.is_fixed_amount) {
-        monthlyIncome += convertAmount(schedule.amount ?? 0, schedule.frequency, "monthly");
-      } else {
-        const avg = calculateAveragePay(String(member.id));
-        if (avg === null) {
-          return { member, blocked: true, reason: "not enough pay history yet" };
-        }
-        monthlyIncome += convertAmount(avg, schedule.frequency, "monthly");
+    for (const schedule of fixedSchedules) {
+      monthlyIncome += convertAmount(schedule.amount ?? 0, schedule.frequency, "monthly");
+    }
+
+    // calculateAveragePay is scoped to the member (not per-schedule) — it
+    // returns the same blended average regardless of which variable schedule
+    // asks for it. Call it once per member, not once per variable schedule,
+    // or a member with 2+ variable schedules gets the same average counted
+    // multiple times and their income (and split %) is silently inflated.
+    if (variableSchedules.length > 0) {
+      const avg = calculateAveragePay(String(member.id));
+      if (avg === null) {
+        return { member, blocked: true, reason: "not enough pay history yet" };
       }
+      const mostRecentVariable = [...variableSchedules].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )[0];
+      monthlyIncome += convertAmount(avg, mostRecentVariable.frequency, "monthly");
     }
 
     let ownFrequency: PayFrequency;
