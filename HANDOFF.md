@@ -1,12 +1,25 @@
 # Handoff
 
-**Last updated:** 2026-08-14 — **[#85](https://github.com/mp3anthony/funded/issues/85)
-fixed, reviewed, verified end-to-end, and merged in [PR #105](https://github.com/mp3anthony/funded/pull/105).**
-`v0.9.7` → `v0.9.8`. Anthony picked #85 directly off the backlog this session rather than
-bringing needs-info answers — that queue (#97-#100) is still the standing next-session entry
-point below, untouched this session, unless Anthony redirects again like he just did.
+**Last updated:** 2026-08-19 — no code touched this session. Anthony brought a new feature idea
+(joint-fund income-split calculator, based on how he used to budget manually with AI before this
+app existed) and asked for a full interview + issue-filing pass only — "get everything ready so
+there are no open questions, next session just plans it." Codebase explored first (pay schedules,
+`calculateAveragePay`, `household_contributions`, the existing Joint Fund Contributions sheet) so
+the interview questions were grounded in what already exists rather than generic. Filed as
+**[#106](https://github.com/mp3anthony/funded/issues/106)**, labeled `ready-for-agent` — fully
+scoped, zero open questions, formula/gating/apply-behavior all decided in-session. Logged to
+`CHANGE-LOG.md` per protocol (started out-of-spec since it's not in `SPEC.md`, but Anthony was
+actively triaging it live in chat, so it went straight to full scoping rather than sitting as a
+bare log line). No plan has been written for #106 yet — that's next session's job if Anthony
+picks it.
+
+Version stayed `v0.9.8` — nothing shipped to bump.
 
 ## → START HERE NEXT SESSION — Anthony bringing needs-info scoping answers (#97-#100)
+
+*(Still the standing entry point — untouched this session, same as it survived Anthony picking
+#85 directly two sessions ago. #106 above is available if Anthony wants to redirect to it
+instead — it's ready-for-agent, no needs-info blockers, could go straight to planning.)*
 
 Anthony said he'd review the open issues on his own and come back specifically to work through
 the `needs-info` decisions. **Run `gh issue list --label needs-info` at the start of the session**

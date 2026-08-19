@@ -10,4 +10,5 @@ Format: `- YYYY-MM-DD — description — area — status: pending|triaged|rejec
 - 2026-07-30 — Dashboard overhaul: replace the four static stat tiles (weekly income / weekly bills / joint fund surplus / total goals) with a swipeable dynamic gauge carrying the household-health rank colours — dashboard — status: triaged (filed as #100, needs-info — waiting on Anthony's scoping answers)
 - 2026-07-30 — Health score design question: should a household with no bills/goals/contributions set up score 85 ("Fully Funded")? Current formula says yes; may want a distinct "not set up yet" state — health score — status: triaged (filed as #87)
 - 2026-07-30 — Direct Pay mode behaviour unverified end-to-end; awaiting outsourced testers who use a direct-pay lifestyle before any rework is scoped — direct pay — status: triaged (filed as #88)
+- 2026-08-19 — Joint-fund income-split calculator: Settings tool that recommends each member's joint-account contribution based on their income ratio, for joint-fund households only — settings/contributions — status: triaged (filed as #106, ready-for-agent, fully scoped same session)
 
