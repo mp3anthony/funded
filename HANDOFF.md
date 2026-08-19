@@ -15,12 +15,34 @@ picks it.
 
 Version stayed `v0.9.8` — nothing shipped to bump.
 
-## → START HERE NEXT SESSION — Anthony bringing needs-info scoping answers (#97-#100)
+Anthony redirected at end of session: next session builds **#106** end-to-end (plan → implement →
+push to preview branch → open PR), not the needs-info queue. See START HERE below.
 
-*(Still the standing entry point — untouched this session, same as it survived Anthony picking
-#85 directly two sessions ago. #106 above is available if Anthony wants to redirect to it
-instead — it's ready-for-agent, no needs-info blockers, could go straight to planning.)*
+## → START HERE NEXT SESSION — Build #106 (joint-fund income-split calculator) to an open PR
 
+**[#106](https://github.com/mp3anthony/funded/issues/106)** is fully scoped, `ready-for-agent`,
+zero open questions — read the issue body directly rather than re-deriving the design here, it's
+all there (formula, gating rules, apply behavior, testing checklist). Skip straight to Step 3
+(Autonomous Execution) of the liaison protocol: Problem Agreement already happened last session.
+
+1. Milestone branch off `main` (e.g. `issue-106-income-split-calculator`).
+2. Plan the implementation (Orchestrator plans, sub-agent implements — standard separation of
+   duties). Touches `ContributionSettingsSheet.tsx` and `AppContext.tsx` (new derived calc, no
+   new table — issue is explicit that no schema change is needed). If a sub-agent finds schema
+   *is* needed after all, that trips the Part A migration escalation gate — stop and ask.
+3. Confirm the version bump (`+0.0.1` default per `SPEC.md` A2) with Anthony before merging, not
+   before pushing to preview.
+4. Push to preview, generate the checklist from the issue's existing testing checklist, decide
+   `needs-manual-test` vs `needs-merge-approval` per protocol Step 4 (this is settings-UI +
+   live-calculation work with an Apply-writes-a-value path, so lean `needs-manual-test` unless the
+   sub-agent team can genuinely pipeline-verify all 6 checklist items — Anthony's own household
+   can't test the "both members fixed" happy path live yet since Hannah's pay isn't fixed until
+   ~28 Aug, so a synthetic/seeded test household may be needed for in-pipeline verification).
+5. Open the PR against `main`. Anthony reviews on the preview branch from there.
+
+## → STANDING QUEUE (not this session's target) — needs-info scoping answers (#97-#100)
+
+Still open, still waiting on Anthony whenever he redirects back to it.
 Anthony said he'd review the open issues on his own and come back specifically to work through
 the `needs-info` decisions. **Run `gh issue list --label needs-info` at the start of the session**
 in case more have accumulated since — don't assume it's only these 4:
