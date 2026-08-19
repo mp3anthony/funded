@@ -305,15 +305,24 @@ type MemberSplitInput = MemberIncomeResult | MemberBlockedResult;
  * Resolves each household member's monthly-normalized income from their pay
  * schedules, per the agreed #106 algorithm:
  * - No pay schedules at all → blocked ("missing pay schedule").
- * - A fixed-amount schedule contributes its amount, converted to monthly.
- * - A variable schedule contributes calculateAveragePay(member), converted to
- *   monthly at the schedule's own frequency. No average yet (fewer than 3
- *   logged pays) → blocked ("not enough pay history yet").
+ * - Each fixed-amount schedule contributes its own amount, converted to
+ *   monthly, summed individually.
+ * - All of a member's variable schedules are pooled rather than converted
+ *   one-by-one: calculateAveragePay(member) is scoped to the member, not to
+ *   any single schedule, so it returns the same blended average no matter
+ *   which schedule asks for it. Calling it once per variable schedule would
+ *   count that same average multiple times. Instead it's called exactly
+ *   once per member (if the member has any variable schedules at all). No
+ *   average yet (fewer than 3 logged pays) → blocked ("not enough pay
+ *   history yet"). Otherwise the average is converted to monthly exactly
+ *   once, using the frequency of whichever variable schedule was created
+ *   most recently, and added to the member's income once.
  * - A member's "own pay frequency" (used later to apply a recommendation at
  *   their own cadence) is their single schedule's frequency, or — for a
  *   member with more than one schedule (e.g. two jobs) — the frequency of
- *   whichever schedule was created most recently. The issue doesn't specify
- *   a tie-break for the multi-schedule case beyond "reasonable", so recency
+ *   whichever schedule was created most recently, across ALL of their
+ *   schedules (fixed and variable alike). The issue doesn't specify a
+ *   tie-break for the multi-schedule case beyond "reasonable", so recency
  *   of created_at is the chosen rule.
  */
 function computeMemberIncomes(
