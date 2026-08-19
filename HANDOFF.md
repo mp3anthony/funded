@@ -1,46 +1,15 @@
 # Handoff
 
-**Last updated:** 2026-08-19 — no code touched this session. Anthony brought a new feature idea
-(joint-fund income-split calculator, based on how he used to budget manually with AI before this
-app existed) and asked for a full interview + issue-filing pass only — "get everything ready so
-there are no open questions, next session just plans it." Codebase explored first (pay schedules,
-`calculateAveragePay`, `household_contributions`, the existing Joint Fund Contributions sheet) so
-the interview questions were grounded in what already exists rather than generic. Filed as
-**[#106](https://github.com/mp3anthony/funded/issues/106)**, labeled `ready-for-agent` — fully
-scoped, zero open questions, formula/gating/apply-behavior all decided in-session. Logged to
-`CHANGE-LOG.md` per protocol (started out-of-spec since it's not in `SPEC.md`, but Anthony was
-actively triaging it live in chat, so it went straight to full scoping rather than sitting as a
-bare log line). No plan has been written for #106 yet — that's next session's job if Anthony
-picks it.
+**Last updated:** 2026-08-19 — **#106 (joint-fund income-split calculator) built end-to-end this
+session and merged.** Filed `ready-for-agent` at the start of the session (see prior entry, kept
+below), built to spec, reviewed, verified against real disposable test data, and merged as
+[PR #107](https://github.com/mp3anthony/funded/pull/107). `v0.9.8` → `v0.9.9`. Full writeup in the
+"#106" section below — read that before re-deriving anything about how the split math works.
 
-Version stayed `v0.9.8` — nothing shipped to bump.
+Anthony's own redirect at the end of this session: go back to the **needs-info queue** (#97-#100)
+next. See START HERE below.
 
-Anthony redirected at end of session: next session builds **#106** end-to-end (plan → implement →
-push to preview branch → open PR), not the needs-info queue. See START HERE below.
-
-## → START HERE NEXT SESSION — Build #106 (joint-fund income-split calculator) to an open PR
-
-**[#106](https://github.com/mp3anthony/funded/issues/106)** is fully scoped, `ready-for-agent`,
-zero open questions — read the issue body directly rather than re-deriving the design here, it's
-all there (formula, gating rules, apply behavior, testing checklist). Skip straight to Step 3
-(Autonomous Execution) of the liaison protocol: Problem Agreement already happened last session.
-
-1. Milestone branch off `main` (e.g. `issue-106-income-split-calculator`).
-2. Plan the implementation (Orchestrator plans, sub-agent implements — standard separation of
-   duties). Touches `ContributionSettingsSheet.tsx` and `AppContext.tsx` (new derived calc, no
-   new table — issue is explicit that no schema change is needed). If a sub-agent finds schema
-   *is* needed after all, that trips the Part A migration escalation gate — stop and ask.
-3. Confirm the version bump (`+0.0.1` default per `SPEC.md` A2) with Anthony before merging, not
-   before pushing to preview.
-4. Push to preview, generate the checklist from the issue's existing testing checklist, decide
-   `needs-manual-test` vs `needs-merge-approval` per protocol Step 4 (this is settings-UI +
-   live-calculation work with an Apply-writes-a-value path, so lean `needs-manual-test` unless the
-   sub-agent team can genuinely pipeline-verify all 6 checklist items — Anthony's own household
-   can't test the "both members fixed" happy path live yet since Hannah's pay isn't fixed until
-   ~28 Aug, so a synthetic/seeded test household may be needed for in-pipeline verification).
-5. Open the PR against `main`. Anthony reviews on the preview branch from there.
-
-## → STANDING QUEUE (not this session's target) — needs-info scoping answers (#97-#100)
+## → START HERE NEXT SESSION — needs-info scoping answers (#97-#100)
 
 Still open, still waiting on Anthony whenever he redirects back to it.
 Anthony said he'd review the open issues on his own and come back specifically to work through
@@ -66,6 +35,70 @@ force unless Anthony redirects) is:
    under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
    TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
    needed yet — noted here so a future session doesn't lose the thread.
+
+## #106 — joint-fund income-split calculator, built, reviewed, verified, and merged this session (2026-08-19)
+
+**[#106](https://github.com/mp3anthony/funded/issues/106) — CLOSED, built in
+[PR #107](https://github.com/mp3anthony/funded/pull/107).** Filed `ready-for-agent` in the prior
+session's interview, zero open questions. Built to spec in one session, Step 3 straight through
+(no scoping conversation needed) per Anthony's explicit instruction.
+
+**What it is:** a "Suggest Split" panel inside the existing Joint Fund Contributions settings
+sheet (`ContributionSettingsSheet.tsx`). For each household member, sums a monthly-normalized
+income across all their `pay_schedules` (fixed schedules use `schedule.amount` converted via
+`convertAmount`; variable schedules use the existing `calculateAveragePay`). Each member's split %
+= their income ÷ total household income; recommended contribution = split % × total monthly bills
+(same reduce `calculateHealthScore` already uses, kept behaviorally identical). Blocks the whole
+calculator — no partial split, no guessing — if any member has no pay schedule, or a variable-pay
+member has fewer than 3 logged pays. Each row gets an Apply button that writes straight into
+`household_contributions` via the existing `setContribution` path, in that member's own pay
+frequency. Fully live/stateless, no new table.
+
+**Two-round review caught a real bug** — same pattern as #75/#101/#85: for a member with **2+
+variable pay schedules**, `calculateAveragePay(memberId)` was being called once per schedule in a
+loop. Since that helper is member-scoped (not schedule-scoped), it returns the *same* blended
+average every call — so the loop summed it in multiple times, silently inflating that member's
+income and distorting every other member's split %. Fixed to call it exactly once per member,
+converting the single result at the frequency of whichever variable schedule was most recently
+created. Round 2: approved. A stale JSDoc comment (still describing the old per-schedule behavior)
+was fixed as a small follow-up commit — cosmetic only.
+
+**Verified end-to-end against a disposable Supabase test household, not just by reading code**
+(same standard as #101/#82/#85) — Anthony's own household can't exercise the "both members fixed"
+happy path yet (Hannah's pay isn't fixed until ~28 Aug), so a synthetic two-member joint-fund
+household (`Split106 Test Household`) was built via the local dev server + browser tool. Every
+number was hand-computed independently first, then matched to the app's output to the cent. All 6
+checklist items covered:
+
+- **Both fixed, different frequencies** (A $2,000/mo, B $500/wk, $1,000/mo bill): app showed
+  48.0%/$480.19mo and 52.0%/$120.05wk — exact match to hand calc, sums to 100%.
+- **Variable pay, <3 logged pays**: switched B to variable with 0 history, app blocked with
+  *"issue106.split.b doesn't have enough pay history yet (needs at least 3 logged pays)"* — no
+  split for anyone.
+- **Missing pay schedule entirely**: fresh-joined member with no schedule at all, app blocked with
+  *"issue106.split.b hasn't set up a pay schedule yet"* — no split for anyone.
+- **Apply**: wrote `$120.048.../weekly` into `household_contributions`, confirmed by direct query;
+  manual row picked it up as "Active" on reopen, Save button read "Saved," manual save path
+  unaffected.
+- **Direct-pay households never see it**: verified by code inspection, not live-tested — the row
+  that opens this sheet was already gated behind `isJointFund` in `settings-client.tsx` before this
+  diff, untouched by it.
+- **Reassess without reload**: edited B's pay live in-app (client-side nav only, no `navigate`/full
+  reload anywhere in the sequence), reopened the panel in the same tab — recalculated to
+  39.8%/$397.54mo and 60.2%/$139.14wk, matching the hand-recomputed numbers exactly.
+
+Test data (2 disposable accounts, 1 household) fully deleted afterward — verified first it was the
+only household either test account belonged to.
+
+**One open edge case, not tested, worth knowing about:** for a member with 2+ *variable* pay
+schedules (e.g. two variable-pay jobs), the "own pay frequency" used by Apply falls back to
+whichever schedule was created most recently. The issue didn't specify a tie-break for this case
+beyond "reasonable" — this is a judgment call made during the build, not something Anthony signed
+off on explicitly. Fine as shipped, but flag it if it ever comes up for real.
+
+`v0.9.8` → `v0.9.9`, confirmed with Anthony immediately before merge per `CLAUDE.md` §4.
+`needs-merge-approval` — all 6 checklist items verified in-pipeline with real evidence, no
+layout/platform-native surface needing hands-on device testing.
 
 ## #85 — leave household, fixed, reviewed, verified, and merged this session (2026-08-14)
 
@@ -743,6 +776,8 @@ into the relevant issue body):
   (#37) still open. Stale line citations tracked as #92.
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — **empty of pending items.** All 6 entries
   are now GitHub issues (#87, #88, #97–#100).
+- **Merged: PR #107** https://github.com/mp3anthony/funded/pull/107, closes #106 (joint-fund
+  income-split calculator). `v0.9.8` → `v0.9.9`, now on `main`.
 - **Merged: PR #105** https://github.com/mp3anthony/funded/pull/105, closes #85 (leave household
   — full implementation, not just the routing fix). `v0.9.7` → `v0.9.8`, now on `main`.
 - **Merged: PR #103** https://github.com/mp3anthony/funded/pull/103, closes #101 (payday
@@ -791,3 +826,5 @@ into the relevant issue body):
   #99, #100, #102 (non-blocking backlog)
 - Closed: #85 https://github.com/mp3anthony/funded/issues/85 (leave household, fixed in PR #105
   this session — see "#85" section above)
+- Closed: #106 https://github.com/mp3anthony/funded/issues/106 (income-split calculator, built in
+  PR #107 this session — see "#106" section above)
