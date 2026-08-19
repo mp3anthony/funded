@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Check } from "lucide-react";
-import { useApp, type Member } from "@/context/AppContext";
+import { useState, useEffect, useMemo } from "react";
+import { Check, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { useApp, type Member, type Bill, type PaySchedule } from "@/context/AppContext";
 import { type HouseholdContribution } from "@/types";
 import Dialog from "@/components/ui/Dialog";
+import { convertAmount } from "@/lib/utils";
 
 interface ContributionSettingsSheetProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ export default function ContributionSettingsSheet({
   householdMembers,
   contributions,
 }: ContributionSettingsSheetProps) {
-  const { setContribution } = useApp();
+  const { setContribution, bills, paySchedules, calculateAveragePay } = useApp();
 
   if (!isOpen) return null;
 
@@ -60,6 +61,15 @@ export default function ContributionSettingsSheet({
         </div>
       }
     >
+      {/* Suggest Split */}
+      <SuggestSplitPanel
+        householdMembers={householdMembers}
+        bills={bills}
+        paySchedules={paySchedules}
+        calculateAveragePay={calculateAveragePay}
+        setContribution={setContribution}
+      />
+
       {/* Members Rows */}
       <div className="divide-y divide-white/5 -my-1">
         {householdMembers.length === 0 ? (
@@ -262,6 +272,265 @@ function MemberContributionRow({
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   Suggest Split — income-proportional contribution calculator
+   ═══════════════════════════════════════════════ */
+
+type PayFrequency = "weekly" | "fortnightly" | "monthly";
+
+// A member with at least one pay schedule and no history gaps: their income
+// resolved to a monthly figure, plus the frequency their own contribution
+// should be applied at.
+interface MemberIncomeResult {
+  member: Member;
+  blocked: false;
+  monthlyIncome: number;
+  ownFrequency: PayFrequency;
+}
+
+// A member the split cannot be computed for yet, and why.
+interface MemberBlockedResult {
+  member: Member;
+  blocked: true;
+  reason: "missing pay schedule" | "not enough pay history yet";
+}
+
+type MemberSplitInput = MemberIncomeResult | MemberBlockedResult;
+
+/**
+ * Resolves each household member's monthly-normalized income from their pay
+ * schedules, per the agreed #106 algorithm:
+ * - No pay schedules at all → blocked ("missing pay schedule").
+ * - A fixed-amount schedule contributes its amount, converted to monthly.
+ * - A variable schedule contributes calculateAveragePay(member), converted to
+ *   monthly at the schedule's own frequency. No average yet (fewer than 3
+ *   logged pays) → blocked ("not enough pay history yet").
+ * - A member's "own pay frequency" (used later to apply a recommendation at
+ *   their own cadence) is their single schedule's frequency, or — for a
+ *   member with more than one schedule (e.g. two jobs) — the frequency of
+ *   whichever schedule was created most recently. The issue doesn't specify
+ *   a tie-break for the multi-schedule case beyond "reasonable", so recency
+ *   of created_at is the chosen rule.
+ */
+function computeMemberIncomes(
+  members: Member[],
+  paySchedules: PaySchedule[],
+  calculateAveragePay: (memberId: string) => number | null
+): MemberSplitInput[] {
+  return members.map((member) => {
+    const schedules = paySchedules.filter((s) => String(s.member_id) === String(member.id));
+
+    if (schedules.length === 0) {
+      return { member, blocked: true, reason: "missing pay schedule" };
+    }
+
+    let monthlyIncome = 0;
+    for (const schedule of schedules) {
+      if (schedule.is_fixed_amount) {
+        monthlyIncome += convertAmount(schedule.amount ?? 0, schedule.frequency, "monthly");
+      } else {
+        const avg = calculateAveragePay(String(member.id));
+        if (avg === null) {
+          return { member, blocked: true, reason: "not enough pay history yet" };
+        }
+        monthlyIncome += convertAmount(avg, schedule.frequency, "monthly");
+      }
+    }
+
+    let ownFrequency: PayFrequency;
+    if (schedules.length === 1) {
+      ownFrequency = schedules[0].frequency;
+    } else {
+      const mostRecent = [...schedules].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )[0];
+      ownFrequency = mostRecent.frequency;
+    }
+
+    return { member, blocked: false, monthlyIncome, ownFrequency };
+  });
+}
+
+interface SuggestSplitPanelProps {
+  householdMembers: Member[];
+  bills: Bill[];
+  paySchedules: PaySchedule[];
+  calculateAveragePay: (memberId: string) => number | null;
+  setContribution: (memberId: string, amount: number, frequency: PayFrequency) => Promise<void>;
+}
+
+function SuggestSplitPanel({
+  householdMembers,
+  bills,
+  paySchedules,
+  calculateAveragePay,
+  setContribution,
+}: SuggestSplitPanelProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const memberIncomes = useMemo(
+    () => computeMemberIncomes(householdMembers, paySchedules, calculateAveragePay),
+    [householdMembers, paySchedules, calculateAveragePay]
+  );
+
+  const blockedMembers = memberIncomes.filter((r): r is MemberBlockedResult => r.blocked);
+  const unblockedMembers = memberIncomes.filter((r): r is MemberIncomeResult => !r.blocked);
+
+  // Mirrors calculateHealthScore's totalMonthlyExpenses calc exactly (active
+  // bills only, converted to monthly) so this split's total never silently
+  // drifts from the health score's number.
+  const totalMonthlyBills = useMemo(() => {
+    return bills
+      .filter((b) => !b.is_paused)
+      .reduce((sum, bill) => sum + convertAmount(bill.amount || 0, bill.frequency || "monthly", "monthly"), 0);
+  }, [bills]);
+
+  const totalHouseholdMonthlyIncome =
+    blockedMembers.length === 0 ? unblockedMembers.reduce((sum, r) => sum + r.monthlyIncome, 0) : 0;
+
+  const splitResults = useMemo(() => {
+    if (blockedMembers.length > 0) return [];
+    return unblockedMembers.map((r) => {
+      const splitPct = totalHouseholdMonthlyIncome > 0 ? r.monthlyIncome / totalHouseholdMonthlyIncome : 0;
+      const recommendedMonthly = splitPct * totalMonthlyBills;
+      return { ...r, splitPct, recommendedMonthly };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [memberIncomes, totalHouseholdMonthlyIncome, totalMonthlyBills]);
+
+  if (householdMembers.length === 0) return null;
+
+  return (
+    <div className="mb-4 pb-5 border-b border-white/5">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((v) => !v)}
+        className="w-full flex items-center justify-between py-2 px-3 rounded-[2px] border border-border bg-background hover:bg-white/5 transition-colors"
+      >
+        <span className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-foreground">
+          <Sparkles size={12} className="text-primary" />
+          Suggest Split
+        </span>
+        {isExpanded ? (
+          <ChevronUp size={14} className="text-muted" />
+        ) : (
+          <ChevronDown size={14} className="text-muted" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="mt-3 space-y-3">
+          {blockedMembers.length > 0 ? (
+            <div className="rounded-[2px] border border-border bg-background px-3 py-3 space-y-1.5">
+              <p className="text-xs text-muted font-body">
+                Can&apos;t suggest a split yet — set these up first:
+              </p>
+              <ul className="space-y-1">
+                {blockedMembers.map((b) => (
+                  <li key={b.member.id} className="text-xs font-body text-foreground">
+                    <span className="font-semibold">{b.member.name}</span>{" "}
+                    {b.reason === "missing pay schedule"
+                      ? "hasn't set up a pay schedule yet."
+                      : "doesn't have enough pay history yet (needs at least 3 logged pays)."}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {splitResults.map((r) => (
+                <SuggestedSplitRow
+                  key={r.member.id}
+                  result={r}
+                  onApply={(amount, frequency) => setContribution(String(r.member.id), amount, frequency)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SuggestedSplitRowProps {
+  result: MemberIncomeResult & { splitPct: number; recommendedMonthly: number };
+  onApply: (amount: number, frequency: PayFrequency) => Promise<void>;
+}
+
+function SuggestedSplitRow({ result, onApply }: SuggestedSplitRowProps) {
+  const { member, splitPct, recommendedMonthly, ownFrequency } = result;
+  const [isApplying, setIsApplying] = useState(false);
+  const [isApplied, setIsApplied] = useState(false);
+
+  const weekly = convertAmount(recommendedMonthly, "monthly", "weekly");
+  const fortnightly = convertAmount(recommendedMonthly, "monthly", "fortnightly");
+  const monthly = recommendedMonthly;
+
+  const handleApply = async () => {
+    setIsApplying(true);
+    try {
+      const amountAtOwnFrequency = convertAmount(recommendedMonthly, "monthly", ownFrequency);
+      await onApply(amountAtOwnFrequency, ownFrequency);
+      setIsApplied(true);
+      setTimeout(() => setIsApplied(false), 2000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  return (
+    <div className="rounded-[2px] border border-border bg-background px-3 py-3 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          {member.avatar_url ? (
+            <img src={member.avatar_url} alt={member.name} className="h-6 w-6 rounded-full object-cover shrink-0" />
+          ) : (
+            <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-primary to-emerald-500 flex items-center justify-center text-foreground font-bold text-[10px] shrink-0">
+              {member.avatar || member.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <span className="text-sm font-semibold text-foreground truncate pr-2">{member.name}</span>
+        </div>
+        <span className="text-[10px] font-mono text-primary font-bold uppercase">
+          {(splitPct * 100).toFixed(1)}%
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 font-mono text-[10px] text-muted">
+        <span>Weekly: ${weekly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        <span>
+          Fortnightly: ${fortnightly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+        <span>Monthly: ${monthly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      </div>
+
+      <button
+        onClick={handleApply}
+        disabled={isApplying}
+        className={`self-start py-1.5 px-4 rounded-[2px] font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+          isApplied
+            ? "bg-primary/25 text-primary border border-primary/30"
+            : "bg-primary text-primary-fg hover:brightness-110 active:scale-95 cursor-pointer"
+        }`}
+      >
+        {isApplying ? (
+          <span>Applying...</span>
+        ) : isApplied ? (
+          <>
+            <Check size={12} />
+            <span>Applied</span>
+          </>
+        ) : (
+          <span>Apply &mdash; {ownFrequency}</span>
+        )}
+      </button>
     </div>
   );
 }
