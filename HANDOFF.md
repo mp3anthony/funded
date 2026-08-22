@@ -1,13 +1,19 @@
 # Handoff
 
-**Last updated:** 2026-08-19 — **#106 (joint-fund income-split calculator) built end-to-end this
-session and merged.** Filed `ready-for-agent` at the start of the session (see prior entry, kept
-below), built to spec, reviewed, verified against real disposable test data, and merged as
-[PR #107](https://github.com/mp3anthony/funded/pull/107). `v0.9.8` → `v0.9.9`. Full writeup in the
-"#106" section below — read that before re-deriving anything about how the split math works.
+**Last updated:** 2026-08-22 — **#91 and #95 (two small clear bug fixes from the low-priority
+backlog) built and merged this session.** Anthony picked them directly out of a "what's buildable
+without asking you anything" triage (see "#91 & #95" section below). Implementation delegated to
+one sub-agent, testing/verification delegated to a separate independent sub-agent (build, typecheck,
+lint, live-browser boot check — full detail in that section), merged as
+[PR #108](https://github.com/mp3anthony/funded/pull/108). `v0.9.9` → `v0.9.10`.
 
-Anthony's own redirect at the end of this session: go back to the **needs-info queue** (#97-#100)
-next. See START HERE below.
+Prior session: **#106 (joint-fund income-split calculator) built end-to-end and merged.** Filed
+`ready-for-agent`, built to spec, reviewed, verified against real disposable test data, merged as
+[PR #107](https://github.com/mp3anthony/funded/pull/107). `v0.9.8` → `v0.9.9`. Full writeup in the
+"#106" section below.
+
+Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
+(#97-#100) next. See START HERE below.
 
 ## → START HERE NEXT SESSION — needs-info scoping answers (#97-#100)
 
@@ -35,6 +41,52 @@ force unless Anthony redirects) is:
    under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
    TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
    needed yet — noted here so a future session doesn't lose the thread.
+
+## #91 & #95 — two clear backlog bug fixes, built, tested, and merged this session (2026-08-22)
+
+**[#91](https://github.com/mp3anthony/funded/issues/91) and
+[#95](https://github.com/mp3anthony/funded/issues/95) — both CLOSED, built together in
+[PR #108](https://github.com/mp3anthony/funded/pull/108).** Anthony asked which open issues were
+completable without needing anything from him; these two (plus #92, not picked up yet) were the
+only backlog items that were clear defects with no open product/architecture decision attached —
+everything else open was blocked on Anthony (`needs-info`) or on an undecided tradeoff.
+
+**#91 — `ensureHousehold` discarded its `household_members` insert error but marked the household
+trusted anyway.** `src/context/AppContext.tsx`: the insert's `error` is now captured; on failure it
+throws (matching the sibling error-handling pattern already used earlier in the same function),
+instead of unconditionally setting `resolvedHouseholdUserIdRef` and calling `setMembers`. Narrow,
+early-only code path (`ensureHousehold` called before any household exists yet) — nobody has ever
+hit it in practice, this just closes the gap.
+
+**#95 — `HouseholdHealth.tsx` read its income total from the orphaned `paydays` table**, dead since
+#82/PR #86 redirected onboarding to `pay_schedules`. Every household onboarded after PR #86 was
+showing `totalIncome === 0` here, permanently. Fixed by switching to `pay_schedules` + `payHistory`,
+mirroring the logic `HealthScoreCard.tsx` already uses (fixed schedules use `schedule.amount`,
+variable ones use the latest logged `payHistory` entry). Confirmed against `HealthScoreCard.tsx` as
+the correct current source rather than guessing.
+
+**Known, deliberately out-of-scope limitations flagged during the build** (pre-existing, not
+regressions — worth a future ticket if they matter):
+- Neither the old nor new #95 income figure normalizes for pay frequency (weekly vs. monthly
+  schedules just get summed raw) — `HealthScoreCard.tsx` has the real frequency-normalized version
+  for the dashboard; `HouseholdHealth.tsx` was never doing that for bills/funds either, so fixing it
+  here would be scope creep.
+- A household with only variable-pay members and zero logged pay history shows `totalIncome === 0`
+  until a pay is logged — matches `HealthScoreCard`'s existing behavior, but is a *new* trigger
+  condition for that empty state versus the old (broken) `paydays` behavior.
+- #91's throw doesn't roll back the just-created `households` row on failure — same as this
+  function's other existing failure paths; a bigger change if orphaned-household cleanup is wanted.
+
+**Workflow:** implementation done by one sub-agent (Orchestrator does not write code); a *separate*
+independent sub-agent then tested the PR — read the diff itself, ran typecheck/build/lint (lint
+count identical to `main`, so no new issues), booted the dev server and confirmed a clean load. Two
+things could only be verified by direct code reading rather than live: #91's actual failure path
+(would need a forced live Supabase insert failure) and #95's on-screen number (no test-account
+credentials available to the tester agent) — both are trivial, unambiguous changes, and the tester
+flagged the gap explicitly rather than claiming a live pass it didn't do. Verdict: PASS, no blocking
+issues. Fully in-pipeline verifiable (no layout/platform-native surface), so labeled
+`needs-merge-approval` rather than `needs-manual-test` — merged straight through per Anthony's
+go-ahead.
 
 ## #106 — joint-fund income-split calculator, built, reviewed, verified, and merged this session (2026-08-19)
 
@@ -773,9 +825,11 @@ into the relevant issue body):
 
 - Protocol: [`CLAUDE.md`](CLAUDE.md) — read first.
 - Working spec: [`SPEC.md`](SPEC.md) — **Part A final (A1/A2)**. Part B Slices 1 (#71) and 3
-  (#37) still open. Stale line citations tracked as #92.
+  (#37) still open. Stale line citations tracked as #92 (still open, not picked up this session).
 - Out-of-spec inbox: [`CHANGE-LOG.md`](CHANGE-LOG.md) — **empty of pending items.** All 6 entries
   are now GitHub issues (#87, #88, #97–#100).
+- **Merged: PR #108** https://github.com/mp3anthony/funded/pull/108, closes #91, closes #95 (two
+  clear backlog bug fixes — see "#91 & #95" section above). `v0.9.9` → `v0.9.10`, now on `main`.
 - **Merged: PR #107** https://github.com/mp3anthony/funded/pull/107, closes #106 (joint-fund
   income-split calculator). `v0.9.8` → `v0.9.9`, now on `main`.
 - **Merged: PR #105** https://github.com/mp3anthony/funded/pull/105, closes #85 (leave household
@@ -803,16 +857,14 @@ into the relevant issue body):
   [#98](https://github.com/mp3anthony/funded/issues/98),
   [#99](https://github.com/mp3anthony/funded/issues/99),
   [#100](https://github.com/mp3anthony/funded/issues/100).
-- Filed 2026-08-05, low-priority backlog: [#87](https://github.com/mp3anthony/funded/issues/87),
+- Filed 2026-08-05, low-priority backlog, still open: [#87](https://github.com/mp3anthony/funded/issues/87),
   [#88](https://github.com/mp3anthony/funded/issues/88),
   [#89](https://github.com/mp3anthony/funded/issues/89),
   [#90](https://github.com/mp3anthony/funded/issues/90),
-  [#91](https://github.com/mp3anthony/funded/issues/91),
-  [#92](https://github.com/mp3anthony/funded/issues/92),
-  [#95](https://github.com/mp3anthony/funded/issues/95),
+  [#92](https://github.com/mp3anthony/funded/issues/92) (`ready-for-agent`, not picked up yet),
   [#96](https://github.com/mp3anthony/funded/issues/96),
-  [#102](https://github.com/mp3anthony/funded/issues/102) (filed this session, see "#101" section
-  above for context).
+  [#102](https://github.com/mp3anthony/funded/issues/102). #91 and #95 from this same batch are
+  now closed — see "#91 & #95" section above.
 - **Everything from this session's recap is now in GitHub, including the 4 `CHANGE-LOG.md`
   items** (filed as #97–#100). Nothing left floating outside issues at all.
 - **Join-by-code fixed and closed:** [#81](https://github.com/mp3anthony/funded/issues/81) —
@@ -822,9 +874,12 @@ into the relevant issue body):
   health-score investigation and its two wrong diagnoses)
 - Closed: #101 https://github.com/mp3anthony/funded/issues/101 (payday timezone drift, fixed in
   PR #103 this session — see "#101" section above)
-- Open: #83, #84, #74, #71, #37, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96, #97, #98,
+- Open: #83, #84, #74, #71, #37, #87, #88, #89, #90, #92, #93, #94, #96, #97, #98,
   #99, #100, #102 (non-blocking backlog)
 - Closed: #85 https://github.com/mp3anthony/funded/issues/85 (leave household, fixed in PR #105
   this session — see "#85" section above)
 - Closed: #106 https://github.com/mp3anthony/funded/issues/106 (income-split calculator, built in
   PR #107 this session — see "#106" section above)
+- Closed: #91, #95 https://github.com/mp3anthony/funded/issues/91 (ensureHousehold error handling)
+  and https://github.com/mp3anthony/funded/issues/95 (orphaned income table), both fixed in PR #108
+  this session — see "#91 & #95" section above
