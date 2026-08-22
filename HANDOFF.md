@@ -1,12 +1,58 @@
 # Handoff
 
-**Last updated:** 2026-08-22 — **#92 (stale SPEC.md file:line citations) built and merged this
-session.** Already filed `ready-for-agent`, docs-only re-verification pass — no scoping needed.
-Implementation delegated to one sub-agent (checked all 11 citations, fixed 2 that had drifted in
-`AppContext.tsx`), a separate independent sub-agent re-verified every citation line-by-line plus
-ran lint/typecheck, merged as [PR #109](https://github.com/mp3anthony/funded/pull/109). Fully
-in-pipeline verifiable (no UI/behavior touched) → `needs-merge-approval`, not `needs-manual-test`.
-`v0.9.10` → `v0.9.11`.
+**Last updated:** 2026-08-23 — **#110 (Household Health card default-open + remove Payday page
+avatars) built and merged this session.** Anthony brought it directly in chat (not from the
+backlog) — two small, unambiguous, in-spec UI tweaks, no CRD needed. Scoped, filed
+`ready-for-agent`, implementation delegated to one sub-agent, a separate independent sub-agent
+tested it live against a disposable Supabase test household (not just by reading the diff),
+merged as [PR #111](https://github.com/mp3anthony/funded/pull/111). Fully in-pipeline verifiable
+(no layout/platform-native surface) → `needs-merge-approval`, not `needs-manual-test`. Version
+bump confirmed with Anthony before merge. `v0.9.11` → `v0.9.12`.
+
+## #110 — household health default-open, payday avatars removed, built/tested/merged this session (2026-08-23)
+
+**[#110](https://github.com/mp3anthony/funded/issues/110) — CLOSED, built in
+[PR #111](https://github.com/mp3anthony/funded/pull/111).** Anthony asked directly in chat for two
+things: the dashboard's "Household Health" section to default open (was collapsed), and member
+avatars removed from the Payday page. Both scoped against the actual code before filing — no
+ambiguity, no locked-invariant/schema/security touch, so no CRD and no scoping conversation needed
+beyond confirming the plan in plain English.
+
+**What changed:**
+- `src/components/HealthScoreCard.tsx` — `isHealthExpanded` initial state `false` → `true`. This is
+  the *live* dashboard "Household Health" section (with the Weekly Income/Bills/Surplus/Goals stat
+  grid and the existing collapse/expand chevron, which is untouched — still works both ways).
+- Three avatar spots removed, all exclusive to the Payday page: the pay schedule list row
+  (`src/app/payday/payday-client.tsx`), the pay history card (`src/components/PayHistoryCard.tsx`),
+  and the pay schedule detail sheet (`src/components/PayScheduleDetailSheet.tsx`). Member name text
+  stays in all three; surrounding layout tightened.
+
+**Side finding, logged not fixed:** `src/components/HouseholdHealth.tsx` is a *separate, unrelated*
+component that also renders something labeled "Household Health" — but it's dead code, never
+imported anywhere in the app (confirmed by a repo-wide grep), despite #95 (previous session) fixing
+its data source as if it were live. Anthony confirmed: log it, don't touch it. Added to
+`CHANGE-LOG.md` as `status: pending` for a future session to decide (delete vs. wire up).
+
+**Also found during independent testing, not a defect in this diff:** `PayHistoryCard`'s per-row
+member-info block (touched by this diff) is always called with `hideMemberInfo={true}` at its one
+call site (`payday-client.tsx`) — so pay history rows show amount/date only, no name field at all,
+avatar or otherwise. Pre-existing, unrelated to this change; worth knowing if `hideMemberInfo` is
+ever revisited.
+
+**Workflow:** implementation done by one sub-agent (Orchestrator does not write/edit code — even
+the one-line version-bump string in `settings-client.tsx` went to a sub-agent, not edited directly).
+A separate independent sub-agent tested live: built a disposable Supabase test account/household
+with a fixed pay schedule and a logged pay history entry (so every touched UI surface actually had
+something to render), verified all 5 testing-checklist items PASS via DOM/accessibility-tree
+inspection (the browser tool's screenshot compositor wasn't available in that run, so element
+absence was confirmed via `read_page`/`javascript_tool` instead — more precise than a screenshot for
+proving something's *not* there anyway), re-ran `tsc`/`lint` independently (identical error count
+vs. a freshly-checked-out `main`, 3 fewer warnings matching the removed avatar `<img>` elements),
+and cleaned up the test data afterward (confirmed blast radius first). Verdict: PASS, no rework
+needed. `CHANGE-LOG.md` entry for `HouseholdHealth.tsx` and the version-bump commit were done on the
+same branch/PR before merge.
+
+`v0.9.11` → `v0.9.12`, confirmed with Anthony immediately before merge per `CLAUDE.md` §4.
 
 Earlier same day: **#91 and #95 (two small clear bug fixes from the low-priority
 backlog) built and merged this session.** Anthony picked them directly out of a "what's buildable
