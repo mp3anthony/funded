@@ -1,6 +1,14 @@
 # Handoff
 
-**Last updated:** 2026-08-22 — **#91 and #95 (two small clear bug fixes from the low-priority
+**Last updated:** 2026-08-22 — **#92 (stale SPEC.md file:line citations) built and merged this
+session.** Already filed `ready-for-agent`, docs-only re-verification pass — no scoping needed.
+Implementation delegated to one sub-agent (checked all 11 citations, fixed 2 that had drifted in
+`AppContext.tsx`), a separate independent sub-agent re-verified every citation line-by-line plus
+ran lint/typecheck, merged as [PR #109](https://github.com/mp3anthony/funded/pull/109). Fully
+in-pipeline verifiable (no UI/behavior touched) → `needs-merge-approval`, not `needs-manual-test`.
+`v0.9.10` → `v0.9.11`.
+
+Earlier same day: **#91 and #95 (two small clear bug fixes from the low-priority
 backlog) built and merged this session.** Anthony picked them directly out of a "what's buildable
 without asking you anything" triage (see "#91 & #95" section below). Implementation delegated to
 one sub-agent, testing/verification delegated to a separate independent sub-agent (build, typecheck,
@@ -41,6 +49,34 @@ force unless Anthony redirects) is:
    under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
    TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
    needed yet — noted here so a future session doesn't lose the thread.
+
+## #92 — stale SPEC.md file:line citations, re-verified and fixed this session (2026-08-22)
+
+**[#92](https://github.com/mp3anthony/funded/issues/92) — CLOSED, built in
+[PR #109](https://github.com/mp3anthony/funded/pull/109).** Follow-up from the #75 investigation.
+Already filed `ready-for-agent`, docs-only, no locked-invariant text touched — proceeded straight
+to build without a scoping conversation.
+
+**What it found:** of the 11 `file:line` citations in `SPEC.md`, 9 were still accurate. 2 had
+drifted from code edits since they were written:
+- `src/context/AppContext.tsx:2864` → `src/context/AppContext.tsx:3503-3510` (the notification-
+  dismissal / `dedupe_key` logic actually lives in `deleteNotification`, not at the old line —
+  the old line had drifted into an unrelated `addPaySchedule` insert call).
+- `src/context/AppContext.tsx:796` → `src/context/AppContext.tsx:838-850` (the warm-reload
+  `isDataLoading` guard actually lives in the `onAuthStateChange` handler — the old line had
+  drifted to a bare `setSession(session);`).
+
+Only citation paths/line numbers changed — zero edits to the guardrail prose itself, per the
+issue's own instruction that citations are illustrative, not load-bearing.
+
+**Workflow:** one sub-agent grepped every citation, checked each against current code, fixed the
+2 drifted ones, committed. A separate independent sub-agent then re-verified all 11 line-by-line
+from scratch (not just the 2 claimed fixes), confirmed `git diff --stat` touched only `SPEC.md`,
+ran `npx tsc --noEmit` (clean) and `npm run lint` (61 pre-existing errors, unrelated — diff-scope
+check proves nothing new since only `SPEC.md` changed), and swept `HANDOFF.md`/`CHANGE-LOG.md` for
+any dangling reference to the old stale line numbers (none found). Verdict: PASS. Fully
+in-pipeline verifiable (no UI/behavior surface) → labeled `needs-merge-approval`, merged on
+Anthony's go-ahead. `v0.9.10` → `v0.9.11`.
 
 ## #91 & #95 — two clear backlog bug fixes, built, tested, and merged this session (2026-08-22)
 
