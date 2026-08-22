@@ -96,14 +96,7 @@ export default function PayScheduleDetailSheet({
           {/* Member Name & Frequency */}
           <div className="flex flex-col space-y-1">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading font-bold text-xl text-foreground truncate pr-4 flex items-center gap-2">
-                {member?.avatar_url ? (
-                  <img src={member.avatar_url} alt={memberName} className="h-6 w-6 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-primary to-emerald-500 flex items-center justify-center text-foreground font-bold text-[10px] shrink-0">
-                    {member?.avatar || memberName.charAt(0).toUpperCase()}
-                  </div>
-                )}
+              <h3 className="font-heading font-bold text-xl text-foreground truncate pr-4">
                 <span>{memberName}</span>
               </h3>
               <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-heading font-bold uppercase tracking-wider bg-white/5 text-muted border border-border">
