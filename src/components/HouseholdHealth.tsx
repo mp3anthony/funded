@@ -3,12 +3,31 @@
 import { useApp } from "@/context/AppContext";
 
 export default function HouseholdHealth() {
-  const { paydays, bills, funds } = useApp();
+  const { paySchedules, payHistory, bills, funds } = useApp();
 
   // 1. Calculate Total Income
-  const totalIncome = paydays.reduce((sum, p) => sum + p.amount, 0);
+  // #95: the `paydays` table is orphaned — PR #86 (#82) redirected onboarding
+  // to write pay_schedules instead, so `paydays` never gets new rows and this
+  // card's income figure silently drifted from the real Payday tab. Read from
+  // paySchedules/payHistory instead, the same source HealthScoreCard already
+  // uses for its own income figures: a fixed-amount schedule contributes its
+  // set amount, a variable one contributes its most recently logged pay (or 0
+  // if none has been logged yet).
+  const totalIncome = paySchedules.reduce((sum, schedule) => {
+    let amount = schedule.amount || 0;
+    if (!schedule.is_fixed_amount) {
+      const historyItems = payHistory.filter((h) => h.pay_schedule_id === schedule.id);
+      if (historyItems.length > 0) {
+        historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
+        amount = historyItems[0].amount;
+      } else {
+        amount = 0;
+      }
+    }
+    return sum + amount;
+  }, 0);
 
-  if (totalIncome === 0 || paydays.length === 0) {
+  if (totalIncome === 0 || paySchedules.length === 0) {
     return (
       <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm">
         <p className="text-xs font-semibold text-muted tracking-wider uppercase font-mono">
