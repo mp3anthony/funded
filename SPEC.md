@@ -75,7 +75,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   because it surfaces as a build error, not a silent bug: an agent that gets it
   wrong finds out immediately.
 * **Notification dismissal is mark-as-read, never delete**
-  (`src/context/AppContext.tsx:2864`). The row must survive so its `dedupe_key`
+  (`src/context/AppContext.tsx:3503-3510`). The row must survive so its `dedupe_key`
   persists; otherwise both reminder generators resurrect dismissed reminders.
   Do not "tidy" this into a real delete.
 * **The `isDataLoading` gate is centralised in `AppShell` — do not add
@@ -96,7 +96,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
 
   Second corollary: **an open gate is not the only way a computed display sees
   empty state.** A warm reload deliberately does not raise `isDataLoading`
-  (`src/context/AppContext.tsx:796`) so the wheel doesn't flash over a working
+  (`src/context/AppContext.tsx:838-850`) so the wheel doesn't flash over a working
   app on every token refresh — which means the gate is open for the whole
   reload. Writes during that window must not transiently empty loaded state.
   `if (res.data)` is not sufficient: `[]` is truthy, and a successful RLS query
