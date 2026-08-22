@@ -90,14 +90,7 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
         {/* Top Row: Member & Amount */}
         {!hideMemberInfo ? (
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              {member?.avatar_url ? (
-                <img src={member.avatar_url} alt={memberName} className="h-6 w-6 rounded-md object-cover shrink-0 border border-primary" />
-              ) : (
-                <div className="h-6 w-6 rounded-md bg-surface-elevated border border-primary flex items-center justify-center text-foreground font-bold text-[10px] shrink-0">
-                  {member?.avatar || memberName.charAt(0).toUpperCase()}
-                </div>
-              )}
+            <div className="min-w-0">
               <span className="truncate font-body font-semibold text-[15px] text-foreground">{memberName}</span>
             </div>
             <span className="font-mono font-extrabold text-primary text-base whitespace-nowrap">

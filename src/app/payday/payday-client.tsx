@@ -258,17 +258,8 @@ export default function PaydayClient() {
                   }}
                   className="border-t border-border hover:bg-surface/40 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
                 >
-                  {/* Info row: avatar · name/amount + freq/countdown · delete */}
+                  {/* Info row: name/amount + freq/countdown · delete */}
                   <div className="flex items-center gap-3 py-3">
-                    {/* Square assignee avatar with lime border */}
-                    <div className="shrink-0 flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-surface-elevated border border-primary text-sm font-bold text-foreground">
-                      {member?.avatar_url ? (
-                        <img src={member.avatar_url} alt={memberName} className="h-full w-full object-cover" />
-                      ) : (
-                        member?.avatar || memberName.charAt(0).toUpperCase()
-                      )}
-                    </div>
-
                     {/* Middle: name+amount over frequency+countdown */}
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
