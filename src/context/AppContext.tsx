@@ -1152,7 +1152,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     if (currentSession?.user) {
       const userName = currentSession.user.user_metadata?.full_name || currentSession.user.email?.split("@")[0] || "Owner";
       const userEmail = currentSession.user.email || "";
-      const { data: newMember } = await supabase
+      const { data: newMember, error: memberError } = await supabase
         .from("household_members")
         .insert({
           household_id: newHousehold.id,
@@ -1163,6 +1163,18 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         })
         .select()
         .single();
+
+      if (memberError) {
+        // #91: this insert failing does not mean the household is unusable, but
+        // it does mean no household_members row exists for this user yet, so we
+        // must not mark the household resolved/trusted (resolvedHouseholdUserIdRef)
+        // or seed members from a row that was never created. Throw so callers see
+        // the failure and the write can be retried, matching the membership-check
+        // and household-fetch failures above in this same function.
+        console.error('[ensureHousehold] Member insert failed:', JSON.stringify(memberError, null, 2));
+        throw new Error(`Member insert failed: ${memberError.message}`);
+      }
+
       if (newMember) {
         setMembers([mapMemberFromDb(newMember)]);
       }
