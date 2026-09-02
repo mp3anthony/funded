@@ -6,15 +6,16 @@ import { useApp } from "@/context/AppContext";
 import { calculateHealthScore, convertAmount } from "@/lib/utils";
 
 export const HealthScoreCard = React.memo(function HealthScoreCard() {
-  const { 
-    bills, 
-    funds, 
-    payHistory, 
-    householdContributions, 
-    paySchedules, 
-    isJointFund, 
+  const {
+    bills,
+    funds,
+    payHistory,
+    householdContributions,
+    paySchedules,
+    isJointFund,
     billSplits,
-    members 
+    members,
+    isDataLoading
   } = useApp();
 
   const [isHealthExpanded, setIsHealthExpanded] = useState(true);
@@ -26,12 +27,34 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
     [bills, funds, payHistory, householdContributions, paySchedules, isJointFund, billSplits]
   );
 
+  // 1b. Steady-state "not set up yet" override (#87).
+  // calculateHealthScore returns 85 ("Fully Funded") for a household with no
+  // bills, no goals and no contributions — that math is correct for the
+  // *loading-race* false positives (#73/#74/#82), which are guarded upstream
+  // by AppShell's `!isDataLoading` render gate: this component never mounts
+  // until isDataLoading is false, so bills/funds/householdContributions are
+  // only read here once data has actually settled. `isDataLoading` is still
+  // checked below (not just relied on via the parent gate) so this override
+  // fails closed — same posture as the guards documented in AppContext.tsx
+  // around isDataLoading — rather than assuming the mount timing always holds.
+  // Genuinely empty (steady-state) is what's left once that race is ruled
+  // out, and per #87 it should read as "not set up" rather than "funded".
+  const isGenuinelyEmpty =
+    !isDataLoading &&
+    bills.length === 0 &&
+    funds.length === 0 &&
+    householdContributions.length === 0;
+
   // 2. Status Label Logic
   let statusText = "Needs Attention";
   let dotColor = "bg-destructive"; // Red
   let glowColor = "#ff3d57";
 
-  if (score >= 80) {
+  if (isGenuinelyEmpty) {
+    statusText = "Not Set Up Yet";
+    dotColor = "bg-subtle";
+    glowColor = "#8a8a8a";
+  } else if (score >= 80) {
     statusText = "Fully Funded";
     dotColor = "bg-primary"; // Lime Green
     glowColor = "#c8ff00";
