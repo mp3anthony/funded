@@ -1,13 +1,75 @@
 # Handoff
 
-**Last updated:** 2026-08-23 — **#110 (Household Health card default-open + remove Payday page
-avatars) built and merged this session.** Anthony brought it directly in chat (not from the
-backlog) — two small, unambiguous, in-spec UI tweaks, no CRD needed. Scoped, filed
-`ready-for-agent`, implementation delegated to one sub-agent, a separate independent sub-agent
-tested it live against a disposable Supabase test household (not just by reading the diff),
-merged as [PR #111](https://github.com/mp3anthony/funded/pull/111). Fully in-pipeline verifiable
-(no layout/platform-native surface) → `needs-merge-approval`, not `needs-manual-test`. Version
-bump confirmed with Anthony before merge. `v0.9.11` → `v0.9.12`.
+**Last updated:** 2026-09-02 — **needs-info queue: 3 of 7 scoped this session (#37, #97, #98),
+no code built.** Pure scoping/interview session, no implementation. Two new feature requests
+also logged out-of-spec. See "→ START HERE NEXT SESSION" below for exact resume point.
+
+## 2026-09-02 — needs-info queue scoping session (no build)
+
+Anthony asked to pick up the needs-info queue interview per the standing plan. Live re-check
+(`gh issue list --label needs-info`) found **7 open, not the 4 HANDOFF previously listed** — #88,
+#93, #94 had accumulated since. Worked through 3 today:
+
+- **[#37](https://github.com/mp3anthony/funded/issues/37)** (per-household timezone settings
+  screen) — decision: **owner-only edit access** (matches the existing ownership-gated pattern
+  used for leave/delete-household). `needs-triage` → `ready-for-agent`.
+- **[#97](https://github.com/mp3anthony/funded/issues/97)** (notifications overhaul) — was
+  blocked on #37 (now resolved: per-household timezone). Decisions: **one time-of-day picker per
+  user** ("notify me around X o'clock", builds on the existing per-user `notification_settings`
+  table — no competitor app researched offers true time-of-day scheduling, so this is a genuine
+  differentiator, not parity work); **new reminder types this ticket: payday "log your pay" +
+  goal/fund milestone reached**. Backed by two parallel sub-agent research passes (this
+  codebase's actual notification system/schema, and how YNAB/Monarch/Copilot/Rocket
+  Money/Simplifi/EveryDollar/PocketGuard/Honeydue handle notification timing — Honeydue, the one
+  couples/shared-household app in the set, is the closest analog and confirmed the per-person-
+  preference-on-a-shared-item pattern). Full decision writeup and research summary in the issue
+  comment. `needs-info` → `ready-for-agent`.
+- **[#98](https://github.com/mp3anthony/funded/issues/98)** (bills vs expenses split) — **turned
+  out much bigger than its original framing**, not a categorization toggle. Anthony's real problem:
+  groceries/fuel are currently entered as bills purely as a workaround so they count toward the
+  weekly joint-account draw; there's no real "expense" concept, and goal-contribution rules
+  (e.g. "20% of surplus into a goal") should also count toward that same draw. Decisions: bill =
+  fixed/contractual/recurring, expense = variable spend that still counts toward the weekly draw;
+  **the weekly draw becomes bills + expenses + active goal-contribution rules**, not just bills
+  (touches #106's contribution-calc logic directly); **separate `expenses` table** (Orchestrator's
+  technical recommendation, Anthony signed off — avoids adding type-filters to every existing
+  bills query); **Direct Pay expenses support both whole-item assignment AND %-split, chosen per
+  expense** (new pattern — Direct Pay bills today only do whole-item assignment via
+  `assignee_id`, no %-split exists there yet); health score folds expenses into the existing
+  budget-coverage half; #70's category ordering extends to expenses; **one-time migration script**
+  moves existing groceries/fuel bill-rows into the new expenses table. **This is a schema change —
+  Part A escalation trigger, Anthony's sign-off recorded in the issue comment thread, not just
+  implied.** Anthony's explicit call: **not building this immediately** — gets sliced vertically
+  into narrow tickets during the upcoming full-triage/spec pass, same as the standing plan.
+  `needs-info` → `ready-for-agent`.
+
+**Two new feature requests brought directly in chat, logged out-of-spec (not scoped, not built)**
+per `CLAUDE.md` §1 — neither appears anywhere in `SPEC.md`:
+- Patch notes page (hidden in-app page, reachable from Settings, listing changes per version;
+  first-open-on-a-new-version popup pointing to what's new).
+- In-app bug reporting (report from inside the app, ideally landing as a GitHub issue; Anthony
+  himself flagged the app→GitHub delivery mechanism as needing its own design session — polling
+  vs. some other approach — not a quick decision).
+
+Anthony's call: **both fold into the upcoming full-triage/spec pass, flagged high priority** for
+build-order weighting in that pass — not built now, not scoped in detail yet beyond that.
+`CHANGE-LOG.md` entries updated to `status: triaged` accordingly.
+
+**Out-of-band, unrelated to tickets:** two dead Stop/Notification hooks in Anthony's **global**
+`~/.claude/settings.json` (not this project) pointed at a deleted side-project script
+(`schematic-companion/hook-relay.js` — that whole project was intentionally deleted by Anthony).
+Removed both hook entries. Worth remembering: Anthony sometimes wires cross-project convenience
+hooks into global settings rather than per-project settings, so a hook error surfacing in this
+project isn't necessarily caused by anything in this repo.
+
+Prior session, unchanged below: **#110 (Household Health card default-open + remove Payday page
+avatars) built and merged.** Anthony brought it directly in chat (not from the backlog) — two
+small, unambiguous, in-spec UI tweaks, no CRD needed. Scoped, filed `ready-for-agent`,
+implementation delegated to one sub-agent, a separate independent sub-agent tested it live against
+a disposable Supabase test household (not just by reading the diff), merged as
+[PR #111](https://github.com/mp3anthony/funded/pull/111). Fully in-pipeline verifiable (no layout/
+platform-native surface) → `needs-merge-approval`, not `needs-manual-test`. Version bump confirmed
+with Anthony before merge. `v0.9.11` → `v0.9.12`.
 
 ## #110 — household health default-open, payday avatars removed, built/tested/merged this session (2026-08-23)
 
@@ -69,28 +131,50 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — needs-info scoping answers (#97-#100)
+## → START HERE NEXT SESSION — needs-info queue, 4 remain (#99, #100, #88, #93, #94)
 
-Still open, still waiting on Anthony whenever he redirects back to it.
-Anthony said he'd review the open issues on his own and come back specifically to work through
-the `needs-info` decisions. **Run `gh issue list --label needs-info` at the start of the session**
-in case more have accumulated since — don't assume it's only these 4:
-**[#97](https://github.com/mp3anthony/funded/issues/97)** (notifications overhaul),
-**[#98](https://github.com/mp3anthony/funded/issues/98)** (bills vs expenses split),
-**[#99](https://github.com/mp3anthony/funded/issues/99)** (dynamic visual/motion overhaul),
-**[#100](https://github.com/mp3anthony/funded/issues/100)** (dashboard overhaul) — each carries
-its own "what's known" summary and explicit decisions-needed list in the issue body. Interview
-him against that list, record the outcome in the issue, relabel/close once scoped.
+Mid-interview, stopped here because Anthony had to go pick up his daughter — not blocked on
+anything, just pick the same conversation back up. **Re-run `gh issue list --label needs-info`
+first** in case more accumulated since (it did last time — went from 4 to 7 between sessions).
 
-Once every needs-info issue is resolved, the standing plan (agreed earlier 2026-08-05, still in
-force unless Anthony redirects) is:
+**Already scoped and relabeled `ready-for-agent` this session — do NOT re-interview these:**
+#37, #97, #98 (full decisions in their issue comment threads and in the dated section above).
 
-1. **Full triage pass across ALL open issues** (25 open as of this session — see full list at
-   the bottom of this file), then build a new vertically-sliced spec that sequences delivery of
-   everything without blockers — so implementation (Orchestrator-delegated sub-agents) and
-   testing can proceed cleanly slice by slice, to a standard Anthony signs off on. This extends/
-   supersedes `SPEC.md`'s current open Part B slices (#71, #37) rather than starting from zero —
-   Part A stays final and untouched.
+**Still open, in the order Anthony was going through them:**
+- **[#99](https://github.com/mp3anthony/funded/issues/99)** — Dynamic visual/motion overhaul.
+  Anthony flagged this as a "meaty one" before stopping — likely worth the same
+  research-then-decide pattern used for #97 (e.g. a sub-agent survey of what other apps'
+  motion/animation design looks like) rather than guessing at scope cold.
+- **[#100](https://github.com/mp3anthony/funded/issues/100)** — Dashboard overhaul (replace stat
+  tiles).
+- **[#88](https://github.com/mp3anthony/funded/issues/88)** — Direct Pay untested end-to-end.
+  Different shape from the others — blocked on real-world testers, not really a scoping decision.
+  May just need a check-in on whether testers have been found yet, not a full interview.
+- **[#93](https://github.com/mp3anthony/funded/issues/93)** — join-household edge function
+  doesn't enforce single-membership server-side.
+- **[#94](https://github.com/mp3anthony/funded/issues/94)** — no in-app recovery path for an
+  already-duplicated household member.
+
+Each carries its own "what's known" summary and explicit decisions-needed list in the issue body
+(#99/#100 do; confirm #88/#93/#94 still do before assuming). Interview Anthony against that list,
+record the outcome as an issue comment (see #37/#97/#98 comments for the format that's worked),
+relabel `needs-info`/`needs-triage` → `ready-for-agent` once scoped. For anything that's genuinely
+bigger than its ticket framing (like #98 turned out to be), stop and reflect the expanded scope
+back to Anthony before continuing — don't just keep interviewing on the original frame.
+
+Once every needs-info/needs-triage issue is resolved, the standing plan (agreed 2026-08-05, still
+in force unless Anthony redirects) is:
+
+1. **Full triage pass across ALL open issues** (14 open as of this session — 7 needs-info/
+   needs-triage worked through above, plus #71, #74, #89, #90, #96, #37 already done, #97/#98
+   already done — recount at session start, don't trust this number), then build a new
+   vertically-sliced spec that sequences delivery of everything without blockers — so
+   implementation (Orchestrator-delegated sub-agents) and testing can proceed cleanly slice by
+   slice, to a standard Anthony signs off on. This extends/supersedes `SPEC.md`'s current open
+   Part B slices rather than starting from zero — Part A stays final and untouched. **Fold in the
+   two out-of-spec items from this session (patch notes page, in-app bug reporting) — Anthony
+   flagged both high priority for build-order weighting in this pass.** #98's expenses work also
+   gets sliced vertically here, per Anthony's explicit call not to build it as one large change.
 2. **Not this session, but on Anthony's radar for timeline context:** once the app is stable
    under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
    TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
