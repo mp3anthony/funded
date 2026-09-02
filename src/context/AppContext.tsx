@@ -625,6 +625,8 @@ interface AppContextValue {
   createHousehold: (name: string) => Promise<string>;
   isJointFund: boolean;
   updateHouseholdPaymentMode: (isJointFund: boolean) => Promise<void>;
+  householdTimezone: string;
+  updateHouseholdTimezone: (timezone: string) => Promise<void>;
 
   /* Bills */
   bills: Bill[];
@@ -824,6 +826,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [householdName, setHouseholdNameState] = useState("");
   const [dbHouseholdId, setDbHouseholdId] = useState<string | null>(null);
   const [isJointFund, setIsJointFund] = useState(false);
+  // Falls back to Australia/Sydney (matches the DB column default and
+  // todayInZone's own fallback in src/lib/notifications/timezone.ts) whenever
+  // a household row hasn't been fetched yet or has no value set.
+  const [householdTimezone, setHouseholdTimezone] = useState("Australia/Sydney");
   const [joinCode, setJoinCode] = useState<string | null>(null);
   const [codeExpiresAt, setCodeExpiresAt] = useState<string | null>(null);
   // Sticky record of WHICH user we have positively identified a household for
@@ -1122,7 +1128,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // STEP 2: Fetch household details by ID (separate request, no recursion)
       const { data: household, error: hhError } = await supabase
         .from('households')
-        .select('id, name, join_code, code_expires_at, is_joint_fund')
+        .select('id, name, join_code, code_expires_at, is_joint_fund, timezone')
         .eq('id', membership.household_id)
         .single();
 
@@ -1148,6 +1154,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsJointFund(!!household.is_joint_fund);
       setJoinCode(household.join_code || null);
       setCodeExpiresAt(household.code_expires_at || null);
+      setHouseholdTimezone(household.timezone || "Australia/Sydney");
       setIsOnboarded(true);
 
       // Fetch related data
@@ -1625,7 +1632,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // sitting on a screen that silently did nothing.
         const { data: existing, error: existingError } = await supabase
           .from('households')
-          .select('id, name, join_code, code_expires_at, is_joint_fund')
+          .select('id, name, join_code, code_expires_at, is_joint_fund, timezone')
           .eq('id', existingHouseholdId)
           .maybeSingle();
 
@@ -1702,6 +1709,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           setIsJointFund(!!existing.is_joint_fund);
           setJoinCode(existing.join_code || null);
           setCodeExpiresAt(existing.code_expires_at || null);
+          setHouseholdTimezone(existing.timezone || "Australia/Sydney");
           setIsOnboarded(true);
         } finally {
           setIsDataLoading(false);
@@ -1770,6 +1778,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsJointFund(false);
       setJoinCode(household.join_code || null);
       setCodeExpiresAt(household.code_expires_at || null);
+      setHouseholdTimezone(household.timezone || "Australia/Sydney");
       if (newMember) {
         setMembers([mapMemberFromDb(newMember)]);
       }
@@ -2036,6 +2045,51 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update payment mode:", err);
+      throw err;
+    }
+  }
+
+  // #37. Owner-only, matching the ownership-gated pattern used for
+  // leave/delete-household — but unlike delete-household there is no
+  // server-side edge function backing this: households UPDATE RLS
+  // ("Users can update their household", fix_households_rls_recursion.sql)
+  // is deliberately member-wide, not owner-only, so this client-side check
+  // is the actual enforcement (same as the member-management "canManage"
+  // gating in settings-client.tsx — RLS there is member-wide too). The
+  // Settings UI also hides the control from non-owners so this should only
+  // ever be reached by an owner in normal use.
+  async function updateHouseholdTimezone(timezone: string) {
+    try {
+      const hId = await ensureHousehold();
+
+      const currentMember = members.find(
+        (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
+      );
+      if (currentMember?.role !== "owner") {
+        throw new Error("Only the household owner can change the timezone.");
+      }
+
+      // Must be a valid IANA zone string Intl.DateTimeFormat accepts, same
+      // validation todayInZone() relies on to not silently fall back.
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone });
+      } catch {
+        throw new Error("That doesn't look like a valid timezone.");
+      }
+
+      const { error } = await supabase
+        .from("households")
+        .update({ timezone })
+        .eq("id", hId);
+
+      if (error) {
+        console.error("Error updating household timezone:", error);
+        throw error;
+      }
+
+      setHouseholdTimezone(timezone);
+    } catch (err) {
+      console.error("Failed to update household timezone:", err);
       throw err;
     }
   }
@@ -2548,7 +2602,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         console.warn("[joinHousehold] User already belongs to household", existingMembership.household_id, "— refusing join and restoring it");
         const { data: existing, error: existingError } = await supabase
           .from("households")
-          .select("id, name, join_code, code_expires_at, is_joint_fund")
+          .select("id, name, join_code, code_expires_at, is_joint_fund, timezone")
           .eq("id", existingMembership.household_id)
           .maybeSingle();
 
@@ -2621,6 +2675,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           setIsJointFund(!!existing.is_joint_fund);
           setJoinCode(existing.join_code || null);
           setCodeExpiresAt(existing.code_expires_at || null);
+          setHouseholdTimezone(existing.timezone || "Australia/Sydney");
           setIsOnboarded(true);
         } finally {
           setIsDataLoading(false);
@@ -2646,6 +2701,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       dbHouseholdId,
       householdName,
       isJointFund,
+      householdTimezone,
       bills,
       funds,
       paydays,
@@ -2917,6 +2973,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setDbHouseholdId(backupState.dbHouseholdId);
       setHouseholdNameState(backupState.householdName);
       setIsJointFund(backupState.isJointFund);
+      setHouseholdTimezone(backupState.householdTimezone);
       setBills(backupState.bills);
       setFunds(backupState.funds);
       setPaydays(backupState.paydays);
@@ -4075,6 +4132,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     deleteBill,
     isJointFund,
     updateHouseholdPaymentMode,
+    householdTimezone,
+    updateHouseholdTimezone,
     funds,
     addFund,
     updateGoal,

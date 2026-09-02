@@ -26,6 +26,7 @@ import AvatarUpload from "@/components/AvatarUpload";
 import RemoveMemberModal from "@/components/RemoveMemberModal";
 import EditMemberModal from "@/components/EditMemberModal";
 import NotificationCenter from "@/components/NotificationCenter";
+import TimezoneDialog from "@/components/TimezoneDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
@@ -38,6 +39,8 @@ export default function SettingsClient() {
     members,
     isJointFund,
     updateHouseholdPaymentMode,
+    householdTimezone,
+    updateHouseholdTimezone,
     householdContributions,
     contributionRules,
     funds,
@@ -71,6 +74,7 @@ export default function SettingsClient() {
   const [showAppearanceDialog, setShowAppearanceDialog] = useState(false);
   const [showJoinCodeDialog, setShowJoinCodeDialog] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
+  const [showTimezoneDialog, setShowTimezoneDialog] = useState(false);
 
   /* Member management modals */
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
@@ -314,6 +318,12 @@ export default function SettingsClient() {
           value={isJointFund ? "Joint Fund" : "Direct Pay"}
           chevron
           onClick={() => setShowPaymentModeDialog(true)}
+        />
+        <Row
+          label="Timezone"
+          value={(householdTimezone || "Australia/Sydney").replace(/_/g, " ")}
+          chevron={isCurrentUserOwner}
+          onClick={isCurrentUserOwner ? () => setShowTimezoneDialog(true) : undefined}
         />
       </section>
 
@@ -622,6 +632,14 @@ export default function SettingsClient() {
           </p>
         </div>
       </Dialog>
+
+      {/* Timezone (owner-only; the Row above only opens this for owners) */}
+      <TimezoneDialog
+        isOpen={showTimezoneDialog}
+        onClose={() => setShowTimezoneDialog(false)}
+        currentTimezone={householdTimezone || "Australia/Sydney"}
+        onSave={updateHouseholdTimezone}
+      />
 
       {/* Reused sheets & member modals */}
       <RemoveMemberModal

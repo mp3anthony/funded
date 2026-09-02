@@ -25,6 +25,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.22",
+    date: "September 2026",
+    highlights: [
+      "Households outside Sydney can now set their own timezone in Settings, so bill and reminder due dates line up with your local day. Only the household owner can change it.",
+    ],
+  },
+  {
     version: "0.9.21",
     date: "September 2026",
     highlights: [
