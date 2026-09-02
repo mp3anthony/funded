@@ -1,20 +1,21 @@
 # Handoff
 
-**Last updated:** 2026-09-02 (continued session) — **Group 1 build complete except final merge.**
-Slices 5 (#87) and 6 (#112) built, independently reviewed, and merged this session —
+**Last updated:** 2026-09-02 (continued session) — **Group 1 is fully closed out.** Slices 5-7
+(#87, #112, #71) all built, independently reviewed, and merged this session —
 [PR #119](https://github.com/mp3anthony/funded/pull/119),
-[PR #120](https://github.com/mp3anthony/funded/pull/120). `v0.9.16` → `v0.9.18`. **Slice 7 (#71,
-PWA cache-busting) is built, independently code-reviewed (APPROVED), and pushed as
-[PR #121](https://github.com/mp3anthony/funded/pull/121) labeled `needs-manual-test` — NOT
-merged.** It's platform-sensitive (service worker lifecycle), so it needs Anthony's hands-on
-iPhone pass per the checklist on the PR before it can merge. **Next session starts by checking
-whether Anthony has run that checklist** — see "→ START HERE NEXT SESSION" below for the exact
-pickup steps depending on the answer. Gemini CLI checked two sessions ago and found broken
-(Google killed the free Code-Assist tier it authenticated against) — not usable for offloading
-build work until re-authed with an API key or migrated; see the dated section below for detail,
-don't re-diagnose from scratch next time.
+[PR #120](https://github.com/mp3anthony/funded/pull/120),
+[PR #121](https://github.com/mp3anthony/funded/pull/121). `v0.9.16` → `v0.9.19`. Slice 7 (PWA
+cache-busting) needed 2 extra fix rounds after Anthony's real-device iPhone testing caught a
+genuine bug the first code review missed (offline navigation stranding a signed-in user on the
+onboarding screen) and then a second-order bug in the first fix (stuck-forever loading spinner) —
+full blow-by-blow in the dated section below, worth reading before touching `AppContext.tsx`'s
+`loadData`/network-failure-handling code again. **Next session starts Group 2**: patch notes page
+(#113) and in-app bug reporting (#114) — see "→ START HERE NEXT SESSION" below. Gemini CLI
+checked two sessions ago and found broken (Google killed the free Code-Assist tier it
+authenticated against) — not usable for offloading build work until re-authed with an API key or
+migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
 
-## 2026-09-02 (continued further still) — Slices 5-6 built/reviewed/merged; Slice 7 built/reviewed, awaiting manual test
+## 2026-09-02 (continued further still) — Slices 5-7 built, reviewed, merged; Group 1 closed out
 
 Continuation of the same day's session, picked up exactly where the prior HANDOFF pointed
 ("START HERE NEXT SESSION — Group 1, Slice 5 / #87"). Re-ran `gh issue list --state open` first —
@@ -43,7 +44,7 @@ references. Distinct from the live `HealthScoreCard.tsx`, confirmed untouched. *
 pass**, no orphaned dependencies needed cleanup. `tsc` clean, lint unchanged (59/41), `npm run
 build` succeeds. `v0.9.17` → `v0.9.18`.
 
-**Slice 7 / #71 — PWA stale-cache bug, built + code-reviewed, [PR #121](https://github.com/mp3anthony/funded/pull/121), NOT MERGED — awaiting Anthony's iPhone manual test.**
+**Slice 7 / #71 — PWA stale-cache bug, CLOSED, [PR #121](https://github.com/mp3anthony/funded/pull/121). `v0.9.18` → `v0.9.19`.**
 Anthony's decision (prior triage-pass comment) was both recommended directions combined: (1)
 inject the build/commit hash into `CACHE_NAME` in `public/sw.js` per deploy instead of the
 hand-bumped static `v3` it had been stuck on, so the existing `activate` purge-old-caches logic
@@ -57,36 +58,76 @@ override exists in this repo) stamps `public/sw.js`'s `CACHE_NAME` with `VERCEL_
 timestamp locally. Non-navigation (asset/API) caching left untouched — only the navigation
 strategy changed.
 
-**This is `needs-manual-test`, not `needs-merge-approval`** — issue #71 is explicitly flagged
-platform-sensitive in its own testing-assessment section (service worker install/activate/fetch
-lifecycle, native behavior differs iOS/WebKit vs Android/Chromium). Independent code review
-**APPROVED at the code level** — verified the `prebuild` mechanism genuinely works on a real
-Vercel build (not just locally), exercised the cache-name stamping script's full fallback chain
-and confirmed idempotency, read the SWR fetch handler directly (`waitUntil` registered correctly,
-correct empty-cache-yet fallback to network-first), confirmed `activate`'s purge logic is
-unchanged and now actually effective — but a code review is explicitly *not* a substitute for the
-device pass here. `tsc`/`lint`/`build` all clean vs baseline. `v0.9.18` → `v0.9.19` (bumped as
-part of this PR per the "+0.0.1 per preview build" default — not yet confirmed with Anthony as a
-*merge* version since the PR hasn't merged).
+**This went through real iPhone testing before merge, per `CLAUDE.md` §2 Step 4** — issue #71 is
+explicitly flagged platform-sensitive in its own testing-assessment section. First code review
+**APPROVED at the code level**, but a code review is not a substitute for a device pass, and this
+proved out: Anthony's manual test caught a real bug the review missed.
 
-**One real nuance the reviewer surfaced, not a bug — flagged explicitly on the PR's checklist for
-Anthony's sign-off:** offline capability after this fix is "last-good cached version" only *within*
-routes visited online since the most recent deploy — only `/`, `/offline`, the manifest, and icons
-are precached on install; Bills/Funds/Payday/Settings have no offline content until visited online
-post-deploy. This is a real, arguably-correct consequence of build-scoped cache busting (the whole
-point was to stop serving indefinitely-stale content) but is narrower than "keeps offline working"
-might sound on its own — the PR's manual-test checklist item 6 specifically walks through this
-scenario so Anthony can confirm it matches his expectation for the feature, not just that nothing
-crashes.
+**Bug 1 (found on-device, not by review): offline navigation stranded a signed-in user on the
+onboarding screen** ("Create a Household / Join via Code"), with a visible "Sign Out" button
+implying the session was actually still valid underneath — confirmed via screenshot, recoverable
+only by toggling connectivity + logging out/in, or force-closing. **Root cause:** not the service
+worker (that part was already correct) — `AppContext.tsx`'s `loadData()` conflated "the device has
+no network, the request never reached the server" with "the server confirmed this household isn't
+onboarded," calling `setIsOnboarded(false)` on any query failure including a network failure.
+**Fix (`93d5f2c`):** added `isNetworkFailure(err)` to distinguish the two — checks
+`navigator.onLine` first, with a fallback regex match against real fetch-failure error messages
+(covers Safari's `"Load failed"`, not just Chrome's `"Failed to fetch"`, since `navigator.onLine`
+is known to misreport on iOS). On a genuine network failure, `isOnboarded` is left untouched.
+Independent review (fresh reviewer) **APPROVED**, specifically verifying the fix doesn't rely
+solely on the unreliable `navigator.onLine` API and doesn't regress the legitimate "actually new
+user" onboarding path — but flagged a residual risk: the only recovery mechanism was a single
+`'online'` event listener, which has documented flakiness in iOS Safari standalone-PWA mode.
 
-**Workflow used for all three, consistent with Slices 1-4:** one build sub-agent per slice, one
-*independent* review sub-agent (never the builder), same fix-and-re-review loop available if
-NEEDS-REWORK was hit (wasn't needed this round — all three approved first pass). Slices 5-6
-followed straight through to push/PR/version-bump/merge/local-sync on Anthony's blanket go-ahead
-("keep going, merge when done"). Slice 7 stopped short of merge deliberately — its own testing
-section requires a real device, which a blanket "merge when done" instruction can't satisfy; this
-was flagged to Anthony explicitly before pushing rather than silently merging code that hadn't
-actually been verified against the bug it claims to fix.
+**Bug 2 (the flagged risk materialized on retest): app got stuck on an infinite loading spinner**
+after reconnecting — confirmed via screenshot, no recovery even after toggling airplane mode back
+off and waiting. **Fix (`d300eb8`):** replaced the single `'online'`-listener dependency with three
+independent recovery triggers (a 5s poll that self-heals even if every browser event is missed,
+`'online'`, and `'visibilitychange'`/`'focus'`), plus a 30s escape hatch that swaps the bare
+spinner for a message + manual "Retry" button so the user is never left with zero feedback and
+zero action available. **Independent re-review found a real bug in this fix before it reached
+Anthony a third time:** tapping Retry while still offline permanently killed the escape hatch —
+the state driving the 30s timer's effect (`isNetworkStuck`) didn't change *value* on a second
+failure, so the effect never re-ran and the button never came back, reproducing the original
+severity. **Fix (`88bbd30`):** added a `retryGeneration` counter bumped on every failed retry
+(gated on "the button has shown at least once this stuck episode" to avoid restarting the initial
+countdown forever), added to the effect's dependency array so any failed retry — manual or
+automatic — reliably re-arms the timer; also added an in-flight guard so the 5s poll can never
+stack overlapping requests. This round's independent review traced both "manual retry fails again"
+and "a later, separate offline episode starts clean" step-by-step through the actual code before
+approving, and directly re-ran lint to resolve an ambiguous claim in the builder's own report
+rather than trusting either half of it (confirmed 59/41, unchanged).
+
+**Real-device retesting after both fixes never reproduced either bug again** — but every attempt
+Anthony made to force a genuinely offline-with-nothing-cached state (flicking between
+already-loaded tabs, force-quitting, even a full Safari "Clear History and Website Data") kept
+coming back fully functional, still logged in, with real data. Root cause of *that*: iOS keeps an
+installed home-screen web app's storage in a separate container from Safari's own browsing data —
+clearing Safari's site data does not reach an installed PWA's storage, so none of those tests
+actually forced the cold state they were meant to. The only way to truly force it is deleting and
+reinstalling the icon, which is the exact workaround #71 exists to make unnecessary, so it wasn't
+used for verification. **Anthony's explicit call: merge anyway** — code review traced both bugs'
+exact failure sequences through the real code across 3 rounds, and every real-world test available
+without reinstalling showed clean behavior throughout. Logged here as a known testing-coverage
+limitation, not a confirmed pass of the specific offline-data-load recovery path — worth knowing if
+an offline-related bug report ever comes in for this feature.
+
+**One real nuance from the first review round, not a bug:** offline capability after this fix is
+"last-good cached version" only *within* routes visited online since the most recent deploy — only
+`/`, `/offline`, the manifest, and icons are precached on install; other routes have no offline
+content until visited online post-deploy. A real, arguably-correct consequence of build-scoped
+cache busting, narrower than "keeps offline working" might sound on its own.
+
+**Workflow used across all of Group 1's remaining slices, consistent with Slices 1-4:** one build
+sub-agent per slice, one *independent* review sub-agent (never the builder), fix-and-re-review loop
+whenever NEEDS-REWORK or a real device bug was hit (needed 2 extra rounds for Slice 7, none for
+Slices 5-6). Slices 5-6 followed straight through to push/PR/version-bump/merge/local-sync on
+Anthony's blanket go-ahead ("keep going, merge when done"). Slice 7 was deliberately routed to
+`needs-manual-test` instead of auto-merged — its own testing section requires a real device, which
+a blanket "merge when done" instruction can't satisfy on its own; this was flagged to Anthony
+explicitly before pushing, and every fix round after the on-device bugs went back through a fresh
+independent reviewer before returning to his phone, rather than re-testing unreviewed code on a
+live device each time.
 
 ## 2026-09-02 (continued further) — Slice 4 / #90 built, reviewed, merged
 
@@ -431,33 +472,24 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 1 is built; get Slice 7 / #71 merged, then move to Group 2
+## → START HERE NEXT SESSION — Group 1 is fully closed; start Group 2
 
-**Slices 1-6 done** (#93, #74, #89, #90, #87, #112 — all merged, `v0.9.18`, full detail in the
-dated sections above). **Slice 7 / #71 (PWA cache-busting) is built, independently code-reviewed
-(APPROVED), and open as [PR #121](https://github.com/mp3anthony/funded/pull/121), labeled
-`needs-manual-test` — this is the one thing standing between this session and Group 1 being fully
-closed out.** Re-check `gh issue list --state open` at session start anyway in case anything new
-was filed since (was exactly the expected 12 open issues as of this session's end, #88 the only
-`needs-info`).
+**Slices 1-7 all done** (#93, #74, #89, #90, #87, #112, #71 — all merged, `v0.9.19`, full detail in
+the dated sections above). **Group 1 is completely closed out — nothing left in it.** Re-check
+`gh issue list --state open` at session start anyway in case anything new was filed since (was
+exactly the expected 12 open issues as of this session's end, #88 the only `needs-info`).
 
-**First, check whether Anthony has run PR #121's manual-test checklist** (`gh pr view 121
---comments`, and ask him directly if unclear):
-- **If he has and it's a clean PASS:** confirm the `v0.9.19` version bump with him (already applied
-  in the PR, per the "+0.0.1 per preview build" default — just needs the immediately-before-merge
-  confirmation `CLAUDE.md` §4 requires), then squash-merge, sync local `main` with `git reset
-  --hard origin/main` (not `git pull`), and Group 1 is fully closed.
-- **If he found a real failure (❌ on any checklist item):** this is a code-level bug the prior
-  session's review missed — do NOT just re-push the same code. Investigate the specific failure,
-  fix it on the same `slice7-issue71-pwa-cache-busting` branch, get it independently re-reviewed
-  (fresh reviewer agent, not the one that already approved it), before it goes back to Anthony for
-  another manual pass.
-- **If he hasn't tested it yet:** don't nag or re-litigate — it's still an open PR waiting on him,
-  same as any other `needs-manual-test` item. Ask if he wants to do it now or if there's something
-  else to work on in the meantime (e.g. start Group 2 below without merging #121 yet — the two
-  aren't dependent).
+**Worth reading before touching offline/network-failure code again:** Slice 7 (#71) needed 2 extra
+fix-and-re-review rounds after Anthony's real iPhone testing caught bugs the first code review
+missed (offline navigation stranding a signed-in user on onboarding, then a stuck-forever loading
+spinner in the first fix's recovery logic) — full blow-by-blow in that slice's dated section above.
+Also worth knowing: on iOS, an installed home-screen PWA's storage is a separate container from
+Safari's own browsing data — clearing Safari's site data does NOT reach an installed PWA, so it
+can't be used to force a genuinely cold/uncached test state; only an actual delete+reinstall can.
+That limited how thoroughly the final offline-recovery fix could be device-verified — logged as a
+known gap, not a confirmed pass, in case an offline-related report ever comes in for this feature.
 
-**After Group 1 is fully closed** (#121 merged), proceed to **Group 2**: patch notes page (#113),
+**Proceed to Group 2**: patch notes page (#113),
 in-app bug reporting (#114) — Anthony's explicit high-priority build-order flag. Then Group 3
 (timezone #37 → notifications overhaul #97, strict dependency chain → #96 push reliability), then
 Group 4 (motion overhaul #99, pull the cheap `tailwindcss-animate` install fix forward as a
