@@ -515,6 +515,71 @@ function mapMemberFromDb(dbMember: any): Member {
 }
 
 /* ═══════════════════════════════════════════════
+   Warm-Reload Empty-Result Race Guard (#74)
+   ═══════════════════════════════════════════════ */
+// A Supabase query that succeeds with zero rows and a genuine "this
+// household/user has no rows" are indistinguishable at the call site. On a
+// warm reload (token refresh / tab refocus) RLS can evaluate the request
+// before the refreshed auth token has been attached to it, and hand back an
+// empty-but-error-free result even though the real row set is non-empty.
+// `[]` is truthy, so writing that straight into state overwrites real,
+// already-loaded data — this is what made the Household Health rank flap to
+// "Fully Funded" and back on a warm reload with no real data change.
+//
+// Agreed fix (Option 4): trust an empty result immediately UNLESS the
+// previous in-memory state for that same slice was non-empty.
+//   - Previous state was already empty (including the very first load ever)
+//     → trust the empty result immediately, no re-fetch. This keeps the
+//     overwhelmingly common case fast.
+//   - Previous state was non-empty and the fresh result is empty → the
+//     result is suspect. Re-fetch that one query exactly once to confirm:
+//       - re-fetch also empty → commit the empty result. This correctly
+//         reflects a genuine deletion made on another device.
+//       - re-fetch comes back with rows → use those instead. The first
+//         empty result was the race, not reality.
+// A failed query (error, or `data: null`) is left alone — that is a
+// different evidence class than "successful but empty", and each call site
+// already has its own null-guard for it.
+//
+// Shared by every loadData slice (bills/funds/paydays/members/bill_splits)
+// so the logic lives in exactly one place; #89 reuses it as-is.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseArrayResult<T = any> = { data: T[] | null; error: unknown };
+
+export async function resolveWarmReloadRace<T>(
+  previousState: T[],
+  result: SupabaseArrayResult<T>,
+  refetch: () => Promise<SupabaseArrayResult<T>>
+): Promise<T[] | null> {
+  // A failed query is not "empty" — bail out and let the caller's existing
+  // null-guard decide what to do (typically: leave state untouched).
+  if (result.error || !result.data) return null;
+
+  const isEmpty = result.data.length === 0;
+  const previousStateWasNonEmpty = previousState.length > 0;
+
+  if (!isEmpty || !previousStateWasNonEmpty) {
+    // Either there are rows, or there was nothing at risk of being clobbered
+    // (first-ever load, or a household that was already empty). Trust it.
+    return result.data;
+  }
+
+  // Suspect: state held rows a moment ago and the fresh query says none.
+  // Confirm with exactly one re-fetch before committing the overwrite.
+  const confirmation = await refetch();
+  if (confirmation.error || !confirmation.data) {
+    // Inconclusive — do not compound one bad signal with another. Leave the
+    // slice untouched rather than guessing.
+    return null;
+  }
+
+  // Non-empty re-fetch => the original empty result was the race.
+  // Still-empty re-fetch => the emptiness is real (genuine deletion).
+  // Either way, the re-fetch's result is what gets committed.
+  return confirmation.data;
+}
+
+/* ═══════════════════════════════════════════════
    Context Shape
    ═══════════════════════════════════════════════ */
 
@@ -874,7 +939,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // Only load data AFTER auth has resolved and we have a valid session.
   // This prevents a race condition where RLS returns empty results
   // (because no auth token is set yet), causing the app to show onboarding.
-  async function loadData() {
+  async function loadData(options?: { assumeEmptyPreviousState?: boolean }) {
     if (isAuthLoading || !session?.user) {
       console.log('loadData skipped - isAuthLoading:', isAuthLoading, 'session:', session ? 'exists' : 'null');
       // No session means signed out (or never signed in): forget any household
@@ -968,7 +1033,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsOnboarded(true);
 
       // Fetch related data
-      await loadHouseholdRelatedData(household.id, session.user.id);
+      await loadHouseholdRelatedData(household.id, session.user.id, options);
     } catch (err) {
       console.error('[loadData] Failed loading all household data:', err);
       // A thrown request (network drop mid-load) is the same class of evidence
@@ -1000,7 +1065,26 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   //
   // Takes userId explicitly rather than reading session: the adopt paths get a
   // fresher user from supabase.auth.getSession() than this render's closure.
-  async function loadHouseholdRelatedData(householdId: string, userId: string) {
+  //
+  // `assumeEmptyPreviousState` exists for callers that already know the
+  // slate is genuinely empty right now (joinHousehold's household-switch
+  // branch: it calls setBills([])/setFunds([])/etc. immediately before
+  // calling loadData(), then this runs). Those setX([]) calls don't
+  // retroactively update the `bills`/`funds`/`paydays`/`members`/`billSplits`
+  // variables this closure reads — plain closed-over state, not refs — so
+  // without this flag resolveWarmReloadRace would see the OLD household's
+  // real non-empty data as "previous state" while checking the NEW
+  // household's fetch, and needlessly fire a confirm re-fetch for every slice
+  // that's honestly empty in the new household. Passing `true` here routes
+  // those slices through resolveWarmReloadRace's own empty-previous-state
+  // fast path (same one a first-ever load takes) instead of a synthetic ref.
+  async function loadHouseholdRelatedData(
+    householdId: string,
+    userId: string,
+    options?: { assumeEmptyPreviousState?: boolean }
+  ) {
+    const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
+
     const [billsRes, fundsRes, paydaysRes, membersRes, billSplitsRes] = await Promise.all([
       supabase.from("bills").select("*").eq("household_id", householdId),
       supabase.from("funds").select("*").eq("household_id", householdId),
@@ -1009,26 +1093,64 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       supabase.from("bill_splits").select("*"),
     ]);
 
-    if (billsRes.data) {
-      setBills(billsRes.data.map(mapBillFromDb));
+    // Each slice below is reconciled against a warm-reload race (#74): an
+    // empty-but-error-free result is only trusted outright when the slice's
+    // previous in-memory state was already empty. Otherwise it's confirmed
+    // with one re-fetch before it's allowed to overwrite real data. See
+    // resolveWarmReloadRace above for the full rationale. bills/funds/paydays/
+    // members are independent of one another, so they're reconciled
+    // concurrently rather than compounding re-fetch latency sequentially.
+    const [resolvedBills, resolvedFunds, resolvedPaydays, resolvedMembers] = await Promise.all([
+      resolveWarmReloadRace(assumeEmptyPreviousState ? [] : bills, billsRes, async () =>
+        await supabase.from("bills").select("*").eq("household_id", householdId)
+      ),
+      resolveWarmReloadRace(assumeEmptyPreviousState ? [] : funds, fundsRes, async () =>
+        await supabase.from("funds").select("*").eq("household_id", householdId)
+      ),
+      resolveWarmReloadRace(assumeEmptyPreviousState ? [] : paydays, paydaysRes, async () =>
+        await supabase.from("paydays").select("*").eq("household_id", householdId)
+      ),
+      resolveWarmReloadRace(assumeEmptyPreviousState ? [] : members, membersRes, async () =>
+        await supabase.from("household_members").select("*").eq("household_id", householdId)
+      ),
+    ]);
+
+    if (resolvedBills) {
+      setBills(resolvedBills.map(mapBillFromDb));
     }
-    if (fundsRes.data) {
-      setFunds(fundsRes.data.map(mapFundFromDb));
+    if (resolvedFunds) {
+      setFunds(resolvedFunds.map(mapFundFromDb));
     }
-    if (paydaysRes.data) {
-      setPaydays(paydaysRes.data.map(mapPaydayFromDb));
+    if (resolvedPaydays) {
+      setPaydays(resolvedPaydays.map(mapPaydayFromDb));
+    }
+    if (resolvedMembers) {
+      setMembers(resolvedMembers.map(mapMemberFromDb));
     }
 
-    let loadedMembers: Member[] = [];
-    if (membersRes.data) {
-      loadedMembers = membersRes.data.map(mapMemberFromDb);
-    }
-    setMembers(loadedMembers);
+    // Bill splits are fetched unscoped (no household_id column on the table)
+    // and filtered locally to this household's bills. The filter must run
+    // against `resolvedBills` (post race-check), not the raw `billsRes.data`
+    // — otherwise a bills race that got corrected above would still filter
+    // every split out here. The reconciliation itself is then applied to the
+    // *filtered* array, since that's the actual value being committed to
+    // `billSplits` state and compared against its previous value. This one
+    // stays sequential (can't join the Promise.all above) because it depends
+    // on `resolvedBills`.
+    const billIds = new Set((resolvedBills || []).map((b) => b.id));
+    const filterSplitsToHousehold = (splits: typeof billSplitsRes.data) =>
+      splits ? splits.filter((split: any) => billIds.has(split.bill_id)) : null;
 
-    if (billSplitsRes.data) {
-      // Filter bill splits locally to only load splits for current household's bills
-      const billIds = new Set((billsRes.data || []).map(b => b.id));
-      setBillSplits(billSplitsRes.data.filter((split: any) => billIds.has(split.bill_id)));
+    const resolvedBillSplits = await resolveWarmReloadRace(
+      assumeEmptyPreviousState ? [] : billSplits,
+      { data: filterSplitsToHousehold(billSplitsRes.data), error: billSplitsRes.error },
+      async () => {
+        const refetched = await supabase.from("bill_splits").select("*");
+        return { data: filterSplitsToHousehold(refetched.data), error: refetched.error };
+      }
+    );
+    if (resolvedBillSplits) {
+      setBillSplits(resolvedBillSplits);
     }
 
     // Fetch payday schedule, history, contributions, and rules
@@ -2497,7 +2619,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       // 4. Fetch fresh data for the new household
       setDbHouseholdId(newHouseholdId);
-      await loadData();
+      // assumeEmptyPreviousState: true — the setX([]) calls just above wiped
+      // this local state, but loadData/loadHouseholdRelatedData read
+      // bills/funds/paydays/members/billSplits as plain closed-over
+      // variables from this render, which those setters don't retroactively
+      // update. Without this flag, resolveWarmReloadRace would see the OLD
+      // household's real, non-empty data as "previous state" while checking
+      // the NEW household's fetch, and needlessly re-fetch every slice
+      // that's honestly empty in the new household.
+      await loadData({ assumeEmptyPreviousState: true });
     } catch (err: any) {
       console.error("Failed to join household, rolling back state:", err);
       // Rollback React states to cached values
