@@ -873,6 +873,40 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // hatch — see both further down.
   const [isNetworkStuck, setIsNetworkStuck] = useState(false);
   const [showOfflineRetry, setShowOfflineRetry] = useState(false);
+  // True once the Retry button has been shown at least once during the
+  // CURRENT stuck episode (set by the escape-hatch effect below when its 30s
+  // timer fires, cleared by the resolve-reset effect once the episode ends).
+  // Declared here, ahead of noteRetryAttempt, since that function reads it;
+  // both live near the state they coordinate.
+  const hasShownOfflineRetryRef = useRef(false);
+  // Bumped once per failed retry attempt (manual Retry click, or an automatic
+  // poll/online/focus/visibilitychange retry) that lands AFTER the
+  // escape-hatch button has already been shown once this episode. Included in
+  // the escape-hatch effect's dependency array below so that effect re-arms a
+  // fresh 30s timer on each such attempt, instead of relying on
+  // isNetworkStuck's true->true non-transition (the bug: retryLoadData set
+  // showOfflineRetry false directly, and nothing else was watching to put it
+  // back if the retry it kicked off also failed). Gated on
+  // hasShownOfflineRetryRef, not "is the button visible right now" — a manual
+  // retry deliberately hides the button before this fires, and gating on
+  // current visibility would miss exactly that case. Deliberately NOT bumped
+  // by retries before the button has ever shown in this episode — that would
+  // restart the initial 30s countdown on every 5s poll tick and the button
+  // would never appear at all.
+  const [retryGeneration, setRetryGeneration] = useState(0);
+  function noteRetryAttempt() {
+    if (hasShownOfflineRetryRef.current) {
+      setRetryGeneration((g) => g + 1);
+    }
+  }
+  // Guards against overlapping loadData() calls. Automatic recovery calls
+  // loadData every 5s while stuck (plus on 'online'/'focus'/'visibilitychange'),
+  // and if a single call takes longer than 5s to settle the interval would
+  // otherwise fire again before it finishes, stacking concurrent in-flight
+  // requests indefinitely. Set at the very top of loadData and cleared in a
+  // top-level finally so every exit path (including the early "no session"
+  // return) releases it.
+  const loadDataInFlightRef = useRef(false);
 
   // Mirrors of the two values the loadData effect below depends on, as of the
   // last time an auth callback dispatched them. Both auth callbacks fire outside
@@ -989,6 +1023,22 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // This prevents a race condition where RLS returns empty results
   // (because no auth token is set yet), causing the app to show onboarding.
   async function loadData(options?: { assumeEmptyPreviousState?: boolean }) {
+    // Overlap guard (#71 follow-up): skip this call outright if a previous
+    // one is still in flight, rather than letting them stack. Released in the
+    // top-level finally below no matter which branch this call exits through.
+    if (loadDataInFlightRef.current) {
+      console.log('loadData skipped - a previous call is still in flight');
+      return;
+    }
+    loadDataInFlightRef.current = true;
+    try {
+      await loadDataInner(options);
+    } finally {
+      loadDataInFlightRef.current = false;
+    }
+  }
+
+  async function loadDataInner(options?: { assumeEmptyPreviousState?: boolean }) {
     if (isAuthLoading || !session?.user) {
       console.log('loadData skipped - isAuthLoading:', isAuthLoading, 'session:', session ? 'exists' : 'null');
       // No session means signed out (or never signed in): forget any household
@@ -1127,6 +1177,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // way), so the recovery effect below stops polling/listening the
       // instant it's no longer needed instead of running forever.
       setIsNetworkStuck(networkFailure);
+      // This call's outcome is the direct answer to "did that retry attempt
+      // fail?" — feed it to the escape-hatch generation counter regardless of
+      // which trigger (manual button, poll, online, focus, visibilitychange)
+      // caused this call. noteRetryAttempt is itself a no-op unless the Retry
+      // button is currently showing, so this can't disturb the very first 30s
+      // countdown (see its declaration above).
+      if (networkFailure) {
+        noteRetryAttempt();
+      }
     }
   }
 
@@ -1190,23 +1249,48 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // with zero feedback and no available action is a bad end state on its own
   // if the device genuinely stays offline for a while (or the retries above
   // are, for some other reason, not getting through). If loadData has been
-  // continuously stuck for 30s straight, stop asking the user to just trust
-  // it's working and surface a manual retry affordance (AppShell) instead.
-  // Resets the moment isNetworkStuck clears, so a successful retry — auto or
-  // manual — hides it again immediately.
+  // continuously stuck for 30s straight — or 30s have passed since the most
+  // recent failed retry attempt once the button has already been shown once
+  // (retryGeneration; see noteRetryAttempt above) — stop asking the user to
+  // just trust it's working and surface a manual retry affordance (AppShell)
+  // instead.
+  //
+  // Deliberately does NOT hide the button in this effect's own cleanup: a
+  // retryGeneration bump reruns this effect (to re-arm a fresh timer) without
+  // the button needing to disappear and reappear in between — once shown, it
+  // stays shown, uninterrupted, through any number of further failed
+  // automatic retries. Hiding is instead the responsibility of (a)
+  // retryLoadData below, for the deliberate "user asked us to try again"
+  // moment, and (b) the resolve-reset effect further down, once the episode
+  // is actually over.
   useEffect(() => {
     if (!isNetworkStuck) return;
-    const timer = window.setTimeout(() => setShowOfflineRetry(true), 30000);
-    // Runs both when isNetworkStuck flips back to false (a retry succeeded)
-    // and on unmount — either way the 30s wait is no longer relevant, and any
-    // affordance already shown needs to disappear along with it.
+    const timer = window.setTimeout(() => {
+      setShowOfflineRetry(true);
+      hasShownOfflineRetryRef.current = true;
+    }, 30000);
     return () => {
       window.clearTimeout(timer);
-      setShowOfflineRetry(false);
     };
+  }, [isNetworkStuck, retryGeneration]);
+
+  // Resolves the escape hatch the moment the stuck episode actually ends —
+  // i.e. isNetworkStuck flips back to false, whether from a successful auto
+  // retry or a successful manual one. Kept as its own effect, separate from
+  // the timer effect above, specifically so it does NOT also fire on a bare
+  // retryGeneration bump (which must leave an already-visible button alone).
+  useEffect(() => {
+    if (isNetworkStuck) return;
+    setShowOfflineRetry(false);
+    hasShownOfflineRetryRef.current = false;
   }, [isNetworkStuck]);
 
   function retryLoadData() {
+    // Hide immediately as visible feedback that the tap registered. If this
+    // attempt also fails, loadDataInner's finally calls noteRetryAttempt(),
+    // which — because hasShownOfflineRetryRef is still true from this episode
+    // — bumps retryGeneration and re-arms a fresh 30s timer above, so the
+    // button reliably reappears instead of staying hidden forever.
     setShowOfflineRetry(false);
     loadData();
   }
