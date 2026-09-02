@@ -1,13 +1,68 @@
 # Handoff
 
-**Last updated:** 2026-09-03 — **Group 2, Slice 14 (#113, patch notes page) built, reviewed,
-device-tested, and merged.** `v0.9.19` → `v0.9.20`,
-[PR #122](https://github.com/mp3anthony/funded/pull/122). **Next session starts with Slice 15
-(#114, in-app bug reporting)** — see "→ START HERE NEXT SESSION" below; Anthony is generating the
-required GitHub PAT before that one can build. Gemini CLI checked two sessions ago and found
-broken (Google killed the free Code-Assist tier it authenticated against) — not usable for
-offloading build work until re-authed with an API key or migrated; see the dated section below for
-detail, don't re-diagnose from scratch next time.
+**Last updated:** 2026-09-03 — **Group 2 is fully closed.** Slice 15 (#114, in-app bug reporting)
+built, reviewed, tested, and merged this session — [PR #123](https://github.com/mp3anthony/funded/pull/123).
+`v0.9.20` → `v0.9.21`. **Next session starts Group 3**: timezone (#37) → notifications overhaul
+(#97, depends on #37) → #96 (push reliability, two halves) — see "→ START HERE NEXT SESSION" below.
+Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
+authenticated against) — not usable for offloading build work until re-authed with an API key or
+migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-03 — Slice 15 / #114 in-app bug reporting built, reviewed, merged; Group 2 closed
+
+Picked up exactly where the prior HANDOFF pointed ("START HERE NEXT SESSION — Group 2, Slice 15").
+Anthony generated the required GitHub PAT at the start of the session.
+
+**GitHub PAT setup, walked through live with Anthony:** fine-grained token
+(https://github.com/settings/tokens?type=beta), scoped to the `funded` repo only, `Issues:
+Read and write` permission only, added to Vercel as `GITHUB_BUG_REPORT_TOKEN`. Anthony hit a
+Vercel UI snag getting Production+Preview both checked (environment-selector UI wouldn't toggle
+cleanly) — resolved by going **Production-only**, which is actually the right scope anyway (real
+users only hit Production; Preview is for our own testing, not real bug reports).
+
+**What got built, per SPEC.md Slice 15:** "Report a bug" button in Settings opens a form
+(title+description required, optional screenshot). One scoping decision made with Anthony before
+build: the spec's "optionally a screenshot" doesn't map to any GitHub REST endpoint (issue
+attachments are web-UI-drag-drop-only, no API) — decided to route screenshots through a **new
+Supabase storage bucket** (`bug-report-screenshots`, public read / authenticated-only write, 5MB
+cap, image-mime whitelist) and link the resulting URL as a Markdown image in the issue body,
+rather than skipping screenshots for this pass. New server route
+(`src/app/api/bug-report/route.ts`) re-derives the submitter's identity from their Supabase
+session (never trusts client-supplied identity, same standard as #93/#90), reads
+`GITHUB_BUG_REPORT_TOKEN` server-side only, calls GitHub's create-issue REST API, pre-creates a
+`from-app` label idempotently. `src/lib/version.ts` `0.9.20` → `0.9.21`, matching patch-notes
+entry added.
+
+**One independent review round, APPROVED first pass** — given this is new schema-adjacent
+(storage bucket + RLS) work touching a brand-new secret, reviewed with the same scrutiny this repo
+gives service-role-key-adjacent changes: queried the live Supabase project directly to confirm the
+bucket/RLS policies exist exactly as built (not just trusting the migration file), grepped the
+whole `src/` tree to confirm the token never appears in any client-reachable file, traced the
+`from-app` label pre-creation logic to confirm a `422 already-exists` doesn't abort the
+submission, and independently re-ran `tsc`/`lint` (clean / 59 errors-42 warnings vs. baseline
+59/41 — the +1 warning is a routine `@next/next/no-img-element` hint on the screenshot preview,
+same pattern as an existing warning elsewhere in the app). One cosmetic-only nit noted, not fixed:
+the migration filename's timestamp doesn't exactly match Supabase's internal applied-migration
+timestamp — content matches, harmless.
+
+**Manual device testing surfaced the Preview-vs-Production env scoping in practice, not a bug**:
+Anthony tested on the PR's Vercel Preview deployment, which correctly does NOT have
+`GITHUB_BUG_REPORT_TOKEN` (Production-only) — the route correctly showed a clear "Bug reporting is
+not configured on the server" error instead of crashing or silently no-op'ing, which is exactly
+the failure-path behavior the spec asked for. **Anthony's explicit call: skip live
+GitHub-issue-creation testing on preview** (would've required temporarily granting the token to
+Preview) — relied on the independent reviewer's direct Supabase/code verification instead; first
+genuine end-to-end confirmation will be the first real bug report filed from production. Worth
+knowing if a report ever needs debugging: this path hasn't been watched live end-to-end yet, only
+verified by code+DB inspection.
+
+**Version bump confirmed with Anthony before merge**: `v0.9.20` → `v0.9.21`. Squash-merged as
+[PR #123](https://github.com/mp3anthony/funded/pull/123), branch deleted, `gh pr merge` auto-synced
+local `main`. Issue #114 auto-closed by the merge.
+
+**Workflow, same pattern as Slice 14:** build sub-agent → independent review sub-agent (APPROVED
+first pass, no rework needed) → push/PR/version-bump-confirm → Anthony's on-device test →
+merge/local-sync. Labeled `needs-manual-test` per spec (new secret + new storage surface).
 
 ## 2026-09-02/03 — Slice 14 / #113 patch notes page built, reviewed, device-tested, merged
 
@@ -510,24 +565,37 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 2, Slice 15 (#114, in-app bug reporting)
+## → START HERE NEXT SESSION — Group 3: timezone (#37) → notifications (#97) → push (#96)
 
-**Group 1 fully closed (Slices 1-7), Group 2 Slice 14 (#113, patch notes) merged `v0.9.20`** — full
-detail in the dated sections above. **Only Slice 15 (#114, in-app bug reporting) remains in
-Group 2.** Re-check `gh issue list --state open` at session start anyway (was 7 open issues as of
-this session's end: #114, #99, #98, #97, #96, #88, #37 — #88 the only `needs-info`).
+**Group 1 fully closed (Slices 1-7), Group 2 fully closed (Slice 14/#113 patch notes, Slice
+15/#114 bug reporting)** — full detail in the dated sections above. `v0.9.21` is live. Re-check
+`gh issue list --state open` at session start anyway (was 6 open issues as of this session's end:
+#99, #98, #97, #96, #88, #37 — #88 the only `needs-info`, correctly still open, blocked on people
+not a decision, no action needed on it).
 
-**Blocked on Anthony, not a decision:** #114 needs a new server-side-only secret (a GitHub PAT or
-App token scoped to `issues: write` on this repo, per SPEC.md Slice 15) before the build can go
-live end-to-end. Anthony said he'd generate/hand it over at the start of the next session — check
-with him first before starting the build; the code can be written without it but the feature can't
-actually be tested until the token exists as a Vercel env var. Per SPEC.md, this is flagged as a
-new-secret item worth a heads-up, same caution class as the Supabase service-role key even though
-it isn't that key.
+**Group 3 is a sequential chain, build in this order** (per `SPEC.md` Part C):
+1. **#37** — per-household timezone settings screen. No dependencies, owner-only edit access
+   (decision already recorded on the issue).
+2. **#97** — notifications overhaul (delivery time, new reminder types). Depends on #37 landing
+   first. Decisions already recorded on the issue: one time-of-day picker per user, new reminder
+   types are payday "log your pay" + goal/fund milestone reached.
+3. **#96** — two independent halves: dead-subscription health-indicator UI (no dependency, can
+   build anytime) and per-timezone hourly cron (depends on **both** #37 and #97 landing).
 
-Once #114 is done, Group 2 is closed and the next session moves to **Group 3**: timezone (#37) →
-notifications overhaul (#97, depends on #37) → #96 (push reliability, two independent halves, one
-depending on both #37 and #97). Full detail and reasoning for the ordering is in `SPEC.md` Part C.
+Nothing left to scope for any of these — all three already went through the needs-info interview
+in an earlier session, decisions are recorded as comments on each issue. Go straight to build per
+the usual workflow: build sub-agent → independent review sub-agent (never the builder) →
+fix-and-re-review loop if NEEDS-REWORK → push/PR/version-bump-confirm-with-Anthony → route
+`needs-manual-test` or `needs-merge-approval` per whether the slice has a layout/platform-native
+surface → merge → `gh pr merge` (or `git reset --hard origin/main` if merged outside `gh`) to sync
+local `main`.
+
+**One live-testing gap worth knowing about before touching #114's code again:** the bug-reporting
+GitHub-issue-creation path (screenshot upload → GitHub API call) was verified by independent code
+review + direct Supabase inspection, not by an actual live submission — Anthony's on-device test
+only exercised the "secret missing on Preview" failure path (by design, not a bug). If a real bug
+report ever needs debugging, or that route needs revisiting, don't assume it's been watched
+working end-to-end live — it hasn't yet.
 
 <details>
 <summary>Prior next-session note (Group 1 → Group 2 transition, now done)</summary>
