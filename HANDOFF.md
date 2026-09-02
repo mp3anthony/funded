@@ -1,13 +1,97 @@
 # Handoff
 
-**Last updated:** 2026-09-02 (new session) — **full triage pass + SPEC.md rewrite done.** Every
-open GitHub issue (12 total, confirmed live via `gh issue list --state open`) is now
+**Last updated:** 2026-09-02 (continued session) — **Group 1 build started: Slices 1-3 done.**
+#93 (single-household-per-user), #74 (warm-reload empty-query race), and #89 (joinHousehold
+stale-members snapshot) all built, independently reviewed, and merged this session —
+[PR #115](https://github.com/mp3anthony/funded/pull/115),
+[PR #116](https://github.com/mp3anthony/funded/pull/116),
+[PR #117](https://github.com/mp3anthony/funded/pull/117). `v0.9.12` → `v0.9.15`. Anthony chose
+one-PR-per-slice for Group 1's remaining items. **Next session starts Slice 4 / #90** — see
+"→ START HERE NEXT SESSION" below. Gemini CLI checked this session and found broken (Google
+killed the free Code-Assist tier it authenticated against) — not usable for offloading build work
+until re-authed with an API key or migrated; see the dated section below for detail, don't
+re-diagnose from scratch next time.
+
+## 2026-09-02 (continued) — Slices 1-3 of Group 1 built, reviewed, merged; Gemini CLI found broken
+
+Continuation of the same day's full-triage session (dated section below). Anthony asked to check
+whether the Gemini CLI could offload build work to save tokens before starting the build.
+**Found broken, not just misconfigured**: `gemini -p "..."` fails with `IneligibleTierError` —
+Google discontinued free-tier "Gemini Code Assist for individuals" access for this CLI client,
+pointing at migrating to "Antigravity" instead. Not a quick fix; needs either a `GEMINI_API_KEY`
+(Google AI Studio) swapped in, or the Antigravity migration. Not pursued further this session —
+Anthony said to proceed without it. Worth remembering next time offloading comes up rather than
+re-diagnosing.
+
+**Batching preference confirmed with Anthony**: one PR per slice for Group 1 (not grouped/batched),
+per `CLAUDE.md` §2 Step 4's "worth a quick check-in" note from the prior session's HANDOFF.
+
+**Slice 1 / #93 — single-household-per-user, CLOSED, [PR #115](https://github.com/mp3anthony/funded/pull/115).**
+Added a `UNIQUE` constraint on `household_members.user_id` (checked prod for existing violations
+first — zero found, applied clean) and a real server-side "already belongs to any household" check
+in `supabase/functions/join-household/index.ts` (identity re-derived from the auth session, not
+client-supplied), redeployed (now version 3). `AppContext.tsx`'s existing client-side #75 guard
+left untouched — additive, not a replacement. Independent review: **APPROVED** first pass — traced
+the trickiest interaction (user already in household A with a separate unclaimed invite waiting in
+household B → correctly blocked) by hand, verified live against prod Supabase directly (constraint
+exists, `user_id` still nullable, deployed source byte-matches local, zero duplicate rows). Two
+non-blocking findings logged for a future ticket, not fixed this pass: the new check fails open
+(not closed) if its own query errors (matches an existing pattern elsewhere in the same file), and
+a race-condition backstop surfaces a raw Postgres error string instead of a friendly message.
+`v0.9.12` → `v0.9.13`.
+
+**Slice 2 / #74 — warm-reload empty-query race, CLOSED, [PR #116](https://github.com/mp3anthony/funded/pull/116).**
+New shared helper `resolveWarmReloadRace<T>(previousState, result, refetch)` in `AppContext.tsx`
+(Option 4 from the issue): trusts an empty query result immediately when the previous in-memory
+state was already empty (fast path, unaffected); when previous state was non-empty and the new
+result comes back empty, re-fetches once to confirm before committing — a real deletion elsewhere
+still lands, a same-RLS-race spurious empty doesn't. Applied to all five loaded slices (bills,
+funds, paydays, members, bill_splits — the last filtered against the post-race-check resolved
+bills, not the raw fetch). **First review round: NEEDS-REWORK** — found a real stale-closure
+regression in `joinHousehold`'s household-switch branch: `setBills([])` etc. don't retroactively
+update the closed-over variables `loadHouseholdRelatedData` reads, so a switch to a new household
+was comparing against the OLD household's real data, causing needless (not corrupting, just slow)
+extra re-fetches on every switch to a household empty in any slice. **Fixed** with an explicit
+`assumeEmptyPreviousState` option threaded through `loadData`/`loadHouseholdRelatedData`, set
+`true` only at that one household-switch call site — bundled in a `Promise.all` for the four
+independent slice reconciliations while in there. **Second review round: APPROVED** — verified by
+grepping every call site of `loadData`/`loadHouseholdRelatedData` that the override is never set on
+the normal warm-reload path (which would have silently reintroduced the original bug). `v0.9.13` →
+`v0.9.14`.
+
+**Slice 3 / #89 — joinHousehold stale-members snapshot, CLOSED, [PR #117](https://github.com/mp3anthony/funded/pull/117).**
+Built directly after #74 as planned, reusing its `resolveWarmReloadRace` helper unchanged. The old
+cascade-delete-old-household cleanup step decided whether to delete based on `backupState.members`
+— a cached snapshot vulnerable to the same RLS-race class as #74 — silently skipping cleanup
+(orphaning data) if wrongly empty. Fixed by routing through `resolveWarmReloadRace` with a live
+re-fetch confirmation before either branch trusts an empty/not-found result; an inconclusive
+(`null`) result skips cleanup and logs rather than guessing, since this call site is destructive.
+**Found during the build, fixed together, not a separate follow-up**: the non-owner
+"just remove my own membership" branch had the identical stale-snapshot bug as the owner
+cascade-delete branch. Independent review: **APPROVED** first pass — specifically checked for an
+old/new household-id mixup (none found) and reasoned explicitly about whether one confirmation
+re-fetch is conservative enough given the stakes (a wrong call here deletes a household): the RLS
+race this defends against only ever produces spurious *emptiness*, never fabricates rows, so a
+double-race failure direction is toward *skipping* cleanup (recoverable) rather than *wrongly
+deleting* (unrecoverable) — judged acceptable as-is, no extra confirmation needed. `v0.9.14` →
+`v0.9.15`.
+
+**Workflow pattern used for all three** (establishing precedent for the rest of Group 1): one
+build sub-agent per slice → one independent review sub-agent (never the builder) → if NEEDS-REWORK,
+fix request sent back to the *same builder* (has full context) → re-review by a *fresh* independent
+agent (not the one that already found/approved parts of it) before merge. Squash-merged, branch
+deleted, local `main` re-synced via `git reset --hard origin/main` each time (a plain `git pull`
+after a squash-merge on a diverged local branch creates a spurious merge-bubble commit — reset
+instead of pull once the PR is confirmed merged).
+
+## 2026-09-02 (new session) — full triage pass + SPEC.md rewrite done
+
+Every open GitHub issue (12 total, confirmed live via `gh issue list --state open`) is now
 `ready-for-agent` except #88, correctly still `needs-info` (blocked on people, not a decision).
 `SPEC.md` Part B fully rewritten into 15 vertically-sliced, dependency-ordered slices covering
 every ready-for-agent issue plus the two high-priority out-of-spec items (patch notes, in-app bug
 reporting) plus one dead-code cleanup. All three since filed as issues #112 (dead-code), #113 (patch notes), #114 (bug reporting). No code built yet — this session was pure triage +
-spec-writing. **Next session starts building Group 1 of the new Part C milestone order** — see
-"→ START HERE NEXT SESSION" below.
+spec-writing.
 
 ## 2026-09-02 (new session) — full triage pass across all open issues, SPEC.md rewritten
 
@@ -248,31 +332,35 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — begin building Group 1 of the new SPEC.md Part C order
+## → START HERE NEXT SESSION — Group 1, Slice 4 / #90
 
-**Triage pass + new spec is done.** All 12 open issues are `ready-for-agent` except #88
-(correctly `needs-info`, blocked on people not scoping). `SPEC.md` Part B has 15 fully-scoped
-slices, Part C gives a 4-group dependency-ordered build sequence — full detail there, see the
-dated section above for the session summary. Re-check `gh issue list --state open` at session
-start anyway in case anything new was filed since.
+**Slices 1-3 done this session** (#93, #74, #89 — all merged, `v0.9.15`, full detail in the dated
+section above). **Batching preference already confirmed with Anthony: one PR per slice** — don't
+re-ask. Re-check `gh issue list --state open` at session start anyway in case anything new was
+filed since (was exactly the expected 15 open issues as of this session's end, #88 the only
+`needs-info`).
 
-**Start with Group 1 (foundational, no dependencies) in this order:**
-1. **Slice 1 / #93** — single-household-per-user (`UNIQUE` constraint + server-side
-   join-household check). Schema change already signed off — routine autonomous execution per
-   `CLAUDE.md` §4 (migration escalation already cleared).
-2. **Slice 2 / #74** — warm-reload empty-query race fix (re-fetch-to-confirm pattern).
-3. **Slice 3 / #89** — joinHousehold stale-members snapshot. **Build directly after Slice 2**,
-   reusing its helper — don't build in isolation.
-4. **Slice 4 / #90** — cross-user notification write, add `isOnboarded` gate.
-5. **Slice 5 / #87** — empty-household "not set up yet" display state.
-6. **Slice 6** — delete dead `src/components/HouseholdHealth.tsx`.
-7. **Slice 7 / #71** — PWA cache-busting (build-hash `CACHE_NAME` + stale-while-revalidate).
+**Continue Group 1 in this order:**
+1. **Slice 4 / #90** — cross-user notification write, add `isOnboarded` gate. **Start here.**
+2. **Slice 5 / #87** — empty-household "not set up yet" display state.
+3. **Slice 6** — delete dead `src/components/HouseholdHealth.tsx`.
+4. **Slice 7 / #71** — PWA cache-busting (build-hash `CACHE_NAME` + stale-while-revalidate).
 
-Each of these is independently shippable — normal implement → review → test → label →
-merge-approval workflow, one PR (or a few grouped logically) at a time. Anthony has not been
-asked which of these to start with specifically vs. build as one batch — worth a quick check-in
-at session start on batching preference (e.g. one PR per slice vs. grouping the trivial ones
-together) rather than assuming.
+Use the same workflow as Slices 1-3 (documented in detail above): one build sub-agent per slice,
+one *independent* review sub-agent (never the builder), fix-and-re-review loop if NEEDS-REWORK,
+then push/PR/version-bump/merge with Anthony's go-ahead. After a squash-merge, sync local `main`
+with `git reset --hard origin/main` (not `git pull` — it creates a spurious merge-bubble commit
+on a diverged local branch).
+
+**Gemini CLI is broken** (checked this session) — Google killed the free Code-Assist tier it
+authenticated against (`IneligibleTierError`, points at migrating to "Antigravity"). Not usable for
+offloading build-agent work as-is; would need a `GEMINI_API_KEY` swap-in or the Antigravity
+migration to fix. Don't re-diagnose from scratch if this comes up again — this is already known.
+
+**After Group 1**, proceed to Group 2 (patch notes page (#113), in-app bug reporting (#114) —
+Anthony's explicit high-priority build-order flag), then Group 3 (timezone → notifications → push
+reliability, strict dependency chain), then Group 4 (motion overhaul, then bills-vs-expenses
+split last). Full detail and reasoning for the ordering is in `SPEC.md` Part C.
 
 **After Group 1**, proceed to Group 2 (patch notes page (#113), in-app bug reporting (#114) — Anthony's
 explicit high-priority build-order flag), then Group 3 (timezone → notifications → push
