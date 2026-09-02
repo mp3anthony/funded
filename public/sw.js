@@ -1,4 +1,4 @@
-const CACHE_NAME = 'funded-pwa-cache-v3';
+const CACHE_NAME = 'funded-pwa-cache-dev';
 const OFFLINE_URL = '/offline';
 
 const ASSETS_TO_CACHE = [
@@ -49,28 +49,44 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle page navigation requests
+  // Handle page navigation requests: stale-while-revalidate.
+  // Serve the cached app shell immediately when we have one (instant nav,
+  // works offline off the last-good build), while a network fetch runs in
+  // parallel to refresh the cache for the next navigation. This is what
+  // lets a new deploy get picked up without a manual reinstall, since the
+  // dynamic CACHE_NAME (stamped at build time) also means the very first
+  // navigation after a new deploy has nothing cached under the new name yet
+  // and falls through to the network-first path below.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Cache the latest online page
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, copy);
-          });
-          return response;
-        })
-        .catch(() => {
-          // Try loading from cache first
-          return caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((cachedResponse) => {
+          const networkFetch = fetch(event.request)
+            .then((response) => {
+              if (response && response.status === 200) {
+                cache.put(event.request, response.clone());
+              }
+              return response;
+            })
+            .catch(() => null);
+
+          if (cachedResponse) {
+            // Stale-while-revalidate: return the cached shell now, update
+            // the cache in the background for next time.
+            event.waitUntil(networkFetch);
+            return cachedResponse;
+          }
+
+          // Nothing cached yet under this build's cache name: fall back to
+          // network-first, then the offline page if that also fails.
+          return networkFetch.then((response) => {
+            if (response) {
+              return response;
             }
-            // If the route is not cached, return the offline fallback page
             return caches.match(OFFLINE_URL);
           });
-        })
+        });
+      })
     );
     return;
   }
