@@ -2584,25 +2584,64 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       // 2. WIPE CURRENT USER DATA IN DATABASE FIRST
       if (backupState.dbHouseholdId && backupState.dbHouseholdId !== newHouseholdId) {
-        const currentUserInOldHousehold = backupState.members.find(
-          (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
+        const oldHouseholdId = backupState.dbHouseholdId;
+
+        // #89: this decision used to be made straight off `backupState.members`
+        // — a cached React state snapshot, not a fresh DB read. If that
+        // snapshot was itself the victim of the warm-reload RLS race (#74:
+        // successful query, zero rows, because the auth token hadn't
+        // attached yet), `currentUserInOldHousehold` resolved to `undefined`
+        // regardless of DB truth, and cascade-delete/own-membership-removal
+        // was silently skipped — orphaning the old household or membership
+        // row. Do a live read and run it through the same
+        // resolveWarmReloadRace reconciliation loadData uses, with
+        // `backupState.members` as the "previous state" side of that check,
+        // before trusting an empty/absent result.
+        const fetchOldHouseholdMembers = async (): Promise<SupabaseArrayResult<Member>> => {
+          const res = await supabase
+            .from("household_members")
+            .select("*")
+            .eq("household_id", oldHouseholdId);
+          return { data: res.data ? res.data.map(mapMemberFromDb) : null, error: res.error };
+        };
+
+        const freshOldHouseholdMembersRes = await fetchOldHouseholdMembers();
+        const confirmedOldHouseholdMembers = await resolveWarmReloadRace(
+          backupState.members,
+          freshOldHouseholdMembersRes,
+          fetchOldHouseholdMembers
         );
 
-        if (currentUserInOldHousehold && currentUserInOldHousehold.role === "owner") {
-          // Cascade delete current household from database
-          const { error: deleteError } = await supabase
-            .from("households")
-            .delete()
-            .eq("id", backupState.dbHouseholdId);
-          if (deleteError) {
-            console.error("Error deleting old household:", deleteError);
+        if (confirmedOldHouseholdMembers) {
+          const currentUserInOldHousehold = confirmedOldHouseholdMembers.find(
+            (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
+          );
+
+          if (currentUserInOldHousehold && currentUserInOldHousehold.role === "owner") {
+            // Cascade delete current household from database
+            const { error: deleteError } = await supabase
+              .from("households")
+              .delete()
+              .eq("id", oldHouseholdId);
+            if (deleteError) {
+              console.error("Error deleting old household:", deleteError);
+            }
+          } else if (currentUserInOldHousehold) {
+            // Delete old membership record
+            await supabase
+              .from("household_members")
+              .delete()
+              .eq("id", currentUserInOldHousehold.id);
           }
-        } else if (currentUserInOldHousehold) {
-          // Delete old membership record
-          await supabase
-            .from("household_members")
-            .delete()
-            .eq("id", currentUserInOldHousehold.id);
+        } else {
+          // Inconclusive (query failed, or the empty result couldn't be
+          // confirmed one way or the other) — don't guess. Skip the
+          // cascade-delete/membership-removal rather than risk deleting a
+          // household or row that's still genuinely in use.
+          console.error(
+            "Could not confirm old household membership state before join cleanup; skipping cascade-delete/membership removal for household",
+            oldHouseholdId
+          );
         }
       }
 
