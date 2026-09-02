@@ -423,6 +423,39 @@ function formatDateForUi(dateStr: string): string {
   return dateStr;
 }
 
+/* ═══════════════════════════════════════════════
+   Offline-vs-"answered" Detection (#71 follow-up)
+   ═══════════════════════════════════════════════ */
+// A thrown/errored Supabase call and a call that actually reached the server
+// and got a definitive answer are NOT the same evidence, and loadData's error
+// branches were treating them as if they were. On an iPhone with no network at
+// all (airplane mode, or a fresh cold-start of the PWA while offline), every
+// query in loadData fails purely because the request never left the device —
+// that says nothing about whether the signed-in user has a household. Reading
+// it as "not onboarded" flipped AppShell's `session && !isOnboarded &&
+// !isDataLoading` gate open over a user who was, per their local session,
+// still signed in — the exact "offline nav dumps you on onboarding while
+// signed in" limbo reported on PR #121, recoverable only by toggling
+// connectivity to force a real sign-out/in or by force-closing the app.
+// `navigator.onLine === false` is the strongest, browser-verified signal (set
+// by the OS network stack, not guessed from an error string) and covers the
+// reported scenario directly. The message-sniffing fallback catches the
+// remaining case where the device reports itself online but requests still
+// can't complete (captive portal, DNS failure, etc.) — Chrome/Firefox throw
+// TypeError("Failed to fetch"/"NetworkError..."), Safari throws
+// TypeError("Load failed").
+function isNetworkFailure(err: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  const message =
+    err instanceof Error
+      ? err.message
+      : (err as { message?: string } | null | undefined)?.message;
+  if (typeof message === 'string') {
+    return /fetch|network|load failed/i.test(message);
+  }
+  return false;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapBillFromDb(dbBill: any): Bill {
   const adjustedDueDate = adjustAutopayBillDate(
@@ -676,6 +709,15 @@ interface AppContextValue {
   session: Session | null;
   isAuthLoading: boolean;
   isDataLoading: boolean;
+  /* True once loadData has been stuck on a network failure (see
+   * isNetworkFailure/#71) for long enough that automatic recovery
+   * (polling, 'online'/'visibilitychange'/'focus' retries) shouldn't be
+   * trusted to be enough on its own — AppShell shows a manual retry
+   * affordance instead of an indefinite silent spinner. */
+  showOfflineRetry: boolean;
+  /* Manually re-runs loadData and clears showOfflineRetry, for the retry
+   * affordance above. */
+  retryLoadData: () => void;
 
   /* Notifications */
   notifications: Notification[];
@@ -824,6 +866,47 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // data of any kind, and every data array below starts as [], so
   // "already loaded" is never a legitimate starting assumption.
   const [isDataLoading, setIsDataLoading] = useState(true);
+  // True while loadData is stuck in the "network failure, deliberately left
+  // isDataLoading true" state from the isNetworkFailure branches below (#71
+  // follow-up). Drives the polling/visibilitychange/focus recovery effect
+  // and, after it's been true for a while, the showOfflineRetry escape
+  // hatch — see both further down.
+  const [isNetworkStuck, setIsNetworkStuck] = useState(false);
+  const [showOfflineRetry, setShowOfflineRetry] = useState(false);
+  // True once the Retry button has been shown at least once during the
+  // CURRENT stuck episode (set by the escape-hatch effect below when its 30s
+  // timer fires, cleared by the resolve-reset effect once the episode ends).
+  // Declared here, ahead of noteRetryAttempt, since that function reads it;
+  // both live near the state they coordinate.
+  const hasShownOfflineRetryRef = useRef(false);
+  // Bumped once per failed retry attempt (manual Retry click, or an automatic
+  // poll/online/focus/visibilitychange retry) that lands AFTER the
+  // escape-hatch button has already been shown once this episode. Included in
+  // the escape-hatch effect's dependency array below so that effect re-arms a
+  // fresh 30s timer on each such attempt, instead of relying on
+  // isNetworkStuck's true->true non-transition (the bug: retryLoadData set
+  // showOfflineRetry false directly, and nothing else was watching to put it
+  // back if the retry it kicked off also failed). Gated on
+  // hasShownOfflineRetryRef, not "is the button visible right now" — a manual
+  // retry deliberately hides the button before this fires, and gating on
+  // current visibility would miss exactly that case. Deliberately NOT bumped
+  // by retries before the button has ever shown in this episode — that would
+  // restart the initial 30s countdown on every 5s poll tick and the button
+  // would never appear at all.
+  const [retryGeneration, setRetryGeneration] = useState(0);
+  function noteRetryAttempt() {
+    if (hasShownOfflineRetryRef.current) {
+      setRetryGeneration((g) => g + 1);
+    }
+  }
+  // Guards against overlapping loadData() calls. Automatic recovery calls
+  // loadData every 5s while stuck (plus on 'online'/'focus'/'visibilitychange'),
+  // and if a single call takes longer than 5s to settle the interval would
+  // otherwise fire again before it finishes, stacking concurrent in-flight
+  // requests indefinitely. Set at the very top of loadData and cleared in a
+  // top-level finally so every exit path (including the early "no session"
+  // return) releases it.
+  const loadDataInFlightRef = useRef(false);
 
   // Mirrors of the two values the loadData effect below depends on, as of the
   // last time an auth callback dispatched them. Both auth callbacks fire outside
@@ -940,6 +1023,22 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // This prevents a race condition where RLS returns empty results
   // (because no auth token is set yet), causing the app to show onboarding.
   async function loadData(options?: { assumeEmptyPreviousState?: boolean }) {
+    // Overlap guard (#71 follow-up): skip this call outright if a previous
+    // one is still in flight, rather than letting them stack. Released in the
+    // top-level finally below no matter which branch this call exits through.
+    if (loadDataInFlightRef.current) {
+      console.log('loadData skipped - a previous call is still in flight');
+      return;
+    }
+    loadDataInFlightRef.current = true;
+    try {
+      await loadDataInner(options);
+    } finally {
+      loadDataInFlightRef.current = false;
+    }
+  }
+
+  async function loadDataInner(options?: { assumeEmptyPreviousState?: boolean }) {
     if (isAuthLoading || !session?.user) {
       console.log('loadData skipped - isAuthLoading:', isAuthLoading, 'session:', session ? 'exists' : 'null');
       // No session means signed out (or never signed in): forget any household
@@ -970,6 +1069,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // matches its own id, so a transient error there keeps every loaded value in
     // place, which is the whole point of the guard.
     const knownOnboarded = resolvedHouseholdUserIdRef.current === session.user.id;
+    // Set when a step below fails specifically because the device couldn't
+    // reach the network at all (see isNetworkFailure). That is inconclusive
+    // evidence, not a "no household" answer, so it must not resolve
+    // isDataLoading to false — doing so would open AppShell's Onboarding gate
+    // (`session && !isOnboarded && !isDataLoading`) over a still-signed-in
+    // user with no real answer yet, stranding them until they force-close the
+    // app or toggle connectivity. Left true, the loading state simply
+    // persists — a graceful "still figuring this out" rather than a broken
+    // onboarding screen — and the 'online' listener on the effect below
+    // retries loadData the moment connectivity actually returns.
+    let networkFailure = false;
     try {
       // STEP 1: Get ONLY the household_id from membership (no nested join!)
       const { data: membership, error: memError } = await supabase
@@ -990,8 +1100,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // every piece of loaded state exactly as it is and just stop loading.
       if (memError) {
         console.error('[loadData] Household membership query failed:', memError);
-        if (!knownOnboarded) setIsOnboarded(false);
-        setIsDataLoading(false);
+        if (isNetworkFailure(memError)) {
+          networkFailure = true;
+        } else {
+          if (!knownOnboarded) setIsOnboarded(false);
+          setIsDataLoading(false);
+        }
         return;
       }
 
@@ -1018,8 +1132,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // failure here is a fetch problem rather than evidence of no household.
       if (hhError || !household) {
         console.error('[loadData] Failed to fetch household details:', hhError);
-        if (!knownOnboarded) setIsOnboarded(false);
-        setIsDataLoading(false);
+        if (isNetworkFailure(hhError)) {
+          networkFailure = true;
+        } else {
+          if (!knownOnboarded) setIsOnboarded(false);
+          setIsDataLoading(false);
+        }
         return;
       }
 
@@ -1036,20 +1154,146 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       await loadHouseholdRelatedData(household.id, session.user.id, options);
     } catch (err) {
       console.error('[loadData] Failed loading all household data:', err);
-      // A thrown request (network drop mid-load) is the same class of evidence
-      // as the query errors handled above: it does not mean "no household".
-      // Re-read the ref rather than reusing knownOnboarded — STEP 2 may have set
-      // it since, and if the throw came from the related-data fetches we have
-      // already positively identified the household.
-      if (resolvedHouseholdUserIdRef.current !== session.user.id && !knownOnboarded) setIsOnboarded(false);
+      if (isNetworkFailure(err)) {
+        // The request never reached the server at all — see the
+        // `networkFailure` declaration above for why this must not resolve
+        // to "not onboarded".
+        networkFailure = true;
+      } else {
+        // A thrown request (network drop mid-load) is the same class of evidence
+        // as the query errors handled above: it does not mean "no household".
+        // Re-read the ref rather than reusing knownOnboarded — STEP 2 may have set
+        // it since, and if the throw came from the related-data fetches we have
+        // already positively identified the household.
+        if (resolvedHouseholdUserIdRef.current !== session.user.id && !knownOnboarded) setIsOnboarded(false);
+      }
     } finally {
-      setIsDataLoading(false);
+      if (!networkFailure) {
+        setIsDataLoading(false);
+      }
+      // Always resync, in both directions: flips true on a fresh network
+      // failure, and — just as importantly — flips back false the moment a
+      // retry actually succeeds (or resolves to a definitive answer another
+      // way), so the recovery effect below stops polling/listening the
+      // instant it's no longer needed instead of running forever.
+      setIsNetworkStuck(networkFailure);
+      // This call's outcome is the direct answer to "did that retry attempt
+      // fail?" — feed it to the escape-hatch generation counter regardless of
+      // which trigger (manual button, poll, online, focus, visibilitychange)
+      // caused this call. noteRetryAttempt is itself a no-op unless the Retry
+      // button is currently showing, so this can't disturb the very first 30s
+      // countdown (see its declaration above).
+      if (networkFailure) {
+        noteRetryAttempt();
+      }
     }
   }
 
   useEffect(() => {
     loadData();
   }, [isAuthLoading, session]);
+
+  // Recovery for the "stuck on network failure" state above (#71 follow-up,
+  // PR #121 iPhone re-report). The original fix relied solely on a single
+  // 'online' listener, on the assumption that the browser firing 'online' the
+  // moment connectivity returns is a reliable signal. It isn't: iOS Safari in
+  // standalone PWA mode has a documented history of never firing 'online' (or
+  // firing it late/unreliably) after airplane mode is toggled off, which is
+  // exactly Anthony's report — reconnecting produced no change and the app
+  // kept trying to load forever. A single edge-triggered event is also
+  // fragile in a second way even where it DOES fire reliably: it is a
+  // one-shot signal with no fallback if it's ever missed (backgrounding at
+  // the wrong instant, etc.), so this stuck state needs a recovery path that
+  // does not depend on catching one specific event at one specific moment.
+  //
+  // So this effect layers three independent, redundant triggers instead of
+  // trusting any single one:
+  //   - a 5s poll, so recovery happens on its own even if every event below
+  //     is missed entirely (the actual iOS failure mode observed);
+  //   - 'online', for browsers where it does fire reliably (cheap to keep);
+  //   - 'visibilitychange'/'focus', which catch the common real-world path of
+  //     backgrounding the app, fixing connectivity (or just walking back
+  //     indoors), then re-foregrounding it — independent of whether the OS
+  //     ever dispatched an 'online' event for that transition at all.
+  // Each retry re-runs the actual loadData function from the latest render
+  // (not a frozen one), so there's no stale-closure risk of the #74 shape:
+  // this effect's cleanup runs and the effect re-fires on every isNetworkStuck
+  // transition, so a stale set of listeners/interval closing over a stale
+  // loadData is never left running.
+  useEffect(() => {
+    if (!isNetworkStuck) return;
+
+    const poll = window.setInterval(() => {
+      loadData();
+    }, 5000);
+    function retryNow() {
+      loadData();
+    }
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') retryNow();
+    }
+    window.addEventListener('online', retryNow);
+    window.addEventListener('focus', retryNow);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener('online', retryNow);
+      window.removeEventListener('focus', retryNow);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNetworkStuck]);
+
+  // Escape hatch: even with the layered recovery above, an infinite spinner
+  // with zero feedback and no available action is a bad end state on its own
+  // if the device genuinely stays offline for a while (or the retries above
+  // are, for some other reason, not getting through). If loadData has been
+  // continuously stuck for 30s straight — or 30s have passed since the most
+  // recent failed retry attempt once the button has already been shown once
+  // (retryGeneration; see noteRetryAttempt above) — stop asking the user to
+  // just trust it's working and surface a manual retry affordance (AppShell)
+  // instead.
+  //
+  // Deliberately does NOT hide the button in this effect's own cleanup: a
+  // retryGeneration bump reruns this effect (to re-arm a fresh timer) without
+  // the button needing to disappear and reappear in between — once shown, it
+  // stays shown, uninterrupted, through any number of further failed
+  // automatic retries. Hiding is instead the responsibility of (a)
+  // retryLoadData below, for the deliberate "user asked us to try again"
+  // moment, and (b) the resolve-reset effect further down, once the episode
+  // is actually over.
+  useEffect(() => {
+    if (!isNetworkStuck) return;
+    const timer = window.setTimeout(() => {
+      setShowOfflineRetry(true);
+      hasShownOfflineRetryRef.current = true;
+    }, 30000);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isNetworkStuck, retryGeneration]);
+
+  // Resolves the escape hatch the moment the stuck episode actually ends —
+  // i.e. isNetworkStuck flips back to false, whether from a successful auto
+  // retry or a successful manual one. Kept as its own effect, separate from
+  // the timer effect above, specifically so it does NOT also fire on a bare
+  // retryGeneration bump (which must leave an already-visible button alone).
+  useEffect(() => {
+    if (isNetworkStuck) return;
+    setShowOfflineRetry(false);
+    hasShownOfflineRetryRef.current = false;
+  }, [isNetworkStuck]);
+
+  function retryLoadData() {
+    // Hide immediately as visible feedback that the tap registered. If this
+    // attempt also fails, loadDataInner's finally calls noteRetryAttempt(),
+    // which — because hasShownOfflineRetryRef is still true from this episode
+    // — bumps retryGeneration and re-arms a fresh 30s timer above, so the
+    // button reliably reappears instead of staying hidden forever.
+    setShowOfflineRetry(false);
+    loadData();
+  }
 
   /* ── Load a Known Household's Related Data ──── */
   // Everything loadData does AFTER it has positively identified the household:
@@ -3891,6 +4135,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     session,
     isAuthLoading,
     isDataLoading,
+    showOfflineRetry,
+    retryLoadData,
     theme,
     setTheme,
   };
