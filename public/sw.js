@@ -1,3 +1,4 @@
+// Manual-test redeploy trigger — see PR #121, no functional change
 const CACHE_NAME = 'funded-pwa-cache-dev';
 const OFFLINE_URL = '/offline';
 
