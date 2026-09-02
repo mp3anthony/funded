@@ -423,6 +423,39 @@ function formatDateForUi(dateStr: string): string {
   return dateStr;
 }
 
+/* ═══════════════════════════════════════════════
+   Offline-vs-"answered" Detection (#71 follow-up)
+   ═══════════════════════════════════════════════ */
+// A thrown/errored Supabase call and a call that actually reached the server
+// and got a definitive answer are NOT the same evidence, and loadData's error
+// branches were treating them as if they were. On an iPhone with no network at
+// all (airplane mode, or a fresh cold-start of the PWA while offline), every
+// query in loadData fails purely because the request never left the device —
+// that says nothing about whether the signed-in user has a household. Reading
+// it as "not onboarded" flipped AppShell's `session && !isOnboarded &&
+// !isDataLoading` gate open over a user who was, per their local session,
+// still signed in — the exact "offline nav dumps you on onboarding while
+// signed in" limbo reported on PR #121, recoverable only by toggling
+// connectivity to force a real sign-out/in or by force-closing the app.
+// `navigator.onLine === false` is the strongest, browser-verified signal (set
+// by the OS network stack, not guessed from an error string) and covers the
+// reported scenario directly. The message-sniffing fallback catches the
+// remaining case where the device reports itself online but requests still
+// can't complete (captive portal, DNS failure, etc.) — Chrome/Firefox throw
+// TypeError("Failed to fetch"/"NetworkError..."), Safari throws
+// TypeError("Load failed").
+function isNetworkFailure(err: unknown): boolean {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  const message =
+    err instanceof Error
+      ? err.message
+      : (err as { message?: string } | null | undefined)?.message;
+  if (typeof message === 'string') {
+    return /fetch|network|load failed/i.test(message);
+  }
+  return false;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapBillFromDb(dbBill: any): Bill {
   const adjustedDueDate = adjustAutopayBillDate(
@@ -970,6 +1003,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // matches its own id, so a transient error there keeps every loaded value in
     // place, which is the whole point of the guard.
     const knownOnboarded = resolvedHouseholdUserIdRef.current === session.user.id;
+    // Set when a step below fails specifically because the device couldn't
+    // reach the network at all (see isNetworkFailure). That is inconclusive
+    // evidence, not a "no household" answer, so it must not resolve
+    // isDataLoading to false — doing so would open AppShell's Onboarding gate
+    // (`session && !isOnboarded && !isDataLoading`) over a still-signed-in
+    // user with no real answer yet, stranding them until they force-close the
+    // app or toggle connectivity. Left true, the loading state simply
+    // persists — a graceful "still figuring this out" rather than a broken
+    // onboarding screen — and the 'online' listener on the effect below
+    // retries loadData the moment connectivity actually returns.
+    let networkFailure = false;
     try {
       // STEP 1: Get ONLY the household_id from membership (no nested join!)
       const { data: membership, error: memError } = await supabase
@@ -990,8 +1034,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // every piece of loaded state exactly as it is and just stop loading.
       if (memError) {
         console.error('[loadData] Household membership query failed:', memError);
-        if (!knownOnboarded) setIsOnboarded(false);
-        setIsDataLoading(false);
+        if (isNetworkFailure(memError)) {
+          networkFailure = true;
+        } else {
+          if (!knownOnboarded) setIsOnboarded(false);
+          setIsDataLoading(false);
+        }
         return;
       }
 
@@ -1018,8 +1066,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // failure here is a fetch problem rather than evidence of no household.
       if (hhError || !household) {
         console.error('[loadData] Failed to fetch household details:', hhError);
-        if (!knownOnboarded) setIsOnboarded(false);
-        setIsDataLoading(false);
+        if (isNetworkFailure(hhError)) {
+          networkFailure = true;
+        } else {
+          if (!knownOnboarded) setIsOnboarded(false);
+          setIsDataLoading(false);
+        }
         return;
       }
 
@@ -1036,19 +1088,42 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       await loadHouseholdRelatedData(household.id, session.user.id, options);
     } catch (err) {
       console.error('[loadData] Failed loading all household data:', err);
-      // A thrown request (network drop mid-load) is the same class of evidence
-      // as the query errors handled above: it does not mean "no household".
-      // Re-read the ref rather than reusing knownOnboarded — STEP 2 may have set
-      // it since, and if the throw came from the related-data fetches we have
-      // already positively identified the household.
-      if (resolvedHouseholdUserIdRef.current !== session.user.id && !knownOnboarded) setIsOnboarded(false);
+      if (isNetworkFailure(err)) {
+        // The request never reached the server at all — see the
+        // `networkFailure` declaration above for why this must not resolve
+        // to "not onboarded".
+        networkFailure = true;
+      } else {
+        // A thrown request (network drop mid-load) is the same class of evidence
+        // as the query errors handled above: it does not mean "no household".
+        // Re-read the ref rather than reusing knownOnboarded — STEP 2 may have set
+        // it since, and if the throw came from the related-data fetches we have
+        // already positively identified the household.
+        if (resolvedHouseholdUserIdRef.current !== session.user.id && !knownOnboarded) setIsOnboarded(false);
+      }
     } finally {
-      setIsDataLoading(false);
+      if (!networkFailure) {
+        setIsDataLoading(false);
+      }
     }
   }
 
   useEffect(() => {
     loadData();
+
+    // If loadData just failed purely because the device had no network (see
+    // isNetworkFailure/networkFailure above), isDataLoading was deliberately
+    // left true instead of resolving to a wrong "not onboarded" answer.
+    // Nothing else re-triggers loadData in that state, so without this the
+    // app would sit on the loading screen indefinitely even after
+    // connectivity actually returns. Retry the moment the browser reports
+    // 'online' — cheap and idempotent (loadData's own guards no-op a
+    // redundant success).
+    function handleOnline() {
+      loadData();
+    }
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, [isAuthLoading, session]);
 
   /* ── Load a Known Household's Related Data ──── */
