@@ -1,16 +1,92 @@
 # Handoff
 
-**Last updated:** 2026-09-02 (continued session) — **Group 1 build continuing: Slices 1-4 done.**
-#93, #74, #89 (prior session) plus #90 (this session, cross-user notification write) all built,
-independently reviewed, and merged — [PR #115](https://github.com/mp3anthony/funded/pull/115),
-[PR #116](https://github.com/mp3anthony/funded/pull/116),
-[PR #117](https://github.com/mp3anthony/funded/pull/117),
-[PR #118](https://github.com/mp3anthony/funded/pull/118). `v0.9.12` → `v0.9.16`. One-PR-per-slice
-confirmed as the standing preference for Group 1. **Next session starts Slice 5 / #87** — see
-"→ START HERE NEXT SESSION" below. Gemini CLI checked last session and found broken (Google killed
-the free Code-Assist tier it authenticated against) — not usable for offloading build work until
-re-authed with an API key or migrated; see the dated section below for detail, don't re-diagnose
-from scratch next time.
+**Last updated:** 2026-09-02 (continued session) — **Group 1 build complete except final merge.**
+Slices 5 (#87) and 6 (#112) built, independently reviewed, and merged this session —
+[PR #119](https://github.com/mp3anthony/funded/pull/119),
+[PR #120](https://github.com/mp3anthony/funded/pull/120). `v0.9.16` → `v0.9.18`. **Slice 7 (#71,
+PWA cache-busting) is built, independently code-reviewed (APPROVED), and pushed as
+[PR #121](https://github.com/mp3anthony/funded/pull/121) labeled `needs-manual-test` — NOT
+merged.** It's platform-sensitive (service worker lifecycle), so it needs Anthony's hands-on
+iPhone pass per the checklist on the PR before it can merge. **Next session starts by checking
+whether Anthony has run that checklist** — see "→ START HERE NEXT SESSION" below for the exact
+pickup steps depending on the answer. Gemini CLI checked two sessions ago and found broken
+(Google killed the free Code-Assist tier it authenticated against) — not usable for offloading
+build work until re-authed with an API key or migrated; see the dated section below for detail,
+don't re-diagnose from scratch next time.
+
+## 2026-09-02 (continued further still) — Slices 5-6 built/reviewed/merged; Slice 7 built/reviewed, awaiting manual test
+
+Continuation of the same day's session, picked up exactly where the prior HANDOFF pointed
+("START HERE NEXT SESSION — Group 1, Slice 5 / #87"). Re-ran `gh issue list --state open` first —
+still exactly the expected 12 open issues, #88 the only `needs-info`.
+
+**Slice 5 / #87 — empty-household "not set up yet" state, CLOSED, [PR #119](https://github.com/mp3anthony/funded/pull/119).**
+Anthony's decision was already final on the issue (recorded in a prior triage-pass comment): when
+a household has zero bills AND zero goals (`funds`) AND zero contributions in steady state, show a
+distinct "Not Set Up Yet" status instead of the misleading 85/"Fully Funded". Implemented as a
+pure display-layer override in `src/components/HealthScoreCard.tsx` only —
+`isGenuinelyEmpty = !isDataLoading && bills.length === 0 && funds.length === 0 &&
+householdContributions.length === 0` — `calculateHealthScore` itself (`src/lib/utils.ts`)
+untouched, so nothing else that reads the raw score is affected. Independent review specifically
+hunted for a loading-race false-trigger, given this repo's history (#73/#74/#82/#90 all in that
+class): traced `isDataLoading` through `AppShell`'s mount-gating and the `joinHousehold`
+household-switch path, found one *theoretical*, currently-unreachable gap structurally similar to
+#90 (only protected today by an incidental hard page reload on that one code path) — flagged for
+a future ticket, not a blocker since no live UI path can trigger it. **APPROVED first pass.**
+`tsc` clean, lint unchanged from baseline (59/41). `v0.9.16` → `v0.9.17`.
+
+**Slice 6 / #112 — remove dead `HouseholdHealth.tsx`, CLOSED, [PR #120](https://github.com/mp3anthony/funded/pull/120).**
+Straightforward dead-code deletion, confirmed independently by both the builder and reviewer via
+repo-wide grep (including docs, barrel files, dynamic/string references) that the only remaining
+mentions are in `HANDOFF.md`/`CHANGE-LOG.md`/`SPEC.md`/README/a research doc — zero source
+references. Distinct from the live `HealthScoreCard.tsx`, confirmed untouched. **APPROVED first
+pass**, no orphaned dependencies needed cleanup. `tsc` clean, lint unchanged (59/41), `npm run
+build` succeeds. `v0.9.17` → `v0.9.18`.
+
+**Slice 7 / #71 — PWA stale-cache bug, built + code-reviewed, [PR #121](https://github.com/mp3anthony/funded/pull/121), NOT MERGED — awaiting Anthony's iPhone manual test.**
+Anthony's decision (prior triage-pass comment) was both recommended directions combined: (1)
+inject the build/commit hash into `CACHE_NAME` in `public/sw.js` per deploy instead of the
+hand-bumped static `v3` it had been stuck on, so the existing `activate` purge-old-caches logic
+actually fires every release; (2) switch the app-shell/navigation fetch strategy from
+network-first to true stale-while-revalidate (serve cache immediately, refresh in background via
+`event.waitUntil()`) — this is what actually fixes the ~1s-per-tab-hop delay, since navigations no
+longer block on a network round-trip. New `scripts/stamp-sw.mjs` wired as an npm `prebuild` step
+(auto-runs before `build` on Vercel's default npm build command — confirmed no `vercel.json`
+override exists in this repo) stamps `public/sw.js`'s `CACHE_NAME` with `VERCEL_GIT_COMMIT_SHA`
+(build-time-available per Vercel's own docs), falling back to `VERCEL_DEPLOYMENT_ID` then a dev
+timestamp locally. Non-navigation (asset/API) caching left untouched — only the navigation
+strategy changed.
+
+**This is `needs-manual-test`, not `needs-merge-approval`** — issue #71 is explicitly flagged
+platform-sensitive in its own testing-assessment section (service worker install/activate/fetch
+lifecycle, native behavior differs iOS/WebKit vs Android/Chromium). Independent code review
+**APPROVED at the code level** — verified the `prebuild` mechanism genuinely works on a real
+Vercel build (not just locally), exercised the cache-name stamping script's full fallback chain
+and confirmed idempotency, read the SWR fetch handler directly (`waitUntil` registered correctly,
+correct empty-cache-yet fallback to network-first), confirmed `activate`'s purge logic is
+unchanged and now actually effective — but a code review is explicitly *not* a substitute for the
+device pass here. `tsc`/`lint`/`build` all clean vs baseline. `v0.9.18` → `v0.9.19` (bumped as
+part of this PR per the "+0.0.1 per preview build" default — not yet confirmed with Anthony as a
+*merge* version since the PR hasn't merged).
+
+**One real nuance the reviewer surfaced, not a bug — flagged explicitly on the PR's checklist for
+Anthony's sign-off:** offline capability after this fix is "last-good cached version" only *within*
+routes visited online since the most recent deploy — only `/`, `/offline`, the manifest, and icons
+are precached on install; Bills/Funds/Payday/Settings have no offline content until visited online
+post-deploy. This is a real, arguably-correct consequence of build-scoped cache busting (the whole
+point was to stop serving indefinitely-stale content) but is narrower than "keeps offline working"
+might sound on its own — the PR's manual-test checklist item 6 specifically walks through this
+scenario so Anthony can confirm it matches his expectation for the feature, not just that nothing
+crashes.
+
+**Workflow used for all three, consistent with Slices 1-4:** one build sub-agent per slice, one
+*independent* review sub-agent (never the builder), same fix-and-re-review loop available if
+NEEDS-REWORK was hit (wasn't needed this round — all three approved first pass). Slices 5-6
+followed straight through to push/PR/version-bump/merge/local-sync on Anthony's blanket go-ahead
+("keep going, merge when done"). Slice 7 stopped short of merge deliberately — its own testing
+section requires a real device, which a blanket "merge when done" instruction can't satisfy; this
+was flagged to Anthony explicitly before pushing rather than silently merging code that hadn't
+actually been verified against the bug it claims to fix.
 
 ## 2026-09-02 (continued further) — Slice 4 / #90 built, reviewed, merged
 
@@ -355,23 +431,47 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 1, Slice 5 / #87
+## → START HERE NEXT SESSION — Group 1 is built; get Slice 7 / #71 merged, then move to Group 2
 
-**Slices 1-4 done** (#93, #74, #89, #90 — all merged, `v0.9.16`, full detail in the dated sections
-above). **Batching preference already confirmed with Anthony: one PR per slice** — don't re-ask.
-Re-check `gh issue list --state open` at session start anyway in case anything new was filed since
-(was exactly the expected 12 open issues as of this session's end, #88 the only `needs-info`).
+**Slices 1-6 done** (#93, #74, #89, #90, #87, #112 — all merged, `v0.9.18`, full detail in the
+dated sections above). **Slice 7 / #71 (PWA cache-busting) is built, independently code-reviewed
+(APPROVED), and open as [PR #121](https://github.com/mp3anthony/funded/pull/121), labeled
+`needs-manual-test` — this is the one thing standing between this session and Group 1 being fully
+closed out.** Re-check `gh issue list --state open` at session start anyway in case anything new
+was filed since (was exactly the expected 12 open issues as of this session's end, #88 the only
+`needs-info`).
 
-**Continue Group 1 in this order:**
-1. **Slice 5 / #87** — empty-household "not set up yet" display state. **Start here.**
-2. **Slice 6** — delete dead `src/components/HouseholdHealth.tsx`.
-3. **Slice 7 / #71** — PWA cache-busting (build-hash `CACHE_NAME` + stale-while-revalidate).
+**First, check whether Anthony has run PR #121's manual-test checklist** (`gh pr view 121
+--comments`, and ask him directly if unclear):
+- **If he has and it's a clean PASS:** confirm the `v0.9.19` version bump with him (already applied
+  in the PR, per the "+0.0.1 per preview build" default — just needs the immediately-before-merge
+  confirmation `CLAUDE.md` §4 requires), then squash-merge, sync local `main` with `git reset
+  --hard origin/main` (not `git pull`), and Group 1 is fully closed.
+- **If he found a real failure (❌ on any checklist item):** this is a code-level bug the prior
+  session's review missed — do NOT just re-push the same code. Investigate the specific failure,
+  fix it on the same `slice7-issue71-pwa-cache-busting` branch, get it independently re-reviewed
+  (fresh reviewer agent, not the one that already approved it), before it goes back to Anthony for
+  another manual pass.
+- **If he hasn't tested it yet:** don't nag or re-litigate — it's still an open PR waiting on him,
+  same as any other `needs-manual-test` item. Ask if he wants to do it now or if there's something
+  else to work on in the meantime (e.g. start Group 2 below without merging #121 yet — the two
+  aren't dependent).
 
-Use the same workflow as Slices 1-3 (documented in detail above): one build sub-agent per slice,
+**After Group 1 is fully closed** (#121 merged), proceed to **Group 2**: patch notes page (#113),
+in-app bug reporting (#114) — Anthony's explicit high-priority build-order flag. Then Group 3
+(timezone #37 → notifications overhaul #97, strict dependency chain → #96 push reliability), then
+Group 4 (motion overhaul #99, pull the cheap `tailwindcss-animate` install fix forward as a
+standalone quick win ahead of the full pass → bills-vs-expenses split #98 last, the largest/
+highest-risk slice, recommend sub-slicing further at its own kickoff). Full detail and reasoning
+for the ordering is in `SPEC.md` Part C.
+
+Use the same workflow as Slices 1-6 (documented in detail above): one build sub-agent per slice,
 one *independent* review sub-agent (never the builder), fix-and-re-review loop if NEEDS-REWORK,
-then push/PR/version-bump/merge with Anthony's go-ahead. After a squash-merge, sync local `main`
-with `git reset --hard origin/main` (not `git pull` — it creates a spurious merge-bubble commit
-on a diverged local branch).
+then push/PR/version-bump/merge with Anthony's go-ahead — **except** for anything the issue itself
+flags as platform-sensitive (layout/styling/native-behavior surface needing hands-on verification),
+which routes to `needs-manual-test` and waits for a real device pass before merging, same as #71.
+After a squash-merge, sync local `main` with `git reset --hard origin/main` (not `git pull` — it
+creates a spurious merge-bubble commit on a diverged local branch).
 
 **Gemini CLI is broken** (checked this session) — Google killed the free Code-Assist tier it
 authenticated against (`IneligibleTierError`, points at migrating to "Antigravity"). Not usable for
