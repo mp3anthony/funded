@@ -1,10 +1,75 @@
 # Handoff
 
-**Last updated:** 2026-09-02 (continued same day) — **needs-info queue fully cleared.** All 7
-items from session start (#37, #97, #98, #99, #100, #93, #94) now resolved; only #88 remains
-`needs-info`, correctly (blocked on people, not a decision). No code built — pure
-scoping/interview across both halves of the day. **Next session starts the full
-triage-pass/new-spec work** — see "→ START HERE NEXT SESSION" below.
+**Last updated:** 2026-09-02 (new session) — **full triage pass + SPEC.md rewrite done.** Every
+open GitHub issue (12 total, confirmed live via `gh issue list --state open`) is now
+`ready-for-agent` except #88, correctly still `needs-info` (blocked on people, not a decision).
+`SPEC.md` Part B fully rewritten into 15 vertically-sliced, dependency-ordered slices covering
+every ready-for-agent issue plus the two high-priority out-of-spec items (patch notes, in-app bug
+reporting) plus one dead-code cleanup. No code built yet — this session was pure triage +
+spec-writing. **Next session starts building Group 1 of the new Part C milestone order** — see
+"→ START HERE NEXT SESSION" below.
+
+## 2026-09-02 (new session) — full triage pass across all open issues, SPEC.md rewritten
+
+Picked up exactly where the prior session's HANDOFF pointed: needs-info queue was clear, this
+session's job was the full triage pass + new vertically-sliced spec (standing plan agreed
+2026-08-05). Re-ran `gh issue list --state open` and `--label needs-info` first per the standing
+instruction — confirmed 12 open issues, matching HANDOFF's expectation exactly (only #88
+needs-info).
+
+**6 previously-untriaged issues scoped live with Anthony** (decisions recorded as comments on each
+issue, labels flipped `needs-triage` → `ready-for-agent`):
+- **[#87](https://github.com/mp3anthony/funded/issues/87)** — empty household scoring 85/"Fully
+  Funded": add a distinct "not set up yet" state.
+- **[#71](https://github.com/mp3anthony/funded/issues/71)** — PWA stale-cache bug: bump
+  `CACHE_NAME` per deploy (build hash) **and** stale-while-revalidate for navigations, combined.
+- **[#74](https://github.com/mp3anthony/funded/issues/74)** — warm-reload empty-query race:
+  re-fetch-to-confirm pattern (option 4 from the issue) — treat an empty batch as suspect only
+  when prior state was non-empty, re-fetch once to confirm before committing.
+- **[#90](https://github.com/mp3anthony/funded/issues/90)** — cross-user notification write on
+  same-tab switch: fix now, add the missing `isOnboarded` gate.
+- **[#89](https://github.com/mp3anthony/funded/issues/89)** — joinHousehold stale-members
+  snapshot: reuse #74's re-fetch-to-confirm helper, sequence directly after #74.
+- **[#96](https://github.com/mp3anthony/funded/issues/96)** — no real push delivered: split into
+  two independent slices — per-timezone hourly cron (depends on #37+#97 landing first) and
+  dead-subscription health-indicator UI (no dependency, can slot in anytime).
+
+**One CHANGE-LOG.md pending item resolved:** `HouseholdHealth.tsx` (dead code, flagged during
+#110) — decision: delete it, confirmed unused anywhere in the app.
+
+**Two out-of-spec items given concrete scope** (were only one-line CHANGE-LOG entries before):
+- **Patch notes page** — per-version blurb text is hand-written per release (small structured
+  file, e.g. `patch-notes.ts`), separate from `HANDOFF.md`'s technical detail. Hidden Settings page
+  + first-open-on-new-version popup.
+- **In-app bug reporting** — GitHub REST API call directly from a Next.js server route (no
+  polling), using a new server-side-only GitHub PAT/App token scoped to `issues: write`. Flagged
+  as a new-secret item to watch at kickoff, same caution class as the service-role key even though
+  it isn't that key.
+
+**`SPEC.md` Part B rewritten wholesale** (old Slices 1-3 were stale — #70 was already closed,
+#71/#37's open questions were already resolved by this session's earlier work): now 15 slices,
+every one mapped to a `ready-for-agent` GitHub issue or one of the two out-of-spec items or the
+dead-code cleanup. Part C gives a 4-group dependency-ordered milestone recommendation — full detail
+in `SPEC.md` itself, summary:
+1. **Group 1 (foundational, no dependencies):** #93 (single-household-per-user), #74, #89 (must
+   follow #74), #90, #87, dead-code deletion, #71 (PWA cache).
+2. **Group 2 (Anthony's explicit high-priority build-order flag):** patch notes page, in-app bug
+   reporting.
+3. **Group 3 (sequential chain):** #37 (timezone) → #97 (notifications overhaul, depends on #37)
+   → #96 half A (dead-subscription, independent) → #96 half B (hourly cron, depends on both #37
+   and #97).
+4. **Group 4 (largest/highest-risk, sequenced last):** #99/#100 (motion overhaul — but pull the
+   `tailwindcss-animate` install fix forward as a standalone quick fix ahead of the full pass, it's
+   cheap and fixes an already-broken feature) → #98 (bills vs expenses split, recommend
+   sub-slicing further at its own kickoff rather than one PR — the largest, most structurally
+   involved slice in this pass).
+
+`CHANGE-LOG.md` updated to reflect every entry's new SPEC.md slice mapping. Part A of `SPEC.md`
+untouched — no locked invariants touched this session, pure Part B rewrite.
+
+**Nothing built this session** — Anthony's implicit expectation from the standing plan was
+triage-then-spec, not triage-then-build-everything-immediately. Next session (or later this one,
+if continued) starts actually building, beginning with Group 1.
 
 ## 2026-09-02 (continued) — needs-info queue finished: #99/#100, #93/#94, #88 checked in
 
@@ -183,38 +248,40 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — needs-info queue cleared, begin the full triage pass + new spec
+## → START HERE NEXT SESSION — begin building Group 1 of the new SPEC.md Part C order
 
-**Needs-info queue is done.** #37, #97, #98, #99/#100, #93/#94 all scoped/resolved (full decisions
-in each issue's comment thread and in the two dated sections above). Only
-**[#88](https://github.com/mp3anthony/funded/issues/88)** stays `needs-info`, correctly — it's
-blocked on real-world Direct Pay usage feedback, not a scoping decision. Re-check
-`gh issue list --label needs-info` at session start anyway in case anything new was filed since.
+**Triage pass + new spec is done.** All 12 open issues are `ready-for-agent` except #88
+(correctly `needs-info`, blocked on people not scoping). `SPEC.md` Part B has 15 fully-scoped
+slices, Part C gives a 4-group dependency-ordered build sequence — full detail there, see the
+dated section above for the session summary. Re-check `gh issue list --state open` at session
+start anyway in case anything new was filed since.
 
-**This is the trigger for the standing plan (agreed 2026-08-05, still in force unless Anthony
-redirects) — start here:**
+**Start with Group 1 (foundational, no dependencies) in this order:**
+1. **Slice 1 / #93** — single-household-per-user (`UNIQUE` constraint + server-side
+   join-household check). Schema change already signed off — routine autonomous execution per
+   `CLAUDE.md` §4 (migration escalation already cleared).
+2. **Slice 2 / #74** — warm-reload empty-query race fix (re-fetch-to-confirm pattern).
+3. **Slice 3 / #89** — joinHousehold stale-members snapshot. **Build directly after Slice 2**,
+   reusing its helper — don't build in isolation.
+4. **Slice 4 / #90** — cross-user notification write, add `isOnboarded` gate.
+5. **Slice 5 / #87** — empty-household "not set up yet" display state.
+6. **Slice 6** — delete dead `src/components/HouseholdHealth.tsx`.
+7. **Slice 7 / #71** — PWA cache-busting (build-hash `CACHE_NAME` + stale-while-revalidate).
 
-1. **Full triage pass across ALL open issues** — recount with `gh issue list --state open` at
-   session start, don't trust any number carried over here. Then build a new vertically-sliced
-   spec that sequences delivery of everything without blockers, so implementation
-   (Orchestrator-delegated sub-agents) and testing can proceed cleanly slice by slice, to a
-   standard Anthony signs off on. This extends/supersedes `SPEC.md`'s current open Part B slices
-   rather than starting from zero — Part A stays final and untouched.
-   - **Fold in the two out-of-spec items** (patch notes page, in-app bug reporting) — Anthony
-     flagged both high priority for build-order weighting in this pass.
-   - **#98's expenses work gets sliced vertically here**, per Anthony's explicit call not to
-     build it as one large change (bills-vs-expenses split, touches #106's contribution-calc
-     logic — see the earlier dated section for full detail).
-   - **#99's motion/polish pass** (whole-app, premium-minimal mood, includes the
-     `tailwindcss-animate` plugin fix and #100's animate-the-numbers dashboard work) is also
-     `ready-for-agent` and needs sequencing into this spec, not built ad hoc.
-   - **#93's schema change** (UNIQUE constraint on `household_members.user_id`, one-household-
-     per-user) is `ready-for-agent` and should be sequenced early if anything else in the new spec
-     depends on membership semantics being locked down first.
-2. **Not this session, but on Anthony's radar for timeline context:** once the app is stable
-   under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
-   TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
-   needed yet — noted here so a future session doesn't lose the thread.
+Each of these is independently shippable — normal implement → review → test → label →
+merge-approval workflow, one PR (or a few grouped logically) at a time. Anthony has not been
+asked which of these to start with specifically vs. build as one batch — worth a quick check-in
+at session start on batching preference (e.g. one PR per slice vs. grouping the trivial ones
+together) rather than assuming.
+
+**After Group 1**, proceed to Group 2 (patch notes page, in-app bug reporting — Anthony's
+explicit high-priority build-order flag), then Group 3 (timezone → notifications → push
+reliability, strict dependency chain), then Group 4 (motion overhaul, then bills-vs-expenses
+split last). Full detail and reasoning for the ordering is in `SPEC.md` Part C.
+
+**Not this session, but on Anthony's radar for timeline context:** once the app is stable under
+the new spec, next is licensing + evaluating app-store distribution (cost/timeline TBD), running
+in parallel with opening testing to people beyond Anthony/Hannah. No action needed yet.
 
 ## #92 — stale SPEC.md file:line citations, re-verified and fixed this session (2026-08-22)
 
