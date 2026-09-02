@@ -1,19 +1,57 @@
 # Handoff
 
-**Last updated:** 2026-09-02 (continued session) — **Group 1 is fully closed out.** Slices 5-7
-(#87, #112, #71) all built, independently reviewed, and merged this session —
-[PR #119](https://github.com/mp3anthony/funded/pull/119),
-[PR #120](https://github.com/mp3anthony/funded/pull/120),
-[PR #121](https://github.com/mp3anthony/funded/pull/121). `v0.9.16` → `v0.9.19`. Slice 7 (PWA
-cache-busting) needed 2 extra fix rounds after Anthony's real-device iPhone testing caught a
-genuine bug the first code review missed (offline navigation stranding a signed-in user on the
-onboarding screen) and then a second-order bug in the first fix (stuck-forever loading spinner) —
-full blow-by-blow in the dated section below, worth reading before touching `AppContext.tsx`'s
-`loadData`/network-failure-handling code again. **Next session starts Group 2**: patch notes page
-(#113) and in-app bug reporting (#114) — see "→ START HERE NEXT SESSION" below. Gemini CLI
-checked two sessions ago and found broken (Google killed the free Code-Assist tier it
-authenticated against) — not usable for offloading build work until re-authed with an API key or
-migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+**Last updated:** 2026-09-03 — **Group 2, Slice 14 (#113, patch notes page) built, reviewed,
+device-tested, and merged.** `v0.9.19` → `v0.9.20`,
+[PR #122](https://github.com/mp3anthony/funded/pull/122). **Next session starts with Slice 15
+(#114, in-app bug reporting)** — see "→ START HERE NEXT SESSION" below; Anthony is generating the
+required GitHub PAT before that one can build. Gemini CLI checked two sessions ago and found
+broken (Google killed the free Code-Assist tier it authenticated against) — not usable for
+offloading build work until re-authed with an API key or migrated; see the dated section below for
+detail, don't re-diagnose from scratch next time.
+
+## 2026-09-02/03 — Slice 14 / #113 patch notes page built, reviewed, device-tested, merged
+
+Picked up exactly where the prior HANDOFF pointed ("START HERE NEXT SESSION — Group 2"). Anthony
+asked to build patch notes tonight and leave bug reporting (#114) for the next session, since he
+was heading off to watch a show.
+
+**What got built, per SPEC.md Slice 14:** a hidden `/patch-notes` page reachable from Settings,
+listing per-version user-facing blurbs newest-first (`src/lib/patch-notes.ts`, hand-written,
+backfilled honestly from HANDOFF.md's actual v0.9.12-v0.9.19 history), plus a one-time popup
+(`PatchNotesPopup.tsx`) shown on first load after a version bump, detected via a
+`localStorage`-stored last-seen-version key. `src/lib/version.ts` now centralizes `APP_VERSION`
+into one named export/source of truth (previously only a hardcoded literal inline in Settings) —
+confirmed by grep this didn't create a second divergent copy anywhere.
+
+**One independent review round, APPROVED first pass** — specifically traced the popup's
+once-per-version fire logic (the trickiest part of this slice) for double-fire/never-fire risk on
+remount, route-change, and React 19 StrictMode double-invoke: confirmed safe because the
+localStorage write happens synchronously in the same effect pass that shows the popup, so any
+remount short-circuits on the already-seen check. Content cross-checked against HANDOFF.md for
+accuracy. `tsc` clean, lint unchanged from baseline (59/41).
+
+**Anthony's live on-device feedback after the first preview push:** the "what's new" link was too
+small/easy to miss (buried as tiny footer text) — wanted it as a full row-style button in the
+app's fluoro-green accent, similar to "Leave household," placed above it with a green divider
+between them. Built as a follow-up commit, sent to a **fresh** independent reviewer (not the
+original one) — APPROVED, confirmed the `border-primary/20` divider opacity matches this
+codebase's existing convention (grepped multiple other files using the same value) rather than
+being an arbitrary pick, confirmed `Link` is the semantically-correct element over `button` here,
+no regressions to the "Leave household" handlers.
+
+**Version bump confirmed with Anthony before merge** per `CLAUDE.md` §4: `v0.9.19` → `v0.9.20`.
+Added a new patch-notes entry for 0.9.20 itself describing the feature that ships it (the page
+that shows this text). Squash-merged as
+[PR #122](https://github.com/mp3anthony/funded/pull/122), branch deleted, local `main` re-synced
+via `git reset --hard origin/main`, stale remote-tracking branches pruned. Issue #113 auto-closed
+by the merge.
+
+**Workflow, same pattern as Group 1:** build sub-agent → independent review sub-agent → (this
+slice needed one extra round for the on-device styling feedback, handled as
+fix-by-original-builder → fresh independent reviewer, not the reviewer who already approved the
+first pass) → push/version-bump-confirm/merge/local-sync. Labeled `needs-manual-test` per spec
+(popup-timing genuinely needed Anthony's real-device pass, not just code-reading) — he tested and
+approved live on his phone before the merge went ahead.
 
 ## 2026-09-02 (continued further still) — Slices 5-7 built, reviewed, merged; Group 1 closed out
 
@@ -472,7 +510,27 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 1 is fully closed; start Group 2
+## → START HERE NEXT SESSION — Group 2, Slice 15 (#114, in-app bug reporting)
+
+**Group 1 fully closed (Slices 1-7), Group 2 Slice 14 (#113, patch notes) merged `v0.9.20`** — full
+detail in the dated sections above. **Only Slice 15 (#114, in-app bug reporting) remains in
+Group 2.** Re-check `gh issue list --state open` at session start anyway (was 7 open issues as of
+this session's end: #114, #99, #98, #97, #96, #88, #37 — #88 the only `needs-info`).
+
+**Blocked on Anthony, not a decision:** #114 needs a new server-side-only secret (a GitHub PAT or
+App token scoped to `issues: write` on this repo, per SPEC.md Slice 15) before the build can go
+live end-to-end. Anthony said he'd generate/hand it over at the start of the next session — check
+with him first before starting the build; the code can be written without it but the feature can't
+actually be tested until the token exists as a Vercel env var. Per SPEC.md, this is flagged as a
+new-secret item worth a heads-up, same caution class as the Supabase service-role key even though
+it isn't that key.
+
+Once #114 is done, Group 2 is closed and the next session moves to **Group 3**: timezone (#37) →
+notifications overhaul (#97, depends on #37) → #96 (push reliability, two independent halves, one
+depending on both #37 and #97). Full detail and reasoning for the ordering is in `SPEC.md` Part C.
+
+<details>
+<summary>Prior next-session note (Group 1 → Group 2 transition, now done)</summary>
 
 **Slices 1-7 all done** (#93, #74, #89, #90, #87, #112, #71 — all merged, `v0.9.19`, full detail in
 the dated sections above). **Group 1 is completely closed out — nothing left in it.** Re-check
@@ -489,14 +547,6 @@ can't be used to force a genuinely cold/uncached test state; only an actual dele
 That limited how thoroughly the final offline-recovery fix could be device-verified — logged as a
 known gap, not a confirmed pass, in case an offline-related report ever comes in for this feature.
 
-**Proceed to Group 2**: patch notes page (#113),
-in-app bug reporting (#114) — Anthony's explicit high-priority build-order flag. Then Group 3
-(timezone #37 → notifications overhaul #97, strict dependency chain → #96 push reliability), then
-Group 4 (motion overhaul #99, pull the cheap `tailwindcss-animate` install fix forward as a
-standalone quick win ahead of the full pass → bills-vs-expenses split #98 last, the largest/
-highest-risk slice, recommend sub-slicing further at its own kickoff). Full detail and reasoning
-for the ordering is in `SPEC.md` Part C.
-
 Use the same workflow as Slices 1-6 (documented in detail above): one build sub-agent per slice,
 one *independent* review sub-agent (never the builder), fix-and-re-review loop if NEEDS-REWORK,
 then push/PR/version-bump/merge with Anthony's go-ahead — **except** for anything the issue itself
@@ -510,19 +560,11 @@ authenticated against (`IneligibleTierError`, points at migrating to "Antigravit
 offloading build-agent work as-is; would need a `GEMINI_API_KEY` swap-in or the Antigravity
 migration to fix. Don't re-diagnose from scratch if this comes up again — this is already known.
 
-**After Group 1**, proceed to Group 2 (patch notes page (#113), in-app bug reporting (#114) —
-Anthony's explicit high-priority build-order flag), then Group 3 (timezone → notifications → push
-reliability, strict dependency chain), then Group 4 (motion overhaul, then bills-vs-expenses
-split last). Full detail and reasoning for the ordering is in `SPEC.md` Part C.
-
-**After Group 1**, proceed to Group 2 (patch notes page (#113), in-app bug reporting (#114) — Anthony's
-explicit high-priority build-order flag), then Group 3 (timezone → notifications → push
-reliability, strict dependency chain), then Group 4 (motion overhaul, then bills-vs-expenses
-split last). Full detail and reasoning for the ordering is in `SPEC.md` Part C.
-
 **Not this session, but on Anthony's radar for timeline context:** once the app is stable under
 the new spec, next is licensing + evaluating app-store distribution (cost/timeline TBD), running
 in parallel with opening testing to people beyond Anthony/Hannah. No action needed yet.
+
+</details>
 
 ## #92 — stale SPEC.md file:line citations, re-verified and fixed this session (2026-08-22)
 
