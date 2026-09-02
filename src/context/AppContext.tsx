@@ -3723,8 +3723,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   // Client-side notification generation
   useEffect(() => {
-    if (!session?.user || !notificationSettings || !notificationSettings.all_enabled || isDataLoading) return;
-    
+    // isOnboarded is required so this never fires with a stale household's
+    // bills/payHistory/members still in state during a same-tab user switch
+    // (A -> B): isDataLoading can read false before B's household data has
+    // actually replaced A's, but isOnboarded only becomes true once the
+    // current user is confirmed onboarded into their (current) household
+    // (see #90).
+    if (!session?.user || !notificationSettings || !notificationSettings.all_enabled || isDataLoading || !isOnboarded) return;
+
     const generateClientNotifications = async () => {
       // Use the device timezone so client-side behavior stays identical to
       // before for AU users. The server cron uses each household's stored
@@ -3804,7 +3810,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     };
 
     generateClientNotifications();
-  }, [bills, payHistory, notificationSettings, isDataLoading, session, dbHouseholdId, members, notifications]);
+  }, [bills, payHistory, notificationSettings, isDataLoading, isOnboarded, session, dbHouseholdId, members, notifications]);
 
   const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name));
 
