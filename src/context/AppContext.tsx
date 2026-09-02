@@ -709,6 +709,15 @@ interface AppContextValue {
   session: Session | null;
   isAuthLoading: boolean;
   isDataLoading: boolean;
+  /* True once loadData has been stuck on a network failure (see
+   * isNetworkFailure/#71) for long enough that automatic recovery
+   * (polling, 'online'/'visibilitychange'/'focus' retries) shouldn't be
+   * trusted to be enough on its own — AppShell shows a manual retry
+   * affordance instead of an indefinite silent spinner. */
+  showOfflineRetry: boolean;
+  /* Manually re-runs loadData and clears showOfflineRetry, for the retry
+   * affordance above. */
+  retryLoadData: () => void;
 
   /* Notifications */
   notifications: Notification[];
@@ -857,6 +866,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // data of any kind, and every data array below starts as [], so
   // "already loaded" is never a legitimate starting assumption.
   const [isDataLoading, setIsDataLoading] = useState(true);
+  // True while loadData is stuck in the "network failure, deliberately left
+  // isDataLoading true" state from the isNetworkFailure branches below (#71
+  // follow-up). Drives the polling/visibilitychange/focus recovery effect
+  // and, after it's been true for a while, the showOfflineRetry escape
+  // hatch — see both further down.
+  const [isNetworkStuck, setIsNetworkStuck] = useState(false);
+  const [showOfflineRetry, setShowOfflineRetry] = useState(false);
 
   // Mirrors of the two values the loadData effect below depends on, as of the
   // last time an auth callback dispatched them. Both auth callbacks fire outside
@@ -1105,26 +1121,95 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (!networkFailure) {
         setIsDataLoading(false);
       }
+      // Always resync, in both directions: flips true on a fresh network
+      // failure, and — just as importantly — flips back false the moment a
+      // retry actually succeeds (or resolves to a definitive answer another
+      // way), so the recovery effect below stops polling/listening the
+      // instant it's no longer needed instead of running forever.
+      setIsNetworkStuck(networkFailure);
     }
   }
 
   useEffect(() => {
     loadData();
+  }, [isAuthLoading, session]);
 
-    // If loadData just failed purely because the device had no network (see
-    // isNetworkFailure/networkFailure above), isDataLoading was deliberately
-    // left true instead of resolving to a wrong "not onboarded" answer.
-    // Nothing else re-triggers loadData in that state, so without this the
-    // app would sit on the loading screen indefinitely even after
-    // connectivity actually returns. Retry the moment the browser reports
-    // 'online' — cheap and idempotent (loadData's own guards no-op a
-    // redundant success).
-    function handleOnline() {
+  // Recovery for the "stuck on network failure" state above (#71 follow-up,
+  // PR #121 iPhone re-report). The original fix relied solely on a single
+  // 'online' listener, on the assumption that the browser firing 'online' the
+  // moment connectivity returns is a reliable signal. It isn't: iOS Safari in
+  // standalone PWA mode has a documented history of never firing 'online' (or
+  // firing it late/unreliably) after airplane mode is toggled off, which is
+  // exactly Anthony's report — reconnecting produced no change and the app
+  // kept trying to load forever. A single edge-triggered event is also
+  // fragile in a second way even where it DOES fire reliably: it is a
+  // one-shot signal with no fallback if it's ever missed (backgrounding at
+  // the wrong instant, etc.), so this stuck state needs a recovery path that
+  // does not depend on catching one specific event at one specific moment.
+  //
+  // So this effect layers three independent, redundant triggers instead of
+  // trusting any single one:
+  //   - a 5s poll, so recovery happens on its own even if every event below
+  //     is missed entirely (the actual iOS failure mode observed);
+  //   - 'online', for browsers where it does fire reliably (cheap to keep);
+  //   - 'visibilitychange'/'focus', which catch the common real-world path of
+  //     backgrounding the app, fixing connectivity (or just walking back
+  //     indoors), then re-foregrounding it — independent of whether the OS
+  //     ever dispatched an 'online' event for that transition at all.
+  // Each retry re-runs the actual loadData function from the latest render
+  // (not a frozen one), so there's no stale-closure risk of the #74 shape:
+  // this effect's cleanup runs and the effect re-fires on every isNetworkStuck
+  // transition, so a stale set of listeners/interval closing over a stale
+  // loadData is never left running.
+  useEffect(() => {
+    if (!isNetworkStuck) return;
+
+    const poll = window.setInterval(() => {
+      loadData();
+    }, 5000);
+    function retryNow() {
       loadData();
     }
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [isAuthLoading, session]);
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') retryNow();
+    }
+    window.addEventListener('online', retryNow);
+    window.addEventListener('focus', retryNow);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.clearInterval(poll);
+      window.removeEventListener('online', retryNow);
+      window.removeEventListener('focus', retryNow);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNetworkStuck]);
+
+  // Escape hatch: even with the layered recovery above, an infinite spinner
+  // with zero feedback and no available action is a bad end state on its own
+  // if the device genuinely stays offline for a while (or the retries above
+  // are, for some other reason, not getting through). If loadData has been
+  // continuously stuck for 30s straight, stop asking the user to just trust
+  // it's working and surface a manual retry affordance (AppShell) instead.
+  // Resets the moment isNetworkStuck clears, so a successful retry — auto or
+  // manual — hides it again immediately.
+  useEffect(() => {
+    if (!isNetworkStuck) return;
+    const timer = window.setTimeout(() => setShowOfflineRetry(true), 30000);
+    // Runs both when isNetworkStuck flips back to false (a retry succeeded)
+    // and on unmount — either way the 30s wait is no longer relevant, and any
+    // affordance already shown needs to disappear along with it.
+    return () => {
+      window.clearTimeout(timer);
+      setShowOfflineRetry(false);
+    };
+  }, [isNetworkStuck]);
+
+  function retryLoadData() {
+    setShowOfflineRetry(false);
+    loadData();
+  }
 
   /* ── Load a Known Household's Related Data ──── */
   // Everything loadData does AFTER it has positively identified the household:
@@ -3966,6 +4051,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     session,
     isAuthLoading,
     isDataLoading,
+    showOfflineRetry,
+    retryLoadData,
     theme,
     setTheme,
   };

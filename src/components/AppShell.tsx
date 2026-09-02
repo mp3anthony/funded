@@ -39,7 +39,7 @@ function getSnoozedIds(): Record<string, number> {
 }
 
 function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMounted: boolean }) {
-  const { isOnboarded, session, isAuthLoading, isDataLoading, notifications } = useApp();
+  const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, notifications } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   const currentUser = useCurrentUser();
@@ -233,7 +233,28 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
             <div className="flex h-full w-full items-center justify-center">
               <div className="flex flex-col items-center gap-6 animate-in fade-in duration-300">
                 <Logo size="large" showWordmark={true} />
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                {/* showOfflineRetry (#71 follow-up): loadData has been stuck
+                    on a network failure for 30s straight despite the layered
+                    auto-recovery (polling + online/visibilitychange/focus) in
+                    AppContext. An indefinite spinner with no feedback and no
+                    available action is a bad end state on its own, so surface
+                    a manual retry instead of spinning forever silently. */}
+                {showOfflineRetry ? (
+                  <div className="flex flex-col items-center gap-3 text-center px-6">
+                    <p className="text-sm text-muted-foreground">
+                      Having trouble connecting. Check your connection and try again.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retryLoadData}
+                      className="px-4 py-2 rounded-xl text-sm font-semibold text-primary-fg bg-primary active:scale-95 transition-transform"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : (
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                )}
               </div>
             </div>
           ) : (
