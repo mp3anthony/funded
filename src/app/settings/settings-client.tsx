@@ -361,13 +361,19 @@ export default function SettingsClient() {
         </button>
       </section>
 
-      {/* ── Leave household + version ────────────── */}
+      {/* ── What's new + Leave household + version ────────────── */}
       <section className="pt-8">
+        <Link
+          href="/patch-notes"
+          className="block w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
+        >
+          What&apos;s new
+        </Link>
         <button
           type="button"
           onClick={handleLeaveHousehold}
           disabled={isLeavingHousehold}
-          className="w-full text-left py-3 border-t border-border text-sm font-medium text-destructive disabled:opacity-50"
+          className="w-full text-left py-3 border-t border-primary/20 text-sm font-medium text-destructive disabled:opacity-50"
         >
           {isLeavingHousehold ? "Leaving household…" : "Leave household"}
         </button>
@@ -378,12 +384,9 @@ export default function SettingsClient() {
           </div>
         )}
         <div className="text-center pt-8 pb-2">
-          <Link
-            href="/patch-notes"
-            className="font-mono text-[10px] tracking-wider text-subtle/70 hover:text-primary transition-colors"
-          >
-            funded. v{APP_VERSION} · What&apos;s new
-          </Link>
+          <span className="font-mono text-[10px] tracking-wider text-subtle/70">
+            funded. v{APP_VERSION}
+          </span>
           <div className="font-mono text-[10px] text-subtle/50 mt-1">Concept &amp; development · Anthony Paull</div>
         </div>
       </section>
