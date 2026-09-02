@@ -56,6 +56,39 @@ export async function deleteAvatar(userId: string, imageUrl: string): Promise<vo
 }
 
 /**
+ * Uploads a bug-report screenshot to Supabase Storage and returns the
+ * public CDN URL (Slice 15, #114). Bucket is public-read, authenticated-
+ * write only — see supabase/migrations/20260903000000_bug_report_screenshots_bucket.sql.
+ */
+export async function uploadBugReportScreenshot(userId: string, file: File): Promise<string> {
+  const mimeExtMap: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+  const fileExt = mimeExtMap[file.type] || file.name.split(".").pop() || "jpg";
+  const timestamp = Date.now();
+  const fileName = `screenshots/${userId}/${timestamp}.${fileExt}`;
+
+  const { error } = await supabase.storage
+    .from("bug-report-screenshots")
+    .upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from("bug-report-screenshots")
+    .getPublicUrl(fileName);
+
+  return publicUrlData.publicUrl;
+}
+
+/**
  * Retrieves the latest avatar image url.
  */
 export async function getAvatarUrl(userId: string): Promise<string | null> {
