@@ -67,7 +67,23 @@ serve(async (req) => {
     const userName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Member";
     const userEmail = user.email || "";
 
-    // 6. Check if user is already a member of this household
+    // 6. Enforce single-household-membership: check if this user (identity
+    // re-derived from the authenticated session above, never from client
+    // input) already belongs to ANY household, not just the one being joined.
+    const { data: existingMembershipElsewhere } = await supabaseClient
+      .from("household_members")
+      .select("id, household_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingMembershipElsewhere && existingMembershipElsewhere.household_id !== household.id) {
+      return new Response(JSON.stringify({ error: "You already belong to a household. Leave your current household before joining another." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 8. Check if user is already a member of this household
     const { data: existingMember } = await supabaseClient
       .from("household_members")
       .select("id, user_id")
@@ -104,7 +120,7 @@ serve(async (req) => {
         });
       }
     } else {
-      // 7. Insert a new user into household_members as 'member'
+      // 9. Insert a new user into household_members as 'member'
       const { error: insertError } = await supabaseClient
         .from("household_members")
         .insert({
