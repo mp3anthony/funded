@@ -131,7 +131,173 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
 
 ## Part B — Vertical Slices
 
-### Slice 1: PWA cache-busting on deploy (Issue #71)
+*Rewritten 2026-09-02 in a full triage pass — every open GitHub issue folded
+into a slice below, decisions recorded in each issue's own comment thread.
+Slices for #70 (closed) and the old undecided #71/#37 open questions have
+been superseded/resolved. Part A is untouched.*
+
+### Slice 1: Single-household-per-user enforcement (Issue #93)
+
+**Problem:** `join-household` edge function doesn't enforce single-household
+membership server-side — only a client-side guard exists (added at #75).
+Blocked until now on the multi-household-vs-single-household schema question
+deferred at #75's build time.
+
+**Decision (2026-09-02):** One household per user, Anthony's explicit
+sign-off, Part A schema-change escalation trigger cleared.
+
+**Scope:**
+- Add a `UNIQUE` constraint on `household_members.user_id` (deferred at #75,
+  now unblocked).
+- Add a real server-side "does this user already belong to any household"
+  check in the `join-household` edge function, not just the existing
+  client-side guard.
+
+**Acceptance criteria:**
+- A user who already belongs to a household cannot join a second one, even by
+  calling the edge function directly (bypassing the client guard).
+- The `UNIQUE` constraint makes a duplicate-membership row impossible at the
+  DB level.
+- Existing single-household users are unaffected; migration applies cleanly
+  against current data (should be a no-op check — no user has ever had 2
+  memberships, per #75's own investigation).
+
+**Related:** #94 (recovery UI for an already-duplicated member) — closed,
+folded into this. Once the `UNIQUE` constraint lands, that state becomes
+literally impossible, so a recovery UI for it is speculative, not a safety
+net.
+
+**Testing:** Server-side logic + a migration, no new UI surface — fully
+pipeline-verifiable. Label **`needs-merge-approval`**.
+
+---
+
+### Slice 2: Warm-reload empty-query race (Issue #74)
+
+**Problem:** A warm reload (token refresh, tab refocus) can transiently
+overwrite loaded `bills`/`funds`/`payHistory`/`members`/`billSplits` with `[]`
+when a successful-but-empty RLS query races an auth token that hasn't been
+applied yet. `AppShell`'s gate stays open during a warm reload (deliberately,
+to avoid a full-screen loading wheel on every token refresh), so the
+dashboard renders against the momentarily-empty state — the household health
+rank flaps to 85/"Fully Funded" and then snaps back on the next successful
+load.
+
+**Decision (2026-09-02):** Option 4 from the issue — treat an empty
+query-batch result as suspect only when the previous in-memory state was
+non-empty, then re-fetch once to confirm before committing the overwrite.
+Build this as a reusable helper (`AppContext.tsx`) since #89 needs the same
+pattern.
+
+**Acceptance criteria:** the issue's own acceptance criteria and testing
+checklist stand as written — no change needed there. In short: no rank flap
+across a warm reload with unchanged data, a genuine cross-device deletion is
+still reflected, no new loading wheel introduced, and a genuinely empty
+household still renders correctly.
+
+**Testing:** Race-condition/timing bug — hard to fully pipeline-verify.
+Label **`needs-manual-test`**, with the checklist already written into the
+issue (throttled-connection refocus test is the one that most needs a human
+device, not just DOM inspection).
+
+---
+
+### Slice 3: joinHousehold stale-members-snapshot (Issue #89)
+
+**Problem:** `joinHousehold`'s cleanup step decides whether to cascade-delete
+the old household based on a cached `members` React state snapshot
+(`backupState.members`), which can be empty due to the same race class as
+Slice 2 — silently skipping cleanup instead of erroring.
+
+**Decision (2026-09-02):** Apply the same re-fetch-to-confirm helper built
+for Slice 2, rather than re-deriving the pattern. **Sequence directly after
+Slice 2.**
+
+**Acceptance criteria:**
+- Before deciding to skip/perform the old-household cleanup, the check is
+  backed by a live DB read (via Slice 2's helper), not a possibly-stale
+  cached snapshot.
+- No behavior change for the common case (fresh, non-raced snapshot).
+
+**Testing:** Same race-condition class as Slice 2 — label
+**`needs-manual-test`** unless the shared helper's own test coverage from
+Slice 2 is judged sufficient to downgrade this one to
+`needs-merge-approval` (call at kickoff once Slice 2's helper shape is known).
+
+---
+
+### Slice 4: Cross-user notification write on same-tab switch (Issue #90)
+
+**Problem:** The client-side notification-generation `useEffect` in
+`AppContext.tsx` is gated on `session`, `notificationSettings`, and
+`isDataLoading` — not `isOnboarded`. During a same-tab user-switch race, it
+can fire with the new user's session but the old user's still-resident
+household data, writing a notification row shaped like
+`{ user_id: B, household_id: A }`. Data-hygiene only, no observed user-facing
+symptom (RLS still gates what each client actually reads back).
+
+**Decision (2026-09-02):** Fix now — add the missing `isOnboarded` gate to
+the effect. Same class of same-tab hazard #75 already closed elsewhere in
+this file.
+
+**Acceptance criteria:** the effect does not fire until `isOnboarded` is
+true for the current session, closing the window where stale household data
+can be attributed to the wrong user.
+
+**Testing:** Same-tab user-switch race — must be tested in a single tab
+without reloading (a fresh load papers over this exact class of bug, per the
+standing lesson from #75). Label **`needs-manual-test`**.
+
+---
+
+### Slice 5: Empty-household health score display (Issue #87)
+
+**Problem:** A household with zero bills, zero goals, and zero contributions
+computes to exactly 85/"Fully Funded" under the current scoring formula —
+correct arithmetic, but a misleading message for a household that was never
+set up, as opposed to one that's genuinely fully funded.
+
+**Decision (2026-09-02):** Add a distinct "not set up yet" state. When bills
+= 0 AND goals = 0 AND contributions = 0, override the numeric score display
+with that message instead of computing/showing 85.
+
+**Acceptance criteria:**
+- A genuinely empty household (steady-state, fully loaded, no race involved)
+  shows a "not set up yet" message, not "Fully Funded".
+- A household with any bill, goal, or contribution set up computes and
+  displays the real score as before.
+- No change to the underlying `calculateHealthScore` formula or its use
+  elsewhere — this is a display-layer override, not a scoring change.
+- Kept independent of Slice 2/#73/#82 — those are loading-race bugs that
+  transiently produce the same 85 value; this issue is the deliberate
+  steady-state case only.
+
+**Testing:** Pure UI/display logic, deterministic given input state — fully
+pipeline-verifiable. Label **`needs-merge-approval`**.
+
+---
+
+### Slice 6: Remove dead HouseholdHealth.tsx (Issue #112)
+
+**Problem:** `src/components/HouseholdHealth.tsx` exports a "Household
+Health" card that is never imported anywhere in the app (confirmed by a
+repo-wide grep during #110) — the live dashboard section with that name is
+actually in `HealthScoreCard.tsx`. #95 previously fixed this dead file's data
+source as if it were live, before the dead-code status was noticed.
+
+**Decision (2026-09-02):** Delete it. Confirmed unused; no functional
+change.
+
+**Acceptance criteria:** file removed, no import references remain, `tsc`/
+lint/build all clean with an identical or lower error/warning count vs. the
+pre-change baseline.
+
+**Testing:** Deletion of unreferenced code — fully pipeline-verifiable.
+Label **`needs-merge-approval`**.
+
+---
+
+### Slice 7: PWA cache-busting on deploy (Issue #71)
 
 **Problem:** Installed PWA installs serve a stale cached app after a new
 deploy — the service worker cache never busts. Root cause confirmed:
@@ -140,78 +306,30 @@ handler only purges old caches when that string changes, and it hasn't across
 many deploys. Calling `reg.update()` in `layout.tsx` doesn't help because the
 `sw.js` bytes (and thus the cache name) are static between deploys.
 
-**Goal:** Users on an installed PWA get the current app after a deploy,
-without manual cache-clearing.
+**Decision (2026-09-02):** Both recommended directions, combined:
+1. Inject the build/commit hash into `CACHE_NAME` so `activate` purges the
+   old cache every release, instead of relying on a hand-bumped `v3` string.
+2. Serve the app shell **stale-while-revalidate** for navigations (not
+   network-first) — keeps offline working off the last-good cached version
+   while still picking up new builds without a manual reinstall.
 
 **Acceptance criteria:**
 - After a deploy, an already-installed PWA picks up the new app shell/assets
   without the user needing to uninstall/reinstall or manually clear the cache.
 - Old caches from previous deploys are actually purged (no unbounded cache
   growth).
-- Offline fallback (`/offline`) still works as before.
-
-**Open questions (not yet decided — flag for user):**
-- Exact cache-busting mechanism: bump `CACHE_NAME` per deploy using a build ID
-  or commit hash, vs. switching the app shell to network-first or
-  stale-while-revalidate instead of cache-first. These are the two directions
-  suggested in the issue; neither is chosen yet.
-- Offline behavior tradeoff: a more network-first strategy improves freshness
-  but weakens offline guarantees. Needs an explicit decision on how much
-  offline support matters here.
+- Offline fallback (`/offline`) still works as before; offline behavior is
+  otherwise unchanged (stale-while-revalidate, not network-first, so a
+  cached last-good version still serves offline).
 
 **Testing:** Service worker lifecycle behaves differently on iOS/WebKit vs.
-Android/Chromium (install prompts, update timing, cache eviction). This is
-platform-sensitive — label **`needs-manual-test`**, not
-`needs-merge-approval`.
+Android/Chromium (install prompts, update timing, cache eviction) —
+platform-sensitive. Label **`needs-manual-test`**, using the checklist
+already written into the issue.
 
 ---
 
-### Slice 2: Category order defaults + persistence + Goals rename (Issue #70)
-
-**Problem:** Three related sub-scopes bundled in one issue (low priority,
-currently `needs-triage` + `needs-info`):
-
-1. **New default category orders.** Bills and Goals category lists need new
-   hardcoded default orders (specific orders given in the issue — pull from
-   #70 at implementation time rather than re-deriving them here).
-2. **Move persistence off localStorage.** Category order is currently
-   persisted client-side only, in `localStorage` under `billCategoryOrder`
-   (in `src/app/bills/bills-client.tsx`) and `goalCategoryOrder` (in
-   `src/app/funds/funds-client.tsx`). This needs to move to a new
-   `user_preferences` table: `user_id` (PK), `bill_category_order` (jsonb),
-   `goal_category_order` (jsonb), with per-user RLS. A one-time migration
-   needs to backfill existing users' localStorage values into the table
-   (client-side migration-on-read, most likely, since the server can't see
-   localStorage).
-3. **Rename Goals category.** `Short-Term` → `Wish List`, including a data
-   migration for existing goals already tagged `Short-Term`.
-
-**Acceptance criteria:**
-- New Bills/Goals default orders match what's specified in #70, for
-  users with no saved preference.
-- Category order persists server-side in `user_preferences`, correctly
-  scoped by RLS so users only see/edit their own row.
-- Existing localStorage-based orders are migrated once, not silently
-  discarded.
-- `Short-Term` no longer appears anywhere in the Goals UI; existing goals
-  previously categorized `Short-Term` show up under `Wish List` post-migration.
-
-**Resolved (2026-07-25):**
-- Goals default order confirmed as:
-  `Home & Living → Vacation & Travel → Wish List → Education → Debt & Finance
-  → Savings → Emergency → Other`.
-- `Short-Term` → `Wish List` rename stays in scope for this ticket (bundled
-  with the persistence migration, not split out).
-
-**Testing:** This is mostly a data/migration-correctness slice (new table,
-RLS, one-time backfill, rename migration) with only a light UI touch on the
-reorder modal. Pipeline-verifiable in the main — label
-**`needs-merge-approval`** with a light manual spot-check of the reorder UI,
-rather than a full `needs-manual-test` cycle.
-
----
-
-### Slice 3: Per-household timezone settings screen (Issue #37)
+### Slice 8: Per-household timezone settings screen (Issue #37)
 
 **Problem:** Follow-up to closed issue #34, which added a `households.timezone`
 column (default `Australia/Sydney`) already consumed by the daily push-reminder
@@ -219,13 +337,13 @@ cron via `todayInZone()` in `src/lib/notifications/timezone.ts`. There is
 currently no UI for a household to view or change that value — it can only be
 set at the DB level.
 
-**Goal:** A Settings screen where a household can view and change its
-timezone, which the existing cron then just picks up (no cron code changes
-needed — it already reads the column).
+**Decision (2026-09-02):** Owner-only edit access — matches the existing
+ownership-gated pattern used for leave/delete-household.
 
 **Acceptance criteria:**
-- Settings UI shows the household's current timezone.
-- User can change it via a searchable IANA timezone dropdown/picker.
+- Settings UI shows the household's current timezone to all members.
+- Only the household owner can change it, via a searchable IANA timezone
+  dropdown/picker; non-owners see it read-only.
 - Save writes to `households.timezone`, respecting existing RLS (no policy
   changes anticipated — flag if implementation finds otherwise, since that
   would trip the Part A RLS guardrail).
@@ -234,36 +352,285 @@ needed — it already reads the column).
 - Fallback stays `Australia/Sydney` if unset, matching #34's existing default.
 - No changes required to the cron/notification code path itself.
 
-**Open questions (flag for user decision):**
-- Who is allowed to change the household timezone — any household member, or
-  admin-only? Not specified in the issue.
-
 **Testing:** The timezone picker is UI-heavy (searchable dropdown, likely
-needs safe-area/layout care on mobile) — label **`needs-manual-test`**.
+needs safe-area/layout care on mobile), plus a permission boundary
+(owner-vs-member) to verify in a single session without reloading. Label
+**`needs-manual-test`**.
+
+---
+
+### Slice 9: Notifications overhaul — delivery time, new reminder types (Issue #97)
+
+**Problem:** Was blocked on Slice 8's per-household-timezone decision.
+Backed by two parallel research passes (this codebase's actual notification
+system/schema, and how YNAB/Monarch/Copilot/Rocket Money/Simplifi/
+EveryDollar/PocketGuard/Honeydue handle notification timing).
+
+**Decision (2026-09-02, recorded in the issue):**
+- **One time-of-day picker per user** ("notify me around X o'clock"),
+  building on the existing per-user `notification_settings` table. No
+  competitor app researched offers true time-of-day scheduling — a genuine
+  differentiator, not parity work.
+- **New reminder types in this ticket:** payday "log your pay", and
+  goal/fund milestone reached.
+
+**Acceptance criteria:**
+- Each user can set their own preferred notify hour, independent of other
+  household members (Honeydue's per-person-preference-on-a-shared-item
+  pattern is the closest researched analog).
+- Payday and milestone reminders fire through the existing reminder-generator
+  path, respecting the existing dedupe/mark-as-read rules (Part A2).
+- No regression to existing reminder types (manual-bill, auto-pay, lodge-
+  payment).
+
+**Depends on:** Slice 8 (per-household timezone) must land first — this
+slice's per-user hour needs a resolved household timezone to compute an
+actual send time against.
+
+**Testing:** New settings UI (time picker) plus new server-side reminder
+logic — mixed surface. Label **`needs-manual-test`** for the picker UI;
+the reminder-generation logic itself is pipeline-verifiable via direct
+Supabase checks, per the standard established at #101/#106.
+
+---
+
+### Slice 10: Push reliability — dead-subscription detection (Issue #96, half A)
+
+**Problem:** The push-reminder cron silently has nothing to deliver when a
+user never granted permission, or an existing subscription expired/was
+invalidated (common on iOS) — no error, no visible signal that push isn't
+actually working.
+
+**Decision (2026-09-02):** Independent slice, no dependency on Slice 8/9.
+Add a settings-page health indicator surfacing when push isn't working
+(permission never granted, or an expired/invalidated subscription with no
+live `push_subscriptions` row), with a re-prompt path.
+
+**Acceptance criteria:**
+- Settings screen shows a clear, non-alarming indicator when the current
+  device has no live push subscription.
+- A re-prompt action lets the user re-grant permission and re-register in
+  one flow, without needing to reinstall the PWA.
+
+**Testing:** Touches native permission APIs (`Notification.requestPermission`,
+push subscription lifecycle) — platform-sensitive. Label
+**`needs-manual-test`**.
+
+---
+
+### Slice 11: Push reliability — per-timezone hourly cron (Issue #96, half B)
+
+**Problem:** The push-reminder cron is scheduled at a fixed UTC hour
+(`vercel.json`, `0 20 * * *`), which only coincidentally lands at a
+reasonable local time for Sydney households. There is no real per-household
+or per-user schedule.
+
+**Decision (2026-09-02):** Switch the cron from daily to hourly; each run
+checks every household's current local hour (via `todayInZone`/the household
+timezone from Slice 8) against each user's chosen notify hour (from Slice
+9's time-of-day picker), sending only to matches.
+
+**Depends on:** Slice 8 (household timezone) and Slice 9 (per-user notify
+hour) — both must land first; this slice is the piece that makes them
+actually affect delivery timing.
+
+**Acceptance criteria:**
+- Cron runs hourly, not daily (`vercel.json` schedule change).
+- A household/user only receives a push when their local time matches their
+  chosen notify hour, within the cron's hourly granularity.
+- No duplicate sends within the same local-hour window (respects existing
+  `dedupe_key` handling, Part A2).
+
+**Testing:** Server-side scheduling logic, verifiable via direct
+Supabase/log inspection across simulated timezones — pipeline-verifiable.
+Label **`needs-merge-approval`**.
+
+---
+
+### Slice 12: Bills vs Expenses split (Issue #98)
+
+**Problem:** Groceries/fuel are currently entered as bills purely as a
+workaround so they count toward the weekly joint-account draw — there's no
+real "expense" concept, and goal-contribution rules (e.g. "20% of surplus
+into a goal") should also count toward that same draw. This is a schema
+change — Part A escalation trigger, Anthony's sign-off recorded in the issue.
+
+**Decisions (2026-09-02, recorded in the issue):**
+- **Bill** = fixed/contractual/recurring. **Expense** = variable spend that
+  still counts toward the weekly draw.
+- **The weekly draw becomes bills + expenses + active goal-contribution
+  rules**, not just bills — touches #106's contribution-calc logic directly.
+- **Separate `expenses` table** (not a type-filter bolted onto `bills`) —
+  avoids adding type-filters to every existing bills query.
+- **Direct Pay expenses support both whole-item assignment AND %-split,
+  chosen per expense** — new pattern; Direct Pay bills today only do
+  whole-item assignment via `assignee_id`.
+- Health score folds expenses into the existing budget-coverage half.
+- #70's category ordering extends to expenses.
+- **One-time migration script** moves existing groceries/fuel bill-rows into
+  the new `expenses` table.
+
+**This is the largest slice in this pass — recommend sub-slicing further at
+kickoff** (e.g. schema + migration first, then add/edit UI, then Direct Pay
+split logic, then weekly-draw calc integration, then health-score
+integration) rather than building it as one PR, per Anthony's original
+instruction not to build #98 as one large change.
+
+**Acceptance criteria:** full detail recorded in the issue's decision
+comment — pull from there at implementation/sub-slicing time rather than
+re-deriving here.
+
+**Testing:** Schema change + calc-logic change touching #106 — needs
+disposable-test-household verification against hand-computed numbers, same
+standard as #106. Likely split across `needs-manual-test` (new expense
+add/edit UI, %-split picker) and `needs-merge-approval` (calc logic,
+verifiable via direct Supabase query) depending on how it's sub-sliced.
+
+---
+
+### Slice 13: Dynamic visual/motion overhaul (Issues #99, #100)
+
+**Problem:** Two research passes (this codebase's animation/token state, and
+how YNAB/Monarch/Copilot/Rocket Money/Simplifi/EveryDollar/PocketGuard/
+Honeydue handle motion) found a real installed-but-broken bug in scope:
+`tailwindcss-animate` isn't installed, so the `animate-in`/`fade-in`/
+`zoom-in` classes already used in 10 files — including the shared
+`Dialog.tsx` modal shell used app-wide — are currently no-ops. Modals etc.
+are popping in with zero animation today despite the code looking animated.
+
+**Decisions (2026-09-02, recorded in the issue):**
+- **Polish pass, not a structural design-system rebuild.** Whole app at
+  once. Premium-minimal mood (Copilot Money as reference).
+- Fixing the `tailwindcss-animate` install is in scope for whichever agent
+  builds this.
+- **#100 (dashboard overhaul) closed, folded in here** — no comparable app
+  combines a swipeable carousel with a gauge for live stat tiles; keep the
+  existing 4-tile grid, add number count-up/transition polish only (lowest-
+  risk of the three options the research laid out).
+
+**Recommendation:** the `tailwindcss-animate` install fix itself is cheap,
+self-contained, and fixes an already-broken feature — worth pulling forward
+as a quick preliminary fix ahead of the rest of this slice's full polish
+pass, rather than bundling it into the same PR as the whole-app motion work.
+
+**Acceptance criteria:** full detail in the issue's decision comment
+(`research/issue-99-100-motion-dashboard-research.md` has the full research
+writeup) — pull from there at implementation time.
+
+**Testing:** Visual/motion changes across the whole app — inherently needs
+hands-on device verification. Label **`needs-manual-test`**.
+
+---
+
+### Slice 14: Patch notes page (Issue #113)
+
+**Problem (out-of-spec item, folded in per Anthony's high-priority flag):**
+No in-app way for a user to see what changed between versions.
+
+**Decision (2026-09-02):**
+- A hidden in-app page, reachable from Settings, listing changes per version.
+- A first-open-on-a-new-version popup pointing to what's new, deep-linking
+  to the full page.
+- **Per-version blurb text is hand-written per release** (a small structured
+  file, e.g. `patch-notes.ts`, one short user-facing entry per version),
+  written by whoever ships that release — kept separate from `HANDOFF.md`'s
+  technical detail, since that's written for the Orchestrator, not end users.
+
+**Acceptance criteria:**
+- Settings has a link to a patch-notes page listing every recorded version's
+  user-facing blurb, newest first.
+- On first load after a version bump, a popup surfaces the newest entry
+  (detecting "new version since last seen" client-side, e.g. via stored last-
+  seen version string) with a link into the full page.
+- Missing/empty entries degrade gracefully (no popup, page just shows what
+  exists) rather than erroring.
+
+**Testing:** New page + a one-time popup trigger tied to version-change
+detection — mixed surface, but no schema/backend risk. Label
+**`needs-manual-test`** for the popup timing (must verify it fires exactly
+once per version bump, not on every load), `needs-merge-approval` acceptable
+for the static page itself if separated out.
+
+---
+
+### Slice 15: In-app bug reporting (Issue #114)
+
+**Problem (out-of-spec item, folded in per Anthony's high-priority flag):**
+No way to report a bug from inside the app; Anthony flagged the open
+question of how the app→GitHub path works without continuous polling.
+
+**Decision (2026-09-02):**
+- GitHub REST API call directly from a server route — user submits from an
+  in-app form, a Next.js API route calls GitHub's "create issue" REST API
+  directly with a stored token. Synchronous push, not a queue — no polling
+  needed.
+- **New server-side secret required** (a GitHub PAT or GitHub App token,
+  scoped to `issues: write` on this repo only). Flag at kickoff per Part A's
+  service-role-key-adjacent caution around new secrets, even though this
+  isn't the Supabase service-role key itself.
+
+**Acceptance criteria:**
+- In-app bug-report form (title + description, optionally a screenshot)
+  reachable from Settings.
+- Submission creates a real GitHub issue on `mp3anthony/funded` via the
+  server route, labeled distinctly (e.g. `from-app`) so it's identifiable as
+  user-submitted vs. Orchestrator-filed.
+- The GitHub token lives server-side only (env var on Vercel), never sent to
+  or readable from the client.
+- A failed submission (network/API error) shows a clear in-app failure
+  state, not a silent no-op.
+
+**Testing:** New server route + external API call + new secret — the
+secret-handling and failure-path deserve a manual look even though the form
+itself is a plain UI flow. Label **`needs-manual-test`**.
 
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)
 
-Proposed order, open to the user's call:
+Grouped by dependency, not strict sequence — slices within a group can
+reorder freely unless a specific dependency is called out.
 
-1. **Slice 1 (Issue #71) first.** It's a live bug affecting anyone with the
-   app already installed — highest user-facing risk of the three, and it's
-   self-contained (touches only `sw.js` + layout registration code, no schema
-   work). Recommend resolving the open "cache strategy vs. offline tradeoff"
-   question with the user before or at kickoff, since it changes the
-   implementation shape.
-2. **Slice 3 (Issue #37) second.** Small, well-scoped, no blocking unknowns
-   except the admin-vs-any-member permission question, which is a quick
-   decision rather than a design problem. Independent of the other two
-   slices — can be reordered freely.
-3. **Slice 2 (Issue #70) last.** Lowest priority per the issue itself, and it
-   has two open `needs-info` questions that should be resolved with the user
-   before work starts (the `Debt & Finance` ordering gap and whether the
-   rename is in-scope). Also the most structurally involved of the three
-   (new table + RLS + two migrations), so worth sequencing after the other
-   two are out of the way.
+**Group 1 — foundational fixes, low risk, no dependencies:**
+1. Slice 1 (#93) — single-household-per-user (schema-level, other slices
+   don't strictly depend on it, but membership semantics are cleanest locked
+   down early).
+2. Slice 2 (#74) — warm-reload race fix.
+3. Slice 3 (#89) — joinHousehold stale snapshot. **Sequence directly after
+   Slice 2** (reuses its helper).
+4. Slice 4 (#90) — cross-user notification write.
+5. Slice 5 (#87) — empty-household health score display.
+6. Slice 6 — delete dead `HouseholdHealth.tsx`.
+7. Slice 7 (#71) — PWA cache-busting. Live bug affecting anyone with the app
+   already installed; self-contained, no schema work.
 
-Slices 1 and 3 have no dependency on each other or on Slice 2, so 1↔3 order
-could flip without cost. Slice 2 is blocked on `needs-info` answers regardless
-of where it sits in the queue.
+**Group 2 — high-priority new features (Anthony's explicit build-order
+weighting):**
+8. Slice 14 — patch notes page.
+9. Slice 15 — in-app bug reporting.
+
+**Group 3 — settings/notifications, sequential dependency chain:**
+10. Slice 8 (#37) — per-household timezone. **Must land before Slice 9.**
+11. Slice 9 (#97) — notifications overhaul. **Depends on Slice 8.**
+12. Slice 10 (#96 half A) — dead-subscription detection. Independent, can
+    slot in anywhere in this group.
+13. Slice 11 (#96 half B) — per-timezone hourly cron. **Depends on Slices 8
+    and 9 both.**
+
+**Group 4 — larger feature/design work, sequence last:**
+14. Slice 13 (#99/#100) — motion/visual overhaul, *except* pull the
+    `tailwindcss-animate` install fix forward as a standalone quick fix
+    ahead of this group (cheap, fixes an already-broken feature, no reason
+    to wait).
+15. Slice 12 (#98) — bills vs expenses split. Largest, most structurally
+    involved slice in this pass (schema + migration + Direct Pay split logic
+    + weekly-draw integration + health-score integration) — recommend
+    sub-slicing further at its own kickoff rather than one PR. Sequenced
+    last because it's the highest-risk/highest-effort item and benefits from
+    everything else being settled first (in particular, doing the motion
+    pass before #98 means #98's new UI ships already matching the new
+    animation patterns, rather than needing a second pass).
+
+Not sequenced into this build order (per HANDOFF): once the app is stable
+under this spec, licensing + app-store distribution evaluation is next,
+running in parallel with opening testing beyond Anthony/Hannah.
