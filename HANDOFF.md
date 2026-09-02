@@ -1,8 +1,60 @@
 # Handoff
 
-**Last updated:** 2026-09-02 — **needs-info queue: 3 of 7 scoped this session (#37, #97, #98),
-no code built.** Pure scoping/interview session, no implementation. Two new feature requests
-also logged out-of-spec. See "→ START HERE NEXT SESSION" below for exact resume point.
+**Last updated:** 2026-09-02 (continued same day) — **needs-info queue fully cleared.** All 7
+items from session start (#37, #97, #98, #99, #100, #93, #94) now resolved; only #88 remains
+`needs-info`, correctly (blocked on people, not a decision). No code built — pure
+scoping/interview across both halves of the day. **Next session starts the full
+triage-pass/new-spec work** — see "→ START HERE NEXT SESSION" below.
+
+## 2026-09-02 (continued) — needs-info queue finished: #99/#100, #93/#94, #88 checked in
+
+Picked up right where the session paused (see the dated section below for the first half:
+#37/#97/#98). Re-ran `gh issue list --label needs-info` first per the standing instruction —
+confirmed still exactly the 5 HANDOFF expected, nothing new accumulated.
+
+- **[#99](https://github.com/mp3anthony/funded/issues/99)** (dynamic visual/motion overhaul) —
+  research-then-decide, same pattern as #97: two parallel sub-agent passes (this codebase's
+  current animation/token state, and how YNAB/Monarch/Copilot/Rocket Money/Simplifi/EveryDollar/
+  PocketGuard/Honeydue handle motion). Full report at
+  `research/issue-99-100-motion-dashboard-research.md`. Decisions: **polish pass, not a
+  structural design-system rebuild; whole app at once; premium-minimal mood** (Copilot Money as
+  reference). **Real bug found during research, folded into scope:** `tailwindcss-animate` isn't
+  installed, so the `animate-in`/`fade-in`/`zoom-in` classes already used in 10 files — including
+  the shared `Dialog.tsx` modal shell used app-wide — are currently no-ops; modals etc. are
+  popping in with zero animation today despite the code looking animated. Fixing that install is
+  in scope for whichever agent builds this. `needs-info` → `ready-for-agent`.
+- **[#100](https://github.com/mp3anthony/funded/issues/100)** (dashboard overhaul) — **closed,
+  folded into #99.** Research found no comparable app combines a swipeable carousel with a gauge
+  for live stat tiles (genuinely novel, not catch-up work); real gauge precedent exists only for
+  credit-score dials (Rocket Money, old Mint). Decision: **keep the existing 4-tile grid, add
+  number count-up/transition polish only** — lowest-risk of the three options the research laid
+  out (the other two — original swipeable gauge, and a static-gauge-plus-swipeable-cards hybrid —
+  are documented in the report if ever revisited). No separate dashboard-overhaul scope remains.
+- **[#93](https://github.com/mp3anthony/funded/issues/93)** (join-household edge function doesn't
+  enforce single-membership server-side) — was blocked on the multi-household-vs-single-household
+  schema question deferred at #75's build time. Decision: **one household per user** (Anthony's
+  explicit call, recorded as a Part A schema-change sign-off per `CLAUDE.md` §4, not just
+  implied). Unblocks adding the `UNIQUE` constraint on `household_members.user_id` (deferred at
+  #75) plus a real server-side "does this user already belong to any household" check in the edge
+  function, not just the existing client-side #75 guard. `needs-info` → `ready-for-agent`.
+- **[#94](https://github.com/mp3anthony/funded/issues/94)** (no in-app recovery path for an
+  already-duplicated household member) — **closed, covered by #93.** A `UNIQUE` constraint is a
+  hard DB-level guarantee — once #93 lands, a duplicate-membership state becomes literally
+  impossible, not just discouraged by a client-side guard, so a recovery UI for a state that can't
+  occur is speculative work rather than a real safety net. Orchestrator's call (Anthony deferred
+  the disposition decision explicitly), reasoning recorded on the issue in case a future session
+  ever relaxes the UNIQUE constraint or revisits multi-household support.
+- **[#88](https://github.com/mp3anthony/funded/issues/88)** (Direct Pay untested end-to-end) —
+  checked in, not a full interview (per its own framing — blocked on people, not a decision).
+  Status: one real user is now using Direct Pay day-to-day, but isn't likely to actively report
+  issues, so this is a passive usage signal rather than the active testing feedback loop needed to
+  actually rescope. Left `needs-info`, unchanged — noted on the issue for the record.
+
+**Every needs-info/needs-triage item from the standing plan is now resolved** except #88 (which is
+correctly still open — it's blocked on people, not scoping). This clears the precondition for the
+full triage pass + new vertically-sliced spec. Not started this session (Anthony's call — save it
+for a dedicated session rather than starting it in the last stretch of this one). See "→ START
+HERE NEXT SESSION" below.
 
 ## 2026-09-02 — needs-info queue scoping session (no build)
 
@@ -131,50 +183,34 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — needs-info queue, 4 remain (#99, #100, #88, #93, #94)
+## → START HERE NEXT SESSION — needs-info queue cleared, begin the full triage pass + new spec
 
-Mid-interview, stopped here because Anthony had to go pick up his daughter — not blocked on
-anything, just pick the same conversation back up. **Re-run `gh issue list --label needs-info`
-first** in case more accumulated since (it did last time — went from 4 to 7 between sessions).
+**Needs-info queue is done.** #37, #97, #98, #99/#100, #93/#94 all scoped/resolved (full decisions
+in each issue's comment thread and in the two dated sections above). Only
+**[#88](https://github.com/mp3anthony/funded/issues/88)** stays `needs-info`, correctly — it's
+blocked on real-world Direct Pay usage feedback, not a scoping decision. Re-check
+`gh issue list --label needs-info` at session start anyway in case anything new was filed since.
 
-**Already scoped and relabeled `ready-for-agent` this session — do NOT re-interview these:**
-#37, #97, #98 (full decisions in their issue comment threads and in the dated section above).
+**This is the trigger for the standing plan (agreed 2026-08-05, still in force unless Anthony
+redirects) — start here:**
 
-**Still open, in the order Anthony was going through them:**
-- **[#99](https://github.com/mp3anthony/funded/issues/99)** — Dynamic visual/motion overhaul.
-  Anthony flagged this as a "meaty one" before stopping — likely worth the same
-  research-then-decide pattern used for #97 (e.g. a sub-agent survey of what other apps'
-  motion/animation design looks like) rather than guessing at scope cold.
-- **[#100](https://github.com/mp3anthony/funded/issues/100)** — Dashboard overhaul (replace stat
-  tiles).
-- **[#88](https://github.com/mp3anthony/funded/issues/88)** — Direct Pay untested end-to-end.
-  Different shape from the others — blocked on real-world testers, not really a scoping decision.
-  May just need a check-in on whether testers have been found yet, not a full interview.
-- **[#93](https://github.com/mp3anthony/funded/issues/93)** — join-household edge function
-  doesn't enforce single-membership server-side.
-- **[#94](https://github.com/mp3anthony/funded/issues/94)** — no in-app recovery path for an
-  already-duplicated household member.
-
-Each carries its own "what's known" summary and explicit decisions-needed list in the issue body
-(#99/#100 do; confirm #88/#93/#94 still do before assuming). Interview Anthony against that list,
-record the outcome as an issue comment (see #37/#97/#98 comments for the format that's worked),
-relabel `needs-info`/`needs-triage` → `ready-for-agent` once scoped. For anything that's genuinely
-bigger than its ticket framing (like #98 turned out to be), stop and reflect the expanded scope
-back to Anthony before continuing — don't just keep interviewing on the original frame.
-
-Once every needs-info/needs-triage issue is resolved, the standing plan (agreed 2026-08-05, still
-in force unless Anthony redirects) is:
-
-1. **Full triage pass across ALL open issues** (14 open as of this session — 7 needs-info/
-   needs-triage worked through above, plus #71, #74, #89, #90, #96, #37 already done, #97/#98
-   already done — recount at session start, don't trust this number), then build a new
-   vertically-sliced spec that sequences delivery of everything without blockers — so
-   implementation (Orchestrator-delegated sub-agents) and testing can proceed cleanly slice by
-   slice, to a standard Anthony signs off on. This extends/supersedes `SPEC.md`'s current open
-   Part B slices rather than starting from zero — Part A stays final and untouched. **Fold in the
-   two out-of-spec items from this session (patch notes page, in-app bug reporting) — Anthony
-   flagged both high priority for build-order weighting in this pass.** #98's expenses work also
-   gets sliced vertically here, per Anthony's explicit call not to build it as one large change.
+1. **Full triage pass across ALL open issues** — recount with `gh issue list --state open` at
+   session start, don't trust any number carried over here. Then build a new vertically-sliced
+   spec that sequences delivery of everything without blockers, so implementation
+   (Orchestrator-delegated sub-agents) and testing can proceed cleanly slice by slice, to a
+   standard Anthony signs off on. This extends/supersedes `SPEC.md`'s current open Part B slices
+   rather than starting from zero — Part A stays final and untouched.
+   - **Fold in the two out-of-spec items** (patch notes page, in-app bug reporting) — Anthony
+     flagged both high priority for build-order weighting in this pass.
+   - **#98's expenses work gets sliced vertically here**, per Anthony's explicit call not to
+     build it as one large change (bills-vs-expenses split, touches #106's contribution-calc
+     logic — see the earlier dated section for full detail).
+   - **#99's motion/polish pass** (whole-app, premium-minimal mood, includes the
+     `tailwindcss-animate` plugin fix and #100's animate-the-numbers dashboard work) is also
+     `ready-for-agent` and needs sequencing into this spec, not built ad hoc.
+   - **#93's schema change** (UNIQUE constraint on `household_members.user_id`, one-household-
+     per-user) is `ready-for-agent` and should be sequenced early if anything else in the new spec
+     depends on membership semantics being locked down first.
 2. **Not this session, but on Anthony's radar for timeline context:** once the app is stable
    under that new spec, next is licensing + evaluating app-store distribution (cost/timeline
    TBD), running in parallel with opening testing to people beyond Anthony/Hannah. No action
