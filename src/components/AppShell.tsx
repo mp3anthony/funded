@@ -6,6 +6,7 @@ import { useApp, useCurrentUser } from "@/context/AppContext";
 import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
 import EmailVerifiedModal from "@/components/EmailVerifiedModal";
+import PatchNotesPopup from "@/components/PatchNotesPopup";
 import Logo from "./Logo";
 import AvatarDropdown from "./AvatarDropdown";
 import NotificationCenter from "./NotificationCenter";
@@ -270,6 +271,7 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
       {(!isLoading || session) && <BottomNav />}
 
       <EmailVerifiedModal isOpen={showVerifiedModal} onClose={() => setShowVerifiedModal(false)} />
+      {!isLoading && currentUser && <PatchNotesPopup />}
     </>
   );
 }

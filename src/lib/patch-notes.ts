@@ -1,0 +1,83 @@
+/**
+ * Patch notes — hand-written, user-facing blurbs per release (Slice 14,
+ * #113). Kept deliberately separate from HANDOFF.md: HANDOFF is written for
+ * the Orchestrator (internal, technical, ticket-tracking); this file is
+ * written for the end user reading "What's new" inside the app.
+ *
+ * Add a new entry here whenever a release ships something worth telling a
+ * user about. Not every version needs one (a docs-only or pure-refactor
+ * release can be skipped entirely) — the patch notes page and popup both
+ * degrade gracefully when an entry is missing, so skipping one is safe.
+ *
+ * List newest first. `version` must match `APP_VERSION` in
+ * `src/lib/version.ts` for the entry to be treated as "new" by the
+ * first-open popup.
+ */
+
+export interface PatchNoteEntry {
+  /** Must match the app's version string (see src/lib/version.ts). */
+  version: string;
+  /** Short, human-readable date, e.g. "September 2026". No need to be exact to the day. */
+  date: string;
+  /** Short, plain-English bullet points — no internal ticket numbers or jargon. */
+  highlights: string[];
+}
+
+export const patchNotes: PatchNoteEntry[] = [
+  {
+    version: "0.9.19",
+    date: "September 2026",
+    highlights: [
+      "Fixed a bug where the app could feel stuck loading after losing and regaining an internet connection.",
+      "The app now reliably updates itself to the latest version after every release, instead of sometimes hanging onto an old cached copy.",
+    ],
+  },
+  {
+    version: "0.9.18",
+    date: "September 2026",
+    highlights: ["Cleaned up an old, unused screen behind the scenes — no visible change."],
+  },
+  {
+    version: "0.9.17",
+    date: "September 2026",
+    highlights: [
+      "A brand-new household with no bills, goals, or contributions yet now shows a clear \"Not Set Up Yet\" status instead of a misleading fully-funded score.",
+    ],
+  },
+  {
+    version: "0.9.16",
+    date: "September 2026",
+    highlights: [
+      "Fixed a rare bug where switching between household members in the same session could send a notification to the wrong household.",
+    ],
+  },
+  {
+    version: "0.9.15",
+    date: "September 2026",
+    highlights: [
+      "Fixed a bug where joining a new household right after leaving one could occasionally leave behind old data that should have been cleaned up.",
+    ],
+  },
+  {
+    version: "0.9.14",
+    date: "September 2026",
+    highlights: [
+      "Fixed a rare timing issue on slow connections where bills, goals, or members could briefly appear to vanish after reopening the app.",
+    ],
+  },
+  {
+    version: "0.9.13",
+    date: "September 2026",
+    highlights: [
+      "Each account can now only belong to one household at a time, closing a loophole that could let someone accidentally join a second one.",
+    ],
+  },
+  {
+    version: "0.9.12",
+    date: "August 2026",
+    highlights: [
+      "The Household Health card on your dashboard now starts expanded so you can see your numbers at a glance.",
+      "Removed member avatars from the Payday page for a cleaner look.",
+    ],
+  },
+];

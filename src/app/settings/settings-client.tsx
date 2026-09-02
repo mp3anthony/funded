@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   User,
@@ -15,6 +16,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { APP_VERSION } from "@/lib/version";
 import PaymentModeToggle from "@/components/PaymentModeToggle";
 import ContributionSettingsSheet from "@/components/ContributionSettingsSheet";
 import RulesSettingsSheet from "@/components/RulesSettingsSheet";
@@ -376,7 +378,12 @@ export default function SettingsClient() {
           </div>
         )}
         <div className="text-center pt-8 pb-2">
-          <div className="font-mono text-[10px] tracking-wider text-subtle/70">funded. v0.9.19</div>
+          <Link
+            href="/patch-notes"
+            className="font-mono text-[10px] tracking-wider text-subtle/70 hover:text-primary transition-colors"
+          >
+            funded. v{APP_VERSION} · What&apos;s new
+          </Link>
           <div className="font-mono text-[10px] text-subtle/50 mt-1">Concept &amp; development · Anthony Paull</div>
         </div>
       </section>
