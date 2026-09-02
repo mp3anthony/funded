@@ -5,7 +5,7 @@ open GitHub issue (12 total, confirmed live via `gh issue list --state open`) is
 `ready-for-agent` except #88, correctly still `needs-info` (blocked on people, not a decision).
 `SPEC.md` Part B fully rewritten into 15 vertically-sliced, dependency-ordered slices covering
 every ready-for-agent issue plus the two high-priority out-of-spec items (patch notes, in-app bug
-reporting) plus one dead-code cleanup. No code built yet — this session was pure triage +
+reporting) plus one dead-code cleanup. All three since filed as issues #112 (dead-code), #113 (patch notes), #114 (bug reporting). No code built yet — this session was pure triage +
 spec-writing. **Next session starts building Group 1 of the new Part C milestone order** — see
 "→ START HERE NEXT SESSION" below.
 
@@ -52,8 +52,8 @@ every one mapped to a `ready-for-agent` GitHub issue or one of the two out-of-sp
 dead-code cleanup. Part C gives a 4-group dependency-ordered milestone recommendation — full detail
 in `SPEC.md` itself, summary:
 1. **Group 1 (foundational, no dependencies):** #93 (single-household-per-user), #74, #89 (must
-   follow #74), #90, #87, dead-code deletion, #71 (PWA cache).
-2. **Group 2 (Anthony's explicit high-priority build-order flag):** patch notes page, in-app bug
+   follow #74), #90, #87, dead-code deletion (#112), #71 (PWA cache).
+2. **Group 2 (Anthony's explicit high-priority build-order flag):** patch notes page (#113), in-app bug
    reporting.
 3. **Group 3 (sequential chain):** #37 (timezone) → #97 (notifications overhaul, depends on #37)
    → #96 half A (dead-subscription, independent) → #96 half B (hourly cron, depends on both #37
@@ -274,7 +274,7 @@ asked which of these to start with specifically vs. build as one batch — worth
 at session start on batching preference (e.g. one PR per slice vs. grouping the trivial ones
 together) rather than assuming.
 
-**After Group 1**, proceed to Group 2 (patch notes page, in-app bug reporting — Anthony's
+**After Group 1**, proceed to Group 2 (patch notes page (#113), in-app bug reporting (#114) — Anthony's
 explicit high-priority build-order flag), then Group 3 (timezone → notifications → push
 reliability, strict dependency chain), then Group 4 (motion overhaul, then bills-vs-expenses
 split last). Full detail and reasoning for the ordering is in `SPEC.md` Part C.

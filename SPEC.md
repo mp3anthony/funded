@@ -277,7 +277,7 @@ pipeline-verifiable. Label **`needs-merge-approval`**.
 
 ---
 
-### Slice 6: Remove dead HouseholdHealth.tsx
+### Slice 6: Remove dead HouseholdHealth.tsx (Issue #112)
 
 **Problem:** `src/components/HouseholdHealth.tsx` exports a "Household
 Health" card that is never imported anywhere in the app (confirmed by a
@@ -522,7 +522,7 @@ hands-on device verification. Label **`needs-manual-test`**.
 
 ---
 
-### Slice 14: Patch notes page
+### Slice 14: Patch notes page (Issue #113)
 
 **Problem (out-of-spec item, folded in per Anthony's high-priority flag):**
 No in-app way for a user to see what changed between versions.
@@ -553,7 +553,7 @@ for the static page itself if separated out.
 
 ---
 
-### Slice 15: In-app bug reporting
+### Slice 15: In-app bug reporting (Issue #114)
 
 **Problem (out-of-spec item, folded in per Anthony's high-priority flag):**
 No way to report a bug from inside the app; Anthony flagged the open
