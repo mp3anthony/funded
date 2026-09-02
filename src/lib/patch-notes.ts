@@ -25,6 +25,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.21",
+    date: "September 2026",
+    highlights: [
+      "You can now report a bug directly from Settings — add a title, a description, and an optional screenshot, and it goes straight to the development team.",
+    ],
+  },
+  {
     version: "0.9.20",
     date: "September 2026",
     highlights: [

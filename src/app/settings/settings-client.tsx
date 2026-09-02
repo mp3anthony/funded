@@ -20,6 +20,7 @@ import { APP_VERSION } from "@/lib/version";
 import PaymentModeToggle from "@/components/PaymentModeToggle";
 import ContributionSettingsSheet from "@/components/ContributionSettingsSheet";
 import RulesSettingsSheet from "@/components/RulesSettingsSheet";
+import BugReportSheet from "@/components/BugReportSheet";
 import PageHeader from "@/components/PageHeader";
 import AvatarUpload from "@/components/AvatarUpload";
 import RemoveMemberModal from "@/components/RemoveMemberModal";
@@ -63,6 +64,7 @@ export default function SettingsClient() {
   const [isContributionOpen, setIsContributionOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
 
   /* Inline editorial dialogs */
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -371,6 +373,13 @@ export default function SettingsClient() {
         </Link>
         <button
           type="button"
+          onClick={() => setIsBugReportOpen(true)}
+          className="w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
+        >
+          Report a bug
+        </button>
+        <button
+          type="button"
           onClick={handleLeaveHousehold}
           disabled={isLeavingHousehold}
           className="w-full text-left py-3 border-t border-primary/20 text-sm font-medium text-destructive disabled:opacity-50"
@@ -640,6 +649,11 @@ export default function SettingsClient() {
         rules={contributionRules}
         goals={funds}
         contributions={householdContributions}
+      />
+      <BugReportSheet
+        isOpen={isBugReportOpen}
+        onClose={() => setIsBugReportOpen(false)}
+        session={session}
       />
       <NotificationCenter
         isOpen={isNotificationCenterOpen}
