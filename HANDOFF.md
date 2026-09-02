@@ -1,16 +1,39 @@
 # Handoff
 
-**Last updated:** 2026-09-02 (continued session) — **Group 1 build started: Slices 1-3 done.**
-#93 (single-household-per-user), #74 (warm-reload empty-query race), and #89 (joinHousehold
-stale-members snapshot) all built, independently reviewed, and merged this session —
-[PR #115](https://github.com/mp3anthony/funded/pull/115),
+**Last updated:** 2026-09-02 (continued session) — **Group 1 build continuing: Slices 1-4 done.**
+#93, #74, #89 (prior session) plus #90 (this session, cross-user notification write) all built,
+independently reviewed, and merged — [PR #115](https://github.com/mp3anthony/funded/pull/115),
 [PR #116](https://github.com/mp3anthony/funded/pull/116),
-[PR #117](https://github.com/mp3anthony/funded/pull/117). `v0.9.12` → `v0.9.15`. Anthony chose
-one-PR-per-slice for Group 1's remaining items. **Next session starts Slice 4 / #90** — see
-"→ START HERE NEXT SESSION" below. Gemini CLI checked this session and found broken (Google
-killed the free Code-Assist tier it authenticated against) — not usable for offloading build work
-until re-authed with an API key or migrated; see the dated section below for detail, don't
-re-diagnose from scratch next time.
+[PR #117](https://github.com/mp3anthony/funded/pull/117),
+[PR #118](https://github.com/mp3anthony/funded/pull/118). `v0.9.12` → `v0.9.16`. One-PR-per-slice
+confirmed as the standing preference for Group 1. **Next session starts Slice 5 / #87** — see
+"→ START HERE NEXT SESSION" below. Gemini CLI checked last session and found broken (Google killed
+the free Code-Assist tier it authenticated against) — not usable for offloading build work until
+re-authed with an API key or migrated; see the dated section below for detail, don't re-diagnose
+from scratch next time.
+
+## 2026-09-02 (continued further) — Slice 4 / #90 built, reviewed, merged
+
+Picked up exactly where the prior HANDOFF pointed. Re-ran `gh issue list --state open` first —
+still exactly the expected 12 open issues, #88 the only `needs-info`.
+
+**Slice 4 / #90 — cross-user notification write, CLOSED, [PR #118](https://github.com/mp3anthony/funded/pull/118).**
+The client-side "notification generation" `useEffect` in `AppContext.tsx` (~line 3724) was gated
+only on `session`, `notificationSettings`/`all_enabled`, and `isDataLoading` — not `isOnboarded`.
+During a same-tab user-switch race (A → B), if `isDataLoading` read `false` before B's household
+state had actually resettled, the effect could fire with `session.user.id = B` against A's stale
+household/bills data, writing a notification row shaped `{ user_id: B, household_id: A }`. Fixed
+by adding `!isOnboarded` to the early-return guard (and `isOnboarded` to the dependency array,
+since it's now referenced in the guard body). Independent review traced every `setIsOnboarded`
+call site in the file end-to-end and confirmed: `isOnboarded` never goes transiently false for an
+already-settled, previously-onboarded user (the `knownOnboarded` guard from #75 already prevents
+that), so the new gate is a true no-op on the normal single-user path and only closes the narrow
+cross-user-switch window described in the issue — no regression to legitimate onboarding/adopt/
+join flows. **APPROVED first pass**, no rework needed. Fully in-pipeline verifiable (pure business
+logic, no UI/layout/platform-native surface) → `needs-merge-approval`, not `needs-manual-test`.
+`v0.9.15` → `v0.9.16`, confirmed with Anthony before merge. Same workflow as Slices 1-3: build
+sub-agent → independent review sub-agent → push/PR/version-bump/merge on go-ahead → local `main`
+synced via `git reset --hard origin/main`.
 
 ## 2026-09-02 (continued) — Slices 1-3 of Group 1 built, reviewed, merged; Gemini CLI found broken
 
@@ -332,19 +355,17 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 1, Slice 4 / #90
+## → START HERE NEXT SESSION — Group 1, Slice 5 / #87
 
-**Slices 1-3 done this session** (#93, #74, #89 — all merged, `v0.9.15`, full detail in the dated
-section above). **Batching preference already confirmed with Anthony: one PR per slice** — don't
-re-ask. Re-check `gh issue list --state open` at session start anyway in case anything new was
-filed since (was exactly the expected 15 open issues as of this session's end, #88 the only
-`needs-info`).
+**Slices 1-4 done** (#93, #74, #89, #90 — all merged, `v0.9.16`, full detail in the dated sections
+above). **Batching preference already confirmed with Anthony: one PR per slice** — don't re-ask.
+Re-check `gh issue list --state open` at session start anyway in case anything new was filed since
+(was exactly the expected 12 open issues as of this session's end, #88 the only `needs-info`).
 
 **Continue Group 1 in this order:**
-1. **Slice 4 / #90** — cross-user notification write, add `isOnboarded` gate. **Start here.**
-2. **Slice 5 / #87** — empty-household "not set up yet" display state.
-3. **Slice 6** — delete dead `src/components/HouseholdHealth.tsx`.
-4. **Slice 7 / #71** — PWA cache-busting (build-hash `CACHE_NAME` + stale-while-revalidate).
+1. **Slice 5 / #87** — empty-household "not set up yet" display state. **Start here.**
+2. **Slice 6** — delete dead `src/components/HouseholdHealth.tsx`.
+3. **Slice 7 / #71** — PWA cache-busting (build-hash `CACHE_NAME` + stale-while-revalidate).
 
 Use the same workflow as Slices 1-3 (documented in detail above): one build sub-agent per slice,
 one *independent* review sub-agent (never the builder), fix-and-re-review loop if NEEDS-REWORK,
