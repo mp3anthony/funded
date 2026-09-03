@@ -122,6 +122,14 @@ export interface NotificationSettings {
   auto_pay_reminders: boolean;
   manual_bill_reminder_days: number;
   auto_pay_reminder_days: number;
+  /** Issue #97 (Slice 9): payday "log your pay" reminders. */
+  payday_reminders: boolean;
+  /** Issue #97 (Slice 9): goal/fund milestone-reached reminders. */
+  goal_milestone_reminders: boolean;
+  /** Issue #97 (Slice 9): per-user preferred notify hour, 0-23 (local to the
+   *  household's timezone). Not yet consumed for actual send-timing — that's
+   *  Slice 11 (the cron rewrite); this only stores the preference. */
+  notify_hour: number;
 }
 
 export interface Notification {
@@ -3945,7 +3953,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           lodge_payment_reminders: true,
           auto_pay_reminders: true,
           manual_bill_reminder_days: 3,
-          auto_pay_reminder_days: 1
+          auto_pay_reminder_days: 1,
+          payday_reminders: true,
+          goal_milestone_reminders: true,
+          notify_hour: 9,
         };
         const { data: newSettings } = await supabase.from('notification_settings').insert(defaultSettings).select().single();
         if (newSettings) setNotificationSettings(newSettings);
@@ -4067,6 +4078,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         todayYmd,
         bills,
         payHistory,
+        paySchedules,
+        funds,
         currentMemberId,
         settings: notificationSettings,
         existingKeys,
@@ -4111,7 +4124,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     };
 
     generateClientNotifications();
-  }, [bills, payHistory, notificationSettings, isDataLoading, isOnboarded, session, dbHouseholdId, members, notifications]);
+  }, [bills, payHistory, paySchedules, funds, notificationSettings, isDataLoading, isOnboarded, session, dbHouseholdId, members, notifications]);
 
   const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name));
 

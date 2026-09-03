@@ -27,6 +27,7 @@ import RemoveMemberModal from "@/components/RemoveMemberModal";
 import EditMemberModal from "@/components/EditMemberModal";
 import NotificationCenter from "@/components/NotificationCenter";
 import TimezoneDialog from "@/components/TimezoneDialog";
+import NotifyHourDialog from "@/components/NotifyHourDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
@@ -54,6 +55,8 @@ export default function SettingsClient() {
     codeExpiresAt,
     regenerateJoinCode,
     notifications,
+    notificationSettings,
+    updateNotificationSettings,
     leaveHousehold,
     deleteHousehold,
   } = useApp();
@@ -75,6 +78,7 @@ export default function SettingsClient() {
   const [showJoinCodeDialog, setShowJoinCodeDialog] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
   const [showTimezoneDialog, setShowTimezoneDialog] = useState(false);
+  const [showNotifyHourDialog, setShowNotifyHourDialog] = useState(false);
 
   /* Member management modals */
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
@@ -238,6 +242,13 @@ export default function SettingsClient() {
   ];
   const currentThemeLabel = theme.charAt(0).toUpperCase() + theme.slice(1);
 
+  /* Issue #97 (Slice 9): per-user notify hour display label. */
+  function formatNotifyHourLabel(hour: number): string {
+    const period = hour < 12 ? "AM" : "PM";
+    const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+    return `${displayHour}:00 ${period}`;
+  }
+
   /* ── Render ────────────────────────────────── */
   return (
     <div className="flex-1 w-full max-w-2xl mx-auto px-6 pt-4 pb-10 md:pt-6">
@@ -278,6 +289,12 @@ export default function SettingsClient() {
             <span className="font-mono text-[13px] text-muted">On</span>
           )}
         </Row>
+        <Row
+          label="Notify me at"
+          value={notificationSettings ? formatNotifyHourLabel(notificationSettings.notify_hour) : "—"}
+          chevron
+          onClick={() => setShowNotifyHourDialog(true)}
+        />
         <Row
           label="Appearance"
           value={currentThemeLabel}
@@ -639,6 +656,14 @@ export default function SettingsClient() {
         onClose={() => setShowTimezoneDialog(false)}
         currentTimezone={householdTimezone || "Australia/Sydney"}
         onSave={updateHouseholdTimezone}
+      />
+
+      {/* Notify hour (per-user; every member sets their own, unlike Timezone above) */}
+      <NotifyHourDialog
+        isOpen={showNotifyHourDialog}
+        onClose={() => setShowNotifyHourDialog(false)}
+        currentHour={notificationSettings?.notify_hour ?? 9}
+        onSave={(hour) => updateNotificationSettings({ notify_hour: hour })}
       />
 
       {/* Reused sheets & member modals */}

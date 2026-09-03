@@ -25,6 +25,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.23",
+    date: "September 2026",
+    highlights: [
+      "You can now set your own preferred notification time in Settings — \"Notify me at\" is independent for each household member.",
+      "New reminders: a nudge to log your pay once payday arrives, and a heads-up when a savings goal hits 25/50/75/100% of its target.",
+    ],
+  },
+  {
     version: "0.9.22",
     date: "September 2026",
     highlights: [

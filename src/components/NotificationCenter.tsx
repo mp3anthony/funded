@@ -165,6 +165,8 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
       case 'manual_bill': return <Clock size={20} className="text-accent" />;
       case 'auto_pay': return <AlertTriangle size={20} className="text-rose-500" />;
       case 'lodge_payment': return <CheckCircle size={20} className="text-primary" />;
+      case 'payday_log_pay': return <Clock size={20} className="text-primary" />;
+      case 'goal_milestone': return <CheckCircle size={20} className="text-secondary" />;
       default: return <Bell size={20} className="text-muted" />;
     }
   };
@@ -408,17 +410,49 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
                       <div>
                         <h5 className="font-medium text-sm text-foreground">Lodge Payment Reminders</h5>
                         <p className="text-xs text-muted">Alerts when a scheduled payment needs confirmation.</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          className="sr-only peer" 
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
                           checked={notificationSettings.lodge_payment_reminders}
                           onChange={() => handleToggleSetting('lodge_payment_reminders')}
+                        />
+                        <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
+                      <div className="flex-1 pr-4">
+                        <h5 className="font-medium text-sm text-foreground">Payday Reminders</h5>
+                        <p className="text-xs text-muted">Alerts when it&apos;s time to log your pay.</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={notificationSettings.payday_reminders}
+                          onChange={() => handleToggleSetting('payday_reminders')}
+                        />
+                        <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3">
+                      <div className="flex-1 pr-4">
+                        <h5 className="font-medium text-sm text-foreground">Goal Milestone Reminders</h5>
+                        <p className="text-xs text-muted">Alerts when a fund reaches 25/50/75/100% of its target.</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={notificationSettings.goal_milestone_reminders}
+                          onChange={() => handleToggleSetting('goal_milestone_reminders')}
                         />
                         <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                       </label>
