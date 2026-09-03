@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendPushToSubscriptions } from '@/lib/push';
 import { generateReminders, type ReminderSettings } from '@/lib/notifications/generateReminders';
-import { todayInZone } from '@/lib/notifications/timezone';
+import { todayInZone, hourInZone } from '@/lib/notifications/timezone';
 
 // Note: route handlers already run on the Node.js runtime by default, which
 // web-push requires. An explicit `export const runtime` is omitted because it
@@ -12,8 +12,17 @@ export const maxDuration = 60;
 const PUSH_ICON = '/icons/icon-192x192.png?v=2';
 
 /**
- * Daily cron (Vercel Cron → GET) that generates due-bill / auto-pay / lodge
- * reminders for every household member and delivers them via web push.
+ * Hourly cron (Vercel Cron → GET, `vercel.json`: `0 * * * *`) that generates
+ * due-bill / auto-pay / lodge reminders for every household member and
+ * delivers them via web push.
+ *
+ * Runs every hour (Slice 11, #96 half B) rather than at one fixed UTC hour,
+ * so each household's/user's chosen local delivery time (household
+ * `timezone` from Slice 8/#37, per-user `notify_hour` from Slice 9/#97) is
+ * actually honored — a user only receives a push during the run whose
+ * current local hour in their household's timezone matches their chosen
+ * `notify_hour`. This does not change dedupe behavior: `dedupe_key` is
+ * never keyed by hour, so re-running hourly cannot produce duplicate sends.
  *
  * Runs with no user session, so it uses a service_role Supabase client that
  * bypasses RLS. Per-user failures are logged and skipped so one bad row can
@@ -104,7 +113,10 @@ export async function GET(request: Request) {
       householdTz.set(String(h.id), h.timezone || 'Australia/Sydney');
     }
 
-    const settingsByUser = new Map<string, ReminderSettings & { all_enabled?: boolean }>();
+    const settingsByUser = new Map<
+      string,
+      ReminderSettings & { all_enabled?: boolean; notify_hour?: number }
+    >();
     for (const s of allSettings) {
       if (s.user_id) settingsByUser.set(String(s.user_id), s);
     }
@@ -157,7 +169,9 @@ export async function GET(request: Request) {
     // ── Per household → per member ───────────────
     for (const household of households) {
       const householdId = String(household.id);
-      const todayYmd = todayInZone(householdTz.get(householdId) || 'Australia/Sydney');
+      const tz = householdTz.get(householdId) || 'Australia/Sydney';
+      const todayYmd = todayInZone(tz);
+      const currentHour = hourInZone(tz);
       const householdBills = billsByHousehold.get(householdId) ?? [];
       const householdPay = payByHousehold.get(householdId) ?? [];
       const householdPaySchedules = paySchedulesByHousehold.get(householdId) ?? [];
@@ -172,6 +186,20 @@ export async function GET(request: Request) {
           const settings = settingsByUser.get(userId);
           // Skip users with no settings row or notifications disabled.
           if (!settings || settings.all_enabled === false) continue;
+
+          // Slice 11 (#96 half B): only send during the hourly run that
+          // matches this user's chosen local delivery hour. `notify_hour`
+          // defaults to 9 in the DB (see migration
+          // 20260903120000_add_notify_hour_and_new_reminder_types.sql), so
+          // this fallback only matters for a settings row read before that
+          // column existed. This does not affect dedupe: `dedupe_key` is
+          // keyed by entity + due date/threshold (never by hour), so once a
+          // reminder is generated for the day it's already recorded in
+          // `existingKeys`/upserted with `ignoreDuplicates`, and skipping
+          // the non-matching hourly runs simply means we never attempt the
+          // insert outside the user's chosen hour in the first place.
+          const notifyHour = settings.notify_hour ?? 9;
+          if (notifyHour !== currentHour) continue;
 
           usersProcessed++;
 
