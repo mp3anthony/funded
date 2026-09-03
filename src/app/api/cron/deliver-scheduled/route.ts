@@ -112,10 +112,10 @@ export async function GET(request: Request) {
     let deliveredTotal = 0;
     let pushedTotal = 0;
     const expiredIds = new Set<string>();
-    const deliveredIds: (string | number)[] = [];
 
     for (const [userId, rows] of rowsByUser) {
       const subscriptions = subsByUser.get(userId) ?? [];
+      const userDeliveredIds: (string | number)[] = [];
 
       for (const notif of rows) {
         try {
@@ -134,22 +134,32 @@ export async function GET(request: Request) {
 
           // Mark delivered regardless of push outcome (no user subscription,
           // or a partial/full push failure) — this route does not retry.
-          deliveredIds.push(notif.id);
-          deliveredTotal++;
+          userDeliveredIds.push(notif.id);
         } catch (rowErr) {
           console.error(`[deliver-scheduled] failed for notification ${notif.id}:`, rowErr);
           // Continue with the next row.
         }
       }
-    }
 
-    if (deliveredIds.length > 0) {
-      const { error: updateError } = await supabase
-        .from('notifications')
-        .update({ delivered_at: new Date().toISOString() })
-        .in('id', deliveredIds);
-      if (updateError) {
-        console.error('[deliver-scheduled] failed to mark rows delivered:', updateError);
+      // Write delivered_at for this user's rows immediately, right after
+      // their pushes are attempted — not batched to the end of the whole
+      // run. If `maxDuration` kills the function partway through the next
+      // user's rows, every row already pushed here is already marked, so
+      // the next pg_cron run can only ever pick up genuinely unattempted
+      // rows instead of re-pushing ones that already went out.
+      if (userDeliveredIds.length > 0) {
+        const { error: updateError } = await supabase
+          .from('notifications')
+          .update({ delivered_at: new Date().toISOString() })
+          .in('id', userDeliveredIds);
+        if (updateError) {
+          console.error(
+            `[deliver-scheduled] failed to mark rows delivered for user ${userId}:`,
+            updateError
+          );
+        } else {
+          deliveredTotal += userDeliveredIds.length;
+        }
       }
     }
 
