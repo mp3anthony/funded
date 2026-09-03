@@ -1,28 +1,32 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushToSubscriptions } from '@/lib/push';
 import { generateReminders, type ReminderSettings } from '@/lib/notifications/generateReminders';
-import { todayInZone, hourInZone } from '@/lib/notifications/timezone';
+import { todayInZone, zonedDateAtHour } from '@/lib/notifications/timezone';
 
 // Note: route handlers already run on the Node.js runtime by default, which
 // web-push requires. An explicit `export const runtime` is omitted because it
 // is incompatible with this project's Next.js `cacheComponents` config.
 export const maxDuration = 60;
 
-const PUSH_ICON = '/icons/icon-192x192.png?v=2';
-
 /**
- * Hourly cron (Vercel Cron → GET, `vercel.json`: `0 * * * *`) that generates
- * due-bill / auto-pay / lodge reminders for every household member and
- * delivers them via web push.
+ * Daily cron (Vercel Cron → GET, `vercel.json`: `0 15 * * *`) that generates
+ * due-bill / auto-pay / lodge / payday / goal-milestone reminders for every
+ * household member and stores them with a `scheduled_for` delivery
+ * timestamp. It does NOT send push notifications itself — actual delivery
+ * is handled by a separate Supabase `pg_cron` job that calls
+ * `/api/cron/deliver-scheduled` every few minutes and pushes any row whose
+ * `scheduled_for` has arrived. See `src/app/api/cron/deliver-scheduled/route.ts`.
  *
- * Runs every hour (Slice 11, #96 half B) rather than at one fixed UTC hour,
- * so each household's/user's chosen local delivery time (household
- * `timezone` from Slice 8/#37, per-user `notify_hour` from Slice 9/#97) is
- * actually honored — a user only receives a push during the run whose
- * current local hour in their household's timezone matches their chosen
- * `notify_hour`. This does not change dedupe behavior: `dedupe_key` is
- * never keyed by hour, so re-running hourly cannot produce duplicate sends.
+ * Slice 11 v2 (#96 half B rework): the original design (PR #127) ran this
+ * cron hourly so it could match each household's local `notify_hour`
+ * exactly. That cannot ship — this project is on the Vercel Hobby plan,
+ * which only allows once-per-day cron, so the hourly schedule silently
+ * failed to deploy to production. This route now runs once a day and
+ * generates reminders for every eligible user unconditionally (no more
+ * per-run hour gating); each row's `scheduled_for` records the household's
+ * *actual* chosen local delivery time, and the separate delivery cron
+ * (which is not subject to Vercel's cron-frequency limit) is what makes
+ * that time honored.
  *
  * Runs with no user session, so it uses a service_role Supabase client that
  * bypasses RLS. Per-user failures are logged and skipped so one bad row can
@@ -164,14 +168,12 @@ export async function GET(request: Request) {
 
     let usersProcessed = 0;
     let insertedTotal = 0;
-    let pushedTotal = 0;
 
     // ── Per household → per member ───────────────
     for (const household of households) {
       const householdId = String(household.id);
       const tz = householdTz.get(householdId) || 'Australia/Sydney';
       const todayYmd = todayInZone(tz);
-      const currentHour = hourInZone(tz);
       const householdBills = billsByHousehold.get(householdId) ?? [];
       const householdPay = payByHousehold.get(householdId) ?? [];
       const householdPaySchedules = paySchedulesByHousehold.get(householdId) ?? [];
@@ -186,20 +188,6 @@ export async function GET(request: Request) {
           const settings = settingsByUser.get(userId);
           // Skip users with no settings row or notifications disabled.
           if (!settings || settings.all_enabled === false) continue;
-
-          // Slice 11 (#96 half B): only send during the hourly run that
-          // matches this user's chosen local delivery hour. `notify_hour`
-          // defaults to 9 in the DB (see migration
-          // 20260903120000_add_notify_hour_and_new_reminder_types.sql), so
-          // this fallback only matters for a settings row read before that
-          // column existed. This does not affect dedupe: `dedupe_key` is
-          // keyed by entity + due date/threshold (never by hour), so once a
-          // reminder is generated for the day it's already recorded in
-          // `existingKeys`/upserted with `ignoreDuplicates`, and skipping
-          // the non-matching hourly runs simply means we never attempt the
-          // insert outside the user's chosen hour in the first place.
-          const notifyHour = settings.notify_hour ?? 9;
-          if (notifyHour !== currentHour) continue;
 
           usersProcessed++;
 
@@ -220,9 +208,36 @@ export async function GET(request: Request) {
 
           if (rows.length === 0) continue;
 
+          // `notify_hour` defaults to 9 in the DB (see migration
+          // 20260903120000_add_notify_hour_and_new_reminder_types.sql), so
+          // this fallback only matters for a settings row read before that
+          // column existed. `scheduled_for` is today's date in the
+          // household's timezone at that local hour, converted to UTC — the
+          // separate delivery cron (deliver-scheduled) is what actually
+          // pushes it once that instant arrives.
+          //
+          // NOTE: because this cron runs once a day at a single fixed UTC
+          // hour (see vercel.json), a household in a very different
+          // timezone than the one that hour was tuned for may already have
+          // passed its local `notify_hour` by the time this run happens.
+          // In that case `scheduled_for` ends up in the past — this is
+          // intentional and NOT a bug: the delivery cron (step 4) simply
+          // delivers such a reminder a few minutes late on its next run
+          // rather than skipping it. Accepted trade-off of a single daily
+          // generation run covering every timezone (see CLAUDE.md ticket
+          // for this slice).
+          const notifyHour = settings.notify_hour ?? 9;
+          const scheduledFor = zonedDateAtHour(todayYmd, notifyHour, tz).toISOString();
+
+          const rowsWithSchedule = rows.map(row => ({
+            ...row,
+            scheduled_for: scheduledFor,
+            delivered_at: null,
+          }));
+
           const { data: inserted, error: upsertError } = await supabase
             .from('notifications')
-            .upsert(rows, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
+            .upsert(rowsWithSchedule, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
             .select();
 
           if (upsertError) {
@@ -232,35 +247,6 @@ export async function GET(request: Request) {
           if (!inserted || inserted.length === 0) continue;
 
           insertedTotal += inserted.length;
-
-          // Fetch this user's push subscriptions once and deliver each reminder.
-          const { data: subscriptions, error: subError } = await supabase
-            .from('push_subscriptions')
-            .select('id, endpoint, p256dh, auth')
-            .eq('user_id', userId);
-
-          if (subError || !subscriptions || subscriptions.length === 0) continue;
-
-          const expiredIds = new Set<string>();
-          for (const notif of inserted) {
-            const result = await sendPushToSubscriptions(subscriptions, {
-              title: notif.title,
-              body: notif.message,
-              url: notif.related_entity_id
-                ? `/bills?billId=${notif.related_entity_id}`
-                : '/',
-              icon: PUSH_ICON,
-            });
-            pushedTotal += result.successCount;
-            for (const id of result.expiredIds) expiredIds.add(id);
-          }
-
-          if (expiredIds.size > 0) {
-            await supabase
-              .from('push_subscriptions')
-              .delete()
-              .in('id', Array.from(expiredIds));
-          }
         } catch (userErr) {
           console.error(`[push-reminders] failed for user ${userId}:`, userErr);
           // Continue with the next user.
@@ -272,7 +258,6 @@ export async function GET(request: Request) {
       households: households.length,
       users: usersProcessed,
       inserted: insertedTotal,
-      pushed: pushedTotal,
     });
   } catch (error) {
     console.error('[push-reminders] fatal error:', error);

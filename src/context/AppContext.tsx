@@ -4086,12 +4086,25 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       });
 
       if (rows.length > 0) {
+        // Slice 11 v2 (#96 half B rework): mark these rows delivered
+        // immediately since we're about to push them ourselves right below
+        // — this is the instant, app-is-open delivery path, distinct from
+        // the daily generation cron. Without this, the separate
+        // deliver-scheduled cron would see delivered_at IS NULL and push
+        // these a second time on its next run. `scheduled_for` is left
+        // unset here and defaults to `now()` via the DB column default,
+        // which is correct for this path (delivery is immediate).
+        const rowsWithDelivery = rows.map(row => ({
+          ...row,
+          delivered_at: new Date().toISOString(),
+        }));
+
         // Upsert with ignoreDuplicates so concurrent client/cron runs never
         // create the same reminder twice; .select() returns ONLY the rows
         // that were actually inserted (duplicates are silently skipped).
         const { data, error } = await supabase
           .from('notifications')
-          .upsert(rows, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
+          .upsert(rowsWithDelivery, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
           .select();
         if (!error && data) {
            setNotifications(prev => [...data, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
