@@ -1,12 +1,81 @@
 # Handoff
 
-**Last updated:** 2026-09-03 — **Group 2 is fully closed.** Slice 15 (#114, in-app bug reporting)
-built, reviewed, tested, and merged this session — [PR #123](https://github.com/mp3anthony/funded/pull/123).
-`v0.9.20` → `v0.9.21`. **Next session starts Group 3**: timezone (#37) → notifications overhaul
-(#97, depends on #37) → #96 (push reliability, two halves) — see "→ START HERE NEXT SESSION" below.
+**Last updated:** 2026-09-03 — **Group 3 is two-thirds closed.** Slice 8 (#37, per-household
+timezone) and Slice 9 (#97, notify-hour + new reminder types) both built, reviewed, tested, and
+merged this session — [PR #124](https://github.com/mp3anthony/funded/pull/124) and
+[PR #125](https://github.com/mp3anthony/funded/pull/125). `v0.9.21` → `v0.9.23`. **Next session
+finishes Group 3 with #96** (push reliability, two independent halves — dead-subscription
+indicator, and the per-timezone hourly cron that actually wires #37/#97's timezone + notify_hour
+into real send-timing) — see "→ START HERE NEXT SESSION" below.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-03 (new session) — Group 3 Slices 8-9 (#37, #97) built, reviewed, merged
+
+Picked up exactly where the prior HANDOFF pointed ("START HERE NEXT SESSION — Group 3"). Re-ran
+`gh issue list --state open` first — matched HANDOFF's expectation exactly (6 open: #99, #98, #97,
+#96, #88, #37 — #88 the only `needs-info`).
+
+**Slice 8 / #37 — per-household timezone settings screen, CLOSED, [PR #124](https://github.com/mp3anthony/funded/pull/124).**
+Settings row shows the household's current IANA timezone to all members; only the household owner
+can open the edit control (searchable dropdown built off `Intl.supportedValuesOf('timeZone')`, no
+new dependency). Save validates via `Intl.DateTimeFormat` before writing `households.timezone`,
+falls back to `Australia/Sydney`. No cron changes needed (already reads that column). **Real finding
+surfaced during review, not a blocker:** `households` UPDATE RLS is member-wide, not owner-only —
+pre-existing, unrelated to this change, and matches how this codebase already gates other
+owner-only actions (client-side only, e.g. the existing member-management `canManage` pattern) — so
+true server-side owner enforcement would need its own Part A sign-off if ever wanted; logged as a
+possible future hardening ticket, not fixed here. Independent review **APPROVED first pass** —
+traced owner-gating end-to-end (inert UI + a second guard inside the update function itself),
+verified the RLS claim directly against the migration file, traced `householdTimezone` through
+every `AppContext.tsx` load/adopt/rollback path for the state-desync bug class this repo has hit
+before (#74/#89/#90) and found no recurrence. `tsc` clean, lint matched baseline exactly (59/42 —
+note the real baseline is 42 warnings, not the 41 the last HANDOFF entry cited; corrected here).
+Labeled `needs-manual-test` (searchable dropdown + owner/member permission boundary). `v0.9.21` →
+`v0.9.22`, confirmed with Anthony before merge.
+
+**Slice 9 / #97 — notify-hour picker + payday/goal-milestone reminders, CLOSED, [PR #125](https://github.com/mp3anthony/funded/pull/125).**
+Each user sets their own "notify me around X o'clock" hour (`notify_hour`, new column on
+`notification_settings`, default 9am, no owner gate — every member sets their own). Two new
+reminder types added through the *existing* `generateReminders.ts` dedupe/mark-as-read machinery,
+left untouched, only extended: **payday "log your pay"** (fires once `next_pay_date` has
+arrived/passed and hasn't been logged, per-member like `lodge_payment`) and **goal/fund milestone
+reached** (25/50/75/100% of target, dedupe by fund+threshold so it fires once per threshold even on
+a balance jump that crosses two at once, household-wide like `manual_bill`/`auto_pay`). No prior
+"milestone" concept existed anywhere in the codebase — thresholds were a fresh call, **confirmed
+with Anthony before build** via a quick check-in. Both new types get their own toggle in the
+notification-bell settings panel, matching the existing 3-toggle pattern. **`notify_hour` is
+deliberately stored/readable/saveable only in this slice — not wired into any send-timing yet**
+(explicitly Slice 11/#96-half-B's job); confirmed by grep there are zero references to it in the
+cron route or client generator. Migration (3 additive columns, all `NOT NULL DEFAULT`, matching the
+table's existing convention) applied directly to prod Supabase by the Orchestrator (not the build
+sub-agent — Anthony confirmed the schema change first via a quick check-in, then the orchestrator
+ran `apply_migration` itself rather than delegating that specific step). Independent review
+**APPROVED first pass** — verified live against Supabase (constraint exists, current pay-schedule/
+fund data), traced the dedupe-key logic for the multi-threshold-jump edge case explicitly, confirmed
+`logPay()` advancing `next_pay_date` is what the reminder correctly re-derives "already logged"
+from (no separate drift-prone flag), confirmed both generators (client `useEffect` + server cron)
+updated consistently, confirmed the two-generator architecture itself was left untouched as scoped.
+**One pre-existing bug surfaced, not introduced here, just extended — logged for a follow-up, not
+fixed:** native push notifications' deep-link always points at `/bills?billId=...` regardless of
+notification type; was already wrong for `lodge_payment`, now also slightly wrong for the two new
+types when tapped from an actual push (in-app click-through in the bell panel is unaffected, already
+correctly gated). `tsc` clean, lint 59/42, unchanged. Labeled `needs-manual-test` (notify-hour
+picker UI). `v0.9.22` → `v0.9.23`, confirmed with Anthony before merge.
+
+**Workflow, consistent with Group 1/2:** build sub-agent → independent review sub-agent (never the
+builder) → push/PR/version-bump-confirm-with-Anthony → merge → `gh pr merge --delete-branch` →
+`git reset --hard origin/main` to sync local. Both slices APPROVED first pass, no rework rounds
+needed. **One new wrinkle worth remembering:** the harness's auto-mode safety classifier blocked an
+`Agent` spawn whose prompt told the sub-agent to apply a Supabase migration itself — had to split
+that pattern going forward: sub-agent writes the migration file only (does not call
+`apply_migration`), Orchestrator applies it directly via the Supabase MCP tool after getting
+Anthony's explicit sign-off on the schema change first. Worked cleanly once split this way; use the
+same split next time a build task includes both new app code and a migration.
+
+**Group 3's last piece, #96, deliberately left for next session** (Anthony's explicit call, to
+start it fresh) — see "→ START HERE NEXT SESSION" below.
 
 ## 2026-09-03 — Slice 15 / #114 in-app bug reporting built, reviewed, merged; Group 2 closed
 
@@ -565,30 +634,42 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 3: timezone (#37) → notifications (#97) → push (#96)
+## → START HERE NEXT SESSION — Group 3, last piece: #96 (push reliability, two halves)
 
-**Group 1 fully closed (Slices 1-7), Group 2 fully closed (Slice 14/#113 patch notes, Slice
-15/#114 bug reporting)** — full detail in the dated sections above. `v0.9.21` is live. Re-check
-`gh issue list --state open` at session start anyway (was 6 open issues as of this session's end:
-#99, #98, #97, #96, #88, #37 — #88 the only `needs-info`, correctly still open, blocked on people
-not a decision, no action needed on it).
+**Group 1 fully closed (Slices 1-7), Group 2 fully closed (Slices 14-15), Group 3 two-thirds closed
+(Slice 8/#37, Slice 9/#97)** — full detail in the dated sections above. `v0.9.23` is live. Re-check
+`gh issue list --state open` at session start anyway (was 5 open issues as of this session's end:
+#99, #98, #96, #88, #37 and #97 now closed — #88 the only `needs-info`, correctly still open,
+blocked on people not a decision, no action needed on it).
 
-**Group 3 is a sequential chain, build in this order** (per `SPEC.md` Part C):
-1. **#37** — per-household timezone settings screen. No dependencies, owner-only edit access
-   (decision already recorded on the issue).
-2. **#97** — notifications overhaul (delivery time, new reminder types). Depends on #37 landing
-   first. Decisions already recorded on the issue: one time-of-day picker per user, new reminder
-   types are payday "log your pay" + goal/fund milestone reached.
-3. **#96** — two independent halves: dead-subscription health-indicator UI (no dependency, can
-   build anytime) and per-timezone hourly cron (depends on **both** #37 and #97 landing).
+**#96 has two independent halves** (per `SPEC.md` Slices 10-11), both now unblocked:
+1. **Half A — dead-subscription health-indicator UI.** No dependency on anything, could build
+   first or in either order. Settings-screen indicator when the current device has no live push
+   subscription, plus a re-prompt path to re-grant/re-register without reinstalling. Touches native
+   permission APIs (`Notification.requestPermission`, push subscription lifecycle) — platform-
+   sensitive, label `needs-manual-test`.
+2. **Half B — per-timezone hourly cron.** Depends on **both** #37 and #97, which landed this
+   session. Switches the push-reminder cron from a fixed daily UTC run (`vercel.json`) to hourly,
+   each run checking every household's current local hour (via `todayInZone` + `households.timezone`
+   from #37) against each user's chosen `notify_hour` (from #97), sending only to matches. This is
+   the slice that actually makes #37/#97 affect real delivery timing — until this lands, both
+   settings exist and save correctly but don't yet change when anyone actually gets pushed.
+   `notify_hour` currently has zero references outside storage/display code (confirmed by grep this
+   session) — this is where that changes.
 
-Nothing left to scope for any of these — all three already went through the needs-info interview
-in an earlier session, decisions are recorded as comments on each issue. Go straight to build per
-the usual workflow: build sub-agent → independent review sub-agent (never the builder) →
-fix-and-re-review loop if NEEDS-REWORK → push/PR/version-bump-confirm-with-Anthony → route
-`needs-manual-test` or `needs-merge-approval` per whether the slice has a layout/platform-native
-surface → merge → `gh pr merge` (or `git reset --hard origin/main` if merged outside `gh`) to sync
-local `main`.
+**Decisions already recorded on the issue from an earlier needs-info interview** — go straight to
+build per the usual workflow, no scoping conversation needed: build sub-agent → independent review
+sub-agent (never the builder) → fix-and-re-review loop if NEEDS-REWORK → push/PR/version-bump-
+confirm-with-Anthony → route `needs-manual-test` or `needs-merge-approval` per surface → merge →
+`gh pr merge --delete-branch` → `git reset --hard origin/main` to sync local `main`.
+
+**Worth reading before starting Half B:** this session found the harness's auto-mode safety
+classifier blocks an `Agent` spawn if the prompt tells the sub-agent to apply a Supabase migration
+itself. Half B doesn't need a new migration (no schema change — `vercel.json`'s cron schedule + the
+existing `timezone`/`notify_hour` columns are enough), so this likely won't recur here, but if any
+future slice needs both new app code AND a migration in one build, split it: sub-agent writes the
+migration file only, Orchestrator applies it via the Supabase MCP tool directly after Anthony's
+sign-off — don't have the sub-agent call `apply_migration` itself.
 
 **One live-testing gap worth knowing about before touching #114's code again:** the bug-reporting
 GitHub-issue-creation path (screenshot upload → GitHub API call) was verified by independent code
