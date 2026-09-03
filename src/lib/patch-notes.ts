@@ -25,6 +25,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.27",
+    date: "September 2026",
+    highlights: [
+      "Notifications, notify time, and push status are now one \"Notifications\" row in Settings, instead of three separate ones.",
+      "Smoother animations throughout — dialogs, the dashboard health numbers, and expand/collapse sections all feel a bit more polished now.",
+    ],
+  },
+  {
     version: "0.9.23",
     date: "September 2026",
     highlights: [

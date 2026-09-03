@@ -12,10 +12,11 @@ import type { PushStatus } from "@/lib/pushClient";
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Slice 13 (#99): this device's push subscription health, lifted to
-   *  settings-client.tsx (single getPushStatus() check on mount) and passed
-   *  down so the merged panel's push-status row and the Settings row's
-   *  status dot both reflect the same state. */
+  /** Slice 13 (#99): this device's push subscription health, centralized in
+   *  AppContext (a single getPushStatus() check + auto-heal effect per
+   *  session, see review finding 1/2) and passed down so this component's
+   *  two mount points (AppShell's floating bell + settings-client.tsx) and
+   *  the Settings row's status dot all reflect the same shared state. */
   pushStatus: PushStatus | null;
   onPushStatusChange: (status: PushStatus) => void;
 }

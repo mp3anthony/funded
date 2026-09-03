@@ -12,7 +12,6 @@ import AvatarDropdown from "./AvatarDropdown";
 import NotificationCenter from "./NotificationCenter";
 import { Bell } from "lucide-react";
 import { useVisualViewportVars } from "@/hooks/useVisualViewportVars";
-import { getPushStatus, type PushStatus } from "@/lib/pushClient";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -41,25 +40,11 @@ function getSnoozedIds(): Record<string, number> {
 }
 
 function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMounted: boolean }) {
-  const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, notifications } = useApp();
+  const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, notifications, pushStatus, setPushStatus } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   const currentUser = useCurrentUser();
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
-  // Slice 13 (#99): NotificationCenter's merged Settings tab needs this
-  // device's push status too (same getPushStatus() check as
-  // settings-client.tsx) — this is the floating-bell entry point into the
-  // same component, so it needs its own copy of the same lifted state.
-  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    getPushStatus().then((status) => {
-      if (!cancelled) setPushStatus(status);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   const [snoozedIds, setSnoozedIds] = useState<Record<string, number>>({});
   // Start at 0 (not Date.now()) so static prerender doesn't read the current
   // time during render — cacheComponents forbids that outside a Suspense

@@ -100,6 +100,49 @@ export async function getPushStatus(): Promise<PushStatus> {
   }
 }
 
+/** Shared with subscribeToPush() below: POSTs a browser PushSubscription to
+ *  the server (idempotent upsert). */
+async function postSubscription(subscription: PushSubscription): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const response = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token ?? ''}`,
+    },
+    body: JSON.stringify(subscription),
+  });
+  return response.ok;
+}
+
+/* ── Auto-heal (originally in NotificationCenter.tsx, moved to
+   AppContext — see Slice 13/#99 review finding 1) ──────────────────
+   If this device's browser already has a live PushManager subscription,
+   silently re-POST it to the server on mount/session-ready, regardless of
+   whether the user ever opens any push-related UI. This repairs the
+   split-state where the browser subscription is still valid but the
+   server-side push_subscriptions row went missing/stale (delivery runs off
+   that table via pg_cron, per Slice 11) — no permission prompt, no user
+   action, and it never creates a NEW subscription (that's subscribeToPush's
+   job, triggered explicitly by the user). */
+export async function syncPushSubscriptionIfPresent(): Promise<boolean> {
+  if (!isPushSupported()) return false;
+  if (getPushPermissionState() !== 'granted') return false;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return false;
+    const ok = await postSubscription(subscription);
+    if (!ok) {
+      console.error('Failed to auto-sync push subscription: server returned a non-OK response');
+    }
+    return ok;
+  } catch (err) {
+    console.error('Failed to auto-sync push subscription:', err);
+    return false;
+  }
+}
+
 export async function subscribeToPush() {
   if (!isPushSupported()) {
     throw new Error('Push notifications are not supported in this browser.');
@@ -129,17 +172,8 @@ export async function subscribeToPush() {
   }
 
   // Send the subscription to our backend API route
-  const { data: { session } } = await supabase.auth.getSession();
-  const response = await fetch('/api/push/subscribe', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session?.access_token ?? ''}`,
-    },
-    body: JSON.stringify(subscription),
-  });
-
-  if (!response.ok) {
+  const ok = await postSubscription(subscription);
+  if (!ok) {
     throw new Error('Failed to save push subscription to the server.');
   }
 

@@ -30,7 +30,6 @@ import TimezoneDialog from "@/components/TimezoneDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
-import { getPushStatus, type PushStatus } from "@/lib/pushClient";
 import { type Member } from "@/types";
 
 /* ── Page Component ──────────────────────────── */
@@ -55,6 +54,8 @@ export default function SettingsClient() {
     codeExpiresAt,
     regenerateJoinCode,
     notificationSettings,
+    pushStatus,
+    setPushStatus,
     leaveHousehold,
     deleteHousehold,
   } = useApp();
@@ -76,21 +77,6 @@ export default function SettingsClient() {
   const [showJoinCodeDialog, setShowJoinCodeDialog] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
   const [showTimezoneDialog, setShowTimezoneDialog] = useState(false);
-
-  /* Slice 10 (#96 half A): this device's push subscription health. Checked
-     once on mount (permission + a live push_subscriptions row for this
-     endpoint) — see getPushStatus() in @/lib/pushClient. null while loading
-     so the Row doesn't flash a wrong state before the check resolves. */
-  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    getPushStatus().then((status) => {
-      if (!cancelled) setPushStatus(status);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   /* Member management modals */
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
