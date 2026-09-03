@@ -1,10 +1,10 @@
 # Handoff
 
-**Last updated:** 2026-09-03 — **Group 3 is fully closed.** #96 (push reliability, both halves)
-built, reviewed, tested, and merged this session — [PR #126](https://github.com/mp3anthony/funded/pull/126)
-and [PR #128](https://github.com/mp3anthony/funded/pull/128). `v0.9.23` → `v0.9.26`. **Group 3 is
-now entirely done (#37, #97, #96 all closed).** Only Group 4 remains: #99 (motion overhaul) and #98
-(bills vs expenses split) — see "→ START HERE NEXT SESSION" below.
+**Last updated:** 2026-09-03 (Group 4 session) — **Slice 13 (#99, first half) built, reviewed,
+NOT YET MERGED** — [PR #129](https://github.com/mp3anthony/funded/pull/129), labeled
+`needs-manual-test`, awaiting Anthony's on-device pass overnight. `v0.9.26` → `v0.9.27` (version
+confirmed, not yet merged so not yet live). See "→ START HERE NEXT SESSION" below for exactly
+where this picks back up.
 
 **Critical infra gotcha discovered this session, read before touching ANY Vercel cron work again:**
 this project is on **Vercel's Hobby plan**, which only permits cron jobs to run **once per day**.
@@ -23,6 +23,105 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-03 (Group 4 session) — Slice 13 (#99) designed live via the design canvas skill, built, reviewed, PR open awaiting on-device test
+
+Picked up exactly where the prior HANDOFF pointed ("START HERE NEXT SESSION — Group 4: #99 and
+#98"). Anthony asked to use the `design` canvas skill to work through #99's visual decisions live
+before building, rather than building straight from the research doc's recorded direction.
+
+**Design phase, done live with Anthony via the `design`/`artifact-capabilities` skills, not
+pre-decided:**
+- Built a multi-artboard canvas (published as a Claude Artifact) covering two things: the Settings
+  notification-row consolidation (already scoped as an out-of-spec fold-in to this slice, direction
+  left open — "single entry point" vs. "sub-heading grouping") and the #99 motion pass itself
+  (mood/direction already decided in `research/issue-99-100-motion-dashboard-research.md`, but the
+  *concrete* execution — actual duration/easing values, exact entrance animation, dashboard
+  count-up feel — was not).
+- **Notifications**: showed today's baseline plus both directions side by side; Anthony picked the
+  single-entry-point option, then went further mid-review — pointed out that the real app *already*
+  has two separate activation controls (the `all_enabled` toggle inside the old Notifications
+  dialog, and a separate "Enable push notifications" button inside the old Push notifications
+  dialog) for what's really one concern, and asked for them merged to exactly one switch. This is a
+  real functional change, not just IA — flagged to Anthony as exceeding the slice's original
+  "presentation only" framing; he confirmed proceeding under this slice rather than a separate
+  ticket. Recorded in `SPEC.md`'s Slice 13 section (see that file for the full decision writeup)
+  before building. One build-fix round on the mockup itself: a CSS `all: unset` reset had silently
+  eaten a row's layout on the first pass (Anthony caught it from a screenshot) — traced and fixed
+  before building for real.
+- **Motion**: built live/interactive artboards (not just static pictures) so Anthony could actually
+  trigger the animations rather than read descriptions — a motion-token legend (durations +
+  easing curve, auto-looping demo bars), a working Dialog-entrance replica (tap to open/close, real
+  CSS animation), a dashboard stat-tile replica (count-up + tier-color-cycle buttons), and (added
+  after Anthony asked "how exactly does the dashboard have motion" — a good sign the first pass
+  under-explained what was real app behavior vs. demo-only controls) an expand/collapse replica.
+  One real bug hit mid-session: the interactive artboards' buttons didn't respond at first — root
+  cause was a missing `is_interactive: true` flag in the canvas layout manifest, not a code problem;
+  fixed by setting it on the three interactive artboards. Anthony also caught a design mismatch on
+  the dashboard tile mockup (an outer bordered box that doesn't exist in the real
+  `HealthScoreCard.tsx`, which is borderless with just a hairline top-rule per cell) — fixed by
+  re-reading the real component and matching it exactly rather than inventing a container.
+
+**Build, review, fix-and-re-review — same pattern as every prior slice:**
+- Build sub-agent implemented all of: motion tokens in `globals.css`; the `tailwindcss-animate`
+  install fix (a real pre-existing bug — 10 files reference `animate-in`/`fade-in`/`zoom-in`
+  classes from a package that was never installed, silent no-ops app-wide including the shared
+  `Dialog.tsx` modal shell); bespoke entrance motion on `Dialog.tsx` matching the exact
+  canvas-approved values; the Settings notifications merge; and `HealthScoreCard.tsx` motion
+  (count-up, tier-color transition onto the new token scale, real expand/collapse height
+  animation). Explicitly kept in scope per `SPEC.md`'s "polish pass, not a rebuild" framing — no
+  page-transition wrapper, no skeleton states, no celebration/confetti moments, despite the
+  ticket's broad title.
+- **First independent review: NEEDS-REWORK, two real regressions** (not style nits) — both in the
+  exact race/state-desync bug class this repo has hit before (#74/#89/#90): (1) the builder had
+  *deleted* an existing unconditional push-subscription auto-heal effect (from commit `a2400c6`,
+  comment "Auto-sync the subscription to the server in case of a split-state") while merging the
+  notifications panel, replacing automatic self-healing with an on-demand-only fix the user has to
+  notice and act on — a real behavior downgrade the spec's "just relocate the button" framing
+  didn't authorize; (2) `AppShell.tsx`'s floating-bell `NotificationCenter` and the Settings-page
+  one ended up with two independent, unsynced copies of `pushStatus` state, so a re-enable via one
+  wouldn't update the other while both were mounted (e.g. on the Settings page itself).
+- **Fix, same builder (full context)**: restored the auto-heal as a new
+  `syncPushSubscriptionIfPresent()` helper, invoked from a session-keyed effect now living in
+  `AppContext.tsx` — runs unconditionally per signed-in session, not gated behind any dialog;
+  centralized `pushStatus` into `AppContext` too (same pattern `notificationSettings` already used),
+  removing both components' local copies. Added a `0.9.27` patch-notes entry while in there (a
+  reviewer nit, non-blocking, done anyway).
+- **Fresh reviewer (not the builder, not the one who found the bugs) verified the fix round**:
+  traced both fixes end-to-end against the actual diff (not just re-reading the builder's prose),
+  independently re-ran `tsc`/`lint`/`build`, and proactively checked a *new* question the first
+  review didn't need to ask — since `pushStatus` moved into `AppContext`, does it correctly avoid
+  leaking a previous user's push status across a same-tab account switch? Answer: no synchronous
+  reset on sign-out, but the only account-specific field (`hasLiveSubscription`) gets overwritten
+  once the effect's next `getPushStatus()` resolves — a brief, low-severity async window matching
+  this codebase's existing "next load overwrites" pattern for other per-user state, not a new class
+  of bug. Verdict: **APPROVED**. `tsc` clean, lint 58 errors/42 warnings (one *fewer* error than the
+  59/42 baseline — a dead `any`-typed catch block was removed along the way), `build` clean.
+
+**Pushed as [PR #129](https://github.com/mp3anthony/funded/pull/129), NOT merged this session** —
+Anthony's explicit call to end the session here and test on-device overnight rather than merge
+blind. Vercel preview deployment confirmed green via `gh pr checks`. Labeled `needs-manual-test`
+(visual/motion, per `SPEC.md`'s testing note for this slice) with a 5-item checklist handed to
+Anthony covering: Dialog entrance animation, the one-row/one-panel/one-switch Settings structure,
+the push-status row showing real state, dashboard count-up on a fresh load, and the Health section's
+expand/collapse. Two things flagged as **not** manually testable and only code-verified: the
+tier-color transition (nothing forces a real threshold crossing on demand) and the push auto-heal
+fix (a background self-sync with no visible UI). `v0.9.26` → `v0.9.27`, version confirmed with
+Anthony before the PR was opened — **not live in production until this merges.**
+
+**Impeccable skill touched this session, not yet used for real work**: updated to the latest
+version (`npx impeccable update`, effect applies next session, not this one — installed v4.0.4 →
+latest v4.1.3 queued). Anthony's explicit call: hold the first real `$impeccable init` → full-app
+`critique`/`audit` pass until *after* this Slice 13 work is merged, so it reviews the finished state
+rather than a moving target — don't jump into that unprompted next session either, wait for him to
+raise it. Also clarified for Anthony: Impeccable is a design/UX-craft tool (visual quality, a11y,
+motion, layout), not a substitute for this project's existing `code-review` skill (Standards + Spec
+review) — the two are complementary, not either/or; `code-review` stays the tool for reviewing
+diffs against repo conventions and ticket scope going forward, same as always.
+
+**#98 (bills vs expenses split) — untouched this session**, still exactly where Group 4's prior
+note left it: `ready-for-agent`, decisions recorded on the issue, recommend sub-slicing it further
+at its own kickoff rather than one PR.
 
 ## 2026-09-03 (continued) — Slice 10/11 (#96, push reliability) built, reworked mid-session after a real production-deploy discovery, merged; Group 3 fully closed
 
@@ -742,30 +841,42 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 4: #99 (motion overhaul) and #98 (bills vs expenses split)
+## → START HERE NEXT SESSION — Group 4: finish #99 (PR #129 needs Anthony's on-device pass), then #98
 
 **Groups 1-3 are all fully closed** (Slices 1-15 plus #96's rework) — full detail in the dated
-sections above. `v0.9.26` is live in production, confirmed working end-to-end (real push delivered
-through the new `pg_cron` pipeline, verified live, not just code-reviewed). Re-check
-`gh issue list --state open` at session start anyway (was 3 open issues as of this session's end:
-#99, #98, #88 — #88 the only `needs-info`, correctly still open, blocked on people not a decision,
-no action needed on it).
+sections above. `v0.9.26` was live in production as of that point, confirmed working end-to-end.
 
-**Only Group 4 remains** (per `SPEC.md` Part C):
-1. **#99 — dynamic visual/motion overhaul.** Whole-app polish pass, premium-minimal mood (Copilot
-   Money as reference), not a structural design-system rebuild. Includes fixing the
-   `tailwindcss-animate` install gap found during research (currently a no-op despite `animate-in`/
-   `fade-in`/`zoom-in` classes already being used in 10 files, including the shared `Dialog.tsx`
-   modal shell). Decisions already recorded on the issue from the needs-info interview, plus a full
-   research writeup at `research/issue-99-100-motion-dashboard-research.md` — go straight to build,
-   no re-scoping needed. Recommend pulling the `tailwindcss-animate` fix forward as its own small
-   quick-fix slice ahead of the full motion pass, per the standing Part C recommendation.
-2. **#98 — bills vs expenses split.** The largest, most structurally involved slice in the whole
-   spec — a real schema change (new `expenses` table), touches the weekly-draw calculation (#106)
-   directly, and Direct Pay gets a new %-split-or-whole-item pattern for expenses. Already
-   `ready-for-agent` with decisions recorded on the issue, but **recommend sub-slicing it further at
-   its own kickoff** rather than building as one PR — see the issue/`SPEC.md` Slice 12 section for
-   the full decision writeup before starting.
+**#99's build is done and reviewed, sitting in [PR #129](https://github.com/mp3anthony/funded/pull/129)
+unmerged** — full detail in the "Slice 13 (#99) designed live via the design canvas skill" section
+just above. Anthony is testing on-device overnight; do NOT re-open the design/scoping conversation
+or re-build anything next session unless he reports a problem. If he approves:
+1. Confirm the 5-item manual checklist passed (Dialog entrance, one-row/one-panel/one-switch
+   Settings structure, push-status row, dashboard count-up, Health expand/collapse).
+2. Merge normally: `gh pr merge 129 --squash --delete-branch`, then
+   `git reset --hard origin/main` to sync local `main` (not `git pull`).
+3. Verify the Vercel production deployment actually completed post-merge (`list_deployments`/
+   `get_deployment` via the Vercel MCP tools, target: "production", state: "READY") — standing
+   practice from the #96 half-B incident, not specific to this PR, but worth the 30 seconds anyway
+   since this is the first merge since that lesson was written down.
+4. Close issue #99 (the PR does this automatically on merge if it's linked — confirm it actually
+   did rather than assuming).
+
+If Anthony reports a bug: this went through one fix-and-re-review round already (see the dated
+section above for exactly what was checked) — don't re-litigate the parts that already passed two
+independent reviews (motion tokens, `Dialog.tsx` entrance values, dashboard motion, the one-switch
+panel structure, `tailwindcss-animate` wiring). Scope any fix narrowly to whatever he actually hit.
+
+**After #99 merges, only #98 remains** (per `SPEC.md` Part C):
+- **#98 — bills vs expenses split.** The largest, most structurally involved slice in the whole
+  spec — a real schema change (new `expenses` table), touches the weekly-draw calculation (#106)
+  directly, and Direct Pay gets a new %-split-or-whole-item pattern for expenses. Already
+  `ready-for-agent` with decisions recorded on the issue, but **recommend sub-slicing it further at
+  its own kickoff** rather than building as one PR — see the issue/`SPEC.md` Slice 12 section for
+  the full decision writeup before starting.
+
+Re-check `gh issue list --state open` at session start regardless (was 3 open as of this session's
+end: #99 — will auto-close on the PR #129 merge, #98, #88 — #88 the only `needs-info`, correctly
+still open, blocked on people not a decision, no action needed on it).
 
 **Workflow, unchanged**: build sub-agent → independent review sub-agent (never the builder) →
 fix-and-re-review loop if NEEDS-REWORK → push/PR/version-bump-confirm-with-Anthony → route
