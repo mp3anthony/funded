@@ -43,6 +43,63 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+/* ── Slice 10 (#96 half A): dead-subscription detection ──────────
+   Settings needs to know whether THIS device currently has a live push
+   subscription, distinguishing two failure modes:
+     - permission was never granted (or was revoked) — Notification.permission
+       isn't 'granted'.
+     - permission is granted, but there's no push_subscriptions row for this
+       device's current endpoint — the browser subscription and/or its DB
+       row expired or was invalidated (the common iOS case per #96). */
+
+export type PushStatus = {
+  supported: boolean;
+  permission: NotificationPermission;
+  /** True only when permission is granted AND a matching push_subscriptions
+   *  row exists for this device's current endpoint. */
+  hasLiveSubscription: boolean;
+};
+
+export async function getPushStatus(): Promise<PushStatus> {
+  const supported = isPushSupported();
+  const permission = getPushPermissionState();
+
+  if (!supported || permission !== "granted") {
+    return { supported, permission, hasLiveSubscription: false };
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      return { supported, permission, hasLiveSubscription: false };
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) {
+      return { supported, permission, hasLiveSubscription: false };
+    }
+
+    const { data, error } = await supabase
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("endpoint", subscription.endpoint)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error checking push subscription status:", error);
+      return { supported, permission, hasLiveSubscription: false };
+    }
+
+    return { supported, permission, hasLiveSubscription: !!data };
+  } catch (err) {
+    console.error("Error checking push subscription status:", err);
+    return { supported, permission, hasLiveSubscription: false };
+  }
+}
+
 export async function subscribeToPush() {
   if (!isPushSupported()) {
     throw new Error('Push notifications are not supported in this browser.');

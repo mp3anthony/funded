@@ -28,9 +28,11 @@ import EditMemberModal from "@/components/EditMemberModal";
 import NotificationCenter from "@/components/NotificationCenter";
 import TimezoneDialog from "@/components/TimezoneDialog";
 import NotifyHourDialog from "@/components/NotifyHourDialog";
+import PushStatusDialog from "@/components/PushStatusDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import { getPushStatus, type PushStatus } from "@/lib/pushClient";
 import { type Member } from "@/types";
 
 /* ── Page Component ──────────────────────────── */
@@ -79,6 +81,22 @@ export default function SettingsClient() {
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
   const [showTimezoneDialog, setShowTimezoneDialog] = useState(false);
   const [showNotifyHourDialog, setShowNotifyHourDialog] = useState(false);
+  const [showPushStatusDialog, setShowPushStatusDialog] = useState(false);
+
+  /* Slice 10 (#96 half A): this device's push subscription health. Checked
+     once on mount (permission + a live push_subscriptions row for this
+     endpoint) — see getPushStatus() in @/lib/pushClient. null while loading
+     so the Row doesn't flash a wrong state before the check resolves. */
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getPushStatus().then((status) => {
+      if (!cancelled) setPushStatus(status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* Member management modals */
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
@@ -301,6 +319,19 @@ export default function SettingsClient() {
           chevron
           onClick={() => setShowAppearanceDialog(true)}
         />
+        {pushStatus && pushStatus.supported && (
+          <Row
+            label="Push notifications"
+            chevron
+            onClick={() => setShowPushStatusDialog(true)}
+          >
+            {pushStatus.hasLiveSubscription ? (
+              <span className="font-mono text-[13px] text-muted">Active</span>
+            ) : (
+              <span className="font-mono text-xs font-semibold text-accent">Not active here</span>
+            )}
+          </Row>
+        )}
       </section>
 
       {/* ── Household ────────────────────────────── */}
@@ -665,6 +696,16 @@ export default function SettingsClient() {
         currentHour={notificationSettings?.notify_hour ?? 9}
         onSave={(hour) => updateNotificationSettings({ notify_hour: hour })}
       />
+
+      {/* Push notification health (Slice 10, #96 half A) */}
+      {pushStatus && (
+        <PushStatusDialog
+          isOpen={showPushStatusDialog}
+          onClose={() => setShowPushStatusDialog(false)}
+          status={pushStatus}
+          onStatusChange={setPushStatus}
+        />
+      )}
 
       {/* Reused sheets & member modals */}
       <RemoveMemberModal
