@@ -507,6 +507,17 @@ are popping in with zero animation today despite the code looking animated.
   combines a swipeable carousel with a gauge for live stat tiles; keep the
   existing 4-tile grid, add number count-up/transition polish only (lowest-
   risk of the three options the research laid out).
+- **Settings "App" section notification-row consolidation folded in here**
+  (out-of-spec item, 2026-09-03, Anthony's explicit call to fold it into this
+  slice rather than run it separately): `Notifications` (on/off toggle),
+  `Notify me at` (delivery hour, #97), and `Push notifications` (device
+  subscription status, #96) grew independently across two sessions and now
+  read as three disconnected rows for what feels like one concern. Not a
+  bug — an IA/grouping pass: consolidate into a clearer single entry point
+  or visually group the three under one sub-heading, whichever the design
+  pass lands on. No functional/behavioral change to any of the three
+  underlying features (toggle, hour picker, re-enable flow) — presentation
+  only.
 
 **Recommendation:** the `tailwindcss-animate` install fix itself is cheap,
 self-contained, and fixes an already-broken feature — worth pulling forward
