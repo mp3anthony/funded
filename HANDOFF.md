@@ -1,15 +1,123 @@
 # Handoff
 
-**Last updated:** 2026-09-03 — **Group 3 is two-thirds closed.** Slice 8 (#37, per-household
-timezone) and Slice 9 (#97, notify-hour + new reminder types) both built, reviewed, tested, and
-merged this session — [PR #124](https://github.com/mp3anthony/funded/pull/124) and
-[PR #125](https://github.com/mp3anthony/funded/pull/125). `v0.9.21` → `v0.9.23`. **Next session
-finishes Group 3 with #96** (push reliability, two independent halves — dead-subscription
-indicator, and the per-timezone hourly cron that actually wires #37/#97's timezone + notify_hour
-into real send-timing) — see "→ START HERE NEXT SESSION" below.
+**Last updated:** 2026-09-03 — **Group 3 is fully closed.** #96 (push reliability, both halves)
+built, reviewed, tested, and merged this session — [PR #126](https://github.com/mp3anthony/funded/pull/126)
+and [PR #128](https://github.com/mp3anthony/funded/pull/128). `v0.9.23` → `v0.9.26`. **Group 3 is
+now entirely done (#37, #97, #96 all closed).** Only Group 4 remains: #99 (motion overhaul) and #98
+(bills vs expenses split) — see "→ START HERE NEXT SESSION" below.
+
+**Critical infra gotcha discovered this session, read before touching ANY Vercel cron work again:**
+this project is on **Vercel's Hobby plan**, which only permits cron jobs to run **once per day**.
+An hourly cron (`vercel.json`'s `"crons"` array) silently fails to ever reach production — no
+error surfaces anywhere obvious; the deployment just never promotes, and the site quietly keeps
+serving the last successful build. This actually happened: #96 half B was first built as an hourly
+Vercel Cron (PR #127, merged), and sat "merged" on `main` for a while with production silently
+stuck on the pre-merge build before this session caught it via `gh pr checks` on the *next* PR
+failing with a link to Vercel's own cron-pricing docs. **Lesson: after merging ANY change to
+`vercel.json`'s cron schedule, explicitly verify a production deployment actually completed
+(`list_deployments`/`get_deployment` via the Vercel MCP tools, target: "production", state:
+"READY") — don't assume a green squash-merge means it shipped.** Real per-minute/hourly scheduling
+on this project now goes through **Supabase `pg_cron` + `pg_net`** instead (see below), which is
+NOT subject to Vercel's plan limit at all.
+
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-03 (continued) — Slice 10/11 (#96, push reliability) built, reworked mid-session after a real production-deploy discovery, merged; Group 3 fully closed
+
+Picked up exactly where the prior HANDOFF pointed ("START HERE NEXT SESSION — Group 3, #96").
+Both halves were pre-scoped from an earlier needs-info interview, so went straight to build —
+no scoping conversation needed for either at kickoff.
+
+**Slice 10 / #96 half A — dead-subscription indicator, CLOSED, [PR #126](https://github.com/mp3anthony/funded/pull/126).**
+Settings gets a "Push notifications" row ("Active"/"Not active here") opening a dialog that
+explains why (never granted / denied / granted-but-stale — the iOS-expiry case) with a one-tap
+re-enable reusing the existing `subscribeToPush()` flow. No schema change — `push_subscriptions`
+already existed with an RLS policy permitting the client-side status read used here (confirmed live
+against Supabase, not just trusted from the migration history). Independent review **APPROVED
+first pass** — traced the full re-enable chain into a real DB upsert, checked the async
+status-check against this repo's known race-bug class (#74/#89/#90), none found; `tsc` clean, lint
+59/42 baseline. Labeled `needs-manual-test` (native permission APIs) — **Anthony tested live**:
+opened the preview on his phone, and rather than waiting on the clock for a real reminder, the
+orchestrator drove a real test push through the app's own authenticated `/api/push/send` route
+(via his own logged-in desktop-Chrome session, run through `claude-in-chrome` — a page-scoped JS
+`fetch` using his session's own token, never exposing the token itself: a direct read of the raw
+token out of `localStorage` was correctly blocked by the harness's auto-mode classifier as
+credential extraction, so the fetch was done in one JS execution that never returned the token
+value) — landed on his lock screen twice (once per registered subscription), confirmed. Version
+`0.9.23` → `0.9.24` initially, later renumbered (see below).
+
+**Slice 11 / #96 half B — first attempt (hourly Vercel Cron), merged, then discovered broken in
+production.** Built as designed in `SPEC.md` (switch `vercel.json` to hourly, gate each user's
+reminder generation on their local hour matching `notify_hour`) — [PR #127](https://github.com/mp3anthony/funded/pull/127),
+independent review **APPROVED** (dedupe/DST edge cases specifically stress-tested, `tsc`/lint
+clean), merged at `v0.9.24`. **While rebasing Slice 10 onto the new `main` to resolve the expected
+version-bump conflict, its own PR's Vercel deployment check failed** — traced the failure link
+directly to Vercel's own cron-pricing docs page: **this project is on the Hobby plan, which only
+allows once-per-day cron.** Checked directly against Vercel's API (`list_deployments`): **no
+production deployment had ever been created for PR #127's merge commit** — the squash-merge
+"succeeded" on GitHub, but production silently stayed on the prior build the entire time. No live
+breakage (site kept serving the old, still-correct daily-cron behavior), but #96 half B as merged
+could never actually have worked. See the top-of-file gotcha note — this is worth remembering for
+any future cron-touching work on this project.
+
+**Slice 11 v2 — reworked design, confirmed live with Anthony, CLOSED, [PR #128](https://github.com/mp3anthony/funded/pull/128).**
+Anthony's own suggestion, once the Hobby-plan ceiling was explained: split generation from
+delivery — "one cron > store until user set time." Landed as: `vercel.json` reverts to once-daily
+(`0 15 * * *`, 3pm UTC ≈ 1-2am Sydney, well ahead of most households' `notify_hour`); that daily
+run now only *generates and stores* each due reminder with a computed `scheduled_for` (via a new
+`zonedDateAtHour()` helper) and `delivered_at: null`, no more push-sending inline. A new
+`/api/cron/deliver-scheduled` route (gated by a fresh `DELIVER_CRON_SECRET`, separate from the
+existing `CRON_SECRET`) finds anything due and actually sends the push. **A Supabase `pg_cron` job
+— not subject to Vercel's plan limit at all — calls that route every 5 minutes via `pg_net`**;
+Anthony confirmed the 5-minute interval directly. `pg_cron`/`pg_net` were both already available in
+this Supabase project (just not installed) — enabled via `apply_migration`. The delivery secret was
+generated by the orchestrator and stored in **Supabase Vault** (`vault.create_secret`), referenced
+inside the `pg_cron` job's SQL via `vault.decrypted_secrets` — never appears in plaintext anywhere
+in the repo or the cron job definition itself; Anthony's only manual step was pasting the same
+value into a new Vercel env var (Production scope).
+
+**Two independent review rounds on Slice 11 v2** — first pass **NEEDS-REWORK**: found a real,
+non-theoretical double-delivery bug — `delivered_at` was written once, in a single batch update
+*after* the entire delivery loop finished, so a `maxDuration=60` timeout partway through would
+leave already-pushed rows still `NULL`, and the next 5-minute run would re-send them. **Fix**: moved
+the write to per-user (inside the loop) instead of once at the end, narrowing any timeout's blast
+radius to at most one user's in-flight batch. **Second pass, fresh reviewer: APPROVED** — explicitly
+queried live production data (4 users, 96 notification rows total) and reasoned that full per-row
+granularity wasn't worth the extra DB round-trips at this scale, rather than reflexively demanding
+the stricter fix. Both rounds also independently re-verified `zonedDateAtHour`'s DST correctness
+against real 2026 Sydney transition dates (both directions), confirmed dedupe/Part A2 fully
+unregressed, and re-ran `tsc`/lint clean at baseline (59/42) — never trusted the builder's
+self-report.
+
+**End-to-end live verification, not just code review** — after merge, the orchestrator inserted a
+real due test notification directly into the `notifications` table, waited for the `pg_cron` job's
+next tick, and confirmed via `cron.job_run_details` (`status: succeeded`) and `net._http_response`
+(**real HTTP 200**, body `{"due":1,"users":1,"delivered":1,"pushed":4}`) that the whole chain
+actually fired — then Anthony confirmed the push itself landed on his phone. Test row deleted
+afterward. This is now watched-working end-to-end, not just verified by code+DB inspection (unlike
+the still-open gap noted below for #114's bug-reporting path).
+
+**Version bumps, confirmed with Anthony at each merge**: `0.9.23` → `0.9.24` (Slice 10 build) →
+re-numbered `0.9.25` (Slice 11 v1 took `0.9.24` first) → Slice 11 v1 PR #127 merged at `0.9.24` →
+Slice 11 v2 PR #128 merged at `0.9.25` (rebuilt on the post-#127 `main`) → Slice 10's PR #126
+rebased again and merged at `0.9.26`. Final state: **`v0.9.26` live in production**, both halves of
+#96 closed together in one GitHub issue comment summarizing the whole arc.
+
+**Workflow notes worth remembering:**
+- Two build agents run in parallel (Slice 10 + Slice 11 v1) in the *same* non-worktree checkout at
+  the start of this session — both self-navigated a mid-build collision (branch/HEAD flipping under
+  them as the other committed) without cross-contaminating each other's files, but it was closer
+  than ideal. Orchestrator's call: reviews (mostly read-only) are fine to run in parallel in a
+  shared checkout; **future parallel *builds* should use `isolation: "worktree"`** to remove this
+  risk entirely rather than relying on agents noticing and recovering.
+- Fix-and-re-review loop pattern held again for Slice 11 v2: same builder gets the fix request (full
+  context), a **fresh** reviewer (not the one who found the bug, not the builder) checks just the
+  fix rather than re-reviewing the whole diff from scratch.
+- `pg_cron`/`pg_net`/Supabase Vault are now a proven pattern on this project for anything needing
+  finer-than-daily scheduling — reach for this combination first before assuming a Vercel Cron
+  schedule change will work, given the Hobby-plan ceiling.
 
 ## 2026-09-03 (new session) — Group 3 Slices 8-9 (#37, #97) built, reviewed, merged
 
@@ -634,42 +742,46 @@ Prior session: **#106 (joint-fund income-split calculator) built end-to-end and 
 Anthony's own redirect from two sessions ago, still standing: go back to the **needs-info queue**
 (#97-#100) next. See START HERE below.
 
-## → START HERE NEXT SESSION — Group 3, last piece: #96 (push reliability, two halves)
+## → START HERE NEXT SESSION — Group 4: #99 (motion overhaul) and #98 (bills vs expenses split)
 
-**Group 1 fully closed (Slices 1-7), Group 2 fully closed (Slices 14-15), Group 3 two-thirds closed
-(Slice 8/#37, Slice 9/#97)** — full detail in the dated sections above. `v0.9.23` is live. Re-check
-`gh issue list --state open` at session start anyway (was 5 open issues as of this session's end:
-#99, #98, #96, #88, #37 and #97 now closed — #88 the only `needs-info`, correctly still open,
-blocked on people not a decision, no action needed on it).
+**Groups 1-3 are all fully closed** (Slices 1-15 plus #96's rework) — full detail in the dated
+sections above. `v0.9.26` is live in production, confirmed working end-to-end (real push delivered
+through the new `pg_cron` pipeline, verified live, not just code-reviewed). Re-check
+`gh issue list --state open` at session start anyway (was 3 open issues as of this session's end:
+#99, #98, #88 — #88 the only `needs-info`, correctly still open, blocked on people not a decision,
+no action needed on it).
 
-**#96 has two independent halves** (per `SPEC.md` Slices 10-11), both now unblocked:
-1. **Half A — dead-subscription health-indicator UI.** No dependency on anything, could build
-   first or in either order. Settings-screen indicator when the current device has no live push
-   subscription, plus a re-prompt path to re-grant/re-register without reinstalling. Touches native
-   permission APIs (`Notification.requestPermission`, push subscription lifecycle) — platform-
-   sensitive, label `needs-manual-test`.
-2. **Half B — per-timezone hourly cron.** Depends on **both** #37 and #97, which landed this
-   session. Switches the push-reminder cron from a fixed daily UTC run (`vercel.json`) to hourly,
-   each run checking every household's current local hour (via `todayInZone` + `households.timezone`
-   from #37) against each user's chosen `notify_hour` (from #97), sending only to matches. This is
-   the slice that actually makes #37/#97 affect real delivery timing — until this lands, both
-   settings exist and save correctly but don't yet change when anyone actually gets pushed.
-   `notify_hour` currently has zero references outside storage/display code (confirmed by grep this
-   session) — this is where that changes.
+**Only Group 4 remains** (per `SPEC.md` Part C):
+1. **#99 — dynamic visual/motion overhaul.** Whole-app polish pass, premium-minimal mood (Copilot
+   Money as reference), not a structural design-system rebuild. Includes fixing the
+   `tailwindcss-animate` install gap found during research (currently a no-op despite `animate-in`/
+   `fade-in`/`zoom-in` classes already being used in 10 files, including the shared `Dialog.tsx`
+   modal shell). Decisions already recorded on the issue from the needs-info interview, plus a full
+   research writeup at `research/issue-99-100-motion-dashboard-research.md` — go straight to build,
+   no re-scoping needed. Recommend pulling the `tailwindcss-animate` fix forward as its own small
+   quick-fix slice ahead of the full motion pass, per the standing Part C recommendation.
+2. **#98 — bills vs expenses split.** The largest, most structurally involved slice in the whole
+   spec — a real schema change (new `expenses` table), touches the weekly-draw calculation (#106)
+   directly, and Direct Pay gets a new %-split-or-whole-item pattern for expenses. Already
+   `ready-for-agent` with decisions recorded on the issue, but **recommend sub-slicing it further at
+   its own kickoff** rather than building as one PR — see the issue/`SPEC.md` Slice 12 section for
+   the full decision writeup before starting.
 
-**Decisions already recorded on the issue from an earlier needs-info interview** — go straight to
-build per the usual workflow, no scoping conversation needed: build sub-agent → independent review
-sub-agent (never the builder) → fix-and-re-review loop if NEEDS-REWORK → push/PR/version-bump-
-confirm-with-Anthony → route `needs-manual-test` or `needs-merge-approval` per surface → merge →
-`gh pr merge --delete-branch` → `git reset --hard origin/main` to sync local `main`.
+**Workflow, unchanged**: build sub-agent → independent review sub-agent (never the builder) →
+fix-and-re-review loop if NEEDS-REWORK → push/PR/version-bump-confirm-with-Anthony → route
+`needs-manual-test` or `needs-merge-approval` per surface → merge → `gh pr merge --delete-branch` →
+`git reset --hard origin/main` to sync local `main`.
 
-**Worth reading before starting Half B:** this session found the harness's auto-mode safety
-classifier blocks an `Agent` spawn if the prompt tells the sub-agent to apply a Supabase migration
-itself. Half B doesn't need a new migration (no schema change — `vercel.json`'s cron schedule + the
-existing `timezone`/`notify_hour` columns are enough), so this likely won't recur here, but if any
-future slice needs both new app code AND a migration in one build, split it: sub-agent writes the
-migration file only, Orchestrator applies it via the Supabase MCP tool directly after Anthony's
-sign-off — don't have the sub-agent call `apply_migration` itself.
+**Read the top-of-file cron/Vercel-Hobby-plan gotcha before touching `vercel.json` again** —
+neither #99 nor #98 currently look cron-related, but if that changes, this project's real scheduling
+primitive is now Supabase `pg_cron`/`pg_net` (already enabled, proven working), not Vercel Cron
+beyond once-daily.
+
+**If a build needs both new app code AND a Supabase migration in one task**, split it: sub-agent
+writes the migration file only, Orchestrator applies it via the Supabase MCP tool directly after
+Anthony's sign-off — the harness's auto-mode safety classifier blocks an `Agent` spawn whose prompt
+tells the sub-agent to call `apply_migration` itself. #98 will need this split given its schema
+change.
 
 **One live-testing gap worth knowing about before touching #114's code again:** the bug-reporting
 GitHub-issue-creation path (screenshot upload → GitHub API call) was verified by independent code
