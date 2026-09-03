@@ -1,9 +1,50 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { calculateHealthScore, convertAmount } from "@/lib/utils";
+
+/* ── Slice 13 (#99, Part 5): count-up on the 4 stat tiles ──────────
+   Animates a displayed number from its previous value to a new target over
+   900ms on an ease-out-cubic curve, via requestAnimationFrame. Re-triggers
+   whenever `target` changes (including on mount, animating up from 0 — the
+   simplest, most consistent "value settled in" read rather than special-
+   casing the first render to skip the animation). */
+function useCountUp(target: number, durationMs = 900): number {
+  const [displayValue, setDisplayValue] = useState(0);
+  const fromRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    const to = target;
+    if (from === to) return;
+
+    const start = performance.now();
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(1, elapsed / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out-cubic
+      setDisplayValue(from + (to - from) * eased);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        fromRef.current = to;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target, durationMs]);
+
+  return displayValue;
+}
 
 export const HealthScoreCard = React.memo(function HealthScoreCard() {
   const {
@@ -114,6 +155,13 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
     return funds.reduce((sum, fund) => sum + (fund.currentAmount || 0), 0);
   }, [funds]);
 
+  // Slice 13 (#99, Part 5): animate each stat tile's displayed number from
+  // its prior value to the new target rather than popping instantly.
+  const displayWeeklyIncome = useCountUp(weeklyIncome);
+  const displayWeeklyBills = useCountUp(weeklyBills);
+  const displayWeeklySurplus = useCountUp(weeklySurplus);
+  const displaySinkingFundsTotal = useCountUp(sinkingFundsTotal);
+
   // Format currency helper
   const formatCurrency = (amount: number) => {
     const isNegative = amount < 0;
@@ -150,11 +198,15 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
           className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-subtle font-bold hover:text-foreground transition-colors text-left focus:outline-none w-fit"
         >
           Household Health
-          {isHealthExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          <ChevronDown
+            size={12}
+            className="transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+            style={{ transform: isHealthExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+          />
         </button>
         <div className="flex items-center gap-3">
           <div
-            className={`w-3 h-3 rounded-full ${dotColor} transition-colors duration-700`}
+            className={`w-3 h-3 rounded-full ${dotColor} transition-colors duration-(--duration-slow) ease-(--ease-standard)`}
             style={{ boxShadow: `0 0 12px ${glowColor}A6` }}
           />
           <h2 className="font-heading font-extrabold text-[28px] tracking-tight text-foreground">
@@ -170,33 +222,49 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
         )}
       </div>
 
-      {/* Stat grid — borderless, hairline top-rule per cell */}
-      {isHealthExpanded && (
-      <div className="grid grid-cols-2 gap-x-6">
-        {/* Tile 1 */}
-        <div className="border-t border-border py-2.5 flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Income</span>
-          <span className="font-mono font-bold text-[19px] text-primary tracking-tight">{formatCurrency(weeklyIncome)}</span>
-        </div>
-        {/* Tile 2 */}
-        <div className="border-t border-border py-2.5 flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Bills</span>
-          <span className="font-mono font-bold text-[19px] text-foreground tracking-tight">{formatCurrency(weeklyBills)}</span>
-        </div>
-        {/* Tile 3 */}
-        <div className="border-t border-border py-2.5 flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">
-            {isJointFund ? "Joint Fund Surplus" : "Surplus after bills"}
-          </span>
-          <span className={`font-mono font-bold text-[19px] ${surplusColor} tracking-tight`}>{formatCurrency(weeklySurplus)}</span>
-        </div>
-        {/* Tile 4 */}
-        <div className="border-t border-border py-2.5 flex flex-col gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Goals Total Added (Weekly)</span>
-          <span className="font-mono font-bold text-[19px] text-primary tracking-tight">{formatCurrency(sinkingFundsTotal)}</span>
+      {/* Stat grid — borderless, hairline top-rule per cell. Height-animated
+          via the grid-template-rows 0fr/1fr technique (Slice 13, #99 Part 5)
+          so it doesn't need JS content-height measurement; the inner
+          overflow-hidden wrapper clips mid-transition, and the content's
+          opacity fades in over roughly the back half so it doesn't pop. */}
+      <div
+        className="grid transition-[grid-template-rows] duration-[380ms] ease-(--ease-standard)"
+        style={{ gridTemplateRows: isHealthExpanded ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden min-h-0">
+          <div
+            className="grid grid-cols-2 gap-x-6 transition-opacity ease-(--ease-standard)"
+            style={{
+              opacity: isHealthExpanded ? 1 : 0,
+              transitionDuration: "190ms",
+              transitionDelay: isHealthExpanded ? "190ms" : "0ms",
+            }}
+          >
+            {/* Tile 1 */}
+            <div className="border-t border-border py-2.5 flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Income</span>
+              <span className="font-mono font-bold text-[19px] text-primary tracking-tight">{formatCurrency(displayWeeklyIncome)}</span>
+            </div>
+            {/* Tile 2 */}
+            <div className="border-t border-border py-2.5 flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Bills</span>
+              <span className="font-mono font-bold text-[19px] text-foreground tracking-tight">{formatCurrency(displayWeeklyBills)}</span>
+            </div>
+            {/* Tile 3 */}
+            <div className="border-t border-border py-2.5 flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">
+                {isJointFund ? "Joint Fund Surplus" : "Surplus after bills"}
+              </span>
+              <span className={`font-mono font-bold text-[19px] ${surplusColor} tracking-tight`}>{formatCurrency(displayWeeklySurplus)}</span>
+            </div>
+            {/* Tile 4 */}
+            <div className="border-t border-border py-2.5 flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Goals Total Added (Weekly)</span>
+              <span className="font-mono font-bold text-[19px] text-primary tracking-tight">{formatCurrency(displaySinkingFundsTotal)}</span>
+            </div>
+          </div>
         </div>
       </div>
-      )}
 
       {/* Contributors — editorial subsection */}
       {visibleMembers.length > 0 && (

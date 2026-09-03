@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
 /* ─────────────────────────────────────────────
    FUNDED — Brand Tokens (Matching Prototype)
@@ -44,6 +45,14 @@
   /* Border */
   --color-border: rgba(255, 255, 255, 0.07);
   --color-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* ── Motion tokens (Slice 13, #99) — the one shared duration/easing
+     scale for the whole app. Not color-dependent, so no per-theme
+     duplication needed. ── */
+  --duration-fast: 120ms;   /* press feedback, toggle knobs, chevron/icon state */
+  --duration-base: 200ms;   /* dialog/sheet entrance, hover/color transitions, menus */
+  --duration-slow: 400ms;   /* expand/collapse-adjacent transitions, tier-color changes */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); /* decelerate, no bounce — the "premium" curve */
 }
 
 /* ─────────────────────────────────────────────
@@ -338,6 +347,31 @@ body.modal-open {
 html.modal-open main,
 body.modal-open main {
   overflow: hidden !important;
+}
+
+/* ── Dialog entrance (Slice 13, Part 3 — approved exact values) ──
+   Bespoke keyframes for the shared Dialog shell's backdrop + card. Not the
+   generic tailwindcss-animate classes — this is the one place motion was
+   demoed with specific values. */
+@keyframes dialog-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dialog-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.dialog-backdrop-animate {
+  animation: dialog-backdrop-in var(--duration-base) ease-out both;
+}
+.dialog-card-animate {
+  animation: dialog-card-in 220ms var(--ease-standard) both;
 }
 
 /* ── Floating Avatar Button ── */

@@ -78,14 +78,14 @@ export default function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] modal-backdrop flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[100] modal-backdrop flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 dialog-backdrop-animate"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
         className={cn(
-          "relative bg-surface border border-border-strong rounded-[2px] w-full max-h-full flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200",
+          "relative bg-surface border border-border-strong rounded-[2px] w-full max-h-full flex flex-col shadow-2xl overflow-hidden dialog-card-animate",
           maxWidthClass
         )}
         onClick={(e) => e.stopPropagation()}
