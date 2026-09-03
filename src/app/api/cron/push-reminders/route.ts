@@ -54,6 +54,8 @@ export async function GET(request: Request) {
       settingsRes,
       billsRes,
       payHistoryRes,
+      paySchedulesRes,
+      fundsRes,
       existingNotifsRes,
     ] = await Promise.all([
       supabase.from('households').select('id, timezone'),
@@ -64,6 +66,12 @@ export async function GET(request: Request) {
         .from('pay_history')
         .select('id, member_id, household_id, pay_date, status')
         .eq('status', 'pending'),
+      supabase
+        .from('pay_schedules')
+        .select('id, member_id, household_id, next_pay_date'),
+      supabase
+        .from('funds')
+        .select('id, name, household_id, current_amount, target_amount'),
       supabase.from('notifications').select('user_id, dedupe_key'),
     ]);
 
@@ -73,6 +81,8 @@ export async function GET(request: Request) {
       settingsRes.error ||
       billsRes.error ||
       payHistoryRes.error ||
+      paySchedulesRes.error ||
+      fundsRes.error ||
       existingNotifsRes.error;
     if (firstError) {
       console.error('[push-reminders] fetch error:', firstError);
@@ -84,6 +94,8 @@ export async function GET(request: Request) {
     const allSettings = settingsRes.data ?? [];
     const allBills = billsRes.data ?? [];
     const pendingPayHistory = payHistoryRes.data ?? [];
+    const allPaySchedules = paySchedulesRes.data ?? [];
+    const allFunds = fundsRes.data ?? [];
     const existingNotifs = existingNotifsRes.data ?? [];
 
     // ── Group in memory ──────────────────────────
@@ -113,6 +125,22 @@ export async function GET(request: Request) {
       else payByHousehold.set(hid, [p]);
     }
 
+    const paySchedulesByHousehold = new Map<string, typeof allPaySchedules>();
+    for (const s of allPaySchedules) {
+      const hid = String(s.household_id);
+      const arr = paySchedulesByHousehold.get(hid);
+      if (arr) arr.push(s);
+      else paySchedulesByHousehold.set(hid, [s]);
+    }
+
+    const fundsByHousehold = new Map<string, typeof allFunds>();
+    for (const f of allFunds) {
+      const hid = String(f.household_id);
+      const arr = fundsByHousehold.get(hid);
+      if (arr) arr.push(f);
+      else fundsByHousehold.set(hid, [f]);
+    }
+
     const keysByUser = new Map<string, Set<string>>();
     for (const n of existingNotifs) {
       if (!n.user_id || !n.dedupe_key) continue;
@@ -132,6 +160,8 @@ export async function GET(request: Request) {
       const todayYmd = todayInZone(householdTz.get(householdId) || 'Australia/Sydney');
       const householdBills = billsByHousehold.get(householdId) ?? [];
       const householdPay = payByHousehold.get(householdId) ?? [];
+      const householdPaySchedules = paySchedulesByHousehold.get(householdId) ?? [];
+      const householdFunds = fundsByHousehold.get(householdId) ?? [];
       const householdMembers = members.filter(m => String(m.household_id) === householdId);
 
       for (const member of householdMembers) {
@@ -153,6 +183,8 @@ export async function GET(request: Request) {
             todayYmd,
             bills: householdBills,
             payHistory: householdPay,
+            paySchedules: householdPaySchedules,
+            funds: householdFunds,
             currentMemberId: member.id != null ? String(member.id) : null,
             settings,
             existingKeys,
