@@ -1,10 +1,13 @@
 # Handoff
 
-**Last updated:** 2026-09-03 (Group 4 session) — **Slice 13 (#99, first half) built, reviewed,
-NOT YET MERGED** — [PR #129](https://github.com/mp3anthony/funded/pull/129), labeled
-`needs-manual-test`, awaiting Anthony's on-device pass overnight. `v0.9.26` → `v0.9.27` (version
-confirmed, not yet merged so not yet live). See "→ START HERE NEXT SESSION" below for exactly
-where this picks back up.
+**Last updated:** 2026-09-04 — **Slice 13 (#99, first half) MERGED** — [PR #129](https://github.com/mp3anthony/funded/pull/129)
+squash-merged to `main` at `v0.9.27`, confirmed live via `git pull --ff-only` (14 files landed).
+Anthony's on-device pass found 2 real regressions + 1 "works but too subtle" round; both got
+fixed, independently reviewed, and re-tested before merge — full story in the dated section below.
+
+**→ START HERE NEXT SESSION: #98** (bills vs expenses split) — `ready-for-agent`, decisions
+already recorded on the issue; recommend sub-slicing it further at its own kickoff rather than one
+big PR. Nothing else is queued ahead of it.
 
 **Critical infra gotcha discovered this session, read before touching ANY Vercel cron work again:**
 this project is on **Vercel's Hobby plan**, which only permits cron jobs to run **once per day**.
@@ -23,6 +26,61 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-04 — Slice 13 (#99) on-device manual test found 2 real regressions, fixed, re-tested, merged; Group 4 closed
+
+Picked up exactly where the prior entry (below) left off: PR #129 was open, labeled
+`needs-manual-test`, with a 5-item checklist. Anthony ran it for real.
+
+**Round 1 — 3 of 5 items failed/were compromised:**
+1. Dialog entrance animation — "too quick or I'm just not seeing any animation."
+2. Settings notifications structure — pass.
+3. Push-status row — pass.
+4. Dashboard count-up — pass, but a patch-notes popup on first load was covering it.
+5. Health section expand/collapse — "nothing happening when expanding anything."
+
+Build sub-agent investigated all 3 in a worktree (not just re-reading source — checked compiled
+production CSS and drove the actual markup in a real browser via computed styles / Web Animations
+API):
+- **Item 1, real bug**: Safari doesn't smoothly animate an element's own opacity when that same
+  element also carries `backdrop-filter` (documented WebKit issue) — `Dialog.tsx`'s backdrop had
+  both on one div, so the blur "settled" instantly instead of fading. Fixed by splitting the
+  static dim/blur onto a separate inner div, leaving the outer div's opacity animation
+  filter-free. Confirmed `globals.css`'s existing mobile modal rules already special-cased an
+  `.absolute` child for exactly this kind of split (pre-existing, from commit c8a43b5) — the fix
+  slotted into CSS that was already shaped for it.
+- **Item 5, no defect found**: compiled CSS and live DOM both confirmed the
+  `grid-template-rows: 1fr↔0fr` height-animation technique genuinely works. Theory: the patch-notes
+  popup (item 4's bug) has a full-viewport backdrop and was opening on mount, so early taps meant
+  for the Health chevron were landing on the popup instead — read as "nothing happening."
+- **Item 4, real bug**: `PatchNotesPopup.tsx` opened synchronously on mount. Fixed with a 1200ms
+  delay (state update + localStorage seen-marking kept atomic, timeout cleaned up on unmount so an
+  early nav-away doesn't wrongly mark it seen).
+
+Independent reviewer verified all of the above against the real diff (not the builder's prose),
+confirmed the Safari fix didn't break `modal-backdrop`'s scroll-lock contract or click-outside-to-
+close, confirmed the popup fix has no unmount leak and correct atomicity, independently re-ran
+tsc/lint/build. **APPROVED.** Pushed as a second commit onto PR #129's branch.
+
+**Round 2 — Anthony re-tested: all 5 pass, but "minimal"** — asked for the motion to be more
+noticeable, still "premium-minimal, no bounce" (the already-approved design direction). Second
+build sub-agent bumped the shared `--duration-base`/`--duration-slow` tokens ~+30% (200→260ms,
+400→520ms), the Dialog card's translateY/scale entrance distance (10px/0.97 → 18px/0.945, 220→280ms),
+and the dashboard count-up (900→1150ms) — grepped every consumer of the shared tokens first to
+confirm no press-feedback/hover element would be affected, only entrance/expand motion. Independent
+reviewer verified the blast-radius grep independently, confirmed no bounce/spring easing was
+introduced anywhere, checked the Health section's opacity-fade-delay math still exactly matches its
+new total duration, and re-ran tsc/lint/build itself. **APPROVED.** Pushed as a third commit.
+
+**Merged**: version reconfirmed with Anthony (`v0.9.27`, unchanged — these were rework commits on
+the same open PR, not a new build cycle), squash-merged, remote branch deleted. `git pull --ff-only`
+on `main` confirmed 14 files landed matching the full diff. Two stray build-agent worktrees
+(`.claude/worktrees/agent-a9816eb9d072c80c1`, `-acf2eadb0b1ca3fda`) cleaned up along with their
+local branches; one unrelated leftover worktree (`agent-a69afbc08584a8fcc`, stale on an older commit,
+not from this session) was left alone.
+
+**#98 (bills vs expenses split) — still untouched**, `ready-for-agent`, decisions already recorded
+on the issue — see "→ START HERE NEXT SESSION" at the top of this file.
 
 ## 2026-09-03 (Group 4 session) — Slice 13 (#99) designed live via the design canvas skill, built, reviewed, PR open awaiting on-device test
 
