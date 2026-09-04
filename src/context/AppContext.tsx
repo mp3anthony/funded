@@ -114,6 +114,41 @@ export interface BillSplit {
   is_assignee?: boolean;
 }
 
+/**
+ * Issue #98 (Slice 1 of 6): variable, no-due-date spend (groceries, fuel, etc.), tracked
+ * separately from `bills`. Schema/migration-only for now — no UI or business logic reads this
+ * yet; later sub-slices of #98 add the add/edit UI (2), Direct Pay split logic (3), the
+ * weekly-draw calc integration (4), health score integration (5), and #70 category ordering (6).
+ */
+export interface Expense {
+  id: string;
+  household_id: string;
+  name: string;
+  category: string;
+  amount: number;
+  notes: string | null;
+  /** Which of the two mutually-exclusive split shapes below applies to this expense. */
+  split_mode: "assignee" | "percentage";
+  /** Set when split_mode === "assignee" — whole-item assignment, mirrors bills.assignee_id. */
+  assignee_id: string | null;
+  created_at: string;
+}
+
+/**
+ * Issue #98 (Slice 1 of 6): one row per household member for an expense with
+ * split_mode === "percentage". New pattern (not reused from `bill_splits`, which stores computed
+ * dollar amounts) — the later Direct-Pay-split sub-slice computes dollar amounts from these raw
+ * percentages once the weekly-draw calc exists.
+ */
+export interface ExpenseSplit {
+  id: string;
+  household_id: string;
+  expense_id: string;
+  member_id: string;
+  percentage: number;
+  created_at: string;
+}
+
 export interface NotificationSettings {
   id?: string;
   user_id?: string;
