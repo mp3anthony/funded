@@ -58,6 +58,12 @@ ALTER TABLE expense_splits ENABLE ROW LEVEL SECURITY;
 -- check_household_access() member check, same function bills already uses). `bills` today has
 -- exactly one policy with no legacy carry-overs, so that's the pattern reproduced here — not the
 -- separate legacy "Allow anon ..." policies present on `bill_splits` (see below).
+-- Note: bill_splits actually carries two authenticated policies today ("Users can manage
+-- bill_splits", mirrored below for expense_splits, plus a narrower owner-only
+-- "Users can manage splits in their households") — the second is a strict subset of the first
+-- (owner access is already covered by the broader policy's household-owner branch), so it adds no
+-- access the broader one doesn't already grant. Reproducing only the broader policy here is
+-- equivalent, not a narrowing.
 CREATE POLICY "Users can manage expenses in their households"
   ON expenses
   FOR ALL
