@@ -1,6 +1,6 @@
 "use client";
 
-export type RowPillVariant = "primary" | "accent" | "neutral";
+export type RowPillVariant = "primary" | "accent" | "success" | "neutral";
 
 export interface RowPillProps {
   label: string;
@@ -8,7 +8,8 @@ export interface RowPillProps {
    * Visual style:
    * - "primary" — lime accent (used for Auto-Pay on bill rows)
    * - "accent" — amber (used for Expense on expense rows)
-   * - "neutral" — muted/gray (used for Manual on bill rows)
+   * - "success" — green (used for Manual on bill rows)
+   * - "neutral" — muted/gray (fallback default; currently unused by callers)
    */
   variant?: RowPillVariant;
 }
@@ -16,6 +17,7 @@ export interface RowPillProps {
 const VARIANT_CLASSES: Record<RowPillVariant, string> = {
   primary: "bg-primary/10 text-primary border border-primary/20",
   accent: "bg-accent/10 text-accent border border-accent/20",
+  success: "bg-success/10 text-success border border-success/20",
   neutral: "bg-surface-elevated text-muted border border-border",
 };
 
