@@ -1,7 +1,4 @@
 "use client";
-/* eslint-disable react-hooks/set-state-in-effect -- one-time localStorage
-   read to decide whether to show the popup; same pattern as
-   AddBillSheet.tsx / ContributorSplits.tsx elsewhere in this repo. */
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -15,6 +12,14 @@ import { patchNotes, type PatchNoteEntry } from "@/lib/patch-notes";
  *  pattern used elsewhere in this app (theme, dashboard card collapse
  *  state, notification snoozes) — no wrapper/hook needed for one flag. */
 const LAST_SEEN_KEY = "funded_last_seen_patch_notes_version";
+
+/** How long the popup waits before opening, on mount (Slice 13, #99 fix).
+ *  The dashboard's stat tiles count up from 0 over 900ms on first paint —
+ *  showing this popup immediately covered that count-up entirely (already
+ *  finished, hidden behind the modal, by the time someone dismissed it).
+ *  Delaying past that window lets the dashboard's own entrance motion
+ *  actually be seen before "What's new" takes over the screen. */
+const OPEN_DELAY_MS = 1200;
 
 /**
  * First-open-on-a-new-version popup (Slice 14, #113). Mounted once in
@@ -36,6 +41,7 @@ export default function PatchNotesPopup() {
   const [entry, setEntry] = useState<PatchNoteEntry | null>(null);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       if (typeof window === "undefined") return;
       const lastSeen = localStorage.getItem(LAST_SEEN_KEY);
@@ -44,12 +50,22 @@ export default function PatchNotesPopup() {
       const newest = patchNotes[0];
       if (!newest) return; // No entries recorded yet — nothing to show, don't mark as seen.
 
-      setEntry(newest);
-      localStorage.setItem(LAST_SEEN_KEY, APP_VERSION);
+      // Delayed, not immediate — see OPEN_DELAY_MS above.
+      timer = setTimeout(() => {
+        setEntry(newest);
+        try {
+          localStorage.setItem(LAST_SEEN_KEY, APP_VERSION);
+        } catch {
+          // localStorage unavailable — fail silently, same as elsewhere.
+        }
+      }, OPEN_DELAY_MS);
     } catch {
       // localStorage unavailable (private browsing, blocked storage, etc.) —
       // fail silently, same as the app's other localStorage reads.
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   if (!entry) return null;
