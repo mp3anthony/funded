@@ -72,7 +72,7 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
             {expense.name}
           </span>
           <span className="flex items-center gap-1.5 mt-0.5">
-            <RowPill label="Expense" />
+            <RowPill label="Expense" variant="accent" />
             <span className="font-mono text-[10px] uppercase font-medium tracking-wider text-muted">
               {expense.category || "Other"}
             </span>

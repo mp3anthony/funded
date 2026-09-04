@@ -127,7 +127,7 @@ export default function BillCard({
           {bill.name}
         </span>
         <span className="flex items-center gap-1.5 mt-0.5">
-          <RowPill label={paymentTypeStr} emphasized={isAutoPay} />
+          <RowPill label={paymentTypeStr} variant={isAutoPay ? "primary" : "neutral"} />
           <span
             className={`font-mono text-[10px] uppercase font-medium tracking-wider transition-colors ${
               isUrgent ? "text-[#ff4500]" : "text-muted"
