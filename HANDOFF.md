@@ -1,16 +1,34 @@
 # Handoff
 
-**Last updated:** 2026-09-04 — **#98 sub-slice 1 of 6 (expenses schema + migration) MERGED** —
-[PR #130](https://github.com/mp3anthony/funded/pull/130) squash-merged to `main` at `v0.9.28`,
-confirmed live via `git pull --ff-only` (4 files landed). Full story in the dated section below.
+**Last updated:** 2026-09-05 — **#98 sub-slice 2 of 6 (add/edit expense UI) MERGED** —
+[PR #131](https://github.com/mp3anthony/funded/pull/131) squash-merged to `main` at `v0.9.29`,
+confirmed live via `git pull` (11 files landed). Anthony tested on-device as he went through the
+review rounds ("I've been testing as I go") rather than a single final pass — merge approved on
+that basis. Full story in the dated section below.
 
-**→ START HERE NEXT SESSION: #98 sub-slice 2 of 6 — add/edit expense UI.** The 6-piece
-sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first, don't
-re-derive it. Order: (1✅ done) schema+migration → **(2) add/edit expense UI ← next** → (3) Direct
-Pay split logic for expenses → (4) weekly-draw calc integration (touches #106, this is where the
-still-open "how does a goal-contribution rule become a weekly-draw line item" question gets
-nailed down) → (5) health-score integration → (6) #70 category-ordering extension. Nothing else
-is queued ahead of #98.
+**→ START HERE NEXT SESSION: #98 sub-slice 3 of 6 — Direct Pay split logic for expenses.** The
+6-piece sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first,
+don't re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI → **(3)
+Direct Pay split logic for expenses ← next** (whole-item assignment already works via
+`assignee_id`/`split_mode: "assignee"`; this slice adds the new %-split mode, using the
+`expense_splits` join table already created in sub-slice 1) → (4) weekly-draw calc integration
+(touches #106, this is where the still-open "how does a goal-contribution rule become a
+weekly-draw line item" question gets nailed down — Anthony explicitly deferred that decision to
+this slice, don't assume an answer) → (5) health-score integration → (6) #70 category-ordering
+extension. Nothing else is queued ahead of #98.
+
+**Sub-slice 2 shipped a materially different UI than first built** — worth knowing before touching
+any of these files again: the original build put bills/expenses on separate tabs; Anthony rejected
+that ("I hate the switch... hoping it could all stay as one page") and it was reworked into a
+single interleaved list (`bills-client.tsx`'s `groupedItems`), grouped by category, sorted by
+amount descending — same as bills always sorted, expenses just drop into the same grouping with no
+special-casing. Three more rounds of cosmetic feedback followed and are all live: `RowPill.tsx` now
+has three colored variants (`primary`=lime/Auto-Pay, `success`=green/Manual, `accent`=amber/Expense
+— was originally just two, "Manual" and "Expense" used to look identical); `ItemTypeToggle.tsx` (the
+bill/expense choice inside `AddBillSheet`/`AddExpenseSheet`) is a labeled sliding switch, not a
+segmented button grid — "Item Type" label above it, an action-framed caption below ("Switch to
+Expense"/"Switch to Bill", i.e. always names the OTHER state, not the current one). A v0.9.29
+patch-notes entry (`src/lib/patch-notes.ts`) explains the bill-vs-expense distinction to users.
 
 **Critical infra gotcha discovered this session, read before touching ANY Vercel cron work again:**
 this project is on **Vercel's Hobby plan**, which only permits cron jobs to run **once per day**.
