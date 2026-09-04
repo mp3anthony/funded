@@ -8,6 +8,7 @@ import { type HouseholdContribution, type ContributionRule } from "@/types";
 import { adjustAutopayBillDate } from "@/lib/utils";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { todayInZone } from "@/lib/notifications/timezone";
+import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
 
 
 /* ═══════════════════════════════════════════════
@@ -736,6 +737,11 @@ interface AppContextValue {
   deleteNotification: (id: string) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
   updateNotificationSettings: (settings: Partial<NotificationSettings>) => Promise<void>;
+  /* Slice 13 (#99): this device's push subscription health, centralized so
+   * every NotificationCenter mount point shares one copy — see review
+   * finding 2. */
+  pushStatus: PushStatus | null;
+  setPushStatus: (status: PushStatus) => void;
 
   /* Theme */
   theme: "light" | "dark" | "system";
@@ -1031,6 +1037,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [contributionRules, setContributionRules] = useState<ContributionRule[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+  /* Slice 13 (#99): this device's push subscription health, centralized here
+   * (review finding 2) so every NotificationCenter mount point (AppShell's
+   * floating bell AND settings-client.tsx) reads/updates the same copy —
+   * re-enabling push from one instance's PushStatusDialog is immediately
+   * reflected in the other. */
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
 
   /* ── Sync/Load Data ─────────────────────────── */
   // Only load data AFTER auth has resolved and we have a valid session.
@@ -4033,6 +4045,34 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  /* Slice 13 (#99) review finding 1: this device's push status, plus the
+   * auto-heal that used to live in NotificationCenter.tsx (commit a2400c6) —
+   * moved here so it fires exactly once per signed-in session, from one
+   * owner, rather than once per NotificationCenter mount point (of which
+   * there are now two: AppShell's floating bell + settings-client.tsx).
+   * Unconditional: runs regardless of whether the user opens any dialog. If
+   * the browser already has a live PushManager subscription, silently
+   * re-POST it (idempotent upsert) to repair a stale/missing server-side
+   * push_subscriptions row — delivery runs off that table via pg_cron
+   * (Slice 11), so a device that drifted out of sync would otherwise stay
+   * silently un-delivered until the user happened to notice and act. */
+  useEffect(() => {
+    if (!session?.user) return;
+    let cancelled = false;
+    (async () => {
+      await syncPushSubscriptionIfPresent();
+      const status = await getPushStatus();
+      if (!cancelled) setPushStatus(status);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Deliberately keyed on the user id only, not the whole `session` object
+    // — session's access token refreshes periodically, which would refire
+    // this on every refresh instead of once per signed-in user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
   // Client-side notification generation
   useEffect(() => {
     // isOnboarded is required so this never fires with a stale household's
@@ -4217,6 +4257,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     deleteNotification,
     clearAllNotifications,
     updateNotificationSettings,
+    pushStatus,
+    setPushStatus,
     session,
     isAuthLoading,
     isDataLoading,

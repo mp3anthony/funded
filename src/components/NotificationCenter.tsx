@@ -1,22 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Settings as SettingsIcon, CheckCircle, Clock, AlertTriangle, Circle, Trash2 } from "lucide-react";
+import { Bell, Settings as SettingsIcon, CheckCircle, Clock, AlertTriangle, Circle, Trash2, ChevronRight } from "lucide-react";
 import { useApp, type Notification, type NotificationSettings } from "@/context/AppContext";
 import Dialog from "@/components/ui/Dialog";
+import NotifyHourDialog from "@/components/NotifyHourDialog";
+import PushStatusDialog from "@/components/PushStatusDialog";
 import { useRouter } from "next/navigation";
-import { isStandaloneMode, isPushSupported, getPushPermissionState, subscribeToPush } from "@/lib/pushClient";
-import { supabase } from "@/lib/supabase";
+import type { PushStatus } from "@/lib/pushClient";
 
 interface NotificationCenterProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Slice 13 (#99): this device's push subscription health, centralized in
+   *  AppContext (a single getPushStatus() check + auto-heal effect per
+   *  session, see review finding 1/2) and passed down so this component's
+   *  two mount points (AppShell's floating bell + settings-client.tsx) and
+   *  the Settings row's status dot all reflect the same shared state. */
+  pushStatus: PushStatus | null;
+  onPushStatusChange: (status: PushStatus) => void;
 }
 
-export default function NotificationCenter({ isOpen, onClose }: NotificationCenterProps) {
+/* Slice 13 (#99): "Notify me at" moved into this panel — matches the label
+   format already used in settings-client.tsx / NotifyHourDialog.tsx. */
+function formatHourLabel(hour: number): string {
+  const period = hour < 12 ? "AM" : "PM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:00 ${period}`;
+}
+
+export default function NotificationCenter({ isOpen, onClose, pushStatus, onPushStatusChange }: NotificationCenterProps) {
   const { bills, markAsPaid, notifications, notificationSettings, markNotificationRead, deleteNotification, clearAllNotifications, updateNotificationSettings } = useApp();
   const [activeTab, setActiveTab] = useState<"list" | "settings">("list");
-  
+  const [showNotifyHourDialog, setShowNotifyHourDialog] = useState(false);
+  const [showPushStatusDialog, setShowPushStatusDialog] = useState(false);
+
   const [snoozedIds, setSnoozedIds] = useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {};
     const snoozes: Record<string, number> = {};
@@ -39,70 +57,6 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
   const [nowVal, setNowVal] = useState(0);
   const [activeSnoozeMenuId, setActiveSnoozeMenuId] = useState<string | null>(null);
   const router = useRouter();
-
-  const [pushSupported, setPushSupported] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [pushPermission, setPushPermission] = useState<NotificationPermission>('default');
-  const [isSubscribing, setIsSubscribing] = useState(false);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
-  const [serverSubscribed, setServerSubscribed] = useState<boolean>(false);
-  const [pushError, setPushError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPushSupported(isPushSupported());
-    setIsStandalone(isStandaloneMode());
-    if (isPushSupported()) {
-      setPushPermission(getPushPermissionState());
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(reg => {
-          reg.pushManager.getSubscription().then(async sub => {
-            setHasActiveSubscription(!!sub);
-
-            // Auto-sync the subscription to the server in case of a split-state
-            if (sub) {
-              try {
-                const { data: { session } } = await supabase.auth.getSession();
-                const response = await fetch('/api/push/subscribe', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token ?? ''}`,
-                  },
-                  body: JSON.stringify(sub),
-                });
-                setServerSubscribed(response.ok);
-                if (!response.ok) {
-                  console.error('Failed to auto-sync push subscription: server returned', response.status);
-                }
-              } catch (err) {
-                setServerSubscribed(false);
-                console.error('Failed to auto-sync push subscription:', err);
-              }
-            }
-          });
-        });
-      }
-    }
-  }, []);
-
-  const handleEnablePush = async () => {
-    try {
-      setPushError(null);
-      setIsSubscribing(true);
-      await subscribeToPush();
-      setPushPermission('granted');
-      setHasActiveSubscription(true);
-      setServerSubscribed(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) {
-      console.error(e);
-      setPushError(e.message || 'Failed to save push subscription to the server.');
-      setPushPermission(getPushPermissionState());
-      setHasActiveSubscription(false);
-    } finally {
-      setIsSubscribing(false);
-    }
-  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -172,6 +126,7 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
   };
 
   return (
+    <>
     <Dialog
       open={isOpen}
       onClose={onClose}
@@ -321,55 +276,70 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
             </div>
           ) : (
             <div className="p-6 space-y-6">
-              {isStandalone && pushSupported && (!serverSubscribed) && (
-                <div className="flex flex-col gap-3 p-4 bg-primary/10 border border-primary/20 rounded-[2px]">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Bell size={20} />
-                    <h4 className="font-semibold">Enable Push Notifications</h4>
-                  </div>
-                  <p className="text-sm text-foreground/80">
-                    Get alerts about bills and payments even when the app is closed.
-                  </p>
-                  {pushPermission === 'denied' ? (
-                    <p className="text-xs text-rose-500 font-medium">
-                      Notifications are blocked. Please enable them in your device or browser settings.
-                    </p>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleEnablePush}
-                        disabled={isSubscribing}
-                        className="mt-2 w-full py-2 px-4 bg-primary text-primary-foreground font-bold rounded-[2px] hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
-                      >
-                        {isSubscribing ? 'Enabling...' : (pushError ? 'Retry' : 'Enable Notifications')}
-                      </button>
-                      {pushError && (
-                        <p className="text-xs text-rose-500 font-medium mt-1">
-                          {pushError}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
               {notificationSettings ? (
                 <>
                   <div className="flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border">
                     <div>
-                      <h4 className="font-semibold text-foreground">Enable Notifications</h4>
-                      <p className="text-sm text-muted">Master toggle for all alerts.</p>
+                      <h4 className="font-semibold text-foreground">Enabled</h4>
+                      <p className="text-sm text-muted">In-app &amp; push reminders</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
                         checked={notificationSettings.all_enabled}
                         onChange={() => handleToggleSetting('all_enabled')}
                       />
                       <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
+
+                  {/* Notify me at (#97) — relocated here from its own top-level
+                      Settings row (Slice 13, #99 merge). Same NotifyHourDialog,
+                      unchanged storage — just triggered from this panel now. */}
+                  <button
+                    type="button"
+                    onClick={() => setShowNotifyHourDialog(true)}
+                    className="w-full flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border text-left hover:bg-surface-raised transition-colors"
+                  >
+                    <div>
+                      <h4 className="font-semibold text-foreground">Notify me at</h4>
+                      <p className="text-sm text-muted">Preferred delivery hour</p>
+                    </div>
+                    <span className="flex items-center gap-2 font-mono text-sm text-muted shrink-0">
+                      {formatHourLabel(notificationSettings.notify_hour)}
+                      <ChevronRight className="h-4 w-4 text-subtle" />
+                    </span>
+                  </button>
+
+                  {/* Push status (#96 half A) — replaces the old standalone
+                      "Push notifications" Settings row/dialog. Plain status
+                      when live; a single tappable row reusing
+                      PushStatusDialog's enable flow when action is needed.
+                      This is NOT a second switch — the only toggle in this
+                      panel is "Enabled" above. */}
+                  {pushStatus && pushStatus.supported && (
+                    pushStatus.hasLiveSubscription ? (
+                      <div className="flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border">
+                        <h4 className="font-semibold text-foreground">Push on this device</h4>
+                        <span className="flex items-center gap-1.5 font-mono text-xs text-muted">
+                          <span className="h-1.5 w-1.5 rounded-full bg-success" /> Active
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowPushStatusDialog(true)}
+                        className="w-full flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border text-left hover:bg-surface-raised transition-colors"
+                      >
+                        <div>
+                          <h4 className="font-semibold text-foreground">Push on this device</h4>
+                          <p className="text-sm text-accent">Needs attention</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-subtle" />
+                      </button>
+                    )
+                  )}
 
                   <div className={`space-y-4 ${!notificationSettings.all_enabled ? 'opacity-50 pointer-events-none' : ''}`}>
                     <h4 className="font-heading font-semibold text-muted uppercase tracking-wider text-xs">Notification Types</h4>
@@ -466,5 +436,25 @@ export default function NotificationCenter({ isOpen, onClose }: NotificationCent
           )}
         </div>
     </Dialog>
+
+    {/* Notify hour (nested — same NotifyHourDialog used everywhere, unchanged) */}
+    <NotifyHourDialog
+      isOpen={showNotifyHourDialog}
+      onClose={() => setShowNotifyHourDialog(false)}
+      currentHour={notificationSettings?.notify_hour ?? 9}
+      onSave={(hour) => updateNotificationSettings({ notify_hour: hour })}
+    />
+
+    {/* Push status (nested — reuses PushStatusDialog's existing enable flow
+        for the one case that needs action) */}
+    {pushStatus && (
+      <PushStatusDialog
+        isOpen={showPushStatusDialog}
+        onClose={() => setShowPushStatusDialog(false)}
+        status={pushStatus}
+        onStatusChange={onPushStatusChange}
+      />
+    )}
+    </>
   );
 }

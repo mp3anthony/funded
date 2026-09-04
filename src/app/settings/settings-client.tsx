@@ -27,12 +27,9 @@ import RemoveMemberModal from "@/components/RemoveMemberModal";
 import EditMemberModal from "@/components/EditMemberModal";
 import NotificationCenter from "@/components/NotificationCenter";
 import TimezoneDialog from "@/components/TimezoneDialog";
-import NotifyHourDialog from "@/components/NotifyHourDialog";
-import PushStatusDialog from "@/components/PushStatusDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
-import { getPushStatus, type PushStatus } from "@/lib/pushClient";
 import { type Member } from "@/types";
 
 /* ── Page Component ──────────────────────────── */
@@ -56,9 +53,9 @@ export default function SettingsClient() {
     joinCode,
     codeExpiresAt,
     regenerateJoinCode,
-    notifications,
     notificationSettings,
-    updateNotificationSettings,
+    pushStatus,
+    setPushStatus,
     leaveHousehold,
     deleteHousehold,
   } = useApp();
@@ -80,23 +77,6 @@ export default function SettingsClient() {
   const [showJoinCodeDialog, setShowJoinCodeDialog] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
   const [showTimezoneDialog, setShowTimezoneDialog] = useState(false);
-  const [showNotifyHourDialog, setShowNotifyHourDialog] = useState(false);
-  const [showPushStatusDialog, setShowPushStatusDialog] = useState(false);
-
-  /* Slice 10 (#96 half A): this device's push subscription health. Checked
-     once on mount (permission + a live push_subscriptions row for this
-     endpoint) — see getPushStatus() in @/lib/pushClient. null while loading
-     so the Row doesn't flash a wrong state before the check resolves. */
-  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    getPushStatus().then((status) => {
-      if (!cancelled) setPushStatus(status);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   /* Member management modals */
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
@@ -134,7 +114,6 @@ export default function SettingsClient() {
   }, 0);
   const hasContributions = householdContributions.length > 0;
   const activeRulesCount = contributionRules.filter((r) => r.is_active).length;
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   const currentMember = members.find(
     (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
@@ -301,37 +280,24 @@ export default function SettingsClient() {
       <section className="pt-6 pb-2">
         <SectionHeader title="App" />
         <Row label="Notifications" chevron onClick={() => setIsNotificationCenterOpen(true)}>
-          {unreadCount > 0 ? (
-            <span className="font-mono text-xs font-semibold text-primary">{unreadCount} new</span>
-          ) : (
-            <span className="font-mono text-[13px] text-muted">On</span>
-          )}
+          <span className="flex flex-col items-end gap-0.5">
+            <span className="font-mono text-[13px] text-muted">
+              {notificationSettings ? formatNotifyHourLabel(notificationSettings.notify_hour) : "—"}
+            </span>
+            <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-subtle">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${pushStatus?.hasLiveSubscription ? "bg-success" : "bg-subtle"} transition-colors duration-(--duration-slow) ease-(--ease-standard)`}
+              />
+              {pushStatus?.hasLiveSubscription ? "Active" : "Inactive"}
+            </span>
+          </span>
         </Row>
-        <Row
-          label="Notify me at"
-          value={notificationSettings ? formatNotifyHourLabel(notificationSettings.notify_hour) : "—"}
-          chevron
-          onClick={() => setShowNotifyHourDialog(true)}
-        />
         <Row
           label="Appearance"
           value={currentThemeLabel}
           chevron
           onClick={() => setShowAppearanceDialog(true)}
         />
-        {pushStatus && pushStatus.supported && (
-          <Row
-            label="Push notifications"
-            chevron
-            onClick={() => setShowPushStatusDialog(true)}
-          >
-            {pushStatus.hasLiveSubscription ? (
-              <span className="font-mono text-[13px] text-muted">Active</span>
-            ) : (
-              <span className="font-mono text-xs font-semibold text-accent">Not active here</span>
-            )}
-          </Row>
-        )}
       </section>
 
       {/* ── Household ────────────────────────────── */}
@@ -689,24 +655,6 @@ export default function SettingsClient() {
         onSave={updateHouseholdTimezone}
       />
 
-      {/* Notify hour (per-user; every member sets their own, unlike Timezone above) */}
-      <NotifyHourDialog
-        isOpen={showNotifyHourDialog}
-        onClose={() => setShowNotifyHourDialog(false)}
-        currentHour={notificationSettings?.notify_hour ?? 9}
-        onSave={(hour) => updateNotificationSettings({ notify_hour: hour })}
-      />
-
-      {/* Push notification health (Slice 10, #96 half A) */}
-      {pushStatus && (
-        <PushStatusDialog
-          isOpen={showPushStatusDialog}
-          onClose={() => setShowPushStatusDialog(false)}
-          status={pushStatus}
-          onStatusChange={setPushStatus}
-        />
-      )}
-
       {/* Reused sheets & member modals */}
       <RemoveMemberModal
         isOpen={memberToRemove !== null}
@@ -742,6 +690,8 @@ export default function SettingsClient() {
       <NotificationCenter
         isOpen={isNotificationCenterOpen}
         onClose={() => setIsNotificationCenterOpen(false)}
+        pushStatus={pushStatus}
+        onPushStatusChange={setPushStatus}
       />
     </div>
   );

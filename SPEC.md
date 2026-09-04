@@ -512,12 +512,31 @@ are popping in with zero animation today despite the code looking animated.
   slice rather than run it separately): `Notifications` (on/off toggle),
   `Notify me at` (delivery hour, #97), and `Push notifications` (device
   subscription status, #96) grew independently across two sessions and now
-  read as three disconnected rows for what feels like one concern. Not a
-  bug — an IA/grouping pass: consolidate into a clearer single entry point
-  or visually group the three under one sub-heading, whichever the design
-  pass lands on. No functional/behavioral change to any of the three
-  underlying features (toggle, hour picker, re-enable flow) — presentation
-  only.
+  read as three disconnected rows for what feels like one concern. Design
+  pass done live with Anthony via the design canvas skill (2026-09-03) —
+  landed on a **single "Notifications" row** (App section) opening one
+  merged panel, replacing the three-row/two-dialog split.
+  **Superseded from presentation-only to a real functional merge, per
+  Anthony's explicit call during the design review**: today there are two
+  separate "turn this on" controls for what he correctly identified as one
+  concern — the `all_enabled` master toggle inside the Notifications dialog
+  (`NotificationCenter.tsx`), and the "Enable push notifications" button
+  inside the Push notifications dialog (`PushStatusDialog.tsx`). The merged
+  panel keeps **exactly one switch** (`all_enabled`, unchanged meaning/
+  storage — still gates in-app + push together, no schema change): a
+  "Notify me at" row for the delivery hour (unchanged control, #97,
+  untouched storage), and a **plain status row** for this device's push
+  registration — "Active" when live, swapping to a single inline "Enable on
+  this device" action (reusing the existing `subscribeToPush()` re-enable
+  flow from #96 half A, not a new mechanism) only when this device's
+  subscription needs re-registering. The dead-subscription detection logic
+  itself (#96 half A) is unchanged — only where its action button lives
+  moves, from its own dialog into this merged panel. Per-notification-type
+  toggles (manual bill, auto-pay, lodge payment, payday, goal milestone)
+  stay as they are today, nested under the same entry point, unaffected by
+  this merge. Static mockups (three artboards: today's baseline, the new
+  single row, the merged panel) approved by Anthony before build — see the
+  design canvas from that session for the approved layout/copy.
 
 **Recommendation:** the `tailwindcss-animate` install fix itself is cheap,
 self-contained, and fixes an already-broken feature — worth pulling forward

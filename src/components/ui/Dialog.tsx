@@ -78,14 +78,24 @@ export default function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] modal-backdrop flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[100] modal-backdrop flex items-center justify-center p-4 dialog-backdrop-animate"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
+      {/* Dim + blur layer, split from the opacity-animated wrapper above.
+          Safari doesn't animate `backdrop-filter` smoothly when opacity is
+          transitioning on the SAME element — it composites the blur once
+          the animation settles instead of fading it in, which read as "no
+          entrance animation" on-device (#99 regression). Keeping the static
+          dim/blur here and letting the wrapper's opacity carry the fade
+          works around it: this div's own opacity never changes, so its
+          backdrop-filter always composites normally, and it still visually
+          fades in/out as part of the ancestor's animated opacity. */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
       <div
         className={cn(
-          "relative bg-surface border border-border-strong rounded-[2px] w-full max-h-full flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200",
+          "relative bg-surface border border-border-strong rounded-[2px] w-full max-h-full flex flex-col shadow-2xl overflow-hidden dialog-card-animate",
           maxWidthClass
         )}
         onClick={(e) => e.stopPropagation()}

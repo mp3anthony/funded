@@ -40,7 +40,7 @@ function getSnoozedIds(): Record<string, number> {
 }
 
 function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMounted: boolean }) {
-  const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, notifications } = useApp();
+  const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, notifications, pushStatus, setPushStatus } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   const currentUser = useCurrentUser();
@@ -223,6 +223,8 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
         <NotificationCenter
           isOpen={isNotificationCenterOpen}
           onClose={() => setIsNotificationCenterOpen(false)}
+          pushStatus={pushStatus}
+          onPushStatusChange={setPushStatus}
         />
 
         {/* Main Content */}
