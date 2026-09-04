@@ -25,6 +25,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.29",
+    date: "September 2026",
+    highlights: [
+      "You can now add expenses, not just bills. A bill is a fixed cost like rent or a subscription; an expense is everyday variable spending like groceries or fuel, and both count toward your weekly amount needed. They now show together in one list on the Bills page, with a small tag on each row so you can tell which is which.",
+      "Bills and expenses also got a visual polish pass, so the list is easier to scan at a glance.",
+    ],
+  },
+  {
     version: "0.9.27",
     date: "September 2026",
     highlights: [
