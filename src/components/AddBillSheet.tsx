@@ -5,15 +5,20 @@ import React, { useState } from "react";
 import { useApp, useCurrentUser, type Bill, type BillSplit } from "@/context/AppContext";
 import ContributorSplits, { type SplitResult } from "./ContributorSplits";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import ItemTypeToggle from "./ItemTypeToggle";
 
 interface AddBillSheetProps {
   isOpen: boolean;
   onClose: () => void;
   existingBill?: Bill;
   existingSplits?: BillSplit[];
+  /** Add-mode only (no existingBill): lets the user swap to the Expense
+   * form without closing/reopening the dialog by hand. Omitted entirely
+   * while editing, since an existing item's type is fixed. */
+  onSwitchToExpense?: () => void;
 }
 
-export default function AddBillSheet({ isOpen, onClose, existingBill, existingSplits }: AddBillSheetProps) {
+export default function AddBillSheet({ isOpen, onClose, existingBill, existingSplits, onSwitchToExpense }: AddBillSheetProps) {
   const { householdMembers, addBill, updateBill, session, isJointFund } = useApp();
   const currentUser = useCurrentUser();
 
@@ -152,6 +157,10 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
     >
       {/* Form Body */}
       <div className="space-y-4 md:space-y-6">
+          {!existingBill && onSwitchToExpense && (
+            <ItemTypeToggle value="bill" onChange={(t) => t === "expense" && onSwitchToExpense()} />
+          )}
+
           {errorMsg && (
             <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
               <span className="font-bold">Failed to save bill:</span><br/>
