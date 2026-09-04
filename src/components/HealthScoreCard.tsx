@@ -7,11 +7,11 @@ import { calculateHealthScore, convertAmount } from "@/lib/utils";
 
 /* ── Slice 13 (#99, Part 5): count-up on the 4 stat tiles ──────────
    Animates a displayed number from its previous value to a new target over
-   900ms on an ease-out-cubic curve, via requestAnimationFrame. Re-triggers
+   1150ms on an ease-out-cubic curve, via requestAnimationFrame. Re-triggers
    whenever `target` changes (including on mount, animating up from 0 — the
    simplest, most consistent "value settled in" read rather than special-
    casing the first render to skip the animation). */
-function useCountUp(target: number, durationMs = 900): number {
+function useCountUp(target: number, durationMs = 1150): number {
   const [displayValue, setDisplayValue] = useState(0);
   const fromRef = useRef(0);
   const rafRef = useRef<number | null>(null);
@@ -228,7 +228,7 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
           overflow-hidden wrapper clips mid-transition, and the content's
           opacity fades in over roughly the back half so it doesn't pop. */}
       <div
-        className="grid transition-[grid-template-rows] duration-[380ms] ease-(--ease-standard)"
+        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
         style={{ gridTemplateRows: isHealthExpanded ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden min-h-0">
@@ -236,8 +236,8 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
             className="grid grid-cols-2 gap-x-6 transition-opacity ease-(--ease-standard)"
             style={{
               opacity: isHealthExpanded ? 1 : 0,
-              transitionDuration: "190ms",
-              transitionDelay: isHealthExpanded ? "190ms" : "0ms",
+              transitionDuration: "260ms",
+              transitionDelay: isHealthExpanded ? "260ms" : "0ms",
             }}
           >
             {/* Tile 1 */}

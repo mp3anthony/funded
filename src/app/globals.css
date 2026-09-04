@@ -50,8 +50,8 @@
      scale for the whole app. Not color-dependent, so no per-theme
      duplication needed. ── */
   --duration-fast: 120ms;   /* press feedback, toggle knobs, chevron/icon state */
-  --duration-base: 200ms;   /* dialog/sheet entrance, hover/color transitions, menus */
-  --duration-slow: 400ms;   /* expand/collapse-adjacent transitions, tier-color changes */
+  --duration-base: 260ms;   /* dialog/sheet entrance, hover/color transitions, menus */
+  --duration-slow: 520ms;   /* expand/collapse-adjacent transitions, tier-color changes */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); /* decelerate, no bounce — the "premium" curve */
 }
 
@@ -360,7 +360,7 @@ body.modal-open main {
 @keyframes dialog-card-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: translateY(18px) scale(0.945);
   }
   to {
     opacity: 1;
@@ -371,7 +371,7 @@ body.modal-open main {
   animation: dialog-backdrop-in var(--duration-base) ease-out both;
 }
 .dialog-card-animate {
-  animation: dialog-card-in 220ms var(--ease-standard) both;
+  animation: dialog-card-in 280ms var(--ease-standard) both;
 }
 
 /* ── Floating Avatar Button ── */
