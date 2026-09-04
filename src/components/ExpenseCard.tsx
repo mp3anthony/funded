@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useApp, type Expense, type Member } from "@/context/AppContext";
 import ExpenseDetailSheet from "./ExpenseDetailSheet";
 import AddExpenseSheet from "./AddExpenseSheet";
+import RowPill from "./RowPill";
 
 export interface ExpenseCardProps {
   expense: Expense;
@@ -13,6 +14,9 @@ export interface ExpenseCardProps {
 /**
  * Issue #98 (Slice 2 of 6): expense row — mirrors BillCard's hairline-row
  * layout, minus the due-date/urgency treatment (expenses have no due date).
+ * Renders inline in the same category-grouped, amount-sorted list as bill
+ * rows on /bills; the "Expense" pill is the only visual cue distinguishing
+ * it from a bill row (fix-round: unify bills/expenses into one list).
  */
 export default function ExpenseCard({ expense, householdMembers }: ExpenseCardProps) {
   const { deleteExpense } = useApp();
@@ -67,8 +71,11 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
           <span className="font-body font-semibold text-[15px] text-foreground truncate">
             {expense.name}
           </span>
-          <span className="font-mono text-[10px] uppercase font-medium tracking-wider mt-0.5 text-muted">
-            {expense.category || "Other"}
+          <span className="flex items-center gap-1.5 mt-0.5">
+            <RowPill label="Expense" />
+            <span className="font-mono text-[10px] uppercase font-medium tracking-wider text-muted">
+              {expense.category || "Other"}
+            </span>
           </span>
         </div>
 
