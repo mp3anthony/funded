@@ -1,13 +1,16 @@
 # Handoff
 
-**Last updated:** 2026-09-04 — **Slice 13 (#99, first half) MERGED** — [PR #129](https://github.com/mp3anthony/funded/pull/129)
-squash-merged to `main` at `v0.9.27`, confirmed live via `git pull --ff-only` (14 files landed).
-Anthony's on-device pass found 2 real regressions + 1 "works but too subtle" round; both got
-fixed, independently reviewed, and re-tested before merge — full story in the dated section below.
+**Last updated:** 2026-09-04 — **#98 sub-slice 1 of 6 (expenses schema + migration) MERGED** —
+[PR #130](https://github.com/mp3anthony/funded/pull/130) squash-merged to `main` at `v0.9.28`,
+confirmed live via `git pull --ff-only` (4 files landed). Full story in the dated section below.
 
-**→ START HERE NEXT SESSION: #98** (bills vs expenses split) — `ready-for-agent`, decisions
-already recorded on the issue; recommend sub-slicing it further at its own kickoff rather than one
-big PR. Nothing else is queued ahead of it.
+**→ START HERE NEXT SESSION: #98 sub-slice 2 of 6 — add/edit expense UI.** The 6-piece
+sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first, don't
+re-derive it. Order: (1✅ done) schema+migration → **(2) add/edit expense UI ← next** → (3) Direct
+Pay split logic for expenses → (4) weekly-draw calc integration (touches #106, this is where the
+still-open "how does a goal-contribution rule become a weekly-draw line item" question gets
+nailed down) → (5) health-score integration → (6) #70 category-ordering extension. Nothing else
+is queued ahead of #98.
 
 **Critical infra gotcha discovered this session, read before touching ANY Vercel cron work again:**
 this project is on **Vercel's Hobby plan**, which only permits cron jobs to run **once per day**.
@@ -26,6 +29,60 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-04 (continued) — #98 sub-slice 1 of 6 (expenses schema + migration) built, reviewed, applied to prod, merged
+
+Continuation of the same day's session, picked up right where the entry below left off ("→ START
+HERE NEXT SESSION: #98"). Read #98's full decision comment first — this turned out too large to
+build in one PR (schema change + UI + two new split modes + a calc-logic rewrite touching #106 +
+health-score changes + #70 extension), matching what both the issue and `SPEC.md` Slice 12
+already flagged. **Confirmed with Anthony before building anything**: proposed a 6-piece
+sub-slicing plan, he approved it as-is; logged as a comment on #98 itself as the source of truth
+for build order going forward (not just in this file) — schema+migration → add/edit UI → Direct
+Pay split logic → weekly-draw calc integration (#106) → health-score integration → #70 category
+ordering extension.
+
+**Sub-slice 1 (schema + migration), CLOSED, [PR #130](https://github.com/mp3anthony/funded/pull/130).**
+New `expenses` table (separate from `bills`, per Anthony's schema-shape sign-off already recorded
+on #98 in a prior session) plus a new `expense_splits` join table, designed up front so sub-slices
+3 (Direct Pay split UI) and 4 (weekly-draw calc) can land without a second migration:
+`split_mode` picks either whole-item `assignee_id` (mirrors how `bills` already works) or the new
+`expense_splits` %-split table (stores raw percentages, not precomputed dollars, since no
+"weekly-draw amount" concept exists for expenses yet). RLS mirrors `bills`'/`bill_splits`' real
+current policies — deliberately does NOT carry forward `bill_splits`' legacy insecure anon
+policies. One-time data migration moved the 4 real groceries/fuel workaround bill-rows (the thing
+Anthony's original decision comment specifically called out) into the new table; "Day Care" (same
+category) correctly left as a real bill. Added `Expense`/`ExpenseSplit` TS interfaces, nothing
+wired to them yet — that's later sub-slices' job.
+
+**Independent review: APPROVED first pass**, but given real weight because this is a schema
+change destined for direct production application — reviewer independently queried live Supabase
+(not just trusted the migration file) to confirm the RLS mirror was accurate, confirmed the exact
+4 migration candidate rows, confirmed `bill_splits` was actually empty for those bill ids so the
+cascade-delete had no side effects, and confirmed the split-mode design genuinely avoids a future
+second migration. One cosmetic-only nit found and fixed in a follow-up commit: the migration's own
+comment slightly undersold `bill_splits`' real policy count (said "exactly one" when there are
+two, functionally irrelevant but worth correcting for a future reader). `tsc` clean, lint 58/42
+unchanged, build clean.
+
+**Applied directly to production Supabase by the orchestrator** (not the build sub-agent, per this
+repo's established split for migration work) after the review — verified live immediately after:
+`expenses` went 0→4 rows, `bills` went 29→25, exactly matching the reviewed candidate list.
+`v0.9.27` → `v0.9.28`, confirmed with Anthony before merge; no patch-notes entry added (schema-only,
+no user-facing change, and no prior pure-schema slice in this project's history sets a
+must-add-an-entry precedent either way — followed the conservative default). Squash-merged, branch
+and this session's build-agent worktree cleaned up. One unrelated leftover worktree
+(`agent-a69afbc08584a8fcc`, stale from a prior session, not from this one) left alone as before.
+
+**Workflow, same pattern as every prior slice**: build sub-agent (isolated worktree, since this
+touches schema) → independent review sub-agent (never the builder, explicitly asked which review
+path Anthony wanted per `CLAUDE.md`'s "don't assume Orchestrator reviews by default" rule — he
+chose a separate sub-agent) → two small fix-and-recommit follow-ups (comment nit + version bump)
+sent back to the same builder (full context) → orchestrator applied the migration directly and
+merged. No rework round needed on the substance, only the two trivial follow-ups.
+
+**#98 continues next session at sub-slice 2 (add/edit expense UI)** — see "→ START HERE NEXT
+SESSION" at the top of this file.
 
 ## 2026-09-04 — Slice 13 (#99) on-device manual test found 2 real regressions, fixed, re-tested, merged; Group 4 closed
 
