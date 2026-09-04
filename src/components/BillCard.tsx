@@ -5,6 +5,7 @@ import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppCon
 import { convertAmount } from "@/lib/utils";
 import BillDetailSheet from "./BillDetailSheet";
 import AddBillSheet from "./AddBillSheet";
+import RowPill from "./RowPill";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export interface BillCardProps {
@@ -70,6 +71,10 @@ export default function BillCard({
         })()
       : bill.dueDate;
 
+  // Payment-type pill (Auto-Pay / Manual) — mirrors BillDetailSheet's badge
+  const isAutoPay = bill.payment_type?.toLowerCase() === "auto";
+  const paymentTypeStr = isAutoPay ? "Auto-Pay" : "Manual";
+
   // Convert amount based on selected frequency
   const convertedAmount = convertAmount(bill.amount, bill.frequency || "monthly", displayFrequency);
 
@@ -121,12 +126,15 @@ export default function BillCard({
         <span className="font-body font-semibold text-[15px] text-foreground truncate">
           {bill.name}
         </span>
-        <span
-          className={`font-mono text-[10px] uppercase font-medium tracking-wider mt-0.5 transition-colors ${
-            isUrgent ? "text-[#ff4500]" : "text-muted"
-          }`}
-        >
-          DUE {dueDateDisplay}
+        <span className="flex items-center gap-1.5 mt-0.5">
+          <RowPill label={paymentTypeStr} variant={isAutoPay ? "primary" : "success"} />
+          <span
+            className={`font-mono text-[10px] uppercase font-medium tracking-wider transition-colors ${
+              isUrgent ? "text-[#ff4500]" : "text-muted"
+            }`}
+          >
+            DUE {dueDateDisplay}
+          </span>
         </span>
       </div>
 

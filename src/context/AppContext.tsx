@@ -547,6 +547,26 @@ function mapBillFromDb(dbBill: any): Bill {
   };
 }
 
+/**
+ * Issue #98 (Slice 2 of 6): expense mapper — deliberately much simpler than
+ * mapBillFromDb (no due date/status/frequency logic, since expenses have
+ * none of those concepts).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapExpenseFromDb(dbExpense: any): Expense {
+  return {
+    id: dbExpense.id,
+    household_id: dbExpense.household_id,
+    name: dbExpense.name,
+    category: dbExpense.category,
+    amount: parseFloat(dbExpense.amount),
+    notes: dbExpense.notes ?? null,
+    split_mode: dbExpense.split_mode === "percentage" ? "percentage" : "assignee",
+    assignee_id: dbExpense.assignee_id ?? null,
+    created_at: dbExpense.created_at,
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapFundFromDb(dbFund: any): Fund {
   const fundStyle = getFundStyle(dbFund.category);
@@ -683,6 +703,14 @@ interface AppContextValue {
   markAsUnpaid: (bill: Bill) => Promise<void>;
   togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
   deleteBill: (id: string | number) => void;
+
+  /* Expenses (Issue #98, Slice 2 of 6) */
+  expenses: Expense[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addExpense: (expenseData: any) => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updateExpense: (expenseId: string, expenseData: any) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
 
   /* Funds */
   funds: Fund[];
@@ -1062,6 +1090,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   /* ── Data States ────────────────────────────── */
   const [bills, setBills] = useState<Bill[]>([]);
+  /* Issue #98 (Slice 2 of 6): expenses list — variable spend, tracked
+   * separately from bills. split_mode is always "assignee" for now; the
+   * "percentage" mode (schema already supports it) is wired up in sub-slice
+   * 3 (Direct Pay split logic for expenses), not here. */
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
   const [paydays, setPaydays] = useState<Payday[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -1391,8 +1424,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   ) {
     const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
 
-    const [billsRes, fundsRes, paydaysRes, membersRes, billSplitsRes] = await Promise.all([
+    const [billsRes, expensesRes, fundsRes, paydaysRes, membersRes, billSplitsRes] = await Promise.all([
       supabase.from("bills").select("*").eq("household_id", householdId),
+      supabase.from("expenses").select("*").eq("household_id", householdId),
       supabase.from("funds").select("*").eq("household_id", householdId),
       supabase.from("paydays").select("*").eq("household_id", householdId),
       supabase.from("household_members").select("*").eq("household_id", householdId),
@@ -1406,9 +1440,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // resolveWarmReloadRace above for the full rationale. bills/funds/paydays/
     // members are independent of one another, so they're reconciled
     // concurrently rather than compounding re-fetch latency sequentially.
-    const [resolvedBills, resolvedFunds, resolvedPaydays, resolvedMembers] = await Promise.all([
+    const [resolvedBills, resolvedExpenses, resolvedFunds, resolvedPaydays, resolvedMembers] = await Promise.all([
       resolveWarmReloadRace(assumeEmptyPreviousState ? [] : bills, billsRes, async () =>
         await supabase.from("bills").select("*").eq("household_id", householdId)
+      ),
+      resolveWarmReloadRace(assumeEmptyPreviousState ? [] : expenses, expensesRes, async () =>
+        await supabase.from("expenses").select("*").eq("household_id", householdId)
       ),
       resolveWarmReloadRace(assumeEmptyPreviousState ? [] : funds, fundsRes, async () =>
         await supabase.from("funds").select("*").eq("household_id", householdId)
@@ -1423,6 +1460,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
     if (resolvedBills) {
       setBills(resolvedBills.map(mapBillFromDb));
+    }
+    if (resolvedExpenses) {
+      setExpenses(resolvedExpenses.map(mapExpenseFromDb));
     }
     if (resolvedFunds) {
       setFunds(resolvedFunds.map(mapFundFromDb));
@@ -2323,6 +2363,109 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  /* ── Expenses Actions (Issue #98, Slice 2 of 6) ──────────────
+     Deliberately simpler than the Bills actions above: no due_date,
+     invoice_date, frequency, payment_type, is_recurring, or is_paused
+     concepts, and split_mode is hardcoded to "assignee" (whole-item
+     assignment) — the "percentage" split-mode UI/logic is sub-slice 3's
+     job, not this one's. No expense_splits reads/writes happen here for
+     the same reason: with split_mode fixed to "assignee", that table
+     stays empty until sub-slice 3 lands. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function addExpense(expenseData: any) {
+    try {
+      const hId = await ensureHousehold();
+
+      const dbExpenseData = {
+        household_id: hId,
+        name: expenseData.name,
+        amount: expenseData.amount,
+        category: expenseData.category || "Other",
+        notes: expenseData.notes || null,
+        split_mode: "assignee",
+        assignee_id: expenseData.assignee_id || expenseData.assignee || null,
+      };
+
+      const { data: newExpense, error } = await supabase
+        .from("expenses")
+        .insert(dbExpenseData)
+        .select()
+        .single();
+
+      if (error || !newExpense) {
+        console.error("Error inserting expense:", error);
+        throw error || new Error("Failed to insert expense record.");
+      }
+
+      setExpenses((prev) => [...prev, mapExpenseFromDb(newExpense)]);
+    } catch (err) {
+      console.error("Failed to add expense:", err);
+      throw err;
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function updateExpense(expenseId: string, expenseData: any) {
+    try {
+      if (!expenseId) {
+        throw new Error("updateExpense - Error: expenseId is undefined or empty!");
+      }
+
+      const dbExpenseData = {
+        name: expenseData.name,
+        amount: expenseData.amount,
+        category: expenseData.category || "Other",
+        notes: expenseData.notes || null,
+        split_mode: "assignee",
+        assignee_id: expenseData.assignee_id || expenseData.assignee || null,
+      };
+
+      const { data: updatedExpense, error } = await supabase
+        .from("expenses")
+        .update(dbExpenseData)
+        .eq("id", expenseId)
+        .select()
+        .single();
+
+      if (error || !updatedExpense) {
+        console.error("Error updating expense:", error);
+        throw error || new Error("Failed to update expense record.");
+      }
+
+      setExpenses((prev) =>
+        prev.map((e) => (e.id === expenseId ? mapExpenseFromDb(updatedExpense) : e))
+      );
+    } catch (err) {
+      console.error("Failed to update expense:", err);
+      throw err;
+    }
+  }
+
+  async function deleteExpense(id: string) {
+    try {
+      const { data, error } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("id", id)
+        .select();
+
+      if (error) {
+        console.error("Error deleting expense:", error);
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error(
+          "The expense couldn't be deleted — it may have already been removed, or you may not have permission to delete it."
+        );
+      }
+
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      console.error("Failed to delete expense:", err);
+      throw err;
+    }
+  }
+
   /* ── Funds Actions ──────────────────────────── */
   async function addFund(fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) {
     try {
@@ -2758,6 +2901,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       isJointFund,
       householdTimezone,
       bills,
+      expenses,
       funds,
       paydays,
       members,
@@ -3002,6 +3146,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       // 3. WIPE local state variables
       setBills([]);
+      setExpenses([]);
       setFunds([]);
       setPaydays([]);
       setMembers([]);
@@ -3030,6 +3175,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsJointFund(backupState.isJointFund);
       setHouseholdTimezone(backupState.householdTimezone);
       setBills(backupState.bills);
+      setExpenses(backupState.expenses);
       setFunds(backupState.funds);
       setPaydays(backupState.paydays);
       setMembers(backupState.members);
@@ -4231,6 +4377,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     markAsUnpaid,
     togglePauseBill,
     deleteBill,
+    expenses,
+    addExpense,
+    updateExpense,
+    deleteExpense,
     isJointFund,
     updateHouseholdPaymentMode,
     householdTimezone,

@@ -3,9 +3,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, X, ChevronDown, ChevronUp } from "lucide-react";
-import { useApp, useCurrentUser } from "@/context/AppContext";
+import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
 import AddBillSheet from "@/components/AddBillSheet";
+import AddExpenseSheet from "@/components/AddExpenseSheet";
 import BillCard from "@/components/BillCard";
+import ExpenseCard from "@/components/ExpenseCard";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
 import PageHeader from "@/components/PageHeader";
 import FrequencyToggle from "@/components/FrequencyToggle";
@@ -13,6 +15,11 @@ import { convertAmount } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 
 type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
+
+// A single row in the unified list — a bill or an expense, grouped and
+// sorted together (Issue #98, Slice 2 fix-round: Anthony asked for one
+// interleaved list instead of a Bills/Expenses tab split).
+type ListRow = { kind: "bill"; item: Bill } | { kind: "expense"; item: Expense };
 
 const BILL_CATEGORIES = [
   "Household Bills",
@@ -30,11 +37,12 @@ const BILL_CATEGORY_REMAP: Record<string, string> = {
 };
 
 export default function BillsClient() {
-  const { bills, billSplits, members: householdMembers, session } = useApp();
+  const { bills, billSplits, expenses, members: householdMembers, session } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
 
   const [isAddBillSheetOpen, setIsAddBillSheetOpen] = useState(false);
+  const [isAddExpenseSheetOpen, setIsAddExpenseSheetOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "week" | "month" | "overdue">("all");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,44 +125,80 @@ export default function BillsClient() {
     });
   }, [bills, filter, searchQuery, categoryFilter]);
 
-  const groupedBills = useMemo(() => {
-    const groups: Record<string, typeof filteredBills> = {};
-    filteredBills.forEach(bill => {
+  /* Expenses share the same search/category filters as bills now that
+   * they're in one list (Issue #98, Slice 2 fix-round). They have no due
+   * date, so a due-date filter ("This Week"/"This Month"/"Overdue") can't
+   * apply to them — an expense simply drops out of the list while one of
+   * those is active, matching the bill-only meaning of that filter. */
+  const filteredExpenses = useMemo(() => {
+    if (filter !== "all") return [];
+
+    return expenses.filter((e) => {
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase();
+        if (!e.name.toLowerCase().includes(query)) return false;
+      }
+      if (categoryFilter !== "All" && e.category !== categoryFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [expenses, filter, searchQuery, categoryFilter]);
+
+  /* Unified, category-grouped, amount-sorted (largest first within each
+   * category) list of bills and expenses mixed together — the exact
+   * grouping/sorting bills already used, now shared by both (Issue #98,
+   * Slice 2 fix-round: one interleaved list, no tab split). Category
+   * ordering stays the existing bill-only ordering system — the #70
+   * extension for expenses is a later sub-slice's job. */
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, ListRow[]> = {};
+
+    filteredBills.forEach((bill) => {
       const cat = bill.category || "Other";
       if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(bill);
+      groups[cat].push({ kind: "bill", item: bill });
     });
 
-    Object.keys(groups).forEach(cat => {
-      groups[cat].sort((a, b) => {
-        const amountA = convertAmount(a.amount, a.frequency || "monthly", displayFrequency);
-        const amountB = convertAmount(b.amount, b.frequency || "monthly", displayFrequency);
-        return amountB - amountA;
-      });
+    filteredExpenses.forEach((expense) => {
+      const cat = expense.category || "Other";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push({ kind: "expense", item: expense });
+    });
+
+    const amountOf = (row: ListRow) =>
+      row.kind === "bill"
+        ? convertAmount(row.item.amount, row.item.frequency || "monthly", displayFrequency)
+        : row.item.amount;
+
+    Object.keys(groups).forEach((cat) => {
+      groups[cat].sort((a, b) => amountOf(b) - amountOf(a));
     });
 
     return groups;
-  }, [filteredBills, displayFrequency]);
+  }, [filteredBills, filteredExpenses, displayFrequency]);
 
   const allCategories = useMemo(() => {
-    const currentCats = Object.keys(groupedBills);
+    const currentCats = Object.keys(groupedItems);
     return Array.from(new Set([...categoryOrder, ...BILL_CATEGORIES, ...currentCats]));
-  }, [groupedBills, categoryOrder]);
+  }, [groupedItems, categoryOrder]);
 
   const emptyStateMessage = useMemo(() => {
-    if (searchQuery.trim() !== "") return "No bills match your search";
-    if (categoryFilter !== "All") return `No bills in ${categoryFilter}`;
+    if (searchQuery.trim() !== "") return "No bills or expenses match your search";
+    if (categoryFilter !== "All") return `No bills or expenses in ${categoryFilter}`;
     if (filter === "week") return "No bills due this week";
     if (filter === "month") return "No bills due this month";
     if (filter === "overdue") return "No overdue bills";
-    return "No bills found";
+    return "No bills or expenses found";
   }, [filter, searchQuery, categoryFilter]);
+
+  const hasItems = Object.keys(groupedItems).length > 0;
 
   return (
     // 1. Drastically reduced padding and spacing to fix the "oversized" feel
     <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6 space-y-4">
 
-      {/* 2. Clean Header - Action slot added to hold the Add Bill button next to avatar */}
+      {/* 2. Clean Header - Action slot added to hold the Add button next to avatar */}
       <PageHeader
         title="Bills"
         subtitle="All household costs, organised by category."
@@ -181,10 +225,10 @@ export default function BillsClient() {
 
       {/* 4. Filters & Search */}
       <div className="flex flex-col gap-3 px-1">
-        
+
         {/* Filters Row */}
         <div className="grid grid-cols-3 gap-2">
-          
+
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
               Category
@@ -263,7 +307,7 @@ export default function BillsClient() {
         <div className="relative w-full">
           <input
             type="text"
-            placeholder="Search bills by name..."
+            placeholder="Search bills & expenses by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-transparent border-b border-border pl-1 pr-8 py-2 font-body text-sm placeholder:text-muted focus:outline-none focus:border-primary text-foreground"
@@ -279,7 +323,7 @@ export default function BillsClient() {
         </div>
       </div>
 
-      {/* Bills Scrollable Container */}
+      {/* Bills & Expenses Scrollable Container */}
       <div className="space-y-3">
         <div className="flex items-center justify-end px-1">
           <button
@@ -289,13 +333,13 @@ export default function BillsClient() {
             Edit Order
           </button>
         </div>
-        {filteredBills.length === 0 ? (
+        {!hasItems ? (
           <div className="py-10 text-center">
             <p className="text-muted font-mono text-sm">{emptyStateMessage}</p>
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(groupedBills)
+            {Object.entries(groupedItems)
               .sort(([a], [b]) => {
                 const idxA = allCategories.indexOf(a);
                 const idxB = allCategories.indexOf(b);
@@ -304,7 +348,7 @@ export default function BillsClient() {
                 if (idxB !== -1) return 1;
                 return a.localeCompare(b);
               })
-              .map(([category, categoryBills]) => (
+              .map(([category, categoryItems]) => (
               <div key={category} className="flex flex-col">
                 <button
                   onClick={() => toggleCategory(category)}
@@ -314,7 +358,7 @@ export default function BillsClient() {
                     {category}
                   </span>
                   <span className="font-mono text-[11px] font-semibold text-subtle shrink-0">
-                    ({categoryBills.length})
+                    ({categoryItems.length})
                   </span>
                   <span
                     className="h-0.5 flex-1 rounded-sm"
@@ -329,15 +373,23 @@ export default function BillsClient() {
 
                 {expandedCategories[category] && (
                   <div className="flex flex-col mt-1">
-                    {categoryBills.map((bill) => (
-                      <BillCard
-                        key={bill.id}
-                        bill={bill}
-                        splits={billSplits.filter(s => s.bill_id === bill.id)}
-                        householdMembers={householdMembers}
-                        displayFrequency={displayFrequency}
-                      />
-                    ))}
+                    {categoryItems.map((row) =>
+                      row.kind === "bill" ? (
+                        <BillCard
+                          key={`bill-${row.item.id}`}
+                          bill={row.item}
+                          splits={billSplits.filter(s => s.bill_id === row.item.id)}
+                          householdMembers={householdMembers}
+                          displayFrequency={displayFrequency}
+                        />
+                      ) : (
+                        <ExpenseCard
+                          key={`expense-${row.item.id}`}
+                          expense={row.item}
+                          householdMembers={householdMembers}
+                        />
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -349,8 +401,21 @@ export default function BillsClient() {
       <AddBillSheet
         isOpen={isAddBillSheetOpen}
         onClose={() => setIsAddBillSheetOpen(false)}
+        onSwitchToExpense={() => {
+          setIsAddBillSheetOpen(false);
+          setIsAddExpenseSheetOpen(true);
+        }}
       />
-      
+
+      <AddExpenseSheet
+        isOpen={isAddExpenseSheetOpen}
+        onClose={() => setIsAddExpenseSheetOpen(false)}
+        onSwitchToBill={() => {
+          setIsAddExpenseSheetOpen(false);
+          setIsAddBillSheetOpen(true);
+        }}
+      />
+
       <EditCategoryOrderModal
         isOpen={isEditCategoryOrderOpen}
         onClose={() => setIsEditCategoryOrderOpen(false)}
