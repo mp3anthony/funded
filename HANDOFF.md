@@ -1,10 +1,19 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#134, #132, #139 CLOSED.** All three notification-subsystem fixes
-shipped in one PR ([#138](https://github.com/mp3anthony/funded/pull/138)) squash-merged to `main`
-at `v0.9.35`, production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on
-the merge commit's own deployment, not just a green GitHub merge). Full story in the dated section
-below.
+**Last updated:** 2026-09-05 — **#134, #132, #139 CLOSED**, plus a process fix. All three
+notification-subsystem fixes shipped in one PR ([#138](https://github.com/mp3anthony/funded/pull/138))
+squash-merged to `main` at `v0.9.35`, production deployment confirmed `READY` and live via Vercel
+MCP (`get_deployment` on the merge commit's own deployment, not just a green GitHub merge).
+Follow-up: Anthony noticed the daily-overdue-reminder change wasn't reflected in "What's new" —
+the v0.9.35 patch-notes entry was missing entirely. Backfilled it and, more importantly, added a
+permanent rule to `CLAUDE.md` (§4, "Patch notes"): **every version bump now requires a
+patch-notes entry in the same PR going forward, including backend-only/no-UI changes**, explained
+by practical user-facing effect rather than mechanism — a genuinely invisible change still gets a
+one-line "no visible change" note rather than being silently skipped. Shipped as
+[PR #140](https://github.com/mp3anthony/funded/pull/140) (docs/data only, no version bump — it
+documents an already-shipped release). **Read this rule before finishing any future ticket that
+bumps the version — it's easy to forget since patch notes live in a separate file from the
+ticket's actual code.** Full story in the dated section below.
 
 **→ START HERE NEXT SESSION: no queued ticket.** Two open issues remain, neither pre-scoped as
 "next": **#99** (`ready-for-agent`, "Scope needed: Dynamic visual/motion overhaul") needs a scoping
