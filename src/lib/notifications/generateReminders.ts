@@ -134,8 +134,8 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
         const dueYmd = bill.due_date || bill.dueDate;
         if (!dueYmd) continue;
         const diffDays = diffDaysYmd(todayYmd, dueYmd);
+        const id = bill.id?.toString();
         if (diffDays >= 0 && diffDays <= threshold) {
-          const id = bill.id?.toString();
           push({
             user_id: userId,
             household_id: householdId,
@@ -144,6 +144,22 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
             message: `Your bill for ${bill.name} is due in ${diffDays} days.`,
             related_entity_id: id,
             dedupe_key: `${id}-${dueYmd}-manual_bill`,
+          });
+        } else if (diffDays < 0) {
+          // #132: overdue manual bills used to generate nothing at all once
+          // diffDays went negative — the "due soon" branch above only
+          // covers 0..threshold. Bill is still unpaid, so keep nagging daily
+          // until it's paid: dedupe_key includes todayYmd (not just dueYmd)
+          // so a fresh, undeduped reminder is produced every day it remains
+          // overdue instead of exactly once.
+          push({
+            user_id: userId,
+            household_id: householdId,
+            type: 'manual_bill',
+            title: 'Bill Overdue',
+            message: `Your bill for ${bill.name} is ${Math.abs(diffDays)} day(s) overdue.`,
+            related_entity_id: id,
+            dedupe_key: `${id}-${dueYmd}-manual_bill-overdue-${todayYmd}`,
           });
         }
       }
@@ -160,18 +176,38 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
         const diffDays = diffDaysYmd(todayYmd, dueYmd);
         if (diffDays <= threshold) {
           const id = bill.id?.toString();
+          // #132: diffDays <= 0 used to be treated as one single "passed"
+          // state with a date-invariant dedupe_key, so it only ever fired
+          // once and never again while the bill stayed unpaid. Day 0 (due
+          // today, not yet overdue) is kept as its own non-repeating
+          // "should now be paid" notice — the auto-pay attempt is expected
+          // to actually happen today, so there's nothing to nag about yet.
+          // Only diffDays < 0 (the auto-pay attempt's day has passed and
+          // it's still not Paid) is the actual overdue case, and that's
+          // what rolls its dedupe_key by todayYmd so it repeats daily until
+          // the bill is marked Paid.
+          const isOverdue = diffDays < 0;
           const message =
-            diffDays <= 0
+            diffDays === 0
               ? `Your automatic payment should now be paid.`
+              : diffDays < 0
+              ? `Your auto-paid bill ${bill.name} is ${Math.abs(diffDays)} day(s) overdue and still hasn't been marked paid.`
               : `Your auto-paid bill ${bill.name} will be processed in ${diffDays} days.`;
           push({
             user_id: userId,
             household_id: householdId,
             type: 'auto_pay',
-            title: diffDays <= 0 ? 'Auto-Pay Bill Passed' : 'Auto-Pay Upcoming',
+            // #132: title now distinguishes "just passed today" from
+            // "still overdue days later" — otherwise day 5/10/etc. would
+            // keep saying "Passed" even though the message body already
+            // varies with the day count, which reads oddly for a repeating
+            // daily nag.
+            title: isOverdue ? 'Bill Overdue' : diffDays === 0 ? 'Auto-Pay Bill Passed' : 'Auto-Pay Upcoming',
             message,
             related_entity_id: id,
-            dedupe_key: `${id}-${dueYmd}-auto_pay`,
+            dedupe_key: isOverdue
+              ? `${id}-${dueYmd}-auto_pay-overdue-${todayYmd}`
+              : `${id}-${dueYmd}-auto_pay`,
           });
         }
       }

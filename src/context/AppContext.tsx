@@ -7,7 +7,7 @@ import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import { adjustAutopayBillDate } from "@/lib/utils";
 import { generateReminders } from "@/lib/notifications/generateReminders";
-import { todayInZone } from "@/lib/notifications/timezone";
+import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
 
 
@@ -4500,6 +4500,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           continue;
         }
         // Reconstruct the key for rows that predate the dedupe_key column.
+        // #132: this shim only ever needs to reproduce the OLD, non-overdue
+        // key shape (`${id}-${dueYmd}-${type}`) — a row old enough to be
+        // missing dedupe_key entirely necessarily predates the new
+        // `-overdue-${todayYmd}` key shape too, so there's no pre-existing
+        // overdue row this needs to (or could) reconstruct a match for.
+        // Deliberately left as-is.
         if (!n.related_entity_id) continue;
         if (n.type === 'manual_bill' || n.type === 'auto_pay') {
           const bill = bills.find(b => b.id?.toString() === n.related_entity_id);
@@ -4524,7 +4530,29 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       });
 
       if (rows.length > 0) {
-        // Slice 11 v2 (#96 half B rework): mark these rows delivered
+        // #134 fix: this path used to unconditionally stamp every row
+        // delivered-now and push it immediately, ignoring notify_hour
+        // entirely — fine before Slice 9/11 existed, but now it can push a
+        // household hours before its chosen delivery time. Split the newly
+        // generated rows into "push now" (today's notify_hour has already
+        // arrived/passed in the household's own timezone) and "defer"
+        // (notify_hour is still later today) groups, matching the exact
+        // gating the daily cron (push-reminders/route.ts) already applies —
+        // this just does it inline, once, at the instant the row is created
+        // instead of waiting for tomorrow's cron run.
+        const tz = householdTimezone || 'Australia/Sydney';
+        const notifyHour = notificationSettings.notify_hour ?? 9;
+        const notifyHourReached = hourInZone(tz) >= notifyHour;
+
+        let rowsToPush: typeof rows = [];
+        let rowsToDefer: typeof rows = [];
+        if (notifyHourReached) {
+          rowsToPush = rows;
+        } else {
+          rowsToDefer = rows;
+        }
+
+        // Slice 11 v2 (#96 half B rework): mark "push now" rows delivered
         // immediately since we're about to push them ourselves right below
         // — this is the instant, app-is-open delivery path, distinct from
         // the daily generation cron. Without this, the separate
@@ -4532,23 +4560,73 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // these a second time on its next run. `scheduled_for` is left
         // unset here and defaults to `now()` via the DB column default,
         // which is correct for this path (delivery is immediate).
-        const rowsWithDelivery = rows.map(row => ({
+        const rowsWithDelivery = rowsToPush.map(row => ({
           ...row,
           delivered_at: new Date().toISOString(),
+        }));
+
+        // "Defer" rows are inserted with delivered_at left null and
+        // scheduled_for set to today's notify_hour instant in the
+        // household's timezone — the existing deliver-scheduled pg_cron
+        // (polls every 5 min for delivered_at IS NULL AND scheduled_for <=
+        // now()) will push these once that time arrives. They still get
+        // inserted now (not deferred until later) so they show up in the
+        // in-app bell/list right away.
+        //
+        // IMPORTANT: `todayYmd` (computed above, at line ~4488) is the
+        // DEVICE's local calendar day — intentionally, for the reminder
+        // generation itself (`generateReminders()`), so it stays identical
+        // to this path's pre-existing behavior. But `zonedDateAtHour` needs
+        // a day string and a timezone that describe the SAME clock, or it
+        // computes the wrong instant whenever the device's local day and
+        // the household's local day disagree (large offset, or either near
+        // a midnight boundary). So recompute the day in the household's own
+        // timezone here, specifically for this calculation — this is what
+        // push-reminders/route.ts does throughout (it derives todayYmd from
+        // the household zone for both the day and the hour).
+        const householdTodayYmd = todayInZone(tz);
+        const rowsWithSchedule = rowsToDefer.map(row => ({
+          ...row,
+          delivered_at: null,
+          scheduled_for: zonedDateAtHour(householdTodayYmd, notifyHour, tz).toISOString(),
         }));
 
         // Upsert with ignoreDuplicates so concurrent client/cron runs never
         // create the same reminder twice; .select() returns ONLY the rows
         // that were actually inserted (duplicates are silently skipped).
-        const { data, error } = await supabase
-          .from('notifications')
-          .upsert(rowsWithDelivery, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
-          .select();
-        if (!error && data) {
-           setNotifications(prev => [...data, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-           
-           // Fire web push for each new notification
-           for (const notif of data) {
+        // Two separate upserts (rather than one combined array) because the
+        // two groups need different delivered_at/scheduled_for handling and
+        // only the "push now" group's inserted rows should be fed to the
+        // push-send loop below.
+        const [pushResult, deferResult] = await Promise.all([
+          rowsWithDelivery.length > 0
+            ? supabase
+                .from('notifications')
+                .upsert(rowsWithDelivery, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
+                .select()
+            : Promise.resolve({ data: [], error: null }),
+          rowsWithSchedule.length > 0
+            ? supabase
+                .from('notifications')
+                .upsert(rowsWithSchedule, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true })
+                .select()
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+
+        const allInserted = [
+          ...((!pushResult.error && pushResult.data) ? pushResult.data : []),
+          ...((!deferResult.error && deferResult.data) ? deferResult.data : []),
+        ];
+        if (allInserted.length > 0) {
+           setNotifications(prev => [...allInserted, ...prev].sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+
+           // Fire web push only for rows that were just marked delivered
+           // (the "push now" group) — deferred rows are left for the
+           // deliver-scheduled cron to push once notify_hour arrives, so
+           // pushing them here too would double-deliver.
+           const deliveredNowIds = new Set(rowsToPush.map(r => r.dedupe_key));
+           for (const notif of allInserted) {
+             if (!deliveredNowIds.has(notif.dedupe_key)) continue;
              try {
                await fetch('/api/push/send', {
                  method: 'POST',
@@ -4560,8 +4638,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
                    userId: notif.user_id,
                    title: notif.title,
                    body: notif.message,
-                   url: notif.related_entity_id 
-                     ? `/bills?billId=${notif.related_entity_id}` 
+                   url: notif.related_entity_id
+                     ? `/bills?billId=${notif.related_entity_id}`
                      : '/',
                    icon: '/icons/icon-192x192.png?v=2'
                  }),
@@ -4575,7 +4653,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     };
 
     generateClientNotifications();
-  }, [bills, payHistory, paySchedules, funds, notificationSettings, isDataLoading, isOnboarded, session, dbHouseholdId, members, notifications]);
+  }, [bills, payHistory, paySchedules, funds, notificationSettings, isDataLoading, isOnboarded, session, dbHouseholdId, members, notifications, householdTimezone]);
 
   const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name));
 
