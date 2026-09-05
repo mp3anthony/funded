@@ -24,7 +24,12 @@ import { useEffect, useRef, useState } from "react";
    Add Amount) counts up/down from the previous value. */
 export function useCountUp(target: number, durationMs = 900, animateOnMount = false): number {
   const [displayValue, setDisplayValue] = useState(animateOnMount ? 0 : target);
-  const fromRef = useRef(animateOnMount ? 0 : target);
+  // Tracks the value actually on screen right now (updated every tick), as
+  // opposed to only the value an animation *started* from. This is what
+  // lets a new target — arriving mid-animation — pick up from wherever the
+  // number visually is instead of rewinding to the previous animation's
+  // stale starting point (see Slice 99 review fix #1).
+  const displayValueRef = useRef(displayValue);
   const rafRef = useRef<number | null>(null);
   const isFirstRun = useRef(true);
 
@@ -34,33 +39,44 @@ export function useCountUp(target: number, durationMs = 900, animateOnMount = fa
       if (!animateOnMount) {
         // Initial state/ref were already seeded to `target` above, so
         // there's nothing to animate or reconcile on this first run.
-        fromRef.current = target;
         return;
       }
     }
 
-    const from = fromRef.current;
+    // Cancel any in-flight animation before reading the "live" value below —
+    // otherwise a stray frame from the old rAF loop could write to the ref
+    // after we've captured `from`.
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
+    const from = displayValueRef.current;
     const to = target;
     if (from === to) return;
 
     const start = performance.now();
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
 
     const tick = (now: number) => {
       const elapsed = now - start;
       const t = Math.min(1, elapsed / durationMs);
       const eased = 1 - Math.pow(1 - t, 3); // ease-out-cubic
-      setDisplayValue(from + (to - from) * eased);
+      const value = from + (to - from) * eased;
+      displayValueRef.current = value;
+      setDisplayValue(value);
       if (t < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
-        fromRef.current = to;
+        rafRef.current = null;
       }
     };
     rafRef.current = requestAnimationFrame(tick);
 
     return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, durationMs]);

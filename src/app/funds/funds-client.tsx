@@ -248,7 +248,11 @@ export default function FundsClient() {
                   className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
                   style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
                 >
-                  <div className="overflow-hidden min-h-0">
+                  <div
+                    className="overflow-hidden min-h-0"
+                    aria-hidden={!isExpanded}
+                    inert={!isExpanded ? true : undefined}
+                  >
                     <div className="flex flex-col mt-1">
                       {categoryFunds.map((fund, index) => {
                         const IconComponent = fund.icon;
@@ -282,8 +286,11 @@ export default function FundsClient() {
         )}
       </div>
 
-      {/* Goal Detail Sheet */}
+      {/* Goal Detail Sheet — keyed so it genuinely remounts per open (the
+          component itself is always mounted here; only its internal
+          isOpen/goal check hides it), including reopening the same goal. */}
       <GoalDetailSheet
+        key={isDetailOpen ? `open-${selectedGoal?.id ?? "none"}` : "closed"}
         isOpen={isDetailOpen}
         onClose={() => {
           setIsDetailOpen(false);

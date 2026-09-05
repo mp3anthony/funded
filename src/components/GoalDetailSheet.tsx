@@ -23,8 +23,10 @@ export default function GoalDetailSheet({
   const percentage = goal ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100) : 0;
   const isComplete = !!goal && goal.currentAmount >= goal.targetAmount;
 
-  // Slice 99: the sheet unmounts on close (early return below), so each
-  // open is a fresh mount — the saved amount and progress % count up from
+  // Slice 99: call sites key this component so each open (including
+  // reopening the same goal) is a fresh mount, even though the component
+  // itself stays rendered across opens/closes (only the early return below
+  // hides it) — so the saved amount and progress % reliably count up from
   // 0 as a small authored reveal, consistent with the Dialog card's own
   // entrance rather than popping straight to the final figures.
   const displayCurrentAmount = useCountUp(goal?.currentAmount ?? 0, 700, true);

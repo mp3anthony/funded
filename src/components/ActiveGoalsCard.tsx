@@ -80,7 +80,11 @@ export const ActiveGoalsCard = React.memo(function ActiveGoalsCard({
         className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
         style={{ gridTemplateRows: isMinimised ? "0fr" : "1fr" }}
       >
-        <div className="overflow-hidden min-h-0">
+        <div
+          className="overflow-hidden min-h-0"
+          aria-hidden={isMinimised}
+          inert={isMinimised ? true : undefined}
+        >
           {activeGoalsList.length === 0 ? (
             <div className="py-8 text-center flex flex-col items-center justify-center space-y-2.5">
               <div className="p-3 bg-foreground/5 rounded-full border border-border-strong">
