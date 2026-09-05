@@ -56,7 +56,10 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
     isJointFund,
     billSplits,
     members,
-    isDataLoading
+    isDataLoading,
+    expenses,
+    expenseSplits,
+    contributionRules
   } = useApp();
 
   const [isHealthExpanded, setIsHealthExpanded] = useState(true);
@@ -64,8 +67,8 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
 
   // 1. Calculate Health Score
   const score = useMemo(
-    () => calculateHealthScore(bills, funds, payHistory, householdContributions, paySchedules, isJointFund, billSplits),
-    [bills, funds, payHistory, householdContributions, paySchedules, isJointFund, billSplits]
+    () => calculateHealthScore(bills, funds, payHistory, householdContributions, paySchedules, isJointFund, billSplits, expenses, expenseSplits, contributionRules),
+    [bills, funds, payHistory, householdContributions, paySchedules, isJointFund, billSplits, expenses, expenseSplits, contributionRules]
   );
 
   // 1b. Steady-state "not set up yet" override (#87).
