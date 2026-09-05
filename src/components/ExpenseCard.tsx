@@ -19,11 +19,23 @@ export interface ExpenseCardProps {
  * it from a bill row (fix-round: unify bills/expenses into one list).
  */
 export default function ExpenseCard({ expense, householdMembers }: ExpenseCardProps) {
-  const { deleteExpense } = useApp();
+  const { deleteExpense, expenseSplits } = useApp();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const assignee = householdMembers.find((m) => String(m.id) === String(expense.assignee_id));
+
+  // Issue #98 (Slice 3 of 6): percentage-split summary, e.g. "Alice 60% / Bob 40%".
+  const isPercentageSplit = expense.split_mode === "percentage";
+  const splits = isPercentageSplit
+    ? expenseSplits.filter((s) => String(s.expense_id) === String(expense.id))
+    : [];
+  const splitSummary = splits
+    .map((s) => {
+      const member = householdMembers.find((m) => String(m.id) === String(s.member_id));
+      return `${member?.name || "Unknown"} ${s.percentage}%`;
+    })
+    .join(" / ");
 
   const formattedAmount = Number(expense.amount).toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -48,8 +60,11 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
         onClick={() => setIsDetailOpen(true)}
         className="w-full text-left border-t border-border flex items-center gap-3 py-3 group hover:bg-surface/40 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
       >
-        {/* Leading assignee chip — matches BillCard's identity cue */}
-        {assignee && (
+        {/* Leading identity cue: single assignee chip for whole-item
+            assignment (matches BillCard), or a small overlapping avatar
+            stack for a percentage split — no single member "is" the
+            assignee, so a single chip would misrepresent it. */}
+        {!isPercentageSplit && assignee && (
           <div
             className="shrink-0 flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
             title={`Assignee: ${assignee.name}`}
@@ -65,16 +80,37 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
             )}
           </div>
         )}
+        {isPercentageSplit && splits.length > 0 && (
+          <div className="shrink-0 flex items-center" title={splitSummary}>
+            {splits.map((s, i) => {
+              const member = householdMembers.find((m) => String(m.id) === String(s.member_id));
+              return (
+                <div
+                  key={s.id}
+                  className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
+                  style={i > 0 ? { marginLeft: "-8px" } : undefined}
+                >
+                  {member?.avatar_url ? (
+                    <img src={member.avatar_url} alt={member.name} className="h-full w-full object-cover" />
+                  ) : (
+                    member?.avatar || member?.name.charAt(0).toUpperCase() || "?"
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Middle: name over category */}
+        {/* Middle: name over category, or the split summary in place of
+            category when split_mode is "percentage" (Issue #98 Slice 3 of 6) */}
         <div className="flex flex-col flex-1 min-w-0">
           <span className="font-body font-semibold text-[15px] text-foreground truncate">
             {expense.name}
           </span>
           <span className="flex items-center gap-1.5 mt-0.5">
             <RowPill label="Expense" variant="accent" />
-            <span className="font-mono text-[10px] uppercase font-medium tracking-wider text-muted">
-              {expense.category || "Other"}
+            <span className="font-mono text-[10px] uppercase font-medium tracking-wider text-muted truncate">
+              {isPercentageSplit && splitSummary ? splitSummary : (expense.category || "Other")}
             </span>
           </span>
         </div>
