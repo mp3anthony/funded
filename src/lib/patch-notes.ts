@@ -25,6 +25,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.30",
+    date: "September 2026",
+    highlights: [
+      "When adding or editing an expense, you can now choose to split it by percentage across household members instead of assigning it to just one person — handy for shared costs like groceries. The app checks your percentages add up to 100% before letting you save.",
+    ],
+  },
+  {
     version: "0.9.29",
     date: "September 2026",
     highlights: [

@@ -567,6 +567,24 @@ function mapExpenseFromDb(dbExpense: any): Expense {
   };
 }
 
+/**
+ * Issue #98 (Slice 3 of 6): expense-split mapper — numeric coercion mirrors
+ * mapExpenseFromDb's `amount` handling (Supabase can return NUMERIC columns
+ * as strings depending on the client/driver), so `percentage` is parsed the
+ * same way rather than trusted as already-a-number.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapExpenseSplitFromDb(dbSplit: any): ExpenseSplit {
+  return {
+    id: dbSplit.id,
+    household_id: dbSplit.household_id,
+    expense_id: dbSplit.expense_id,
+    member_id: dbSplit.member_id,
+    percentage: parseFloat(dbSplit.percentage),
+    created_at: dbSplit.created_at,
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapFundFromDb(dbFund: any): Fund {
   const fundStyle = getFundStyle(dbFund.category);
@@ -704,13 +722,23 @@ interface AppContextValue {
   togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
   deleteBill: (id: string | number) => void;
 
-  /* Expenses (Issue #98, Slice 2 of 6) */
+  /* Expenses (Issue #98, Slice 2 of 6; split logic added Slice 3 of 6) */
   expenses: Expense[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addExpense: (expenseData: any) => Promise<void>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateExpense: (expenseId: string, expenseData: any) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+
+  /* Expense Splits (Issue #98, Slice 3 of 6) — percentage-based, mirrors
+   * Bill Splits' shape below but stores raw percentages, not dollar amounts. */
+  expenseSplits: ExpenseSplit[];
+  setExpenseSplits: React.Dispatch<React.SetStateAction<ExpenseSplit[]>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addExpenseSplit: (splitData: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updateExpenseSplit: (id: string | number, splitData: any) => void;
+  deleteExpenseSplit: (id: string | number) => void;
 
   /* Funds */
   funds: Fund[];
@@ -1091,14 +1119,18 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   /* ── Data States ────────────────────────────── */
   const [bills, setBills] = useState<Bill[]>([]);
   /* Issue #98 (Slice 2 of 6): expenses list — variable spend, tracked
-   * separately from bills. split_mode is always "assignee" for now; the
-   * "percentage" mode (schema already supports it) is wired up in sub-slice
-   * 3 (Direct Pay split logic for expenses), not here. */
+   * separately from bills. */
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [funds, setFunds] = useState<Fund[]>([]);
   const [paydays, setPaydays] = useState<Payday[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [billSplits, setBillSplits] = useState<BillSplit[]>([]);
+  /* Issue #98 (Slice 3 of 6): percentage-split rows for expenses with
+   * split_mode === "percentage". Unlike bill_splits, expense_splits carries
+   * its own household_id column, so it's fetched scoped by household_id
+   * directly (no local bill-id filtering step needed — see
+   * loadHouseholdRelatedData below). */
+  const [expenseSplits, setExpenseSplits] = useState<ExpenseSplit[]>([]);
   const [paySchedules, setPaySchedules] = useState<PaySchedule[]>([]);
   const [payHistory, setPayHistory] = useState<PayHistory[]>([]);
   const [householdContributions, setHouseholdContributions] = useState<HouseholdContribution[]>([]);
@@ -1424,13 +1456,18 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   ) {
     const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
 
-    const [billsRes, expensesRes, fundsRes, paydaysRes, membersRes, billSplitsRes] = await Promise.all([
+    const [billsRes, expensesRes, fundsRes, paydaysRes, membersRes, billSplitsRes, expenseSplitsRes] = await Promise.all([
       supabase.from("bills").select("*").eq("household_id", householdId),
       supabase.from("expenses").select("*").eq("household_id", householdId),
       supabase.from("funds").select("*").eq("household_id", householdId),
       supabase.from("paydays").select("*").eq("household_id", householdId),
       supabase.from("household_members").select("*").eq("household_id", householdId),
       supabase.from("bill_splits").select("*"),
+      // Issue #98 (Slice 3 of 6): unlike bill_splits, expense_splits carries its
+      // own household_id column (see the Slice 1 migration), so it's fetched
+      // scoped directly here rather than filtered locally against resolved
+      // expenses further down.
+      supabase.from("expense_splits").select("*").eq("household_id", householdId),
     ]);
 
     // Each slice below is reconciled against a warm-reload race (#74): an
@@ -1438,9 +1475,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // previous in-memory state was already empty. Otherwise it's confirmed
     // with one re-fetch before it's allowed to overwrite real data. See
     // resolveWarmReloadRace above for the full rationale. bills/funds/paydays/
-    // members are independent of one another, so they're reconciled
-    // concurrently rather than compounding re-fetch latency sequentially.
-    const [resolvedBills, resolvedExpenses, resolvedFunds, resolvedPaydays, resolvedMembers] = await Promise.all([
+    // members/expenseSplits are independent of one another, so they're
+    // reconciled concurrently rather than compounding re-fetch latency
+    // sequentially.
+    const [resolvedBills, resolvedExpenses, resolvedFunds, resolvedPaydays, resolvedMembers, resolvedExpenseSplits] = await Promise.all([
       resolveWarmReloadRace(assumeEmptyPreviousState ? [] : bills, billsRes, async () =>
         await supabase.from("bills").select("*").eq("household_id", householdId)
       ),
@@ -1455,6 +1493,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       ),
       resolveWarmReloadRace(assumeEmptyPreviousState ? [] : members, membersRes, async () =>
         await supabase.from("household_members").select("*").eq("household_id", householdId)
+      ),
+      resolveWarmReloadRace(assumeEmptyPreviousState ? [] : expenseSplits, expenseSplitsRes, async () =>
+        await supabase.from("expense_splits").select("*").eq("household_id", householdId)
       ),
     ]);
 
@@ -1472,6 +1513,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
     if (resolvedMembers) {
       setMembers(resolvedMembers.map(mapMemberFromDb));
+    }
+    if (resolvedExpenseSplits) {
+      setExpenseSplits(resolvedExpenseSplits.map(mapExpenseSplitFromDb));
     }
 
     // Bill splits are fetched unscoped (no household_id column on the table)
@@ -2363,18 +2407,31 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  /* ── Expenses Actions (Issue #98, Slice 2 of 6) ──────────────
+  /* ── Expenses Actions (Issue #98, Slice 2 of 6; split logic Slice 3 of 6) ──
      Deliberately simpler than the Bills actions above: no due_date,
      invoice_date, frequency, payment_type, is_recurring, or is_paused
-     concepts, and split_mode is hardcoded to "assignee" (whole-item
-     assignment) — the "percentage" split-mode UI/logic is sub-slice 3's
-     job, not this one's. No expense_splits reads/writes happen here for
-     the same reason: with split_mode fixed to "assignee", that table
-     stays empty until sub-slice 3 lands. */
+     concepts.
+
+     split_mode is now caller-chosen ("assignee" | "percentage"), mirroring
+     updateBill's delete-then-reinsert pattern for its splits (see updateBill
+     above): whichever mode an expense is saved in, any expense_splits rows
+     for that expense are always deleted first, then reinserted only if the
+     new mode is "percentage" and splits were provided. This is what actually
+     performs the "clean up now-orphaned expense_splits rows when split_mode
+     changes to assignee" requirement — there's no separate migration step,
+     the delete always runs.
+
+     expenseData.splits (only meaningful when expenseData.split_mode ===
+     "percentage") is an array of { member_id, percentage } — raw
+     percentages, not dollar amounts (see ExpenseSplit's header comment for
+     why: the weekly-draw sub-slice computes dollar amounts from these later,
+     this slice only stores/edits/displays the raw percentage). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function addExpense(expenseData: any) {
     try {
       const hId = await ensureHousehold();
+
+      const isPercentage = expenseData.split_mode === "percentage";
 
       const dbExpenseData = {
         household_id: hId,
@@ -2382,8 +2439,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         amount: expenseData.amount,
         category: expenseData.category || "Other",
         notes: expenseData.notes || null,
-        split_mode: "assignee",
-        assignee_id: expenseData.assignee_id || expenseData.assignee || null,
+        split_mode: isPercentage ? "percentage" : "assignee",
+        assignee_id: isPercentage ? null : (expenseData.assignee_id || expenseData.assignee || null),
       };
 
       const { data: newExpense, error } = await supabase
@@ -2397,7 +2454,34 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error || new Error("Failed to insert expense record.");
       }
 
+      let newSplits = [];
+      const splitsInput: Array<{ member_id: string; percentage: number }> = expenseData.splits || [];
+      if (isPercentage && splitsInput.length > 0) {
+        const dbSplitsData = splitsInput.map((split) => ({
+          household_id: hId,
+          expense_id: newExpense.id,
+          member_id: split.member_id,
+          percentage: Number(split.percentage) || 0,
+        }));
+
+        const { data, error: splitsError } = await supabase
+          .from("expense_splits")
+          .insert(dbSplitsData)
+          .select();
+
+        if (splitsError) {
+          console.error("Error inserting expense splits (expense saved successfully):", splitsError);
+          throw splitsError;
+        }
+        if (data) {
+          newSplits = data;
+        }
+      }
+
       setExpenses((prev) => [...prev, mapExpenseFromDb(newExpense)]);
+      if (newSplits.length > 0) {
+        setExpenseSplits((prev) => [...prev, ...newSplits.map(mapExpenseSplitFromDb)]);
+      }
     } catch (err) {
       console.error("Failed to add expense:", err);
       throw err;
@@ -2411,13 +2495,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error("updateExpense - Error: expenseId is undefined or empty!");
       }
 
+      const isPercentage = expenseData.split_mode === "percentage";
+
       const dbExpenseData = {
         name: expenseData.name,
         amount: expenseData.amount,
         category: expenseData.category || "Other",
         notes: expenseData.notes || null,
-        split_mode: "assignee",
-        assignee_id: expenseData.assignee_id || expenseData.assignee || null,
+        split_mode: isPercentage ? "percentage" : "assignee",
+        assignee_id: isPercentage ? null : (expenseData.assignee_id || expenseData.assignee || null),
       };
 
       const { data: updatedExpense, error } = await supabase
@@ -2432,9 +2518,52 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error || new Error("Failed to update expense record.");
       }
 
+      // Always delete existing splits first — whether the new mode is
+      // "assignee" (cleans up now-orphaned rows) or "percentage" (about to
+      // be replaced with the fresh set below). Mirrors updateBill's
+      // delete-then-reinsert pattern for bill_splits.
+      const { error: deleteError } = await supabase
+        .from("expense_splits")
+        .delete()
+        .eq("expense_id", expenseId);
+
+      if (deleteError) {
+        console.error("Error deleting existing expense splits:", deleteError);
+        throw deleteError;
+      }
+
+      let newSplits = [];
+      const splitsInput: Array<{ member_id: string; percentage: number }> = expenseData.splits || [];
+      if (isPercentage && splitsInput.length > 0) {
+        const hId = await ensureHousehold();
+        const dbSplitsData = splitsInput.map((split) => ({
+          household_id: hId,
+          expense_id: expenseId,
+          member_id: split.member_id,
+          percentage: Number(split.percentage) || 0,
+        }));
+
+        const { data, error: splitsError } = await supabase
+          .from("expense_splits")
+          .insert(dbSplitsData)
+          .select();
+
+        if (splitsError) {
+          console.error("Error inserting new expense splits:", splitsError);
+          throw splitsError;
+        }
+        if (data) {
+          newSplits = data;
+        }
+      }
+
       setExpenses((prev) =>
         prev.map((e) => (e.id === expenseId ? mapExpenseFromDb(updatedExpense) : e))
       );
+      setExpenseSplits((prev) => {
+        const filtered = prev.filter((s) => String(s.expense_id) !== String(expenseId));
+        return [...filtered, ...newSplits.map(mapExpenseSplitFromDb)];
+      });
     } catch (err) {
       console.error("Failed to update expense:", err);
       throw err;
@@ -2443,6 +2572,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function deleteExpense(id: string) {
     try {
+      // expense_splits.expense_id is ON DELETE CASCADE (Slice 1 migration),
+      // so the DB cleans up split rows automatically — this just keeps local
+      // state in sync with that, mirroring deleteBill's explicit local-state
+      // filter for billSplits.
       const { data, error } = await supabase
         .from("expenses")
         .delete()
@@ -2460,9 +2593,82 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
 
       setExpenses((prev) => prev.filter((e) => e.id !== id));
+      setExpenseSplits((prev) => prev.filter((s) => String(s.expense_id) !== String(id)));
     } catch (err) {
       console.error("Failed to delete expense:", err);
       throw err;
+    }
+  }
+
+  /* ── Expense Splits Actions (Issue #98, Slice 3 of 6) ─────────
+     Standalone CRUD, mirroring addBillSplit/updateBillSplit/deleteBillSplit's
+     shape for API parity — the add/edit expense flow above manages splits
+     inline via expenseData.splits (mirroring how addBill/updateBill manage
+     bill_splits inline rather than through these), but these are exposed on
+     the context the same way the bill-split equivalents are, for any caller
+     that needs to touch a single split row directly. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function addExpenseSplit(splitData: any) {
+    try {
+      const hId = await ensureHousehold();
+      const dbSplitData = { household_id: hId, ...splitData };
+
+      const { data, error } = await supabase
+        .from("expense_splits")
+        .insert(dbSplitData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error inserting expense split:", error);
+        return;
+      }
+
+      if (data) {
+        setExpenseSplits((prev) => [...prev, mapExpenseSplitFromDb(data)]);
+      }
+    } catch (err) {
+      console.error("Failed to add expense split:", err);
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function updateExpenseSplit(id: string | number, splitData: any) {
+    try {
+      const { data, error } = await supabase
+        .from("expense_splits")
+        .update(splitData)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating expense split:", error);
+        return;
+      }
+
+      if (data) {
+        setExpenseSplits((prev) =>
+          prev.map((split) => (split.id === id ? mapExpenseSplitFromDb(data) : split))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to update expense split:", err);
+    }
+  }
+
+  async function deleteExpenseSplit(id: string | number) {
+    try {
+      const { error } = await supabase.from("expense_splits").delete().eq("id", id);
+
+      if (error) {
+        console.error("Error deleting expense split:", error);
+        return;
+      }
+
+      setExpenseSplits((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error("Failed to delete expense split:", err);
     }
   }
 
@@ -2906,6 +3112,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       paydays,
       members,
       billSplits,
+      expenseSplits,
       paySchedules,
       payHistory,
       householdContributions,
@@ -3151,6 +3358,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setPaydays([]);
       setMembers([]);
       setBillSplits([]);
+      setExpenseSplits([]);
       setPaySchedules([]);
       setPayHistory([]);
       setHouseholdContributions([]);
@@ -3180,6 +3388,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setPaydays(backupState.paydays);
       setMembers(backupState.members);
       setBillSplits(backupState.billSplits);
+      setExpenseSplits(backupState.expenseSplits);
       setPaySchedules(backupState.paySchedules);
       setPayHistory(backupState.payHistory);
       setHouseholdContributions(backupState.householdContributions);
@@ -3312,6 +3521,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
         setBillSplits((prev) => prev.filter((s) => String(s.member_id) !== String(id)));
       }
+
+      // 1b. Expense splits (Issue #98, Slice 3 of 6) — expense_splits.member_id
+      // is ON DELETE CASCADE (Slice 1 migration) so the DB row is already gone
+      // once the household_members delete below runs; this just keeps local
+      // state in sync. No reassignment option here (the UI doesn't offer one
+      // for percentage splits), so this always removes rather than reassigns —
+      // unlike bill splits above.
+      setExpenseSplits((prev) => prev.filter((s) => String(s.member_id) !== String(id)));
 
       // 2. Handle Goals (Funds)
       if (reassignGoalsTo) {
@@ -4381,6 +4598,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     addExpense,
     updateExpense,
     deleteExpense,
+    expenseSplits,
+    setExpenseSplits,
+    addExpenseSplit,
+    updateExpenseSplit,
+    deleteExpenseSplit,
     isJointFund,
     updateHouseholdPaymentMode,
     householdTimezone,

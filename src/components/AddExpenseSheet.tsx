@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import { useApp, useCurrentUser, type Expense } from "@/context/AppContext";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 import ItemTypeToggle from "./ItemTypeToggle";
+import { Check } from "lucide-react";
 
 interface AddExpenseSheetProps {
   isOpen: boolean;
@@ -17,17 +18,17 @@ interface AddExpenseSheetProps {
 }
 
 /**
- * Issue #98 (Slice 2 of 6): add/edit form for expenses (variable spend —
- * groceries, fuel, etc. — see #98's decision comment for the bill/expense
- * distinction). Deliberately mirrors AddBillSheet's UX/validation patterns
- * closely, minus the fields that don't apply to expenses (due date, invoice
- * date, payment frequency, payment type, recurring/paused).
+ * Issue #98 (Slice 2 of 6, split logic Slice 3 of 6): add/edit form for
+ * expenses (variable spend — groceries, fuel, etc. — see #98's decision
+ * comment for the bill/expense distinction). Deliberately mirrors
+ * AddBillSheet's UX/validation patterns closely, minus the fields that
+ * don't apply to expenses (due date, invoice date, payment frequency,
+ * payment type, recurring/paused).
  *
- * split_mode is NOT exposed as a picker here — every expense saved by this
- * form is whole-item `assignee_id` assignment ("assignee" split_mode). The
- * schema already supports a "percentage" split mode (sub-slice 3's job),
- * but a disabled/stubbed picker for a mode that doesn't work yet would be
- * more confusing than just not showing the choice — see HANDOFF/PR notes.
+ * Split Type picker (Decision #4, #98): "Assign to one person" (existing
+ * whole-item `assignee_id` picker, unchanged) or "Split by percentage"
+ * (new — a % per household member, must sum to exactly 100 before Save is
+ * enabled). Both shapes are mutually exclusive per expense, chosen here.
  */
 export default function AddExpenseSheet({
   isOpen,
@@ -35,7 +36,7 @@ export default function AddExpenseSheet({
   existingExpense,
   onSwitchToBill,
 }: AddExpenseSheetProps) {
-  const { householdMembers, addExpense, updateExpense, session } = useApp();
+  const { householdMembers, addExpense, updateExpense, expenseSplits, session } = useApp();
   const currentUser = useCurrentUser();
 
   const [name, setName] = useState("");
@@ -43,24 +44,10 @@ export default function AddExpenseSheet({
   const [category, setCategory] = useState("Other");
   const [assignee, setAssignee] = useState("");
   const [notes, setNotes] = useState("");
+  const [splitType, setSplitType] = useState<"assignee" | "percentage">("assignee");
+  const [percentages, setPercentages] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (isOpen && existingExpense) {
-      setName(existingExpense.name);
-      setAmount(existingExpense.amount.toString());
-      setCategory(existingExpense.category || "Other");
-      setAssignee(existingExpense.assignee_id ? existingExpense.assignee_id.toString() : "");
-      setNotes(existingExpense.notes ? existingExpense.notes : "");
-    } else if (isOpen) {
-      setName("");
-      setAmount("");
-      setCategory("Other");
-      setAssignee(currentUser.id ? String(currentUser.id) : "");
-      setNotes("");
-    }
-  }, [isOpen, existingExpense, currentUser.id]);
 
   // Fallback: If householdMembers is empty, display at least the logged-in user
   const displayMembers = householdMembers.length > 0
@@ -75,19 +62,74 @@ export default function AddExpenseSheet({
           }]
         : []);
 
+  React.useEffect(() => {
+    if (isOpen && existingExpense) {
+      setName(existingExpense.name);
+      setAmount(existingExpense.amount.toString());
+      setCategory(existingExpense.category || "Other");
+      setAssignee(existingExpense.assignee_id ? existingExpense.assignee_id.toString() : "");
+      setNotes(existingExpense.notes ? existingExpense.notes : "");
+      setSplitType(existingExpense.split_mode === "percentage" ? "percentage" : "assignee");
+
+      const existingSplits = expenseSplits.filter(
+        (s) => String(s.expense_id) === String(existingExpense.id)
+      );
+      const initialPercentages: Record<string, string> = {};
+      existingSplits.forEach((s) => {
+        initialPercentages[String(s.member_id)] = String(s.percentage);
+      });
+      setPercentages(initialPercentages);
+    } else if (isOpen) {
+      setName("");
+      setAmount("");
+      setCategory("Other");
+      setAssignee(currentUser.id ? String(currentUser.id) : "");
+      setNotes("");
+      setSplitType("assignee");
+      setPercentages({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, existingExpense, currentUser.id]);
+
   if (!isOpen) return null;
 
-  const isFormValid = name.trim() !== "" && amount.trim() !== "" && !isNaN(Number(amount));
+  const percentageTotal = displayMembers.reduce(
+    (sum, m) => sum + (Number(percentages[String(m.id)]) || 0),
+    0
+  );
+  const percentageValid = Math.abs(percentageTotal - 100) < 0.001;
+
+  const isFormValid =
+    name.trim() !== "" &&
+    amount.trim() !== "" &&
+    !isNaN(Number(amount)) &&
+    (splitType === "assignee" || percentageValid);
+
+  const handlePercentageChange = (memberId: string, value: string) => {
+    setPercentages((prev) => ({ ...prev, [memberId]: value }));
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
     setErrorMsg(null);
     try {
+      const splits =
+        splitType === "percentage"
+          ? displayMembers
+              .map((m) => ({
+                member_id: String(m.id),
+                percentage: Number(percentages[String(m.id)]) || 0,
+              }))
+              .filter((s) => s.percentage > 0)
+          : [];
+
       const expenseData = {
         name,
         amount: Number(amount),
         category,
-        assignee_id: assignee || null,
+        split_mode: splitType,
+        assignee_id: splitType === "assignee" ? assignee || null : null,
+        splits,
         notes,
       };
 
@@ -102,6 +144,8 @@ export default function AddExpenseSheet({
       setCategory("Other");
       setAssignee("");
       setNotes("");
+      setSplitType("assignee");
+      setPercentages({});
 
       onClose();
     } catch (error) {
@@ -210,38 +254,139 @@ export default function AddExpenseSheet({
           </div>
         </div>
 
-        {/* 4. Assignee */}
+        {/* 4. Split Type */}
         <div className="flex flex-col space-y-2">
           <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
-            Assignee
+            Split Type
           </label>
-          <div className="relative">
-            <select
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
-              className="w-full rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none text-sm"
+          <div className="grid grid-cols-2 gap-1 bg-background border border-border rounded-[2px] p-1">
+            <button
+              type="button"
+              onClick={() => setSplitType("assignee")}
+              className={`py-2 px-3 rounded-[2px] text-[10px] font-bold uppercase tracking-wider transition-all ${
+                splitType === "assignee"
+                  ? "bg-primary text-primary-fg shadow"
+                  : "text-muted hover:text-foreground hover:bg-white/5"
+              }`}
             >
-              <option value="" disabled>Select a member</option>
-              {displayMembers.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-muted">
-              <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-              </svg>
-            </div>
+              Assign to One Person
+            </button>
+            <button
+              type="button"
+              onClick={() => setSplitType("percentage")}
+              className={`py-2 px-3 rounded-[2px] text-[10px] font-bold uppercase tracking-wider transition-all ${
+                splitType === "percentage"
+                  ? "bg-primary text-primary-fg shadow"
+                  : "text-muted hover:text-foreground hover:bg-white/5"
+              }`}
+            >
+              Split by Percentage
+            </button>
           </div>
-          {householdMembers.length === 0 && (
-            <span className="text-xs text-accent font-medium">
-              Add household members first (Showing logged-in user as fallback)
-            </span>
-          )}
         </div>
 
-        {/* 5. Notes */}
+        {/* 5a. Assignee (whole-item assignment) */}
+        {splitType === "assignee" && (
+          <div className="flex flex-col space-y-2">
+            <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+              Assignee
+            </label>
+            <div className="relative">
+              <select
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+                className="w-full rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all appearance-none text-sm"
+              >
+                <option value="" disabled>Select a member</option>
+                {displayMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-muted">
+                <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
+              </div>
+            </div>
+            {householdMembers.length === 0 && (
+              <span className="text-xs text-accent font-medium">
+                Add household members first (Showing logged-in user as fallback)
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* 5b. Percentage split editor */}
+        {splitType === "percentage" && (
+          <div className="flex flex-col space-y-2">
+            <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+              Percentage Split
+            </label>
+            <div className="rounded-[2px] border border-border bg-background divide-y divide-white/5">
+              {displayMembers.map((member) => (
+                <div key={member.id} className="flex items-center gap-3 px-3 py-3">
+                  <div className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-tr from-primary to-emerald-500 flex items-center justify-center text-foreground font-bold text-[10px] overflow-hidden">
+                    {(member as { avatar_url?: string | null }).avatar_url ? (
+                      <img
+                        src={(member as { avatar_url?: string | null }).avatar_url!}
+                        alt={member.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      member.avatar || member.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-foreground truncate flex-1 min-w-0">
+                    {member.name}
+                  </span>
+                  <div className="relative shrink-0 w-24">
+                    <input
+                      type="number"
+                      placeholder="0"
+                      min="0"
+                      max="100"
+                      value={percentages[String(member.id)] ?? ""}
+                      onChange={(e) => handlePercentageChange(String(member.id), e.target.value)}
+                      className="w-full bg-surface-raised border border-border rounded-[2px] pl-3 pr-6 py-2 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted font-mono text-xs pointer-events-none">
+                      %
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div
+              className={`flex items-center justify-between rounded-[2px] border px-3 py-2 font-mono text-xs ${
+                percentageValid
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-destructive/30 bg-destructive/10 text-destructive"
+              }`}
+            >
+              <span className="font-bold uppercase tracking-wider text-[10px]">
+                Total
+              </span>
+              <span className="flex items-center gap-1 font-bold">
+                {percentageValid && <Check size={12} />}
+                {percentageTotal.toFixed(1)}%
+              </span>
+            </div>
+            {!percentageValid && (
+              <span className="text-xs text-destructive font-medium">
+                Percentages must add up to exactly 100% before saving.
+              </span>
+            )}
+            {householdMembers.length === 0 && (
+              <span className="text-xs text-accent font-medium">
+                Add household members first (Showing logged-in user as fallback)
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* 6. Notes */}
         <div className="flex flex-col space-y-2 pt-2">
           <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
             Notes
