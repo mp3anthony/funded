@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Bell, Settings as SettingsIcon, CheckCircle, Clock, AlertTriangle, Circle, Trash2, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Bell, Settings as SettingsIcon, Clock, AlertTriangle, CheckCircle, Circle, Trash2, ChevronRight } from "lucide-react";
 import { useApp, type Notification, type NotificationSettings } from "@/context/AppContext";
 import Dialog from "@/components/ui/Dialog";
 import NotifyHourDialog from "@/components/NotifyHourDialog";
@@ -30,56 +30,11 @@ function formatHourLabel(hour: number): string {
 }
 
 export default function NotificationCenter({ isOpen, onClose, pushStatus, onPushStatusChange }: NotificationCenterProps) {
-  const { bills, markAsPaid, notifications, notificationSettings, markNotificationRead, deleteNotification, clearAllNotifications, updateNotificationSettings } = useApp();
+  const { notifications, notificationSettings, deleteNotification, clearAllNotifications, updateNotificationSettings } = useApp();
   const [activeTab, setActiveTab] = useState<"list" | "settings">("list");
   const [showNotifyHourDialog, setShowNotifyHourDialog] = useState(false);
   const [showPushStatusDialog, setShowPushStatusDialog] = useState(false);
-
-  const [snoozedIds, setSnoozedIds] = useState<Record<string, number>>(() => {
-    if (typeof window === 'undefined') return {};
-    const snoozes: Record<string, number> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("snooze-")) {
-        const id = key.substring(7);
-        const val = localStorage.getItem(key);
-        if (val) {
-          snoozes[id] = parseInt(val);
-        }
-      }
-    }
-    return snoozes;
-  });
-  
-  // Start at 0 (not Date.now()) so static prerender doesn't read the current
-  // time during render (cacheComponents forbids it outside Suspense — see #47).
-  // The open effect sets the real time before any snooze comparison is shown.
-  const [nowVal, setNowVal] = useState(0);
-  const [activeSnoozeMenuId, setActiveSnoozeMenuId] = useState<string | null>(null);
   const router = useRouter();
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Asynchronously load state to avoid set-state-in-effect warning
-    Promise.resolve().then(() => {
-      setNowVal(Date.now());
-      if (typeof window !== 'undefined') {
-        const snoozes: Record<string, number> = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith("snooze-")) {
-            const id = key.substring(7);
-            const val = localStorage.getItem(key);
-            if (val) {
-              snoozes[id] = parseInt(val);
-            }
-          }
-        }
-        setSnoozedIds(snoozes);
-      }
-    });
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -89,22 +44,6 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
     if (typeof currentVal === 'boolean') {
       await updateNotificationSettings({ [key]: !currentVal });
     }
-  };
-
-  const handleMarkAsPaid = async (notif: Notification) => {
-    if (!notif.related_entity_id) return;
-    const bill = bills.find(b => b.id.toString() === notif.related_entity_id);
-    if (bill) {
-      await markAsPaid(bill);
-    }
-    await deleteNotification(notif.id);
-  };
-
-  const handleSnooze = (id: string, days: number) => {
-    const until = Date.now() + days * 24 * 60 * 60 * 1000;
-    localStorage.setItem(`snooze-${id}`, until.toString());
-    setSnoozedIds(prev => ({ ...prev, [id]: until }));
-    setActiveSnoozeMenuId(null);
   };
 
   const handleNotificationClick = (notif: Notification) => {
@@ -165,8 +104,6 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                   // Dismissed notifications are kept in the DB (so their dedupe
                   // key survives) but hidden from the inbox.
                   if (notif.is_read) return false;
-                  const expires = snoozedIds[notif.id];
-                  if (expires && expires > nowVal) return false;
                   return true;
                 });
 
@@ -190,20 +127,22 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                         <Trash2 size={12} /> Clear All
                       </button>
                     </div>
-                    {visibleNotifications.map(notif => (
-                      <div 
-                        key={notif.id} 
-                        className={`p-4 flex gap-4 transition-colors ${notif.is_read ? 'opacity-60 bg-surface' : 'bg-surface-elevated'} ${activeSnoozeMenuId === notif.id ? 'relative z-20' : ''}`}
+                    {visibleNotifications.map(notif => {
+                      const isTappable = !!(notif.related_entity_id && (notif.type === 'manual_bill' || notif.type === 'auto_pay'));
+                      return (
+                      <div
+                        key={notif.id}
+                        className={`p-4 flex gap-4 transition-colors ${notif.is_read ? 'opacity-60 bg-surface' : 'bg-surface-elevated'}`}
                       >
                         <div className="mt-1 flex-shrink-0">
                           {getIconForType(notif.type)}
                         </div>
-                        <div 
+                        <div
                           onClick={() => handleNotificationClick(notif)}
-                          className={`flex-1 space-y-1 ${notif.related_entity_id && (notif.type === 'manual_bill' || notif.type === 'auto_pay') ? 'cursor-pointer hover:opacity-85' : ''}`}
+                          className={`flex-1 space-y-1 ${isTappable ? 'group cursor-pointer hover:opacity-85' : ''}`}
                         >
                           <h4 className="font-semibold text-foreground text-sm flex items-center justify-between">
-                            <span className={notif.related_entity_id && (notif.type === 'manual_bill' || notif.type === 'auto_pay') ? 'hover:underline decoration-primary/40' : ''}>
+                            <span className={isTappable ? 'hover:underline decoration-primary/40' : ''}>
                               {notif.title}
                             </span>
                             {!notif.is_read && <Circle size={8} fill="currentColor" className="text-primary" />}
@@ -212,64 +151,27 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                           <p className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider">
                             {new Date(notif.created_at).toLocaleDateString()}
                           </p>
-                        </div>
-                        
-                        <div className="flex flex-col gap-2 self-start ml-2 shrink-0 items-end">
-                          <div className="flex gap-1">
-                            {/* Mark Read */}
-                            {!notif.is_read && (
-                              <button 
-                                onClick={() => markNotificationRead(notif.id)}
-                                className="p-1 text-muted hover:text-primary transition-colors flex justify-center"
-                                title="Mark as read"
-                              >
-                                <CheckCircle size={16} />
-                              </button>
-                            )}
-
-                            {/* Snooze Button */}
-                            {(notif.type === 'manual_bill' || notif.type === 'auto_pay') && (
-                              <div className="relative">
-                                <button
-                                  onClick={() => setActiveSnoozeMenuId(activeSnoozeMenuId === notif.id ? null : notif.id)}
-                                  className="p-1 text-muted hover:text-accent transition-colors flex justify-center"
-                                  title="Snooze reminder"
-                                >
-                                  <Clock size={16} />
-                                </button>
-                                {activeSnoozeMenuId === notif.id && (
-                                  <div className="absolute right-0 mt-1 z-30 bg-surface-elevated border border-border-strong rounded-[2px] shadow-2xl p-2 flex flex-col gap-1 min-w-[90px] animate-in fade-in zoom-in-95 duration-100">
-                                    <span className="text-[9px] font-bold text-muted uppercase tracking-wider text-center border-b border-border pb-1 mb-1">Snooze</span>
-                                    <button onClick={() => handleSnooze(notif.id, 1)} className="text-left text-xs px-2 py-1 rounded hover:bg-white/5 font-semibold text-foreground">1 Day</button>
-                                    <button onClick={() => handleSnooze(notif.id, 3)} className="text-left text-xs px-2 py-1 rounded hover:bg-white/5 font-semibold text-foreground">3 Days</button>
-                                    <button onClick={() => handleSnooze(notif.id, 7)} className="text-left text-xs px-2 py-1 rounded hover:bg-white/5 font-semibold text-foreground">7 Days</button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Clear/Delete Button */}
-                            <button 
-                              onClick={() => deleteNotification(notif.id)}
-                              className="p-1 text-muted hover:text-rose-500 transition-colors flex justify-center"
-                              title="Clear notification"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-
-                          {/* Mark Paid */}
-                          {!notif.is_read && (notif.type === 'manual_bill' || notif.type === 'auto_pay') && (
-                            <button
-                              onClick={() => handleMarkAsPaid(notif)}
-                              className="text-[9px] uppercase font-bold tracking-wider px-2 py-1 bg-primary/10 text-primary border border-primary/20 rounded hover:bg-primary/20 transition-colors"
-                            >
-                              Mark Paid
-                            </button>
+                          {isTappable && (
+                            <span className="flex items-center gap-1 text-[9px] font-semibold text-muted/60 uppercase tracking-widest group-hover:text-primary transition-colors mt-0.5">
+                              Tap for more
+                              <span aria-hidden="true">›</span>
+                            </span>
                           )}
                         </div>
+
+                        <div className="flex self-start ml-2 shrink-0">
+                          {/* Clear/Delete — the row's one action, sized to stand alone. */}
+                          <button
+                            onClick={() => deleteNotification(notif.id)}
+                            className="p-2 text-muted hover:text-rose-500 transition-colors flex justify-center"
+                            title="Clear notification"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </>
                 );
               })()}
@@ -374,6 +276,24 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                             className="sr-only peer" 
                             checked={notificationSettings.auto_pay_reminders}
                             onChange={() => handleToggleSetting('auto_pay_reminders')}
+                          />
+                          <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
+                      <div className="flex-1 pr-4">
+                        <h5 className="font-medium text-sm text-foreground">Daily Overdue Reminders</h5>
+                        <p className="text-xs text-muted">Repeat overdue bill alerts daily until paid.</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={notificationSettings.overdue_bill_reminders}
+                            onChange={() => handleToggleSetting('overdue_bill_reminders')}
                           />
                           <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                         </label>
