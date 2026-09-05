@@ -2,8 +2,23 @@
 
 **Last updated:** 2026-09-06 — **#99 (Slice 13 motion overhaul) is now built across every
 screen** on the long-lived branch `slice/99-motion-overhaul`, pushed to origin at commit
-`75daa12` (v0.9.38). **Still not merged to `main` — Anthony's preview-only constraint is still in
-effect.**
+`540720d` (v0.9.38). **[PR #141](https://github.com/mp3anthony/funded/pull/141) is now OPEN
+against `main`**, Vercel preview confirmed green via `gh pr checks`, labeled `needs-manual-test`.
+**Still not merged to `main` — Anthony's preview-only constraint is still in effect; do not merge
+without his explicit go-ahead.**
+
+**→ START HERE NEXT SESSION: PR #141 is awaiting Anthony's manual test pass.** A 9-item checklist
+covering the two untested screen groups (Bills/Payday/shared sheets, Auth screens — Funds/Goals
+already signed off, not repeated) was posted directly as [a PR comment](https://github.com/mp3anthony/funded/pull/141#issuecomment-5555553805)
+so he can check it over on his phone and report back pass/fail. When he returns:
+- **All pass** → relabel `needs-manual-test` → `needs-merge-approval`, reconfirm version
+  (`v0.9.38`) with him, squash-merge, verify production deployment via the Vercel MCP tool
+  (`list_deployments`/`get_deployment`, target: "production", state: "READY" — don't just trust a
+  green GitHub merge, per this repo's standing cron-deploy gotcha above). **Also reconcile this
+  file's history with `main`'s own `HANDOFF.md`** per the doc-divergence note below before/during
+  the merge — don't let a squash-merge silently pick one copy's history and lose the other's.
+- **Anything fails** → same build→independent-review loop as every prior sub-slice: fix sub-agent
+  (full context) → fresh reviewer (never the builder) → re-test the specific failed item(s) only.
 
 **⚠️ Doc-divergence note, read this before trusting any other copy of this file:** this branch's
 own `HANDOFF.md` and `main`'s `HANDOFF.md` drifted apart — `main`'s copy got a docs-only update
@@ -31,14 +46,11 @@ picture (verified against real commits, not inferred from a screen list):**
   `7254a37` (build) + `75daa12` (review-fix: one eye-toggle button missing press-feedback,
   independently reviewed APPROVED after the fix). v0.9.38.
 
-**→ START HERE NEXT SESSION: the whole-app #99 motion pass is code-complete.** Nothing left to
-build for this slice. Next step is Anthony's manual test pass across everything (Bills/Payday/
-shared sheets + Auth screens haven't been hands-on tested yet; Funds/Goals already has been) on the
-branch's preview alias, then his call on whether to lift the preview-only constraint and merge the
-whole branch to `main` in one go (recommended, since it was built as one continuous pass) or in
-pieces. **Do not merge to `main` without his explicit go-ahead — the preview-only constraint is
-still active as of this entry.** Get a `needs-manual-test` checklist in front of him covering all
-four screen groups above before treating this as ready to merge.
+The whole-app #99 motion pass is code-complete — nothing left to build for this slice. PR #141 is
+open and the manual-test checklist is already posted (see the top of this file for the live
+next-step pointer, so this section doesn't duplicate it). Recommend merging the whole branch to
+`main` in one go once testing passes, since it was built as one continuous pass, rather than in
+pieces — but that's Anthony's call.
 
 Two open issues remain outside #99: **#88** (`needs-info`, Direct Pay end-to-end testing) is
 blocked waiting on real-world testers, not actionable by an agent — leave it alone unless Anthony
