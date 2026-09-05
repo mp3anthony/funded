@@ -43,8 +43,10 @@ and/or check `gh pr view 129 --json files` yourself first — don't infer from s
   real bugs (count-up backward-jump on rapid re-target; `GoalDetailSheet` never actually remounted
   despite a comment claiming it did, letting stale hook state leak between opens; collapsed
   goal-rows stayed keyboard-tabbable after switching from unmount-based collapse to a CSS
-  grid-rows collapse) — all 3 fixed and the fix re-reviewed clean. **Final verdict: ready for
-  Anthony's manual preview test, not yet done by him.**
+  grid-rows collapse) — all 3 fixed and the fix re-reviewed clean. **Anthony manually tested the
+  preview against the 6-item checklist (category expand/collapse, total count-up, rapid
+  double-add, reopening the same goal's detail sheet, keyboard-tab over collapsed rows, dashboard
+  card) — all passed. Funds/Goals is fully done, no outstanding issues.**
 - ⏳ **Not started: Bills (`bills-client.tsx`) + Payday (`payday-client.tsx`) + shared
   sheets/menus** (`Onboarding.tsx`, `AddPayScheduleSheet.tsx`, `AvatarDropdown.tsx`,
   `JoinHouseholdSheet.tsx`, `UserProfileMenu.tsx`). Unlike Funds/Goals, these already have SOME
@@ -55,12 +57,11 @@ and/or check `gh pr view 129 --json files` yourself first — don't infer from s
 - ⏳ **Not started: Auth screens** (`src/app/login`, `src/app/reset-password`,
   `src/app/confirm-email`) — confirmed zero motion work via grep, clean slate, lowest priority.
 
-**Recommended next step for the next session:** either (a) get Anthony's manual-preview verdict on
-Funds/Goals first before building more (in case it surfaces something the sub-agent reviews
-missed), or (b) if he's fine proceeding blind, start the Bills/Payday/shared-components audit
-slice next, following the same build → independent-review → fix → re-review loop used for
-Funds/Goals. Do not merge anything to `main` until Anthony explicitly lifts the preview-only
-constraint for the whole #99 pass.
+**Recommended next step for the next session:** start the Bills/Payday/shared-components audit
+slice next (Funds/Goals is fully signed off, nothing further needed there), following the same
+build → independent-review → fix → re-review → Anthony's manual test loop used for Funds/Goals.
+Do not merge anything to `main` until Anthony explicitly lifts the preview-only constraint for the
+whole #99 pass.
 
 ---
 
