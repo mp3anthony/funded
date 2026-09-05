@@ -1,20 +1,25 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#98 sub-slice 3 of 6 (Direct Pay split logic for expenses) BUILT
-AND REVIEWED, [PR #133](https://github.com/mp3anthony/funded/pull/133) OPEN, awaiting Anthony's
-on-device test — NOT merged yet.** `v0.9.29` → `v0.9.30`. Full story in the dated section below.
+**Last updated:** 2026-09-05 — **#98 sub-slice 3 of 6 (Direct Pay split logic for expenses)
+MERGED** — [PR #133](https://github.com/mp3anthony/funded/pull/133) squash-merged to `main` at
+`v0.9.30`, production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on the
+merge commit's own deployment, not just a green GitHub merge). **Merged without an on-device
+manual test** — Anthony's explicit call: he doesn't use Direct Pay (uses Joint Fund), so there's no
+real way for him to exercise this feature manually; relied on the independent reviewer's APPROVED
+verdict instead. Worth remembering if a Direct-Pay-split bug ever gets reported — this path has
+only ever been code/RLS-verified, never watched working end-to-end by a real user. Full story in
+the dated section below.
 
-**→ START HERE NEXT SESSION (if PR #133 hasn't been merged by then): get Anthony's on-device
-result on PR #133's 4-item checklist (add %-split expense, save-blocked-below-100%, switch
-assignee↔percentage in one sitting, delete a %-split expense), merge if it passes, then continue
-with #98 sub-slice 4.** If #133 is already merged when this session starts, skip straight to sub-
-slice 4. The 6-piece sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read
-that first, don't re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI
-→ (3✅ built, PR #133 open) Direct Pay split logic → **(4) weekly-draw calc integration ← next**
-(touches #106, this is where the still-open "how does a goal-contribution rule become a
-weekly-draw line item" question gets nailed down — Anthony explicitly deferred that decision to
-this slice, don't assume an answer) → (5) health-score integration → (6) #70 category-ordering
-extension. Nothing else is queued ahead of #98.
+**→ START HERE NEXT SESSION: #98 sub-slice 4 of 6 — weekly-draw calc integration.** The 6-piece
+sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first, don't
+re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI → (3✅ done,
+merged) Direct Pay split logic → **(4) weekly-draw calc integration ← next** (touches #106's
+contribution-calc logic directly — the joint-fund/direct-pay weekly draw becomes bills + expenses
++ active goal-contribution rules, not just bills; this is where the still-open "how does a
+goal-contribution rule become a weekly-draw line item" question gets nailed down — Anthony
+explicitly deferred that decision to this slice, don't assume an answer, confirm with him first) →
+(5) health-score integration → (6) #70 category-ordering extension. Nothing else is queued ahead
+of #98.
 
 **Sub-slice 2 shipped a materially different UI than first built** — worth knowing before touching
 any of these files again: the original build put bills/expenses on separate tabs; Anthony rejected
@@ -84,26 +89,31 @@ score (both explicitly out of scope, later sub-slices), and confirmed the new pi
 matches `ContributionSettingsSheet.tsx`'s existing segmented-toggle classes rather than inventing
 new ones.
 
-**Pushed as [PR #133](https://github.com/mp3anthony/funded/pull/133), NOT merged this session** —
-no automated test suite exists in this repo, and this is genuinely new interactive form UI (split-
-type toggle, percentage inputs + running total, overlapping-avatar split display), so labeled
-`needs-manual-test` per `CLAUDE.md`'s routing rule (build and reviewer both agreed, independently).
-Vercel preview confirmed green via `gh pr checks`. 4-item checklist handed to Anthony: add a
-%-split expense, confirm save is blocked below 100%, switch an expense assignee↔percentage in one
-sitting (explicitly flagged: same tab, no reload between the two switches, to catch a stale-state
-bug a fresh load could mask), delete a %-split expense and confirm no orphaned split data anywhere.
-`v0.9.29` → `v0.9.30` (version bump done by the build agent per the project's per-preview-build
-convention — not separately re-confirmed with Anthony this session since he was afk; flag this
-number to him at merge time same as any other slice).
+**Pushed as [PR #133](https://github.com/mp3anthony/funded/pull/133), initially labeled
+`needs-manual-test`** — no automated test suite exists in this repo, and this is genuinely new
+interactive form UI (split-type toggle, percentage inputs + running total, overlapping-avatar split
+display), so both build and reviewer agreed on that label per `CLAUDE.md`'s routing rule. Vercel
+preview confirmed green via `gh pr checks`. `v0.9.29` → `v0.9.30` (version bump done by the build
+agent per the project's per-preview-build convention — not separately re-confirmed with Anthony
+mid-session since he was afk).
+
+**Anthony's call once told a manual-test checklist was ready: he doesn't use Direct Pay at all
+(Joint Fund only), so there was no real way for him to exercise this UI himself.** Relabeled
+`needs-manual-test` → `needs-merge-approval` and squash-merged on the strength of the independent
+review alone, deleted the branch, local `main` synced via `git fetch` + `git reset --hard
+origin/main`. **Production deployment verified directly via the Vercel MCP tool** (`list_projects`
+→ `list_deployments` → `get_deployment` on the merge commit's own deployment ID, confirming
+`readyState: "READY"` and the production aliases actually point at it) — not just trusted from a
+green GitHub merge, per this repo's standing gotcha about silent production-deploy failures.
 
 **Workflow, same pattern as sub-slices 1-2:** build sub-agent (isolated worktree) → independent
-review sub-agent (never the builder, fresh agent) → orchestrator pushed/opened the PR with the
-manual-test checklist. **APPROVED first pass, no rework round needed.** Worktree cleaned up after
-push. Two unrelated leftover worktrees (`agent-a2a73983b2b027590`, locked; `agent-a69afbc08584a8fcc`)
-left alone, stale from prior sessions, not from this one.
+review sub-agent (never the builder, fresh agent) → orchestrator pushed/opened the PR → Anthony's
+no-real-way-to-test call → merge. **APPROVED first pass, no rework round needed.** Worktree cleaned
+up after push. Two unrelated leftover worktrees (`agent-a2a73983b2b027590`, locked;
+`agent-a69afbc08584a8fcc`) left alone, stale from prior sessions, not from this one.
 
-**#98 continues at sub-slice 4 (weekly-draw calc integration) once PR #133 is merged** — see
-"→ START HERE NEXT SESSION" at the top of this file.
+**#98 continues at sub-slice 4 (weekly-draw calc integration)** — see "→ START HERE NEXT SESSION"
+at the top of this file.
 
 ## 2026-09-04 (continued) — #98 sub-slice 1 of 6 (expenses schema + migration) built, reviewed, applied to prod, merged
 
