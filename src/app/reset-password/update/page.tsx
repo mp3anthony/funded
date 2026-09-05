@@ -213,7 +213,7 @@ export default function UpdatePasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground transition-colors cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground active:scale-95 transition-[color,transform] duration-(--duration-fast) ease-(--ease-standard) cursor-pointer"
                 tabIndex={-1}
               >
                 {showConfirmPassword ? (
