@@ -1,19 +1,19 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#98 sub-slice 4 of 6 (weekly-draw calc integration) MERGED** —
-[PR #135](https://github.com/mp3anthony/funded/pull/135) squash-merged to `main` at `v0.9.31`,
+**Last updated:** 2026-09-05 — **#98 sub-slice 5 of 6 (health-score integration) MERGED** —
+[PR #136](https://github.com/mp3anthony/funded/pull/136) squash-merged to `main` at `v0.9.32`,
 production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on the merge
 commit's own deployment, not just a green GitHub merge). Full story in the dated section below.
 
-**→ START HERE NEXT SESSION: #98 sub-slice 5 of 6 — health-score integration.** The 6-piece
+**→ START HERE NEXT SESSION: #98 sub-slice 6 of 6 — #70 category-ordering extension.** The 6-piece
 sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first, don't
 re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI → (3✅ done)
-Direct Pay split logic → (4✅ done, merged) weekly-draw calc integration → **(5) health-score
-integration ← next** (fold expenses into `calculateHealthScore`'s existing budget-coverage half in
-`src/lib/utils.ts` — one unified score, not a separate expense component, per #98's original
-Decision #5; that function was deliberately left untouched by sub-slice 4, so this is genuinely new
-ground, not a continuation of already-changed code) → (6) #70 category-ordering extension. Nothing
-else is queued ahead of #98.
+Direct Pay split logic → (4✅ done, merged) weekly-draw calc integration → (5✅ done, merged)
+health-score integration → **(6) #70 category-ordering extension ← next** (apply the existing
+per-user category-ordering system, currently bill-only, to expense categories too — see
+`bills-client.tsx`'s own comment noting this is deliberately deferred: "Category ordering stays the
+existing bill-only ordering system — the #70 extension for expenses is a later sub-slice's job").
+This is the last piece of #98 — closes the issue once merged. Nothing else is queued ahead of #98.
 
 **Sub-slice 4's own open question, resolved and worth knowing if it ever comes up again:** an
 active goal-contribution rule (`RuleCard.tsx`/`AppContext.tsx`'s `ContributionRule`) only fires
@@ -65,6 +65,56 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-05 (continued) — #98 sub-slice 5 of 6 (health-score integration) built, reviewed, merged
+
+Picked up exactly where the prior HANDOFF pointed ("→ START HERE NEXT SESSION: #98 sub-slice 5").
+No open question this time — sub-slice 4 already resolved the one ambiguity that mattered
+(fixed-$-only contribution rules), so this sub-slice was a straightforward, non-ambiguous extension
+of already-decided scope (Decision #5 on #98: "expenses fold into the existing budget-coverage
+half — one unified score, not a separate expense component"). Went straight to build after a plain-
+language recap, no scoping conversation needed.
+
+**What got built:** `calculateHealthScore`'s (`src/lib/utils.ts`) Budget Coverage section (30%
+weight) only — Bills Management (40%) and Goals/Contributions (30%) sections untouched. The
+denominator (`totalMonthlyExpenses`, shared by both Joint Fund and Direct Pay branches) now also
+sums expenses (implicitly weekly, converted to monthly — same convention as `bills-client.tsx`'s
+Total Bar) and `sumActiveFixedContributionRules` (reused from sub-slice 4, not reinvented). Direct
+Pay's numerator (`totalMonthlySplits`) now also sums percentage-mode expense splits
+(`expense.amount * split.percentage/100`, weekly→monthly), deliberately mirroring the existing
+bill-split asymmetry — whole-item/assignee expenses contribute nothing, same as whole-item/assignee
+bills today; not a new gap, a faithful replication of an existing one. Joint Fund's numerator
+(`householdContributions`) left completely untouched — that's actual money flowing in, a separate
+concept from the obligations denominator. `HealthScoreCard.tsx`'s call site updated to pass
+`expenses`/`expenseSplits`/`contributionRules` through (all three were already available from
+`useApp()`, just not wired in yet).
+
+**Independent review: APPROVED first pass, zero findings** (not even non-blocking notes) — verified
+the diff touches only the Budget Coverage block, confirmed both branches' denominator expansion is
+identical, confirmed the Joint Fund numerator is genuinely untouched, traced the percentage-split
+lookup for a missing-parent-expense edge case (safely no-ops, no crash), confirmed `Expense` has no
+`is_paused` concept at all (matches `bills-client.tsx`'s existing unfiltered-expenses convention, not
+a gap), independently reran `tsc`/lint/build (58/46, exact baseline match), grepped for other
+`calculateHealthScore` callers (none), checked for the state-desync/race bug class (#74/#89/#90/#96)
+and found none (pure synchronous calc, no new state).
+
+**Pushed as [PR #136](https://github.com/mp3anthony/funded/pull/136), labeled
+`needs-merge-approval`** — pure calc logic, fully verifiable in-pipeline, same category as sub-slices
+1 and 4. Vercel preview confirmed green via `gh pr checks`. `v0.9.31` → `v0.9.32`, confirmed with
+Anthony before merge. Squash-merged; the local branch delete initially failed because the build
+agent's worktree still had it checked out (remote branch deleted fine) — cleaned up with
+`git worktree remove --force` + `git branch -D` before syncing local `main` via `git fetch` +
+`git reset --hard origin/main`. **Production deployment verified directly via the Vercel MCP tool**
+(`list_teams` → `list_projects` → `list_deployments` → polled `get_deployment` on the merge commit's
+own deployment through one `BUILDING` cycle to `READY`, aliases confirmed pointing at it) — not just
+trusted from a green GitHub merge.
+
+**Workflow, same pattern as every prior sub-slice:** build sub-agent (isolated worktree) →
+independent review sub-agent (never the builder, fresh agent) → orchestrator pushed/opened the PR →
+Anthony's go-ahead → merge. **APPROVED first pass, no rework round needed.**
+
+**#98 continues at sub-slice 6 of 6 (the last piece) — #70 category-ordering extension for
+expenses.** See "→ START HERE NEXT SESSION" at the top of this file.
 
 ## 2026-09-05 (new session) — #98 sub-slice 4 of 6 (weekly-draw calc integration) built, reviewed, merged
 
