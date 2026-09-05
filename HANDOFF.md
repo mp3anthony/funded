@@ -1,26 +1,48 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#134, #132, #139 CLOSED**, plus a process fix. All three
-notification-subsystem fixes shipped in one PR ([#138](https://github.com/mp3anthony/funded/pull/138))
-squash-merged to `main` at `v0.9.35`, production deployment confirmed `READY` and live via Vercel
-MCP (`get_deployment` on the merge commit's own deployment, not just a green GitHub merge).
-Follow-up: Anthony noticed the daily-overdue-reminder change wasn't reflected in "What's new" —
-the v0.9.35 patch-notes entry was missing entirely. Backfilled it and, more importantly, added a
-permanent rule to `CLAUDE.md` (§4, "Patch notes"): **every version bump now requires a
-patch-notes entry in the same PR going forward, including backend-only/no-UI changes**, explained
-by practical user-facing effect rather than mechanism — a genuinely invisible change still gets a
-one-line "no visible change" note rather than being silently skipped. Shipped as
-[PR #140](https://github.com/mp3anthony/funded/pull/140) (docs/data only, no version bump — it
-documents an already-shipped release). **Read this rule before finishing any future ticket that
-bumps the version — it's easy to forget since patch notes live in a separate file from the
-ticket's actual code.** Full story in the dated section below.
+**Last updated:** 2026-09-06 — **#99 (Slice 13 motion overhaul) is now built across every
+screen** on the long-lived branch `slice/99-motion-overhaul`, pushed to origin at commit
+`75daa12` (v0.9.38). **Still not merged to `main` — Anthony's preview-only constraint is still in
+effect.**
 
-**→ START HERE NEXT SESSION: no queued ticket.** Two open issues remain, neither pre-scoped as
-"next": **#99** (`ready-for-agent`, "Scope needed: Dynamic visual/motion overhaul") needs a scoping
-conversation before it can be built — don't assume prior motion-work context (Slice 13/#99's
-original motion pass) covers it; read the issue fresh. **#88** (`needs-info`, Direct Pay
-end-to-end testing) is blocked waiting on real-world testers, not actionable by an agent — leave it
-alone unless Anthony has an update.
+**⚠️ Doc-divergence note, read this before trusting any other copy of this file:** this branch's
+own `HANDOFF.md` and `main`'s `HANDOFF.md` drifted apart — `main`'s copy got a docs-only update
+partway through this slice (tracking the branch's progress: preview-only constraint, screen-by-
+screen status) that was never carried onto this branch, while this branch's own copy kept
+recording an unrelated, later notification-subsystem thread that landed on `main` directly. A
+session starting fresh on `main` and one resuming this branch would see two different stories.
+**Whoever next merges this branch to `main` must manually reconcile both files' history sections —
+don't let a squash-merge silently pick one and lose the other's detail.**
+
+**Current state of the #99 pass, screen by screen — this is now the authoritative, complete
+picture (verified against real commits, not inferred from a screen list):**
+- ✅ Foundation (tokens, `tailwindcss-animate` plugin, `Dialog.tsx`), Settings, AppShell,
+  NotificationCenter, PatchNotesPopup, Dashboard stat tiles (#100 fold-in) — done, merged to
+  `main` in PR #129 (Slice 13, v0.9.27).
+- ✅ Funds/Goals — done, reviewed, **Anthony manually tested and signed off** (6-item checklist,
+  all passed). Commits `5543401` (build) + `b9dddec` (review-fix, 3 real bugs found and fixed:
+  count-up backward-jump, `GoalDetailSheet` not actually remounting, collapsed goal-rows staying
+  keyboard-tabbable).
+- ✅ Bills, Payday, shared sheets/menus (`Onboarding.tsx`, `AddPayScheduleSheet.tsx`,
+  `AvatarDropdown.tsx`, `JoinHouseholdSheet.tsx`, `UserProfileMenu.tsx`) — done, committed
+  (`6ae1785`, v0.9.37). **Not yet manually tested** — Anthony explicitly deferred testing this to
+  batch it with the rest rather than test screen-by-screen this time.
+- ✅ Auth screens (`login`, `reset-password/update`, `confirm-email`) — done this session, commit
+  `7254a37` (build) + `75daa12` (review-fix: one eye-toggle button missing press-feedback,
+  independently reviewed APPROVED after the fix). v0.9.38.
+
+**→ START HERE NEXT SESSION: the whole-app #99 motion pass is code-complete.** Nothing left to
+build for this slice. Next step is Anthony's manual test pass across everything (Bills/Payday/
+shared sheets + Auth screens haven't been hands-on tested yet; Funds/Goals already has been) on the
+branch's preview alias, then his call on whether to lift the preview-only constraint and merge the
+whole branch to `main` in one go (recommended, since it was built as one continuous pass) or in
+pieces. **Do not merge to `main` without his explicit go-ahead — the preview-only constraint is
+still active as of this entry.** Get a `needs-manual-test` checklist in front of him covering all
+four screen groups above before treating this as ready to merge.
+
+Two open issues remain outside #99: **#88** (`needs-info`, Direct Pay end-to-end testing) is
+blocked waiting on real-world testers, not actionable by an agent — leave it alone unless Anthony
+has an update.
 
 **Notification subsystem — worth knowing if it ever comes up again:**
 - **#134 root cause was NOT a timezone bug** — household timezone/notify_hour were both already
