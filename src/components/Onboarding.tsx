@@ -730,7 +730,7 @@ export default function Onboarding() {
       <JoinHouseholdSheet isOpen={isJoinSheetOpen} onClose={() => setIsJoinSheetOpen(false)} />
       {isCreating && (
         <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-6 animate-in fade-in duration-300">
+          <div className="flex flex-col items-center gap-6 animate-in fade-in duration-(--duration-base) ease-(--ease-standard)">
             <Logo size="large" showWordmark={true} />
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="text-sm font-bold text-foreground capitalize tracking-wider font-mono animate-pulse">

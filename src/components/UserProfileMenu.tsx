@@ -47,7 +47,7 @@ export default function UserProfileMenu() {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-xl shadow-black/20 py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute right-0 mt-2 w-48 bg-surface border border-border rounded-xl shadow-xl shadow-black/20 py-1 z-50 animate-in fade-in slide-in-from-top-1 duration-(--duration-fast) ease-(--ease-standard)">
           {/* User email */}
           <div className="px-4 py-2.5 border-b border-border">
             <p className="text-xs font-medium text-muted truncate">

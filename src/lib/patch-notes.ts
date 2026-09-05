@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.37",
+    date: "September 2026",
+    highlights: [
+      "Polished animations across Bills, Payday, and the account/profile menus to feel more consistent with the rest of the app — dropdowns, sheets, and pop-ups now ease in at the same speed and rhythm everywhere instead of a mix of slightly different timings.",
+      "Bills and expenses now gently fade into view when you expand a category, matching how the Goals list already behaves.",
+    ],
+  },
+  {
     version: "0.9.36",
     date: "September 2026",
     highlights: [

@@ -207,7 +207,7 @@ export default function PaydayClient() {
         action={
           <button
             onClick={() => setIsAddScheduleOpen(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer font-heading uppercase animate-in fade-in duration-200"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer font-heading uppercase animate-in fade-in duration-(--duration-base) ease-(--ease-standard)"
           >
             <Plus size={16} />
             <span className="hidden sm:inline">New Schedule</span>

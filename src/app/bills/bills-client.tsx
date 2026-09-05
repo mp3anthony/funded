@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
@@ -235,7 +235,7 @@ export default function BillsClient() {
         action={
           <button
             onClick={() => setIsAddBillSheetOpen(true)}
-            className="flex items-center gap-2 bg-secondary hover:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200 cursor-pointer animate-in fade-in duration-200"
+            className="flex items-center gap-2 bg-secondary hover:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200 cursor-pointer animate-in fade-in duration-(--duration-base) ease-(--ease-standard)"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add Bill</span>
@@ -403,23 +403,32 @@ export default function BillsClient() {
 
                 {expandedCategories[category] && (
                   <div className="flex flex-col mt-1">
-                    {categoryItems.map((row) =>
-                      row.kind === "bill" ? (
-                        <BillCard
-                          key={`bill-${row.item.id}`}
-                          bill={row.item}
-                          splits={billSplits.filter(s => s.bill_id === row.item.id)}
-                          householdMembers={householdMembers}
-                          displayFrequency={displayFrequency}
-                        />
+                    {/* Rows fully unmount on collapse (unlike Funds/Goals'
+                        grid-rows collapse), so every expand is a genuine
+                        first-appearance — a clean, low-risk fit for the
+                        same restrained fund-row-in entrance, capped and
+                        staggered the same way. */}
+                    {categoryItems.map((row, rowIndex) => {
+                      const delayMs = Math.min(rowIndex * 30, 150);
+                      const rowStyle = { "--row-delay": `${delayMs}ms` } as CSSProperties;
+                      return row.kind === "bill" ? (
+                        <div key={`bill-${row.item.id}`} className="fund-row-in" style={rowStyle}>
+                          <BillCard
+                            bill={row.item}
+                            splits={billSplits.filter(s => s.bill_id === row.item.id)}
+                            householdMembers={householdMembers}
+                            displayFrequency={displayFrequency}
+                          />
+                        </div>
                       ) : (
-                        <ExpenseCard
-                          key={`expense-${row.item.id}`}
-                          expense={row.item}
-                          householdMembers={householdMembers}
-                        />
-                      )
-                    )}
+                        <div key={`expense-${row.item.id}`} className="fund-row-in" style={rowStyle}>
+                          <ExpenseCard
+                            expense={row.item}
+                            householdMembers={householdMembers}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -73,7 +73,12 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
         aria-label="User menu"
       >
         {user.avatar_url ? (
-          <img src={user.avatar_url} alt={user.name} className="h-full w-full object-cover animate-in fade-in duration-200" />
+          // fade-in only plays on this <img>'s actual mount (first time
+          // avatar_url goes from falsy to a URL) — it's a fixed JSX slot
+          // with no key, so re-renders from user data refreshing (name/
+          // avatar_url updates) reuse the same DOM node and just patch
+          // its src, which does not restart a CSS animation. No flicker.
+          <img src={user.avatar_url} alt={user.name} className="h-full w-full object-cover animate-in fade-in duration-(--duration-base) ease-(--ease-standard)" />
         ) : (
           user.avatar
         )}
@@ -84,7 +89,7 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
         <div
           role="menu"
           aria-orientation="vertical"
-          className="absolute right-0 mt-2 w-56 origin-top-right rounded-xl border border-border bg-surface shadow-lg shadow-black/40 ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 mt-2 w-56 origin-top-right rounded-xl border border-border bg-surface shadow-lg shadow-black/40 ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-1 duration-(--duration-fast) ease-(--ease-standard)"
         >
           {/* User Information Header */}
           <div className="px-5 py-3.5 border-b border-border-strong flex flex-col space-y-1">

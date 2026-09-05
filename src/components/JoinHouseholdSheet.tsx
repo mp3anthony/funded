@@ -126,7 +126,7 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
       }
     >
       {isSuccess ? (
-        <div className="flex flex-col items-center justify-center py-6 space-y-4 animate-in zoom-in-95 duration-300">
+        <div className="flex flex-col items-center justify-center py-6 space-y-4 animate-in zoom-in-95 duration-(--duration-base) ease-(--ease-standard)">
           <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_20px_rgba(200,255,0,0.2)]">
             <Check size={32} className="animate-bounce" />
           </div>
