@@ -21,7 +21,10 @@ type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
 // interleaved list instead of a Bills/Expenses tab split).
 type ListRow = { kind: "bill"; item: Bill } | { kind: "expense"; item: Expense };
 
-const BILL_CATEGORIES = [
+// Shared by bills and expenses — both use the same category list and the
+// same saved ordering (Issue #98, final sub-slice: confirmed there is no
+// separate expense-category system, so this is intentionally one list).
+const ITEM_CATEGORIES = [
   "Household Bills",
   "Living Costs",
   "Debt & Finance",
@@ -31,8 +34,8 @@ const BILL_CATEGORIES = [
   "Other",
 ];
 
-// Legacy bill category names → current scheme
-const BILL_CATEGORY_REMAP: Record<string, string> = {
+// Legacy category names → current scheme
+const CATEGORY_REMAP: Record<string, string> = {
   "Debt/Finance": "Debt & Finance",
 };
 
@@ -74,7 +77,7 @@ export default function BillsClient() {
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) return;
-    loadCategoryOrder(userId, "bill_category_order", "billCategoryOrder", BILL_CATEGORY_REMAP, BILL_CATEGORIES)
+    loadCategoryOrder(userId, "bill_category_order", "billCategoryOrder", CATEGORY_REMAP, ITEM_CATEGORIES)
       .then(setCategoryOrder)
       .catch(() => {});
   }, [session?.user?.id]);
@@ -174,8 +177,10 @@ export default function BillsClient() {
    * category) list of bills and expenses mixed together — the exact
    * grouping/sorting bills already used, now shared by both (Issue #98,
    * Slice 2 fix-round: one interleaved list, no tab split). Category
-   * ordering stays the existing bill-only ordering system — the #70
-   * extension for expenses is a later sub-slice's job. */
+   * ordering is already shared/unified across bills and expenses, since
+   * both use the same category list (see ITEM_CATEGORIES above) — this
+   * was confirmed/finalized as Issue #98's last sub-slice. There is no
+   * separate expense-category-ordering system, and none is needed. */
   const groupedItems = useMemo(() => {
     const groups: Record<string, ListRow[]> = {};
 
@@ -205,7 +210,7 @@ export default function BillsClient() {
 
   const allCategories = useMemo(() => {
     const currentCats = Object.keys(groupedItems);
-    return Array.from(new Set([...categoryOrder, ...BILL_CATEGORIES, ...currentCats]));
+    return Array.from(new Set([...categoryOrder, ...ITEM_CATEGORIES, ...currentCats]));
   }, [groupedItems, categoryOrder]);
 
   const emptyStateMessage = useMemo(() => {
