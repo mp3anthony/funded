@@ -25,6 +25,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.31",
+    date: "September 2026",
+    highlights: [
+      "The weekly total on the Bills page (and the suggested-split calculation in Joint Fund settings) now actually includes your expenses and any active fixed-dollar goal-contribution rules, not just bills — so the number you pull into the joint account each week reflects everything real that needs to come out of it.",
+    ],
+  },
+  {
     version: "0.9.30",
     date: "September 2026",
     highlights: [

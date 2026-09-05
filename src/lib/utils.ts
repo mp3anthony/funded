@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { type Bill, type Fund, type PayHistory, type PaySchedule, type BillSplit } from "@/context/AppContext";
-import { type HouseholdContribution } from "@/types";
+import { type HouseholdContribution, type ContributionRule } from "@/types";
 
 /**
  * className combiner for the editorial UI primitives — clsx for conditional
@@ -264,5 +264,41 @@ export function convertAmount(amount: number, fromFrequency: string, toFrequency
     default:
       return monthly;
   }
+}
+
+/**
+ * Issue #98, Slice 4 of 6: sums active fixed-$ goal-contribution rules into the
+ * weekly-draw / suggested-split totals (bills-client.tsx's Total Bar and
+ * ContributionSettingsSheet.tsx's SuggestSplitPanel). Both `action_type`s
+ * ("goal" and "contribution") count — either way it's real money that needs
+ * to be drawn from the triggering member's pay. Percentage-of-surplus rules
+ * (`amount_type === "percentage"`) are deliberately EXCLUDED — their payout
+ * depends on a future payday's surplus that can't be known in advance, and
+ * this codebase's existing philosophy (the #106 3-pay-minimum gate for
+ * variable income) is to block/omit rather than guess when a real number
+ * isn't available. Confirmed decision, issue #98 comment (2026-09-05).
+ *
+ * Each rule's amount is converted from the triggering member's own pay-
+ * schedule frequency to `toFrequency` (same `convertAmount` helper bills use).
+ * A member with exactly one pay schedule uses that schedule's frequency. A
+ * member with zero or more than one (e.g. two jobs, potentially at different
+ * frequencies) has no single "their" frequency to anchor on, so the rule's
+ * amount is treated as already-monthly — the same missing-frequency fallback
+ * bills already use elsewhere (`bill.frequency || "monthly"`).
+ */
+export function sumActiveFixedContributionRules(
+  rules: ContributionRule[],
+  paySchedules: Pick<PaySchedule, "member_id" | "frequency">[],
+  toFrequency: string
+): number {
+  return rules
+    .filter((rule) => rule.is_active && rule.amount_type === "fixed")
+    .reduce((sum, rule) => {
+      const memberSchedules = paySchedules.filter(
+        (s) => String(s.member_id) === String(rule.member_id)
+      );
+      const fromFrequency = memberSchedules.length === 1 ? memberSchedules[0].frequency : "monthly";
+      return sum + convertAmount(rule.amount_to_add, fromFrequency, toFrequency);
+    }, 0);
 }
 

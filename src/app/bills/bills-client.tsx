@@ -11,7 +11,7 @@ import ExpenseCard from "@/components/ExpenseCard";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
 import PageHeader from "@/components/PageHeader";
 import FrequencyToggle from "@/components/FrequencyToggle";
-import { convertAmount } from "@/lib/utils";
+import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 
 type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
@@ -37,7 +37,15 @@ const BILL_CATEGORY_REMAP: Record<string, string> = {
 };
 
 export default function BillsClient() {
-  const { bills, billSplits, expenses, members: householdMembers, session } = useApp();
+  const {
+    bills,
+    billSplits,
+    expenses,
+    members: householdMembers,
+    session,
+    contributionRules,
+    paySchedules,
+  } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
 
@@ -91,11 +99,28 @@ export default function BillsClient() {
     }
   };
 
+  // Issue #98, Slice 4 of 6: this Total Bar is the actual user-facing
+  // "weekly draw" figure households pull into the joint account / split via
+  // Direct Pay each period — it now covers bills + expenses + active fixed-$
+  // goal-contribution rules, not just bills, per the issue's core scope
+  // decision. Expenses have no `frequency` column by design (schema decision:
+  // "no recurring-frequency semantics") — an expense's flat `amount` is
+  // implicitly a WEEKLY figure, the same convention the sub-slice 1 migration
+  // preserved as-is when it moved the 4 real groceries/fuel rows out of
+  // `bills` (they were weekly bills before the move, and their dollar amounts
+  // were carried over unchanged). Percentage-of-surplus contribution rules
+  // are deliberately excluded — see sumActiveFixedContributionRules' own
+  // comment for why (can't know a future payday's surplus in advance).
   const totalBills = useMemo(() => {
-    return bills.reduce((sum, b) => {
+    const billsTotal = bills.reduce((sum, b) => {
       return sum + convertAmount(b.amount, b.frequency || "monthly", displayFrequency);
     }, 0);
-  }, [bills, displayFrequency]);
+    const expensesTotal = expenses.reduce((sum, e) => {
+      return sum + convertAmount(e.amount, "weekly", displayFrequency);
+    }, 0);
+    const rulesTotal = sumActiveFixedContributionRules(contributionRules, paySchedules, displayFrequency);
+    return billsTotal + expensesTotal + rulesTotal;
+  }, [bills, expenses, contributionRules, paySchedules, displayFrequency]);
 
   const filteredBills = useMemo(() => {
     const today = isMounted ? new Date() : new Date("2026-07-05");
