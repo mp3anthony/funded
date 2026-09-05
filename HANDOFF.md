@@ -1,21 +1,44 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#98 CLOSED — all 6 sub-slices merged.** Sub-slice 6 (the final
-piece) shipped as [PR #137](https://github.com/mp3anthony/funded/pull/137) squash-merged to `main`
-at `v0.9.33`, production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on
+**Last updated:** 2026-09-05 — **#134, #132, #139 CLOSED.** All three notification-subsystem fixes
+shipped in one PR ([#138](https://github.com/mp3anthony/funded/pull/138)) squash-merged to `main`
+at `v0.9.35`, production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on
 the merge commit's own deployment, not just a green GitHub merge). Full story in the dated section
 below.
 
-**→ START HERE NEXT SESSION: no queued ticket — #98 is fully done.** Four open issues remain, none
-pre-scoped as "next": **#134** and **#132** are `from-app` bug reports filed via the in-app
-bug-reporting flow (#114) — untriaged, read them first and scope per `CLAUDE.md`'s normal bug-fix
-path (Step 1: check whether each is a clear defect vs. something ambiguous needing `needs-info`).
-**#99** (`ready-for-agent`, "Scope needed: Dynamic visual/motion overhaul") needs a scoping
+**→ START HERE NEXT SESSION: no queued ticket.** Two open issues remain, neither pre-scoped as
+"next": **#99** (`ready-for-agent`, "Scope needed: Dynamic visual/motion overhaul") needs a scoping
 conversation before it can be built — don't assume prior motion-work context (Slice 13/#99's
 original motion pass) covers it; read the issue fresh. **#88** (`needs-info`, Direct Pay
 end-to-end testing) is blocked waiting on real-world testers, not actionable by an agent — leave it
-alone unless Anthony has an update. Recommend starting with #134/#132 (bug reports, likely fastest
-to close) unless Anthony directs otherwise.
+alone unless Anthony has an update.
+
+**Notification subsystem — worth knowing if it ever comes up again:**
+- **#134 root cause was NOT a timezone bug** — household timezone/notify_hour were both already
+  correct in the DB. The actual bug: `AppContext.tsx`'s client-side "app is open" notification path
+  (a legacy mechanism predating Slice 9/11's notify_hour + scheduled-delivery work) pushed
+  immediately on generation, ignoring notify_hour entirely. Fixed by splitting generated rows into
+  "push now" (notify_hour already passed today, household tz) vs "defer" (write the row with
+  `scheduled_for` set and `delivered_at` null, letting the existing `deliver-scheduled` pg_cron
+  push it on time). **Gotcha hit and fixed during review:** the deferred-row day calculation must
+  use `todayInZone(householdTz)`, NOT the device's local day — the file already computes a
+  device-zone `todayYmd` for other purposes (reminder generation itself), and reusing that for the
+  household-zone delivery-hour math silently computes the wrong day whenever a household's chosen
+  timezone differs from the device opening the app.
+- **#132**: overdue-reminder dedupe keys must roll over daily (`...-overdue-${todayYmd}`) or an
+  overdue bill can only ever notify once, ever. Manual bills previously generated *zero* overdue
+  reminders (the code excluded `diffDays < 0` entirely) — auto-pay bills got exactly one.
+- **#139** added `notification_settings.overdue_bill_reminders` (new column, default true) as a
+  standalone toggle layered on top of (AND'd with) the existing `manual_bill_reminders`/
+  `auto_pay_reminders` gates — due-soon/day-0 reminders are unaffected by it. Also removed snooze
+  entirely (including a second, independent copy of the same localStorage-scanning logic that lived
+  in `AppShell.tsx` driving the bell badge count — grep for "snooze" repo-wide if this ever needs
+  touching again, it's not confined to `NotificationCenter.tsx`).
+- **Process note**: this was a live back-and-forth with Anthony reviewing the PR's own Vercel
+  preview mid-session (screenshots of the actual Inbox/Settings UI) — #139 didn't exist as a filed
+  issue until after #134/#132 were already built, reviewed, and pushed; it was filed and built as a
+  same-branch follow-up onto the still-open PR rather than a new stacked PR, since he was actively
+  testing that exact preview URL.
 
 **Sub-slice 4's own open question, resolved and worth knowing if it ever comes up again:** an
 active goal-contribution rule (`RuleCard.tsx`/`AppContext.tsx`'s `ContributionRule`) only fires
