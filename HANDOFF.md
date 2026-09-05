@@ -1,17 +1,16 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#98 sub-slice 2 of 6 (add/edit expense UI) MERGED** —
-[PR #131](https://github.com/mp3anthony/funded/pull/131) squash-merged to `main` at `v0.9.29`,
-confirmed live via `git pull` (11 files landed). Anthony tested on-device as he went through the
-review rounds ("I've been testing as I go") rather than a single final pass — merge approved on
-that basis. Full story in the dated section below.
+**Last updated:** 2026-09-05 — **#98 sub-slice 3 of 6 (Direct Pay split logic for expenses) BUILT
+AND REVIEWED, [PR #133](https://github.com/mp3anthony/funded/pull/133) OPEN, awaiting Anthony's
+on-device test — NOT merged yet.** `v0.9.29` → `v0.9.30`. Full story in the dated section below.
 
-**→ START HERE NEXT SESSION: #98 sub-slice 3 of 6 — Direct Pay split logic for expenses.** The
-6-piece sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first,
-don't re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI → **(3)
-Direct Pay split logic for expenses ← next** (whole-item assignment already works via
-`assignee_id`/`split_mode: "assignee"`; this slice adds the new %-split mode, using the
-`expense_splits` join table already created in sub-slice 1) → (4) weekly-draw calc integration
+**→ START HERE NEXT SESSION (if PR #133 hasn't been merged by then): get Anthony's on-device
+result on PR #133's 4-item checklist (add %-split expense, save-blocked-below-100%, switch
+assignee↔percentage in one sitting, delete a %-split expense), merge if it passes, then continue
+with #98 sub-slice 4.** If #133 is already merged when this session starts, skip straight to sub-
+slice 4. The 6-piece sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read
+that first, don't re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI
+→ (3✅ built, PR #133 open) Direct Pay split logic → **(4) weekly-draw calc integration ← next**
 (touches #106, this is where the still-open "how does a goal-contribution rule become a
 weekly-draw line item" question gets nailed down — Anthony explicitly deferred that decision to
 this slice, don't assume an answer) → (5) health-score integration → (6) #70 category-ordering
@@ -47,6 +46,64 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-05 — #98 sub-slice 3 of 6 (Direct Pay split logic for expenses) built, reviewed, PR open awaiting on-device test
+
+Picked up exactly where the prior HANDOFF pointed ("→ START HERE NEXT SESSION: #98 sub-slice 3").
+Anthony was afk on mobile — gave a blanket go-ahead to start, plus a heads-up that a pure-schema
+slice would be fine to merge on review alone. Flagged back that this slice isn't schema-only
+(new %-split UI + `AppContext` wiring, no migration needed since `expense_splits` already existed
+from sub-slice 1) — routed through the normal `needs-manual-test` labeling instead of merging on
+review alone.
+
+**What got built, per the issue's Decision #4 (both split modes coexist, chosen per expense):**
+new "Split Type" picker in `AddExpenseSheet.tsx` (existing whole-item assignee vs new percentage
+mode), a percentage editor per household member with a running total, save disabled unless the
+total is exactly 100% (no auto-normalize — same validate-before-save convention as
+`ContributionSettingsSheet.tsx`/`AddBillSheet.tsx`). `AppContext.tsx` gained `expenseSplits` state
+wired into load/backup/rollback/wipe paths; `addExpense`/`updateExpense` now take `split_mode` +
+`splits[]`, with `updateExpense` deleting-then-reinserting `expense_splits` rows on every save
+(the cleanup path for a mode change) — this mirrors `updateBill`'s existing `bill_splits` pattern
+byte-for-byte, not a new pattern. `ExpenseCard.tsx`/`ExpenseDetailSheet.tsx` show the split
+breakdown (e.g. "Alice 60% / Bob 40%") for percentage-mode expenses instead of a single assignee.
+No migration — `expense_splits`' RLS from sub-slice 1 already mirrored `bills`/`bill_splits`'s
+real policies and was confirmed (reviewer read the migration file directly) to already support
+this slice's read/write patterns.
+
+**Independent review: APPROVED**, two non-blocking findings logged (not fixed, both inherited
+patterns rather than new regressions): (1) the "sum to 100%" rule is UI-enforced only — no
+DB/`AppContext`-function-level cross-row check exists, matching this app's existing client-gated
+validation philosophy elsewhere; (2) `updateExpense`'s delete-then-reinsert is non-atomic (a
+mid-operation failure could leave local `expenseSplits` state briefly stale vs. the DB) — verified
+identical to `updateBill`'s existing `bill_splits` behavior, not a new bug class, but worth knowing
+given this repo's history with state-desync bugs (#74/#89/#90/#96). Also independently re-ran
+`tsc`/lint/build (clean; lint 58 errors/46 warnings vs. baseline 58/43 — the +3 are
+`@next/next/no-img-element` on new avatar `<img>` tags, same existing pattern used elsewhere,
+e.g. `BillCard`), grepped the whole tree to confirm zero leakage into #106's calc or the health
+score (both explicitly out of scope, later sub-slices), and confirmed the new picker/editor UI
+matches `ContributionSettingsSheet.tsx`'s existing segmented-toggle classes rather than inventing
+new ones.
+
+**Pushed as [PR #133](https://github.com/mp3anthony/funded/pull/133), NOT merged this session** —
+no automated test suite exists in this repo, and this is genuinely new interactive form UI (split-
+type toggle, percentage inputs + running total, overlapping-avatar split display), so labeled
+`needs-manual-test` per `CLAUDE.md`'s routing rule (build and reviewer both agreed, independently).
+Vercel preview confirmed green via `gh pr checks`. 4-item checklist handed to Anthony: add a
+%-split expense, confirm save is blocked below 100%, switch an expense assignee↔percentage in one
+sitting (explicitly flagged: same tab, no reload between the two switches, to catch a stale-state
+bug a fresh load could mask), delete a %-split expense and confirm no orphaned split data anywhere.
+`v0.9.29` → `v0.9.30` (version bump done by the build agent per the project's per-preview-build
+convention — not separately re-confirmed with Anthony this session since he was afk; flag this
+number to him at merge time same as any other slice).
+
+**Workflow, same pattern as sub-slices 1-2:** build sub-agent (isolated worktree) → independent
+review sub-agent (never the builder, fresh agent) → orchestrator pushed/opened the PR with the
+manual-test checklist. **APPROVED first pass, no rework round needed.** Worktree cleaned up after
+push. Two unrelated leftover worktrees (`agent-a2a73983b2b027590`, locked; `agent-a69afbc08584a8fcc`)
+left alone, stale from prior sessions, not from this one.
+
+**#98 continues at sub-slice 4 (weekly-draw calc integration) once PR #133 is merged** — see
+"→ START HERE NEXT SESSION" at the top of this file.
 
 ## 2026-09-04 (continued) — #98 sub-slice 1 of 6 (expenses schema + migration) built, reviewed, applied to prod, merged
 
