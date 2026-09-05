@@ -10,4 +10,4 @@
  * Anthony before merge (CLAUDE.md §4). Do not bump as a side effect of an
  * unrelated change.
  */
-export const APP_VERSION = "0.9.34";
+export const APP_VERSION = "0.9.35";

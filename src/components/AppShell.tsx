@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useApp, useCurrentUser } from "@/context/AppContext";
 import BottomNav from "@/components/BottomNav";
@@ -24,33 +24,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return <AppShellBody isMounted={isMounted}>{children}</AppShellBody>;
 }
 
-/** Read all active snooze timestamps from localStorage. */
-function getSnoozedIds(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  const snoozes: Record<string, number> = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith("snooze-")) {
-      const id = key.substring(7);
-      const val = localStorage.getItem(key);
-      if (val) snoozes[id] = parseInt(val);
-    }
-  }
-  return snoozes;
-}
-
 function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMounted: boolean }) {
   const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, notifications, pushStatus, setPushStatus } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   const currentUser = useCurrentUser();
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
-  const [snoozedIds, setSnoozedIds] = useState<Record<string, number>>({});
-  // Start at 0 (not Date.now()) so static prerender doesn't read the current
-  // time during render — cacheComponents forbids that outside a Suspense
-  // boundary (see #47). The mount effect below calls refreshSnoozes(), which
-  // sets the real time on the client before any snooze comparison matters.
-  const [now, setNow] = useState(0);
   const [showVerifiedModal, setShowVerifiedModal] = useState(false);
   const isLoginPage = pathname === "/login";
   const isConfirmEmailPage = pathname === "/confirm-email";
@@ -59,31 +38,8 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
 
   useVisualViewportVars();
 
-  // 1b. Sync snooze state from localStorage (refreshes every 30s so expiry is reactive)
-  const refreshSnoozes = useCallback(() => {
-    setSnoozedIds(getSnoozedIds());
-    setNow(Date.now());
-  }, []);
-
-  useEffect(() => {
-    refreshSnoozes();
-    const interval = setInterval(refreshSnoozes, 30_000);
-    return () => clearInterval(interval);
-  }, [refreshSnoozes]);
-
-  // Re-read snoozes whenever the notification center closes (user may have just snoozed)
-  useEffect(() => {
-    if (!isNotificationCenterOpen) {
-      refreshSnoozes();
-    }
-  }, [isNotificationCenterOpen, refreshSnoozes]);
-
-  // Compute visible notification count (excludes read/dismissed and snoozed ones)
-  const visibleNotificationCount = notifications.filter(n => {
-    if (n.is_read) return false;
-    const expires = snoozedIds[n.id];
-    return !(expires && expires > now);
-  }).length;
+  // Compute visible notification count (excludes read/dismissed)
+  const visibleNotificationCount = notifications.filter(n => !n.is_read).length;
 
   // 2. Global Scroll Lock (MutationObserver)
   useEffect(() => {
@@ -191,7 +147,7 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
         {/* Floating Avatar + Bell — fixed position, always visible when authenticated */}
         {!isLoading && currentUser && (
           <div className="floating-avatar flex items-center gap-2">
-            {/* Notification Bell — only visible when there are active (non-snoozed) notifications */}
+            {/* Notification Bell — only visible when there are unread notifications */}
             {visibleNotificationCount > 0 && (
               <button
                 id="notification-bell-btn"

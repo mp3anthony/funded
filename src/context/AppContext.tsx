@@ -166,6 +166,10 @@ export interface NotificationSettings {
    *  household's timezone). Not yet consumed for actual send-timing — that's
    *  Slice 11 (the cron rewrite); this only stores the preference. */
   notify_hour: number;
+  /** Issue #139: standalone daily overdue-bill reminder toggle, layered on
+   *  top of manual_bill_reminders/auto_pay_reminders — both gates must be on
+   *  for a daily overdue reminder to generate. */
+  overdue_bill_reminders: boolean;
 }
 
 export interface Notification {
@@ -4367,6 +4371,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           payday_reminders: true,
           goal_milestone_reminders: true,
           notify_hour: 9,
+          overdue_bill_reminders: true,
         };
         const { data: newSettings } = await supabase.from('notification_settings').insert(defaultSettings).select().single();
         if (newSettings) setNotificationSettings(newSettings);

@@ -21,6 +21,14 @@ export interface ReminderSettings {
   payday_reminders?: boolean;
   /** Issue #97 (Slice 9): goal/fund milestone-reached reminders. */
   goal_milestone_reminders?: boolean;
+  /** Issue #139: standalone daily overdue-bill reminder toggle, layered on
+   *  top of manual_bill_reminders/auto_pay_reminders — a daily overdue
+   *  reminder for a bill only fires when BOTH that bill type's toggle AND
+   *  this one are on. Does not affect the non-overdue ("due soon"/day-0)
+   *  branches below. Optional/`!== false`-gated for the same
+   *  pre-migration-row-safety reason as payday_reminders/
+   *  goal_milestone_reminders above. */
+  overdue_bill_reminders?: boolean;
 }
 
 /** Minimal bill shape needed to evaluate reminders. */
@@ -145,13 +153,15 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
             related_entity_id: id,
             dedupe_key: `${id}-${dueYmd}-manual_bill`,
           });
-        } else if (diffDays < 0) {
+        } else if (diffDays < 0 && settings.overdue_bill_reminders !== false) {
           // #132: overdue manual bills used to generate nothing at all once
           // diffDays went negative — the "due soon" branch above only
           // covers 0..threshold. Bill is still unpaid, so keep nagging daily
           // until it's paid: dedupe_key includes todayYmd (not just dueYmd)
           // so a fresh, undeduped reminder is produced every day it remains
           // overdue instead of exactly once.
+          // #139: additionally gated on overdue_bill_reminders — a standalone
+          // toggle layered on top of manual_bill_reminders above.
           push({
             user_id: userId,
             household_id: householdId,
@@ -187,6 +197,10 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
           // what rolls its dedupe_key by todayYmd so it repeats daily until
           // the bill is marked Paid.
           const isOverdue = diffDays < 0;
+          // #139: overdue auto-pay reminders additionally gated on
+          // overdue_bill_reminders — the day-0 "should now be paid" and
+          // upcoming branches above are untouched by this toggle.
+          if (isOverdue && settings.overdue_bill_reminders === false) continue;
           const message =
             diffDays === 0
               ? `Your automatic payment should now be paid.`
