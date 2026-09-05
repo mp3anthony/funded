@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.36",
+    date: "September 2026",
+    highlights: [
+      "The Goals page and the dashboard's Savings Goals card got a motion polish pass: categories and the goals list now expand and collapse smoothly instead of snapping open, and saved amounts / progress percentages count up smoothly when they change (like adding money to a goal) instead of jumping straight to the new number.",
+      "Small touch-ups: a goal's row gives a gentle press feedback when tapped, and progress bars now ease into their new width at the same speed as the rest of the app.",
+    ],
+  },
+  {
     version: "0.9.35",
     date: "September 2026",
     highlights: [

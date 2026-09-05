@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Target, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type Fund } from "@/context/AppContext";
 import AddGoalSheet from "@/components/AddGoalSheet";
 import EditGoalSheet from "@/components/EditGoalSheet";
@@ -10,7 +10,9 @@ import AddAmountModal from "@/components/AddAmountModal";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
 import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
+import GoalRow from "@/components/GoalRow";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
+import { useCountUp } from "@/hooks/useCountUp";
 
 const GOAL_CATEGORIES = [
   "Home & Living",
@@ -73,6 +75,11 @@ export default function FundsClient() {
         funds.length
       : 0;
 
+  // Slice 99: count the headline total up/down when it changes (adding an
+  // amount to a goal, deleting one, etc.) instead of popping to the new
+  // figure instantly.
+  const displayTotalSaved = useCountUp(totalSaved);
+
   const filteredFunds = useMemo(() => {
     return funds.filter((f) => {
       if (categoryFilter === "All") return true;
@@ -133,7 +140,7 @@ export default function FundsClient() {
       {/* Summary bar — de-boxed editorial (live figures only) */}
       <div className="px-1">
         <div className="text-3xl font-bold text-primary tracking-tight font-mono">
-          ${totalSaved.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          ${displayTotalSaved.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
         <div className="text-xs font-bold uppercase tracking-wider text-subtle mt-1">
           Total Accumulated Savings
@@ -210,7 +217,9 @@ export default function FundsClient() {
                 if (idxB !== -1) return 1;
                 return a.localeCompare(b);
               })
-              .map(([category, categoryFunds]) => (
+              .map(([category, categoryFunds]) => {
+                const isExpanded = !!expandedCategories[category];
+                return (
               <div key={category} className="flex flex-col">
                 <button
                   onClick={() => toggleCategory(category)}
@@ -226,102 +235,49 @@ export default function FundsClient() {
                     className="h-0.5 flex-1 rounded-sm"
                     style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
                   />
-                  {expandedCategories[category] ? (
-                    <ChevronUp className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
-                  )}
+                  <ChevronDown
+                    className="h-4 w-4 text-subtle group-hover:text-foreground transition-[transform,color] duration-(--duration-slow) ease-(--ease-standard) shrink-0"
+                    style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                  />
                 </button>
 
-                {expandedCategories[category] && (
-                  <div className="flex flex-col mt-1">
-                    {categoryFunds.map((fund) => {
-                      const IconComponent = fund.icon;
-                      const percentage = Math.min((fund.currentAmount / fund.targetAmount) * 100, 100);
-                      const isComplete = fund.currentAmount >= fund.targetAmount;
+                {/* Expand/collapse via grid-template-rows (Slice 99 — same
+                    technique as the dashboard's HealthScoreCard) so rows
+                    grow/shrink smoothly instead of popping in and out. */}
+                <div
+                  className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+                  style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+                >
+                  <div className="overflow-hidden min-h-0">
+                    <div className="flex flex-col mt-1">
+                      {categoryFunds.map((fund, index) => {
+                        const IconComponent = fund.icon;
+                        const percentage = Math.min((fund.currentAmount / fund.targetAmount) * 100, 100);
+                        const isComplete = fund.currentAmount >= fund.targetAmount;
 
-                      return (
-                        <div
-                          key={fund.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => {
-                            setSelectedGoal(fund);
-                            setIsDetailOpen(true);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
+                        return (
+                          <GoalRow
+                            key={fund.id}
+                            fund={fund}
+                            IconComponent={IconComponent}
+                            percentage={percentage}
+                            isComplete={isComplete}
+                            staggerIndex={index}
+                            isExpanded={isExpanded}
+                            onOpen={() => {
                               setSelectedGoal(fund);
                               setIsDetailOpen(true);
-                            }
-                          }}
-                          className="border-t border-border py-3 cursor-pointer hover:bg-surface/40 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
-                        >
-                          {/* Header: icon · name/category · percent */}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className={`flex h-8 w-8 rounded-lg items-center justify-center shrink-0 ${fund.bgLight || "bg-white/5 text-foreground"}`}>
-                                <IconComponent className="h-4 w-4" />
-                              </div>
-                              <div className="min-w-0">
-                                <h4 className="font-body font-semibold text-[15px] text-foreground truncate leading-tight">
-                                  {fund.name}
-                                </h4>
-                                <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-subtle block mt-0.5">
-                                  {fund.category}
-                                </span>
-                              </div>
-                            </div>
-                            <span className={`font-mono font-bold text-sm shrink-0 ${fund.accentText || "text-primary"}`}>
-                              {percentage.toFixed(1)}%
-                            </span>
-                          </div>
-
-                          {/* Progress bar — driven by live state */}
-                          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mt-2.5">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${fund.barColor || "bg-primary"}`}
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-
-                          {/* Amounts */}
-                          <div className="flex items-center justify-between font-mono text-[11px] mt-1.5">
-                            <span className="font-semibold text-foreground">
-                              ${fund.currentAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                            </span>
-                            <span className="text-subtle">
-                              target: ${fund.targetAmount.toLocaleString("en-US", { minimumFractionDigits: 0 })}
-                            </span>
-                          </div>
-
-                          {/* Add Money / Completed action */}
-                          {isComplete ? (
-                            <div className="flex items-center gap-1.5 mt-2.5 text-primary text-[11px] font-mono font-bold uppercase tracking-wider">
-                              <Target className="h-3.5 w-3.5" />
-                              <span>Goal Reached! 🎉</span>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAddAmountGoal(fund);
-                              }}
-                              className="mt-2.5 inline-flex items-center gap-1.5 py-1 text-[11px] font-heading font-bold uppercase tracking-wider text-muted hover:text-primary transition-colors"
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                              Add Amount
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                            }}
+                            onAddAmount={() => setAddAmountGoal(fund)}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
-            ))}
+                );
+            })}
           </div>
         )}
       </div>

@@ -374,6 +374,31 @@ body.modal-open main {
   animation: dialog-card-in 280ms var(--ease-standard) both;
 }
 
+/* ── Goal row entrance (Slice 99: motion overhaul) ──
+   Restrained fade + slight rise for goal rows on Funds and the dashboard's
+   ActiveGoalsCard when a list first appears/expands. Matches the dialog
+   entrance's shape (fade + small translate, standard ease, no bounce) at
+   a smaller distance appropriate to a list row rather than a modal card. */
+@keyframes fund-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fund-row-in {
+  animation: fund-row-in var(--duration-base) var(--ease-standard) both;
+  animation-delay: var(--row-delay, 0ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fund-row-in {
+    animation: none !important;
+  }
+}
+
 /* ── Floating Avatar Button ── */
 .floating-avatar {
   position: fixed;

@@ -3,6 +3,7 @@
 import { Calendar, Award, Play, Pause, Check } from "lucide-react";
 import type { Fund } from "@/context/AppContext";
 import Dialog from "@/components/ui/Dialog";
+import { useCountUp } from "@/hooks/useCountUp";
 
 interface GoalDetailSheetProps {
   isOpen: boolean;
@@ -19,13 +20,20 @@ export default function GoalDetailSheet({
   onEdit,
   onDelete,
 }: GoalDetailSheetProps) {
+  const percentage = goal ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100) : 0;
+  const isComplete = !!goal && goal.currentAmount >= goal.targetAmount;
+
+  // Slice 99: the sheet unmounts on close (early return below), so each
+  // open is a fresh mount — the saved amount and progress % count up from
+  // 0 as a small authored reveal, consistent with the Dialog card's own
+  // entrance rather than popping straight to the final figures.
+  const displayCurrentAmount = useCountUp(goal?.currentAmount ?? 0, 700, true);
+  const displayPercentage = useCountUp(percentage, 700, true);
+
   if (!isOpen || !goal) return null;
 
-  const percentage = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
-  const isComplete = goal.currentAmount >= goal.targetAmount;
-
   // Format currency
-  const formattedCurrent = Number(goal.currentAmount).toLocaleString("en-US", {
+  const formattedCurrent = displayCurrentAmount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -114,13 +122,13 @@ export default function GoalDetailSheet({
           <div className="space-y-3 bg-surface-raised border border-border p-5 rounded-[2px]">
             <div className="flex justify-between items-center text-xs uppercase font-mono">
               <span className="text-subtle font-semibold">Progress</span>
-              <span className={`font-bold ${goal.accentText}`}>{percentage.toFixed(1)}%</span>
+              <span className={`font-bold ${goal.accentText}`}>{displayPercentage.toFixed(1)}%</span>
             </div>
-            
+
             <div className="w-full bg-surface rounded-full h-3.5 overflow-hidden border border-border">
-              <div 
-                className={`h-full rounded-full transition-all duration-500 ${goal.barColor}`}
-                style={{ width: `${percentage}%` }}
+              <div
+                className={`h-full rounded-full transition-[width] duration-(--duration-slow) ease-(--ease-standard) ${goal.barColor}`}
+                style={{ width: `${displayPercentage}%` }}
               />
             </div>
 

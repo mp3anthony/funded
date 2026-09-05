@@ -2,8 +2,9 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Target, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowUpRight, Target, ChevronDown } from "lucide-react";
 import { type Fund } from "@/context/AppContext";
+import ActiveGoalRow from "@/components/ActiveGoalRow";
 
 interface ActiveGoalsCardProps {
   funds: Fund[];
@@ -64,17 +65,22 @@ export const ActiveGoalsCard = React.memo(function ActiveGoalsCard({
           className="text-subtle hover:text-foreground transition-colors flex items-center justify-center focus:outline-none shrink-0"
           aria-label={isMinimised ? "Expand Savings Goals" : "Minimize Savings Goals"}
         >
-          {isMinimised ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronUp className="h-4 w-4" />
-          )}
+          <ChevronDown
+            className="h-4 w-4 transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+            style={{ transform: isMinimised ? "rotate(0deg)" : "rotate(180deg)" }}
+          />
         </button>
       </div>
 
-      {/* Content */}
-      {!isMinimised && (
-        <div className="flex flex-col">
+      {/* Content — expand/collapse via grid-template-rows (Slice 99),
+          matching the dashboard's other collapsible sections (e.g.
+          HealthScoreCard) so it grows/shrinks smoothly instead of
+          popping in and out of the layout. */}
+      <div
+        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+        style={{ gridTemplateRows: isMinimised ? "0fr" : "1fr" }}
+      >
+        <div className="overflow-hidden min-h-0">
           {activeGoalsList.length === 0 ? (
             <div className="py-8 text-center flex flex-col items-center justify-center space-y-2.5">
               <div className="p-3 bg-foreground/5 rounded-full border border-border-strong">
@@ -89,70 +95,19 @@ export const ActiveGoalsCard = React.memo(function ActiveGoalsCard({
             </div>
           ) : (
             <div className="space-y-5 flex flex-col">
-              {activeGoalsList.map((goal) => {
-                const GoalIcon = goal.icon || Target;
-                const roundedPercent = Math.min(100, Math.round(goal.progress));
-
-                return (
-                  <div
-                    key={goal.id}
-                    onClick={() => onGoalClick(goal)}
-                    className="space-y-2 cursor-pointer group active:scale-[0.99] transition-all"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        <div
-                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${
-                            goal.bgLight || "bg-white/5 text-foreground"
-                          }`}
-                        >
-                          <GoalIcon className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-body font-bold text-xs text-foreground truncate group-hover:text-foreground transition-colors leading-none">
-                            {goal.name}
-                          </h4>
-                          <span className="text-[8px] font-bold font-mono text-subtle uppercase tracking-wider block mt-0.5">
-                            {goal.category}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`text-xs font-bold font-mono leading-none ${goal.accentText || "text-primary"}`}>
-                        {roundedPercent}%
-                      </span>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ease-out ${
-                          goal.barColor || "bg-primary"
-                        }`}
-                        style={{ width: `${roundedPercent}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between font-mono text-[9px] text-subtle">
-                      <span className="font-mono">
-                        ${goal.currentAmount.toLocaleString("en-US", {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                      <span className="font-mono text-neutral-600">
-                        target: ${goal.targetAmount.toLocaleString("en-US", {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+              {activeGoalsList.map((goal, index) => (
+                <ActiveGoalRow
+                  key={goal.id}
+                  goal={goal}
+                  index={index}
+                  isVisible={!isMinimised}
+                  onClick={() => onGoalClick(goal)}
+                />
+              ))}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 });
