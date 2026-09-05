@@ -1,6 +1,70 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#134, #132, #139 CLOSED**, plus a process fix. All three
+**Last updated:** 2026-09-05 — **#88 closed** (redundant with the in-app bug-report tool, per
+Anthony's call — real testers can self-report, no need for a standing "needs testers" issue).
+**#99 scoping resolved and build in progress.** #99 turned out to already have locked decisions
+sitting in its own comment thread from a 2026-09-02 session (goal: polish existing screens,
+premium-minimal/Copilot-Money mood, whole app at once, `tailwindcss-animate` bug fix folded in,
+#100 folded in as count-up-only on the existing 4-tile grid) — it did NOT need a fresh scoping
+conversation after all, contrary to what the previous handoff entry assumed. label is
+`ready-for-agent`.
+
+**Anthony's explicit constraint this session: stay preview-only until the ENTIRE #99 motion pass
+is done across all screens — do not merge any individual slice to `main`, even a fully-reviewed
+one.** Everything lands on one long-lived branch, `slice/99-motion-overhaul`, whose preview alias
+always reflects the latest push:
+**https://funded-alpha-git-slice-99-motion-overhaul-mp3anthonys-projects.vercel.app**
+Also per Anthony's call: every slice gets reviewed by a separate reviewer sub-agent, never by the
+Orchestrator or the same agent that built it.
+
+**Two bad first attempts, worth reading before assigning the next slice:** the first two "slice 1"
+attempts (a hand-rolled "foundation" task, then a hand-rolled "dashboard" task) both turned out to
+be near-word-for-word duplicates of work already merged in **PR #129 (Slice 13, v0.9.27)** —
+foundation tokens/plugin/Dialog, Settings, AppShell, HealthScoreCard (incl. the dashboard's 4
+stat-tile count-up), NotificationCenter, PatchNotesPopup. Both agents correctly caught it
+themselves and made zero changes rather than duplicating work — but it cost two build cycles
+because the ticket text was written from folder-name guessing, not from an actual diff/grep check
+against current `main`. **Lesson: before scoping any further #99 slice, actually run
+`grep -rlE "animate-in|fade-in|zoom-in|useCountUp|--duration-|--ease-" src/app src/components`
+and/or check `gh pr view 129 --json files` yourself first — don't infer from screen names alone.**
+
+**Current state of the #99 pass, screen by screen:**
+- ✅ Foundation (tokens, `tailwindcss-animate` plugin, `Dialog.tsx`) — done, PR #129/Slice 13.
+- ✅ Settings, AppShell, NotificationCenter, PatchNotesPopup — done, PR #129/Slice 13.
+- ✅ Dashboard stat tiles (#100 fold-in: count-up only, no gauge/carousel) — done, PR #129/Slice
+  13, lives inside `HealthScoreCard.tsx`'s `useCountUp` hook.
+- ✅ **Funds/Goals** — done THIS session on `slice/99-motion-overhaul`, confirmed via direct grep
+  to have had zero prior motion work (unlike the two false starts above). Commit `5543401` (build,
+  v0.9.35→v0.9.36) + commit `b9dddec` (review-fix, no further version bump). Files: new shared
+  `src/hooks/useCountUp.ts`, new `src/components/GoalRow.tsx` /`ActiveGoalRow.tsx` (extracted from
+  `funds-client.tsx`/`ActiveGoalsCard.tsx` to dodge a spurious ESLint scoping quirk — see commit),
+  `GoalDetailSheet.tsx`, `globals.css` (new `fund-row-in` keyframe + this codebase's **first**
+  `prefers-reduced-motion` rule, scoped only to that one class). Two review rounds: first found 3
+  real bugs (count-up backward-jump on rapid re-target; `GoalDetailSheet` never actually remounted
+  despite a comment claiming it did, letting stale hook state leak between opens; collapsed
+  goal-rows stayed keyboard-tabbable after switching from unmount-based collapse to a CSS
+  grid-rows collapse) — all 3 fixed and the fix re-reviewed clean. **Final verdict: ready for
+  Anthony's manual preview test, not yet done by him.**
+- ⏳ **Not started: Bills (`bills-client.tsx`) + Payday (`payday-client.tsx`) + shared
+  sheets/menus** (`Onboarding.tsx`, `AddPayScheduleSheet.tsx`, `AvatarDropdown.tsx`,
+  `JoinHouseholdSheet.tsx`, `UserProfileMenu.tsx`). Unlike Funds/Goals, these already have SOME
+  `animate-in`-style classes in them (pre-dating Slice 13's plugin install) — nobody has verified
+  whether they now look good now that the plugin actually works, or whether they read as generic
+  Tailwind defaults vs. the "premium-minimal" mood. This is an audit-and-fix pass, not a clean-slate
+  build — read what's there first.
+- ⏳ **Not started: Auth screens** (`src/app/login`, `src/app/reset-password`,
+  `src/app/confirm-email`) — confirmed zero motion work via grep, clean slate, lowest priority.
+
+**Recommended next step for the next session:** either (a) get Anthony's manual-preview verdict on
+Funds/Goals first before building more (in case it surfaces something the sub-agent reviews
+missed), or (b) if he's fine proceeding blind, start the Bills/Payday/shared-components audit
+slice next, following the same build → independent-review → fix → re-review loop used for
+Funds/Goals. Do not merge anything to `main` until Anthony explicitly lifts the preview-only
+constraint for the whole #99 pass.
+
+---
+
+**Previous entry (2026-09-05):** #134, #132, #139 CLOSED, plus a process fix. All three
 notification-subsystem fixes shipped in one PR ([#138](https://github.com/mp3anthony/funded/pull/138))
 squash-merged to `main` at `v0.9.35`, production deployment confirmed `READY` and live via Vercel
 MCP (`get_deployment` on the merge commit's own deployment, not just a green GitHub merge).
