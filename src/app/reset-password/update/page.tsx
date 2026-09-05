@@ -115,7 +115,7 @@ export default function UpdatePasswordPage() {
 
   return (
     <div className="flex-1 w-full flex items-center justify-center p-4 min-h-screen bg-background">
-      <div className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 sm:p-8 shadow-2xl">
+      <div className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 sm:p-8 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-(--duration-base) ease-(--ease-standard)">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
             <Logo size="large" showWordmark={true} />
@@ -129,14 +129,14 @@ export default function UpdatePasswordPage() {
         </div>
 
         {linkState === "checking" && (
-          <div className="flex flex-col items-center gap-3 py-6">
+          <div className="flex flex-col items-center gap-3 py-6 animate-in fade-in duration-(--duration-base) ease-(--ease-standard)">
             <Loader2 className="h-6 w-6 animate-spin text-secondary" />
             <p className="text-sm text-muted">Verifying your reset link...</p>
           </div>
         )}
 
         {linkState === "invalid" && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in fade-in duration-(--duration-base) ease-(--ease-standard)">
             <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-3">
               <AlertCircle className="h-5 w-5 shrink-0" />
               <p>This reset link is invalid or has expired. Please request a new one.</p>
@@ -152,21 +152,21 @@ export default function UpdatePasswordPage() {
         )}
 
         {linkState === "ready" && errorMsg && (
-          <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-3">
+          <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-(--duration-base) ease-(--ease-standard)">
             <AlertCircle className="h-5 w-5 shrink-0" />
             <p>{errorMsg}</p>
           </div>
         )}
 
         {linkState === "ready" && successMsg && (
-          <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-semibold flex items-center gap-3">
+          <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary text-sm font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-(--duration-base) ease-(--ease-standard)">
             <Check className="h-5 w-5 shrink-0" />
             <p>{successMsg}</p>
           </div>
         )}
 
         {linkState === "ready" && (
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in duration-(--duration-base) ease-(--ease-standard)">
           <div className="space-y-2">
             <label className="block text-xs font-bold tracking-wider uppercase text-muted">
               New Password
@@ -184,7 +184,7 @@ export default function UpdatePasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground transition-colors cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground active:scale-95 transition-[color,transform] duration-(--duration-fast) ease-(--ease-standard) cursor-pointer"
                 tabIndex={-1}
               >
                 {showPassword ? (

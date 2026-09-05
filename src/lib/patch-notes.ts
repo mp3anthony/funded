@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.38",
+    date: "September 2026",
+    highlights: [
+      "The sign-in, sign-up, forgot-password, password-reset, and confirm-your-email screens now ease into view smoothly instead of popping straight onto the screen.",
+      "Error and success messages on those screens (wrong password, link expired, password updated, etc.) now fade and settle into place instead of appearing abruptly.",
+      "Small touch-ups so buttons on those screens — like the show/hide password eye icon — respond with the same subtle press feedback used everywhere else in the app.",
+    ],
+  },
+  {
     version: "0.9.37",
     date: "September 2026",
     highlights: [

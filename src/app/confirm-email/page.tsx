@@ -28,7 +28,7 @@ export default function ConfirmEmailPage() {
 
   return (
     <div className="flex-1 w-full flex items-center justify-center p-4 min-h-[80vh]">
-      <div className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
+      <div className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-(--duration-base) ease-(--ease-standard)">
         <div className="h-16 w-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-[#c8ff00]/5 animate-pulse">
           <Mail className="h-8 w-8" />
         </div>
@@ -49,7 +49,7 @@ export default function ConfirmEmailPage() {
         <button
           onClick={handleBackToLogin}
           disabled={loading}
-          className="w-full max-w-xs mx-auto flex items-center justify-center gap-2 py-3 rounded-xl border border-border text-sm font-bold text-muted hover:text-foreground hover:bg-white/5 transition-all duration-200 cursor-pointer disabled:opacity-50"
+          className="w-full max-w-xs mx-auto flex items-center justify-center gap-2 py-3 rounded-xl border border-border text-sm font-bold text-muted hover:text-foreground hover:bg-white/5 active:scale-[0.98] transition-all duration-(--duration-base) ease-(--ease-standard) cursor-pointer disabled:opacity-50"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
