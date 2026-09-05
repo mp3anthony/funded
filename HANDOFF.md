@@ -1,25 +1,39 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#98 sub-slice 3 of 6 (Direct Pay split logic for expenses)
-MERGED** — [PR #133](https://github.com/mp3anthony/funded/pull/133) squash-merged to `main` at
-`v0.9.30`, production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on the
-merge commit's own deployment, not just a green GitHub merge). **Merged without an on-device
-manual test** — Anthony's explicit call: he doesn't use Direct Pay (uses Joint Fund), so there's no
-real way for him to exercise this feature manually; relied on the independent reviewer's APPROVED
-verdict instead. Worth remembering if a Direct-Pay-split bug ever gets reported — this path has
-only ever been code/RLS-verified, never watched working end-to-end by a real user. Full story in
-the dated section below.
+**Last updated:** 2026-09-05 — **#98 sub-slice 4 of 6 (weekly-draw calc integration) MERGED** —
+[PR #135](https://github.com/mp3anthony/funded/pull/135) squash-merged to `main` at `v0.9.31`,
+production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on the merge
+commit's own deployment, not just a green GitHub merge). Full story in the dated section below.
 
-**→ START HERE NEXT SESSION: #98 sub-slice 4 of 6 — weekly-draw calc integration.** The 6-piece
+**→ START HERE NEXT SESSION: #98 sub-slice 5 of 6 — health-score integration.** The 6-piece
 sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first, don't
-re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI → (3✅ done,
-merged) Direct Pay split logic → **(4) weekly-draw calc integration ← next** (touches #106's
-contribution-calc logic directly — the joint-fund/direct-pay weekly draw becomes bills + expenses
-+ active goal-contribution rules, not just bills; this is where the still-open "how does a
-goal-contribution rule become a weekly-draw line item" question gets nailed down — Anthony
-explicitly deferred that decision to this slice, don't assume an answer, confirm with him first) →
-(5) health-score integration → (6) #70 category-ordering extension. Nothing else is queued ahead
-of #98.
+re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI → (3✅ done)
+Direct Pay split logic → (4✅ done, merged) weekly-draw calc integration → **(5) health-score
+integration ← next** (fold expenses into `calculateHealthScore`'s existing budget-coverage half in
+`src/lib/utils.ts` — one unified score, not a separate expense component, per #98's original
+Decision #5; that function was deliberately left untouched by sub-slice 4, so this is genuinely new
+ground, not a continuation of already-changed code) → (6) #70 category-ordering extension. Nothing
+else is queued ahead of #98.
+
+**Sub-slice 4's own open question, resolved and worth knowing if it ever comes up again:** an
+active goal-contribution rule (`RuleCard.tsx`/`AppContext.tsx`'s `ContributionRule`) only fires
+once, conditionally, on a payday that crosses its threshold — it has no inherent "weekly amount."
+Confirmed with Anthony (logged as a 2026-09-05 comment on #98): only **fixed-$** rules count toward
+the weekly-draw total, at face value; **percentage-of-surplus rules are excluded entirely** (their
+payout depends on a future payday's surplus that can't be known in advance — matches #106's
+existing philosophy of blocking rather than guessing when a real number isn't available). This
+precedent — don't estimate an unknowable future number, just exclude it — is likely relevant again
+if sub-slice 5's health-score work runs into a similar shape of question.
+
+**A real, currently-unverified assumption baked into sub-slice 4, worth knowing if a weekly-draw
+number ever looks wrong:** an expense's flat `amount` (no `frequency` column exists on `expenses`)
+is treated as an implicitly **weekly** figure. This rests on the sub-slice-1 migration's own prose
+comment describing the migrated groceries/fuel rows as "weekly/recurring," cross-checked by the
+sub-slice 4 reviewer against live prod data (the migrated dollar amounts sit in the weekly-cadence
+magnitude range for this household, not monthly) — but the source `bills.frequency` values were
+never SQL-verified before the rows were deleted, so this is inference, not a hard fact. If a
+household's weekly-draw total ever looks scaled wrong once they add expenses with genuinely
+different real-world cadences, this assumption is the first place to check.
 
 **Sub-slice 2 shipped a materially different UI than first built** — worth knowing before touching
 any of these files again: the original build put bills/expenses on separate tabs; Anthony rejected
@@ -51,6 +65,63 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-05 (new session) — #98 sub-slice 4 of 6 (weekly-draw calc integration) built, reviewed, merged
+
+Picked up exactly where the prior HANDOFF pointed ("→ START HERE NEXT SESSION: #98 sub-slice 4").
+Re-read the full decision history on #98 first (`gh issue view 98 --comments`) before scoping
+anything, per this file's own instruction that sub-slice 4 had a genuinely open question deferred
+to it.
+
+**The open question, resolved before building:** sub-slice 4's own scope ("weekly draw becomes
+bills + expenses + active goal-contribution rules") left unanswered how a goal-contribution rule —
+which only fires once, conditionally, when a payday crosses a threshold, as either a fixed $ or a
+%-of-surplus — becomes a steady weekly-draw line item. Brought this to Anthony directly rather than
+assuming an answer (this file explicitly flagged not to guess here). Presented three options; he
+picked the simplest: **only fixed-$ rules count, at face value; percentage-of-surplus rules are
+excluded entirely** (their payout depends on a future payday's surplus that can't be known in
+advance — matches #106's existing "don't guess when data's missing" philosophy). Logged as a
+comment on #98 as the source of truth before build started.
+
+**What got built:** two existing totals extended from bills-only to bills + expenses + active
+fixed-$ rules — `bills-client.tsx`'s Total Bar (the actual number households watch to know how much
+to draw weekly) and `ContributionSettingsSheet.tsx`'s `SuggestSplitPanel.totalMonthlyBills` (#106's
+Suggest Split calculator's denominator). New shared helper `sumActiveFixedContributionRules` in
+`src/lib/utils.ts` filters `is_active && amount_type === "fixed"` (both `action_type`s — "goal" and
+"contribution" — count, since both represent real money leaving that member's pay), converting each
+rule's amount from the triggering member's own pay-schedule frequency (falling back to "monthly" if
+a member has zero or multiple schedules — the build agent's own reasonable-default call, commented
+in place, not separately re-confirmed). Expenses fold in via `convertAmount(amount, "weekly", ...)`
+— see the top-of-file note on why "weekly" is an inference, not a verified fact, from the sub-slice
+1 migration. `calculateHealthScore` in `src/lib/utils.ts` deliberately left untouched (sub-slice 5's
+job) — confirmed zero diff by both the builder and reviewer.
+
+**Independent review: APPROVED first pass.** Specifically cross-checked the expense-implicit-weekly
+assumption against live prod data (grocery/fuel dollar amounts sit in the weekly-cadence magnitude
+range for this household, not monthly — circumstantial but consistent), confirmed percentage-rules
+are a genuine skip (not zero-summed), traced the rule→frequency conversion end-to-end, confirmed
+zero diff in `calculateHealthScore`/#106's core calc/`groupedItems` list rendering, checked for the
+state-desync bug class this repo has hit before (#74/#89/#90/#96) and found none (purely additive to
+already-loaded `AppContext` state). Independently re-ran `tsc`/lint/build — clean, lint exactly at
+the 58/46 baseline. One non-blocking note logged: `bills-client.tsx`'s Total Bar never filtered
+`is_paused` (unlike `SuggestSplitPanel`'s version, which does) — a pre-existing inconsistency the
+build correctly left alone as out of scope rather than silently "fixing" it mid-slice.
+
+**Pushed as [PR #135](https://github.com/mp3anthony/funded/pull/135), labeled
+`needs-merge-approval`** — pure calc logic, fully verifiable in-pipeline (no layout/native surface
+needing a hands-on pass), same category as sub-slice 1. Vercel preview confirmed green via
+`gh pr checks`. `v0.9.30` → `v0.9.31`, confirmed with Anthony before merge. Squash-merged, branch
+deleted, worktree cleaned up, local `main` synced via `git fetch` + `git reset --hard origin/main`.
+**Production deployment verified directly via the Vercel MCP tool** (`list_teams` → `list_projects`
+→ `list_deployments`, confirming the merge commit's own deployment shows `target: "production"`,
+`state: "READY"`) — not just trusted from a green GitHub merge.
+
+**Workflow, same pattern as every prior sub-slice:** build sub-agent (isolated worktree) →
+independent review sub-agent (never the builder, fresh agent) → orchestrator pushed/opened the PR →
+Anthony's go-ahead → merge. **APPROVED first pass, no rework round needed.**
+
+**#98 continues at sub-slice 5 (health-score integration)** — see "→ START HERE NEXT SESSION" at
+the top of this file.
 
 ## 2026-09-05 — #98 sub-slice 3 of 6 (Direct Pay split logic for expenses) built, reviewed, PR open awaiting on-device test
 
