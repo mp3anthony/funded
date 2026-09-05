@@ -4,10 +4,14 @@
  * the Orchestrator (internal, technical, ticket-tracking); this file is
  * written for the end user reading "What's new" inside the app.
  *
- * Add a new entry here whenever a release ships something worth telling a
- * user about. Not every version needs one (a docs-only or pure-refactor
- * release can be skipped entirely) — the patch notes page and popup both
- * degrade gracefully when an entry is missing, so skipping one is safe.
+ * Every version bump gets an entry here as part of the same PR — including
+ * backend-only or under-the-hood changes with no visible UI difference.
+ * Write it in plain language a non-technical user would understand, framed
+ * around the practical effect (what's more reliable, what behaves
+ * differently) rather than the mechanism. A change with genuinely zero
+ * user-facing effect still gets a short one-line entry saying so (e.g.
+ * "cleaned up something behind the scenes — no visible change") rather than
+ * being skipped.
  *
  * List newest first. `version` must match `APP_VERSION` in
  * `src/lib/version.ts` for the entry to be treated as "new" by the
@@ -24,6 +28,15 @@ export interface PatchNoteEntry {
 }
 
 export const patchNotes: PatchNoteEntry[] = [
+  {
+    version: "0.9.35",
+    date: "September 2026",
+    highlights: [
+      "Notifications now show up right at the time you actually picked in \"Notify me at\", instead of sometimes arriving early.",
+      "An overdue bill now reminds you every day until it's paid — before this fix, some overdue bills weren't reminding you at all, or only reminded you once.",
+      "Notification Settings has a new toggle for these daily overdue reminders so you can turn them off if you'd rather not get them. Tapping a bill notification now takes you straight to the bill to mark it paid there, matching how the main Bills list works — the old snooze option and the in-list \"Mark Paid\" button have been removed.",
+    ],
+  },
   {
     version: "0.9.31",
     date: "September 2026",
