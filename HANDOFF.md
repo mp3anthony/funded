@@ -1,19 +1,21 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#98 sub-slice 5 of 6 (health-score integration) MERGED** —
-[PR #136](https://github.com/mp3anthony/funded/pull/136) squash-merged to `main` at `v0.9.32`,
-production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on the merge
-commit's own deployment, not just a green GitHub merge). Full story in the dated section below.
+**Last updated:** 2026-09-05 — **#98 CLOSED — all 6 sub-slices merged.** Sub-slice 6 (the final
+piece) shipped as [PR #137](https://github.com/mp3anthony/funded/pull/137) squash-merged to `main`
+at `v0.9.33`, production deployment confirmed `READY` and live via Vercel MCP (`get_deployment` on
+the merge commit's own deployment, not just a green GitHub merge). Full story in the dated section
+below.
 
-**→ START HERE NEXT SESSION: #98 sub-slice 6 of 6 — #70 category-ordering extension.** The 6-piece
-sub-slicing plan is recorded as a comment on #98 itself (2026-09-04) — read that first, don't
-re-derive it. Order: (1✅ done) schema+migration → (2✅ done) add/edit expense UI → (3✅ done)
-Direct Pay split logic → (4✅ done, merged) weekly-draw calc integration → (5✅ done, merged)
-health-score integration → **(6) #70 category-ordering extension ← next** (apply the existing
-per-user category-ordering system, currently bill-only, to expense categories too — see
-`bills-client.tsx`'s own comment noting this is deliberately deferred: "Category ordering stays the
-existing bill-only ordering system — the #70 extension for expenses is a later sub-slice's job").
-This is the last piece of #98 — closes the issue once merged. Nothing else is queued ahead of #98.
+**→ START HERE NEXT SESSION: no queued ticket — #98 is fully done.** Four open issues remain, none
+pre-scoped as "next": **#134** and **#132** are `from-app` bug reports filed via the in-app
+bug-reporting flow (#114) — untriaged, read them first and scope per `CLAUDE.md`'s normal bug-fix
+path (Step 1: check whether each is a clear defect vs. something ambiguous needing `needs-info`).
+**#99** (`ready-for-agent`, "Scope needed: Dynamic visual/motion overhaul") needs a scoping
+conversation before it can be built — don't assume prior motion-work context (Slice 13/#99's
+original motion pass) covers it; read the issue fresh. **#88** (`needs-info`, Direct Pay
+end-to-end testing) is blocked waiting on real-world testers, not actionable by an agent — leave it
+alone unless Anthony has an update. Recommend starting with #134/#132 (bug reports, likely fastest
+to close) unless Anthony directs otherwise.
 
 **Sub-slice 4's own open question, resolved and worth knowing if it ever comes up again:** an
 active goal-contribution rule (`RuleCard.tsx`/`AppContext.tsx`'s `ContributionRule`) only fires
@@ -65,6 +67,63 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-05 (new session) — #98 sub-slice 6 of 6 (final piece) built, reviewed, merged; #98 CLOSED
+
+Picked up exactly where the prior HANDOFF pointed ("→ START HERE NEXT SESSION: #98 sub-slice 6").
+Before delegating, read the deferred comment in `bills-client.tsx` and the actual `groupedItems`/
+`allCategories` logic to scope the work precisely (per `CLAUDE.md` Step 1's scope check) — this
+turned into the session's one real finding.
+
+**Scoping finding, brought to Anthony before building:** the sub-slice's stated goal — "apply the
+existing per-user category-ordering system, currently bill-only, to expense categories too" — was
+already functionally true. Expenses use the exact same 7-category list as bills (confirmed:
+`AddExpenseSheet.tsx`'s dropdown offers the identical options to `AddBillSheet.tsx`'s, no separate
+expense-category constant exists anywhere in the repo), and `groupedItems` already merges bills and
+expenses into one set of category buckets sorted by the single saved `categoryOrder` — so reordering
+categories in the existing Edit Order modal already reorders expenses too. The only thing genuinely
+"bill-only" was naming: the `BILL_CATEGORIES` constant, and a comment claiming this was deferred.
+**Presented this to Anthony rather than silently building a no-op feature** — he chose the smallest
+option (quick cleanup, same build→review pattern as every other sub-slice, just scoped smaller).
+
+**What got built, [PR #137](https://github.com/mp3anthony/funded/pull/137):** renamed
+`BILL_CATEGORIES`→`ITEM_CATEGORIES` and `BILL_CATEGORY_REMAP`→`CATEGORY_REMAP` in
+`bills-client.tsx` (only file that ever referenced them, confirmed by repo-wide grep before and
+after), rewrote the `groupedItems` comment to state the sharing is finalized rather than deferred.
+**Deliberately left untouched**, per explicit build-agent instruction: the Supabase
+`user_preferences.bill_category_order` column, its string-literal usage in
+`loadCategoryOrder`/`saveCategoryOrder`, and the `billCategoryOrder` localStorage key — renaming a
+live DB column is its own schema/Part-A-adjacent decision with zero functional upside here, not
+warranted for a pure naming cleanup. `v0.9.32` → `v0.9.33`, no patch-notes entry (internal cleanup,
+not user-facing).
+
+**Independent review: APPROVED, zero findings.** Verified the rename is complete repo-wide (fresh
+grep for both old names, zero hits), read the live `groupedItems`/`allCategories` code directly to
+confirm the new comment's claim is factually true (not just prettier wording), confirmed the
+out-of-scope DB/localStorage identifiers were correctly left alone, confirmed `git show --stat`
+touched exactly the two intended files, and reasoned explicitly about whether a pure rename +
+comment + version bump could have any runtime effect (concluded no, verified by reading every diff
+hunk). Independently re-ran `tsc`/lint/build — clean, lint 58/46 exact baseline match, zero issues
+in the touched files specifically.
+
+**Pushed as PR #137, labeled `needs-merge-approval`** — pure rename/comment, fully
+pipeline-verifiable, no manual test needed. Vercel preview confirmed green via `gh pr checks`.
+Version confirmed with Anthony before merge. Squash-merged; local branch delete initially failed
+because the build agent's worktree still had it checked out (same recurring wrinkle as sub-slice
+5) — cleaned up with `git worktree remove --force` + `git branch -D`, then `git fetch` +
+`git reset --hard origin/main` to sync local `main`. **Production deployment verified directly via
+the Vercel MCP tool** (`list_teams` → `list_projects` → `list_deployments`, confirming the merge
+commit `47889dc`'s own deployment shows `target: "production"`, `state: "READY"`) — not just
+trusted from a green GitHub merge.
+
+**Workflow, same pattern as every prior sub-slice:** orchestrator scoped/investigated first (found
+the no-op-functionality finding) → build sub-agent (isolated worktree) → independent review
+sub-agent (never the builder, fresh agent) → orchestrator pushed/opened the PR → Anthony's
+go-ahead → merge. **APPROVED first pass, no rework round needed.**
+
+**#98 is now fully CLOSED — all 6 sub-slices merged, issue auto-closed by PR #137's "Closes #98".**
+No ticket queued next — see "→ START HERE NEXT SESSION" at the top of this file for the remaining
+open issues (#134, #132, #99, #88) and a recommended starting point.
 
 ## 2026-09-05 (continued) — #98 sub-slice 5 of 6 (health-score integration) built, reviewed, merged
 
