@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { type Bill, type Fund, type PayHistory, type PaySchedule, type BillSplit } from "@/context/AppContext";
+import { type Bill, type Fund, type PayHistory, type PaySchedule, type BillSplit, type Expense, type ExpenseSplit } from "@/context/AppContext";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 
 /**
@@ -83,7 +83,16 @@ export function adjustAutopayBillDate(dueDateStr: string, frequency: string, pay
  * Calculates a financial health score (0-100) based on:
  * - Bills management (40% weight)
  * - Goals/contributions progress (30% weight)
- * - Budget coverage (30% weight)
+ * - Budget coverage (30% weight) — the "obligations" side of this now
+ *   folds in expenses and active fixed-$ goal-contribution rules alongside
+ *   bills (Issue #98, Slice 5 of 6, Decision #5: expenses fold into the
+ *   existing budget-coverage half rather than becoming a separate scored
+ *   component). `expenses`/`expenseSplits` mirror bills-client.tsx's
+ *   `totalBills` treatment (implicitly-weekly amounts); `contributionRules`
+ *   feeds `sumActiveFixedContributionRules` (see that function's own doc
+ *   comment for why percentage-of-surplus rules are excluded). Bills
+ *   Management (40%) and Goals/Contributions (30%) below are untouched by
+ *   this slice.
  */
 export function calculateHealthScore(
   bills: Bill[],
@@ -92,7 +101,10 @@ export function calculateHealthScore(
   householdContributions: HouseholdContribution[],
   paySchedules: PaySchedule[],
   isJointFund: boolean,
-  billSplits: BillSplit[]
+  billSplits: BillSplit[],
+  expenses: Expense[],
+  expenseSplits: ExpenseSplit[],
+  contributionRules: ContributionRule[]
 ): number {
   const activeBills = bills.filter(b => !b.is_paused);
 
@@ -146,7 +158,20 @@ export function calculateHealthScore(
     const amount = bill.amount || 0;
     const freq = bill.frequency || "monthly";
     return sum + convertAmount(amount, freq, "monthly");
-  }, 0);
+  }, 0)
+    // Issue #98, Slice 5 of 6: this "obligations" denominator now covers
+    // bills + expenses + active fixed-$ goal-contribution rules, mirroring
+    // bills-client.tsx's `totalBills` (Slice 4). Expenses have no
+    // `frequency` column by design (schema decision: "no recurring-frequency
+    // semantics") — an expense's flat `amount` is implicitly a WEEKLY
+    // figure, the same convention the sub-slice 1 migration preserved as-is
+    // when it moved the 4 real groceries/fuel rows out of `bills` (they were
+    // weekly bills before the move, and their dollar amounts were carried
+    // over unchanged). Percentage-of-surplus contribution rules are
+    // deliberately excluded — see sumActiveFixedContributionRules' own
+    // comment for why (can't know a future payday's surplus in advance).
+    + expenses.reduce((sum, e) => sum + convertAmount(e.amount, "weekly", "monthly"), 0)
+    + sumActiveFixedContributionRules(contributionRules, paySchedules, "monthly");
 
   if (isJointFund) {
     const totalMonthlyContributions = householdContributions.reduce((sum, contribution) => {
@@ -161,12 +186,28 @@ export function calculateHealthScore(
     }
   } else {
     // Direct Pay mode: sum up all split amounts, normalized to monthly based on parent bill's frequency
-    const totalMonthlySplits = billSplits.reduce((sum, split) => {
+    let totalMonthlySplits = billSplits.reduce((sum, split) => {
       const parentBill = activeBills.find((b) => String(b.id) === String(split.bill_id));
       if (!parentBill) return sum;
       const freq = parentBill.frequency || "monthly";
       const amount = split.amount || 0;
       return sum + convertAmount(amount, freq, "monthly");
+    }, 0);
+
+    // Issue #98, Slice 5 of 6: extend the numerator with expense-split
+    // coverage, mirroring the exact asymmetry that already exists for
+    // bills above — only `split_mode === "percentage"` expenses contribute
+    // here; a whole-item/assignee expense, like a whole-item/assignee bill,
+    // contributes nothing to this numerator (pre-existing behavior,
+    // deliberately not "fixed" here). Each split's dollar amount is
+    // `expense.amount * (split.percentage / 100)`, then converted from the
+    // implicitly-weekly expense figure to monthly (same convention used
+    // everywhere else expenses appear in this codebase).
+    totalMonthlySplits += expenseSplits.reduce((sum, split) => {
+      const parentExpense = expenses.find((e) => String(e.id) === String(split.expense_id));
+      if (!parentExpense || parentExpense.split_mode !== "percentage") return sum;
+      const dollarAmount = parentExpense.amount * ((split.percentage || 0) / 100);
+      return sum + convertAmount(dollarAmount, "weekly", "monthly");
     }, 0);
 
     if (totalMonthlyExpenses === 0) {
