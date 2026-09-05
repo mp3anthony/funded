@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Check, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
-import { useApp, type Member, type Bill, type PaySchedule } from "@/context/AppContext";
-import { type HouseholdContribution } from "@/types";
+import { useApp, type Member, type Bill, type Expense, type PaySchedule } from "@/context/AppContext";
+import { type HouseholdContribution, type ContributionRule } from "@/types";
 import Dialog from "@/components/ui/Dialog";
-import { convertAmount } from "@/lib/utils";
+import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 
 interface ContributionSettingsSheetProps {
   isOpen: boolean;
@@ -20,7 +20,7 @@ export default function ContributionSettingsSheet({
   householdMembers,
   contributions,
 }: ContributionSettingsSheetProps) {
-  const { setContribution, bills, paySchedules, calculateAveragePay } = useApp();
+  const { setContribution, bills, expenses, contributionRules, paySchedules, calculateAveragePay } = useApp();
 
   if (!isOpen) return null;
 
@@ -65,6 +65,8 @@ export default function ContributionSettingsSheet({
       <SuggestSplitPanel
         householdMembers={householdMembers}
         bills={bills}
+        expenses={expenses}
+        contributionRules={contributionRules}
         paySchedules={paySchedules}
         calculateAveragePay={calculateAveragePay}
         setContribution={setContribution}
@@ -378,6 +380,8 @@ function computeMemberIncomes(
 interface SuggestSplitPanelProps {
   householdMembers: Member[];
   bills: Bill[];
+  expenses: Expense[];
+  contributionRules: ContributionRule[];
   paySchedules: PaySchedule[];
   calculateAveragePay: (memberId: string) => number | null;
   setContribution: (memberId: string, amount: number, frequency: PayFrequency) => Promise<void>;
@@ -386,6 +390,8 @@ interface SuggestSplitPanelProps {
 function SuggestSplitPanel({
   householdMembers,
   bills,
+  expenses,
+  contributionRules,
   paySchedules,
   calculateAveragePay,
   setContribution,
@@ -400,14 +406,33 @@ function SuggestSplitPanel({
   const blockedMembers = memberIncomes.filter((r): r is MemberBlockedResult => r.blocked);
   const unblockedMembers = memberIncomes.filter((r): r is MemberIncomeResult => !r.blocked);
 
-  // Mirrors calculateHealthScore's totalMonthlyExpenses calc exactly (active
-  // bills only, converted to monthly) so this split's total never silently
-  // drifts from the health score's number.
+  // Previously mirrored calculateHealthScore's totalMonthlyExpenses calc
+  // exactly (active bills only, converted to monthly). Issue #98, Slice 4 of
+  // 6 intentionally widens this split's total beyond that — it now also
+  // includes expenses and active fixed-$ goal-contribution rules, per the
+  // issue's core scope decision (the weekly-draw/split figure households
+  // actually pull together should reflect all real recurring+variable spend,
+  // not just bills). This means the two numbers diverge until Slice 5 (health
+  // score integration, separate PR) folds expenses into calculateHealthScore
+  // too — deliberately NOT touched here, that's Slice 5's job.
+  //
+  // Expenses have no `frequency` column (schema decision: "no
+  // recurring-frequency semantics") — an expense's flat `amount` is
+  // implicitly a WEEKLY figure, same convention the sub-slice 1 migration
+  // preserved as-is when it moved the real groceries/fuel bill-rows (each
+  // previously a weekly bill) into `expenses` unchanged.
+  //
+  // Percentage-of-surplus contribution rules are deliberately excluded — see
+  // sumActiveFixedContributionRules' own comment for why (can't know a future
+  // payday's surplus in advance).
   const totalMonthlyBills = useMemo(() => {
-    return bills
+    const billsTotal = bills
       .filter((b) => !b.is_paused)
       .reduce((sum, bill) => sum + convertAmount(bill.amount || 0, bill.frequency || "monthly", "monthly"), 0);
-  }, [bills]);
+    const expensesTotal = expenses.reduce((sum, e) => sum + convertAmount(e.amount, "weekly", "monthly"), 0);
+    const rulesTotal = sumActiveFixedContributionRules(contributionRules, paySchedules, "monthly");
+    return billsTotal + expensesTotal + rulesTotal;
+  }, [bills, expenses, contributionRules, paySchedules]);
 
   const totalHouseholdMonthlyIncome =
     blockedMembers.length === 0 ? unblockedMembers.reduce((sum, r) => sum + r.monthlyIncome, 0) : 0;
