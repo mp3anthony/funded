@@ -199,7 +199,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
         // before ever computing an overdue/due-soon status, so the cron
         // agrees with what the UI/health-score shows instead of inventing
         // a separate "auto-pay overdue" rule off the raw date.
-        const adjustedDueYmd = adjustAutopayBillDate(dueYmd, bill.frequency || 'monthly', bill.payment_type);
+        const adjustedDueYmd = adjustAutopayBillDate(dueYmd, bill.frequency || 'monthly', bill.payment_type, todayYmd);
         const diffDays = diffDaysYmd(todayYmd, adjustedDueYmd);
         if (diffDays <= threshold) {
           const id = bill.id?.toString();

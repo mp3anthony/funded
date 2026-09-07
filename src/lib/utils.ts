@@ -40,13 +40,26 @@ export function parseBillDate(dateStr: string): Date {
  * If a bill is auto-pay and its due date is in the past, advance it iteratively
  * by its frequency until it is today or in the future.
  * Returns the date in YYYY-MM-DD local format to avoid timezone offset bugs.
+ *
+ * `todayYmd` (optional, 'YYYY-MM-DD') lets a caller supply its own notion of
+ * "today" instead of relying on the calling process's wall clock. The
+ * browser-side caller (AppContext.tsx's mapBillFromDb) omits it and keeps
+ * using `new Date()` — the browser's own clock is what the rest of that UI
+ * already agrees with. The server-side caller (generateReminders.ts, run by
+ * the push-reminders cron) passes its household-timezone-aware `todayYmd`
+ * instead, because the Vercel Node runtime's raw UTC "today" can disagree
+ * with a household's local calendar date — especially right around the
+ * cron's fixed UTC run hour for timezones ahead of UTC (e.g.
+ * Australia/Sydney, this app's own default timezone fallback). Using the
+ * server process's clock there could roll a due date forward a day late,
+ * reintroducing the #143 false-overdue symptom through a different door.
  */
-export function adjustAutopayBillDate(dueDateStr: string, frequency: string, paymentType?: string): string {
+export function adjustAutopayBillDate(dueDateStr: string, frequency: string, paymentType?: string, todayYmd?: string): string {
   if (!dueDateStr) return dueDateStr;
   const isAutoPay = paymentType?.toLowerCase() === "auto";
   if (!isAutoPay) return dueDateStr;
 
-  const today = new Date();
+  const today = todayYmd ? new Date(todayYmd + "T00:00:00") : new Date();
   today.setHours(0, 0, 0, 0);
 
   const tempDate = parseBillDate(dueDateStr);
