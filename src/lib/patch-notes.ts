@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.42",
+    date: "September 2026",
+    highlights: [
+      "When you minimise both Upcoming Bills and Savings Goals on your dashboard, a small scrolling tips banner now appears above the bottom nav with quick pointers on using the app. Hover over it to pause the scroll, and tap the X to dismiss it — it'll come back next time you minimise both cards again.",
+    ],
+  },
+  {
     version: "0.9.41",
     date: "September 2026",
     highlights: [

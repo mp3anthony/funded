@@ -9,27 +9,34 @@ import { parseBillDate } from "@/lib/utils";
 interface UpcomingBillsCardProps {
   bills: Bill[];
   onBillClick: (bill: Bill) => void;
+  /** Fires with the resolved minimised state on mount and on every toggle
+   * (#151) — lets the dashboard know when this card is minimised, e.g. to
+   * drive the tips ticker's "both cards minimised" trigger. */
+  onMinimisedChange?: (isMinimised: boolean) => void;
 }
 
 export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
   bills,
   onBillClick,
+  onMinimisedChange,
 }: UpcomingBillsCardProps) {
   const [isMinimised, setIsMinimised] = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("dashboard_upcoming_bills_minimised");
-    if (stored === "false") {
-      setIsMinimised(false);
-    } else if (stored === "true") {
-      setIsMinimised(true);
-    }
+    const resolved = stored === "false" ? false : true;
+    setIsMinimised(resolved);
+    onMinimisedChange?.(resolved);
+    // Intentionally mount-only — onMinimisedChange is reported separately
+    // from handleToggle below rather than re-run here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleToggle = () => {
     setIsMinimised((prev) => {
       const next = !prev;
       localStorage.setItem("dashboard_upcoming_bills_minimised", String(next));
+      onMinimisedChange?.(next);
       return next;
     });
   };

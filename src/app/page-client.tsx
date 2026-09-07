@@ -12,6 +12,7 @@ import PageHeader from "@/components/PageHeader";
 import HealthScoreCard from "@/components/HealthScoreCard";
 import UpcomingBillsCard from "@/components/UpcomingBillsCard";
 import ActiveGoalsCard from "@/components/ActiveGoalsCard";
+import DashboardTipsTicker from "@/components/DashboardTipsTicker";
 
 
 export default function HomeClient() {
@@ -34,6 +35,16 @@ export default function HomeClient() {
   const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
   const [isGoalDetailOpen, setIsGoalDetailOpen] = useState(false);
   const [isGoalEditOpen, setIsGoalEditOpen] = useState(false);
+
+  /* ── Tips ticker trigger (#151) — reappears fixed to the bottom of the
+     viewport only once both Upcoming Bills and Savings Goals are minimised.
+     Starts `null` ("not yet known") rather than defaulting to minimised, so
+     the ticker can't flash visible for a returning user whose stored
+     preference turns out to be "expanded" before each card's own
+     localStorage read resolves. */
+  const [isBillsMinimised, setIsBillsMinimised] = useState<boolean | null>(null);
+  const [isGoalsMinimised, setIsGoalsMinimised] = useState<boolean | null>(null);
+  const bothCardsMinimised = isBillsMinimised === true && isGoalsMinimised === true;
 
   /* ── Sheet Deletion Handlers ─────────────────── */
   const handleDeleteBill = async () => {
@@ -79,6 +90,7 @@ export default function HomeClient() {
                 setSelectedBill(bill);
                 setIsDetailOpen(true);
               }}
+              onMinimisedChange={setIsBillsMinimised}
             />
           </div>
           <div className="lg:col-span-1">
@@ -88,12 +100,19 @@ export default function HomeClient() {
                 setSelectedGoal(goal);
                 setIsGoalDetailOpen(true);
               }}
+              onMinimisedChange={setIsGoalsMinimised}
             />
           </div>
         </div>
 
 
       </div>
+
+      {/* Tips ticker (#151) — fixed to the viewport, only when both cards
+          above are minimised. Rendered outside the scrolling content div
+          (like BottomNav in AppShell) so its fixed positioning is against
+          the viewport, not this page's own layout box. */}
+      <DashboardTipsTicker active={bothCardsMinimised} />
 
       {/* Bill Detail Sheet */}
       <BillDetailSheet
