@@ -90,7 +90,7 @@ export default function DashboardTipsTicker({ active }: DashboardTipsTickerProps
   return (
     <div
       ref={containerRef}
-      className="fixed inset-x-0 z-40 px-4 transition-opacity duration-(--duration-slow) ease-(--ease-standard)"
+      className="fixed inset-x-0 z-40 px-4 transition-opacity duration-(--duration-slow) ease-in-out"
       style={{
         bottom: "calc(5rem + env(safe-area-inset-bottom))",
         opacity: visible ? 1 : 0,
