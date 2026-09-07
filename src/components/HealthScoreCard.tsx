@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { calculateHealthScore, convertAmount } from "@/lib/utils";
 
@@ -277,10 +277,26 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
             className="group flex items-center gap-3 text-left focus:outline-none"
           >
             <span className="font-heading font-bold text-[13px] text-foreground shrink-0">Contributors</span>
-            {isContributorsExpanded ? <ChevronUp size={13} className="text-subtle" /> : <ChevronDown size={13} className="text-subtle" />}
+            <ChevronDown
+              size={13}
+              className="text-subtle transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+              style={{ transform: isContributorsExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            />
             <span className="h-0.5 flex-1 rounded-sm" style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }} />
           </button>
-          {isContributorsExpanded && (
+          {/* Content — expand/collapse via grid-template-rows (Slice 99),
+              matching the dashboard's other collapsible sections (the stat
+              grid above, ActiveGoalsCard) so it grows/shrinks smoothly
+              instead of popping in and out of the layout. */}
+          <div
+            className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+            style={{ gridTemplateRows: isContributorsExpanded ? "1fr" : "0fr" }}
+          >
+          <div
+            className="overflow-hidden min-h-0"
+            aria-hidden={!isContributorsExpanded}
+            inert={!isContributorsExpanded ? true : undefined}
+          >
           <div className="flex flex-wrap gap-x-8 gap-y-3">
             {visibleMembers.map(member => {
               let weeklyAmount = 0;
@@ -335,7 +351,8 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
               );
             })}
           </div>
-          )}
+          </div>
+          </div>
         </div>
       )}
     </div>

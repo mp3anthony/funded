@@ -1,91 +1,52 @@
 # Handoff
 
-**Last updated:** 2026-09-05 — **#88 closed** (redundant with the in-app bug-report tool, per
-Anthony's call — real testers can self-report, no need for a standing "needs testers" issue).
-**#99 scoping resolved and build in progress.** #99 turned out to already have locked decisions
-sitting in its own comment thread from a 2026-09-02 session (goal: polish existing screens,
-premium-minimal/Copilot-Money mood, whole app at once, `tailwindcss-animate` bug fix folded in,
-#100 folded in as count-up-only on the existing 4-tile grid) — it did NOT need a fresh scoping
-conversation after all, contrary to what the previous handoff entry assumed. label is
-`ready-for-agent`.
+**Last updated:** 2026-09-07 — **#99 (Slice 13 motion overhaul) is fully CLOSED.**
+[PR #141](https://github.com/mp3anthony/funded/pull/141) squash-merged to `main`, production
+deployment verified `READY` via the Vercel MCP tool. Whole-app motion pass (Foundation, Settings,
+AppShell, Dashboard, Funds/Goals, Bills/Payday/shared sheets, Auth screens) is live at `v0.9.38`.
 
-**Anthony's explicit constraint this session: stay preview-only until the ENTIRE #99 motion pass
-is done across all screens — do not merge any individual slice to `main`, even a fully-reviewed
-one.** Everything lands on one long-lived branch, `slice/99-motion-overhaul`, whose preview alias
-always reflects the latest push:
-**https://funded-alpha-git-slice-99-motion-overhaul-mp3anthonys-projects.vercel.app**
-Also per Anthony's call: every slice gets reviewed by a separate reviewer sub-agent, never by the
-Orchestrator or the same agent that built it.
+**→ START HERE NEXT SESSION: four standalone bugs queued, already filed and triaged, priority
+order below.** No scoping needed on any of them — all are clean bug fixes, no CRD required.
+1. **[#143](https://github.com/mp3anthony/funded/issues/143)** — auto-pay bills wrongly fire
+   "Bill Overdue" pushes. Root cause already located: `mapBillFromDb` exempts `payment_type ===
+   "auto"` from ever showing Overdue, but the separate `generateReminders.ts` cron computes overdue
+   straight off raw `due_date` with no such exemption. Fastest, most unambiguous pickup.
+2. **[#142](https://github.com/mp3anthony/funded/issues/142)** — in-app bug-report form's
+   Description field stops accepting input past some length. No `maxLength` found anywhere in the
+   current code via grep — will need live reproduction, not just a source read, before a fix can be
+   scoped.
+3. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife barely gets bill
+   reminder pushes. Leading hypothesis, not confirmed: a secondary household member can be missing
+   a `notification_settings` row and/or `push_subscriptions` row (both only lazily created on that
+   person's own first load / manual "Enable push" tap) — a missing subscription is currently
+   swallowed silently (marked delivered, nothing sent, no retry). **Ask her to check Settings →
+   Push Notifications on her own phone first** before assuming this needs a code fix.
+4. **[#144](https://github.com/mp3anthony/funded/issues/144)** — reminder notifications drift off
+   the household's configured delivery hour. This is an accepted architecture trade-off (once-daily
+   Vercel Hobby-plan cron fires reminders regardless of each household's actual hour), not a pure
+   logic bug — the code's own comments already call this out. A real fix likely means extending the
+   existing Supabase `pg_cron`/`pg_net` pattern (see the infra gotcha below) rather than another
+   Vercel Cron attempt. Biggest lift of the four, lowest priority.
 
-**Two bad first attempts, worth reading before assigning the next slice:** the first two "slice 1"
-attempts (a hand-rolled "foundation" task, then a hand-rolled "dashboard" task) both turned out to
-be near-word-for-word duplicates of work already merged in **PR #129 (Slice 13, v0.9.27)** —
-foundation tokens/plugin/Dialog, Settings, AppShell, HealthScoreCard (incl. the dashboard's 4
-stat-tile count-up), NotificationCenter, PatchNotesPopup. Both agents correctly caught it
-themselves and made zero changes rather than duplicating work — but it cost two build cycles
-because the ticket text was written from folder-name guessing, not from an actual diff/grep check
-against current `main`. **Lesson: before scoping any further #99 slice, actually run
-`grep -rlE "animate-in|fade-in|zoom-in|useCountUp|--duration-|--ease-" src/app src/components`
-and/or check `gh pr view 129 --json files` yourself first — don't infer from screen names alone.**
+Also logged, not yet triaged: **[#146](https://github.com/mp3anthony/funded/issues/146)**
+(`out-of-spec`) — Anthony's idea for a dashboard tips banner (ticker/chyron style, app-green,
+visible only when Upcoming Bills + Goals are both minimised). Sits in `CHANGE-LOG.md`/GitHub until
+he decides to triage it — do not scope or build without that.
 
-**Current state of the #99 pass, screen by screen:**
-- ✅ Foundation (tokens, `tailwindcss-animate` plugin, `Dialog.tsx`) — done, PR #129/Slice 13.
-- ✅ Settings, AppShell, NotificationCenter, PatchNotesPopup — done, PR #129/Slice 13.
-- ✅ Dashboard stat tiles (#100 fold-in: count-up only, no gauge/carousel) — done, PR #129/Slice
-  13, lives inside `HealthScoreCard.tsx`'s `useCountUp` hook.
-- ✅ **Funds/Goals** — done THIS session on `slice/99-motion-overhaul`, confirmed via direct grep
-  to have had zero prior motion work (unlike the two false starts above). Commit `5543401` (build,
-  v0.9.35→v0.9.36) + commit `b9dddec` (review-fix, no further version bump). Files: new shared
-  `src/hooks/useCountUp.ts`, new `src/components/GoalRow.tsx` /`ActiveGoalRow.tsx` (extracted from
-  `funds-client.tsx`/`ActiveGoalsCard.tsx` to dodge a spurious ESLint scoping quirk — see commit),
-  `GoalDetailSheet.tsx`, `globals.css` (new `fund-row-in` keyframe + this codebase's **first**
-  `prefers-reduced-motion` rule, scoped only to that one class). Two review rounds: first found 3
-  real bugs (count-up backward-jump on rapid re-target; `GoalDetailSheet` never actually remounted
-  despite a comment claiming it did, letting stale hook state leak between opens; collapsed
-  goal-rows stayed keyboard-tabbable after switching from unmount-based collapse to a CSS
-  grid-rows collapse) — all 3 fixed and the fix re-reviewed clean. **Anthony manually tested the
-  preview against the 6-item checklist (category expand/collapse, total count-up, rapid
-  double-add, reopening the same goal's detail sheet, keyboard-tab over collapsed rows, dashboard
-  card) — all passed. Funds/Goals is fully done, no outstanding issues.**
-- ⏳ **Not started: Bills (`bills-client.tsx`) + Payday (`payday-client.tsx`) + shared
-  sheets/menus** (`Onboarding.tsx`, `AddPayScheduleSheet.tsx`, `AvatarDropdown.tsx`,
-  `JoinHouseholdSheet.tsx`, `UserProfileMenu.tsx`). Unlike Funds/Goals, these already have SOME
-  `animate-in`-style classes in them (pre-dating Slice 13's plugin install) — nobody has verified
-  whether they now look good now that the plugin actually works, or whether they read as generic
-  Tailwind defaults vs. the "premium-minimal" mood. This is an audit-and-fix pass, not a clean-slate
-  build — read what's there first.
-- ⏳ **Not started: Auth screens** (`src/app/login`, `src/app/reset-password`,
-  `src/app/confirm-email`) — confirmed zero motion work via grep, clean slate, lowest priority.
+**Doc-divergence between this branch's `HANDOFF.md` and `main`'s copy (from earlier in the #99
+slice) is now resolved** — this file is the merged, authoritative version. The one piece that was
+only on `main`'s copy and not here has been folded in: **[PR #138](https://github.com/mp3anthony/funded/pull/138)**
+(notification fixes #134/#132/#139, squash-merged to `main` mid-slice at `v0.9.35`) and
+**[PR #140](https://github.com/mp3anthony/funded/pull/140)** (backfilled the missing v0.9.35
+patch-notes entry, and added a permanent rule to `CLAUDE.md` §4: **every version bump now requires
+a patch-notes entry in the same PR going forward, including backend-only/no-UI changes** — a
+genuinely invisible change still gets a one-line "no visible change" note rather than being
+skipped). Both landed directly on `main` while this branch was still in progress, parallel to the
+#99 work — worth knowing since neither PR number appeared anywhere else in this branch's own
+history until now.
 
-**Recommended next step for the next session:** start the Bills/Payday/shared-components audit
-slice next (Funds/Goals is fully signed off, nothing further needed there), following the same
-build → independent-review → fix → re-review → Anthony's manual test loop used for Funds/Goals.
-Do not merge anything to `main` until Anthony explicitly lifts the preview-only constraint for the
-whole #99 pass.
-
----
-
-**Previous entry (2026-09-05):** #134, #132, #139 CLOSED, plus a process fix. All three
-notification-subsystem fixes shipped in one PR ([#138](https://github.com/mp3anthony/funded/pull/138))
-squash-merged to `main` at `v0.9.35`, production deployment confirmed `READY` and live via Vercel
-MCP (`get_deployment` on the merge commit's own deployment, not just a green GitHub merge).
-Follow-up: Anthony noticed the daily-overdue-reminder change wasn't reflected in "What's new" —
-the v0.9.35 patch-notes entry was missing entirely. Backfilled it and, more importantly, added a
-permanent rule to `CLAUDE.md` (§4, "Patch notes"): **every version bump now requires a
-patch-notes entry in the same PR going forward, including backend-only/no-UI changes**, explained
-by practical user-facing effect rather than mechanism — a genuinely invisible change still gets a
-one-line "no visible change" note rather than being silently skipped. Shipped as
-[PR #140](https://github.com/mp3anthony/funded/pull/140) (docs/data only, no version bump — it
-documents an already-shipped release). **Read this rule before finishing any future ticket that
-bumps the version — it's easy to forget since patch notes live in a separate file from the
-ticket's actual code.** Full story in the dated section below.
-
-**→ START HERE NEXT SESSION: no queued ticket.** Two open issues remain, neither pre-scoped as
-"next": **#99** (`ready-for-agent`, "Scope needed: Dynamic visual/motion overhaul") needs a scoping
-conversation before it can be built — don't assume prior motion-work context (Slice 13/#99's
-original motion pass) covers it; read the issue fresh. **#88** (`needs-info`, Direct Pay
-end-to-end testing) is blocked waiting on real-world testers, not actionable by an agent — leave it
-alone unless Anthony has an update.
+**#88 (Direct Pay end-to-end testing) is CLOSED** — redundant with the in-app bug-report tool per
+Anthony's call; no longer an open issue.
 
 **Notification subsystem — worth knowing if it ever comes up again:**
 - **#134 root cause was NOT a timezone bug** — household timezone/notify_hour were both already
@@ -164,6 +125,104 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-07 (continued) — PR #141 review-fix round, manual-test pass, merged; #99 CLOSED
+
+Anthony gave feedback on the PR #141 checklist from his phone: Dashboard's Household Health and
+Savings Goals expand/collapse showed the slow motion correctly, but **Upcoming Bills** and
+**Contributors** were instant; **Payday**'s pay-history expand was instant; the **avatar dropdown**
+opened/closed with zero motion (checklist item 5's explicit requirement). No spec question, no
+locked invariant — straight into the normal fail→fix→re-review loop.
+
+**Build sub-agent (isolated worktree)** fixed all four. Two turned out to live in different files
+than the ticket's literal names suggested — worth remembering if this class of report comes up
+again: "Dashboard Contributors" is a subsection inside `HealthScoreCard.tsx`, not a separate
+component; `ContributorSplits.tsx` is actually a bill-split-entry form with no collapse behavior at
+all. Likewise "Payday history" lives in `src/app/payday/payday-client.tsx`, not `PayHistoryCard.tsx`
+(a single non-collapsing row). The agent caught this itself by reading the real live code paths
+rather than forcing the fix onto the named-but-wrong file. `UpcomingBillsCard.tsx` and the
+`HealthScoreCard.tsx`/`payday-client.tsx` collapse sections were brought in line with the existing
+known-good `grid-template-rows: 1fr↔0fr` technique (same tokens as `ActiveGoalsCard.tsx`).
+`AvatarDropdown.tsx` gained a new `menu-panel-in` keyframe and a 3-state open/closing/closed machine
+so it plays its exit animation before unmounting, plus `active:scale-[0.98]` press feedback on its
+menu items.
+
+**Independent review (fresh agent, not the builder): APPROVED, zero findings.** Verified the two
+file-redirections were genuinely correct (grepped `ContributorSplits.tsx`/`PayHistoryCard.tsx` for
+collapse logic — none exists), confirmed the grid-row technique matches the reference implementation
+token-for-token, checked the AvatarDropdown state machine for a rapid open→close→open race or a
+timeout leak on unmount (none found), confirmed zero diff outside the 5 intended files. Independently
+re-ran `tsc`/`eslint`/`next build` itself rather than trusting the builder's numbers — matched
+exactly (101 problems/56 errors/45 warnings vs. 102/56/46 baseline, one dead-handler warning removed
+incidentally).
+
+Cherry-picked the reviewed commit onto the branch as `c607df8`, pushed, Vercel preview confirmed
+green. Posted a follow-up PR comment naming exactly the 4 items to re-test (everything already
+passed didn't need re-checking). **Anthony re-tested and confirmed all pass**, said "merge that."
+
+**Merge:** version reconfirmed at `v0.9.38` (unchanged — this was a rework commit on the same open
+PR, not a new build cycle, matching every prior round's convention). Relabeled `needs-manual-test` →
+`needs-merge-approval`. Reconciled this file's history against `main`'s own divergent copy (see the
+note near the top of this file) before merging, so the squash-merge wouldn't silently drop either
+copy's detail. Squash-merged PR #141, production deployment verified `READY` via the Vercel MCP
+tool (not just a green GitHub merge, per this repo's standing cron-deploy gotcha).
+
+**#99 is now fully CLOSED — the entire whole-app motion pass (7 sessions across multiple
+sub-passes: Foundation/Settings/AppShell/Dashboard in PR #129, Funds/Goals, Bills/Payday/shared
+sheets, Auth screens, this review-fix round) is live in production.** No ticket queued next beyond
+the four standalone bugs — see "→ START HERE NEXT SESSION" at the top of this file for priority
+order.
+
+## 2026-09-07 — QA session: 4 new bugs filed (no code touched), PR #141 still the priority
+
+Anthony reported 3 problems conversationally (in-app bug-report form freezing, auto-pay bills
+pinging "overdue" pushes, notification timing acting up including his wife barely getting any).
+Ran the `qa` skill: explored the relevant code in the background (bug-report form, overdue calc,
+notification scheduling/delivery) while lightly clarifying with him, then filed. **No code was
+changed this session** — pure triage/filing. **PR #141 (this file's own "→ START HERE NEXT
+SESSION" pointer above) is unaffected and still the actual next-session priority** — these 4 new
+issues are queued behind it, not instead of it.
+
+- **[#142](https://github.com/mp3anthony/funded/issues/142)** — in-app "Report a Bug" form's
+  Description box stops accepting keystrokes past a certain length, no error/feedback, reported as
+  consistent/reproducible. **Worth knowing before picking this up:** the codebase exploration found
+  *no* `maxLength` or any other cap on the Description field in the current code (the sibling Title
+  field does have `maxLength={150}`, which would silently do exactly this if it were the field
+  mistaken for Description) — so the cause isn't obvious from reading the code and will need actual
+  reproduction, not just a source read.
+- **[#143](https://github.com/mp3anthony/funded/issues/143)** — auto-pay bills fire daily "Bill
+  Overdue" push notifications despite never showing as overdue in the bill list/health score.
+  **Root cause already located, not just reported:** `mapBillFromDb` (display/health-score path)
+  explicitly exempts `payment_type === "auto"` bills from ever being marked Overdue, but the
+  separate push-reminder cron (`generateReminders.ts`) computes overdue straight from the bill's
+  raw, unadjusted `due_date` with no such exemption — two independent overdue checks, only one of
+  which knows about auto-pay. Straightforward, unambiguous bug fix, no CRD needed.
+- **[#144](https://github.com/mp3anthony/funded/issues/144)** — reminder notifications drift off
+  the household's configured time (Auckland/7pm) instead of arriving consistently at that hour.
+  **Architecture-level cause already located:** the generation cron only runs once/day at a fixed
+  UTC instant (Vercel Hobby-plan cron-frequency ceiling, same constraint as the #96/Slice 11 gotcha
+  already documented above) and just fires per-household reminders whenever that single run
+  happens — a household's actual configured hour only matters for whether that reminder lands close
+  to on-time or noticeably off, depending on which side of the fixed daily run its timezone offset
+  falls on. The code's own comments call this an accepted trade-off already, not an oversight — so
+  this ticket is really "make the accepted trade-off less visible to users" rather than a pure
+  logic bug; worth surfacing that distinction to Anthony before scoping a fix, since a real fix
+  likely means revisiting the once-daily architecture (e.g. extending the existing Supabase
+  `pg_cron`/`pg_net` pattern already used for delivery, rather than another Vercel Cron attempt).
+- **[#145](https://github.com/mp3anthony/funded/issues/145)** — a secondary household member
+  (Anthony's wife) barely receives bill reminder push notifications despite having notifications
+  enabled on her phone, while the primary/owner member gets them reliably. **Leading hypothesis
+  from exploration, not yet confirmed:** delivery needs two separate per-user prerequisites that
+  aren't part of onboarding/invite-accept — a `notification_settings` row (only lazily created the
+  first time that user's client loads household data) and a `push_subscriptions` row (only created
+  when that specific person manually taps "Enable push notifications" in Settings on their own
+  device). A secondary member can easily be missing one or both without realizing it, and a missing
+  subscription is currently swallowed silently (marked delivered, nothing actually sent, no retry).
+  Worth asking Anthony to have her specifically check Settings → Push Notifications on her own
+  phone before assuming this is a logic bug rather than a one-time setup gap.
+
+All 4 labeled `bug`/`needs-triage` on GitHub — none touch a Part A locked invariant, no CRD needed,
+all clean build-when-picked-up bug fixes. No version bump, no patch-notes entry (nothing shipped).
 
 ## 2026-09-05 (new session) — #98 sub-slice 6 of 6 (final piece) built, reviewed, merged; #98 CLOSED
 

@@ -131,8 +131,11 @@ export default function HomeClient() {
         }
       />
 
-      {/* Goal Detail Sheet */}
+      {/* Goal Detail Sheet — keyed so it genuinely remounts per open (the
+          component itself is always mounted here; only its internal
+          isOpen/goal check hides it), including reopening the same goal. */}
       <GoalDetailSheet
+        key={isGoalDetailOpen ? `open-${selectedGoal?.id ?? "none"}` : "closed"}
         isOpen={isGoalDetailOpen}
         onClose={() => {
           setIsGoalDetailOpen(false);

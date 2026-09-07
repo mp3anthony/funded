@@ -106,7 +106,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex-1 w-full flex items-center justify-center p-4">
-      <div className="relative w-full max-w-md bg-surface border border-border rounded-[2px] p-6 sm:p-8 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-surface border border-border rounded-[2px] p-6 sm:p-8 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-(--duration-base) ease-(--ease-standard)">
         {/* Lime gradient top-edge (inner bar — matches the Dialog shell) */}
         <div
           className="absolute inset-x-0 top-0 h-[2px] pointer-events-none z-10"
@@ -136,14 +136,14 @@ export default function LoginPage() {
         </div>
 
         {errorMsg && (
-          <div className="mb-6 p-4 rounded-[2px] bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-3">
+          <div className="mb-6 p-4 rounded-[2px] bg-destructive/10 text-destructive text-sm font-medium flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-(--duration-base) ease-(--ease-standard)">
             <AlertCircle className="h-5 w-5 shrink-0" />
             <p>{errorMsg}</p>
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-6 p-4 rounded-[2px] bg-primary/10 border border-primary/20 text-primary text-sm font-semibold flex items-center gap-3">
+          <div className="mb-6 p-4 rounded-[2px] bg-primary/10 border border-primary/20 text-primary text-sm font-semibold flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-(--duration-base) ease-(--ease-standard)">
             <Check className="h-5 w-5 shrink-0" />
             <p>{successMsg}</p>
           </div>
@@ -200,7 +200,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground transition-colors cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground active:scale-95 transition-[color,transform] duration-(--duration-fast) ease-(--ease-standard) cursor-pointer"
                   tabIndex={-1}
                 >
                   {showPassword ? (

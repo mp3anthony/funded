@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Plus, Trash2, CheckCircle2, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
 import AddPayScheduleSheet from "@/components/AddPayScheduleSheet";
 import EnterPayAmountModal from "@/components/EnterPayAmountModal";
@@ -207,7 +207,7 @@ export default function PaydayClient() {
         action={
           <button
             onClick={() => setIsAddScheduleOpen(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer font-heading uppercase animate-in fade-in duration-200"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer font-heading uppercase animate-in fade-in duration-(--duration-base) ease-(--ease-standard)"
           >
             <Plus size={16} />
             <span className="hidden sm:inline">New Schedule</span>
@@ -394,11 +394,10 @@ export default function PaydayClient() {
                           className="group flex items-center gap-3 w-full text-left px-1 focus:outline-none"
                         >
                           {headerInner}
-                          {isMinimized ? (
-                            <ChevronDown className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
-                          ) : (
-                            <ChevronUp className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
-                          )}
+                          <ChevronDown
+                            className="h-4 w-4 text-subtle group-hover:text-foreground transition-transform duration-(--duration-slow) ease-(--ease-standard) shrink-0"
+                            style={{ transform: isMinimized ? "rotate(0deg)" : "rotate(180deg)" }}
+                          />
                         </button>
                       ) : (
                         <div className="group flex items-center gap-3 w-full px-1">
@@ -406,18 +405,32 @@ export default function PaydayClient() {
                         </div>
                       )}
 
-                      {!isMinimized && (
-                        <div className="flex flex-col mt-1">
-                          {histories.map((history) => (
-                            <PayHistoryCard
-                              key={history.id}
-                              history={history}
-                              onConfirmPending={handleConfirmPendingClick}
-                              hideMemberInfo={true}
-                            />
-                          ))}
+                      {/* Content — expand/collapse via grid-template-rows
+                          (Slice 99), matching the dashboard's collapsible
+                          sections (HealthScoreCard/ActiveGoalsCard) so it
+                          grows/shrinks smoothly instead of popping in and
+                          out of the layout. */}
+                      <div
+                        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+                        style={{ gridTemplateRows: isMinimized ? "0fr" : "1fr" }}
+                      >
+                        <div
+                          className="overflow-hidden min-h-0"
+                          aria-hidden={isMinimized}
+                          inert={isMinimized ? true : undefined}
+                        >
+                          <div className="flex flex-col mt-1">
+                            {histories.map((history) => (
+                              <PayHistoryCard
+                                key={history.id}
+                                history={history}
+                                onConfirmPending={handleConfirmPendingClick}
+                                hideMemberInfo={true}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}

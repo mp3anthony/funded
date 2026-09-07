@@ -207,7 +207,7 @@ export default function AddPayScheduleSheet({
 
           {/* Fixed Amount Input (Conditional) */}
           {isFixedAmount && (
-            <div className="flex flex-col space-y-1 md:space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex flex-col space-y-1 md:space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-(--duration-base) ease-(--ease-standard)">
               <label className="font-heading text-[10px] md:text-xs font-semibold text-subtle capitalize tracking-wider">
                 Amount
               </label>

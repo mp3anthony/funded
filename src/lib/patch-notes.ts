@@ -29,6 +29,31 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.38",
+    date: "September 2026",
+    highlights: [
+      "The sign-in, sign-up, forgot-password, password-reset, and confirm-your-email screens now ease into view smoothly instead of popping straight onto the screen.",
+      "Error and success messages on those screens (wrong password, link expired, password updated, etc.) now fade and settle into place instead of appearing abruptly.",
+      "Small touch-ups so buttons on those screens — like the show/hide password eye icon — respond with the same subtle press feedback used everywhere else in the app.",
+    ],
+  },
+  {
+    version: "0.9.37",
+    date: "September 2026",
+    highlights: [
+      "Polished animations across Bills, Payday, and the account/profile menus to feel more consistent with the rest of the app — dropdowns, sheets, and pop-ups now ease in at the same speed and rhythm everywhere instead of a mix of slightly different timings.",
+      "Bills and expenses now gently fade into view when you expand a category, matching how the Goals list already behaves.",
+    ],
+  },
+  {
+    version: "0.9.36",
+    date: "September 2026",
+    highlights: [
+      "The Goals page and the dashboard's Savings Goals card got a motion polish pass: categories and the goals list now expand and collapse smoothly instead of snapping open, and saved amounts / progress percentages count up smoothly when they change (like adding money to a goal) instead of jumping straight to the new number.",
+      "Small touch-ups: a goal's row gives a gentle press feedback when tapped, and progress bars now ease into their new width at the same speed as the rest of the app.",
+    ],
+  },
+  {
     version: "0.9.35",
     date: "September 2026",
     highlights: [

@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Calendar, AlertCircle, CheckCircle2, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowUpRight, Calendar, AlertCircle, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { type Bill } from "@/context/AppContext";
 import { parseBillDate } from "@/lib/utils";
 
@@ -78,17 +78,26 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
           className="text-subtle hover:text-foreground transition-colors flex items-center justify-center focus:outline-none shrink-0"
           aria-label={isMinimised ? "Expand Upcoming Bills" : "Minimize Upcoming Bills"}
         >
-          {isMinimised ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronUp className="h-4 w-4" />
-          )}
+          <ChevronDown
+            className="h-4 w-4 transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+            style={{ transform: isMinimised ? "rotate(0deg)" : "rotate(180deg)" }}
+          />
         </button>
       </div>
 
-      {/* Content */}
-      {!isMinimised && (
-        <div className="flex flex-col">
+      {/* Content — expand/collapse via grid-template-rows (Slice 99),
+          matching the dashboard's other collapsible sections (e.g.
+          HealthScoreCard/ActiveGoalsCard) so it grows/shrinks smoothly
+          instead of popping in and out of the layout. */}
+      <div
+        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+        style={{ gridTemplateRows: isMinimised ? "0fr" : "1fr" }}
+      >
+        <div
+          className="overflow-hidden min-h-0"
+          aria-hidden={isMinimised}
+          inert={isMinimised ? true : undefined}
+        >
           {upcomingBillsList.length === 0 ? (
             <div className="py-8 text-center flex flex-col items-center justify-center space-y-2.5">
               <div className="p-3 bg-foreground/5 rounded-full border border-border">
@@ -186,7 +195,7 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 });
