@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.40",
+    date: "September 2026",
+    highlights: [
+      "The in-app bug report form now shows a live character count under the description box while you type, so it's easy to see how much you've written.",
+      "Also quietly keeps better notes in the background while you're filling out a bug report, so if the description field ever stops accepting input again, there's actual evidence to track down what happened.",
+    ],
+  },
+  {
     version: "0.9.39",
     date: "September 2026",
     highlights: [
