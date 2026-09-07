@@ -134,6 +134,57 @@ Gemini CLI checked a few sessions ago and found broken (Google killed the free C
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
 
+## 2026-09-07 — QA session: 4 new bugs filed (no code touched), PR #141 still the priority
+
+Anthony reported 3 problems conversationally (in-app bug-report form freezing, auto-pay bills
+pinging "overdue" pushes, notification timing acting up including his wife barely getting any).
+Ran the `qa` skill: explored the relevant code in the background (bug-report form, overdue calc,
+notification scheduling/delivery) while lightly clarifying with him, then filed. **No code was
+changed this session** — pure triage/filing. **PR #141 (this file's own "→ START HERE NEXT
+SESSION" pointer above) is unaffected and still the actual next-session priority** — these 4 new
+issues are queued behind it, not instead of it.
+
+- **[#142](https://github.com/mp3anthony/funded/issues/142)** — in-app "Report a Bug" form's
+  Description box stops accepting keystrokes past a certain length, no error/feedback, reported as
+  consistent/reproducible. **Worth knowing before picking this up:** the codebase exploration found
+  *no* `maxLength` or any other cap on the Description field in the current code (the sibling Title
+  field does have `maxLength={150}`, which would silently do exactly this if it were the field
+  mistaken for Description) — so the cause isn't obvious from reading the code and will need actual
+  reproduction, not just a source read.
+- **[#143](https://github.com/mp3anthony/funded/issues/143)** — auto-pay bills fire daily "Bill
+  Overdue" push notifications despite never showing as overdue in the bill list/health score.
+  **Root cause already located, not just reported:** `mapBillFromDb` (display/health-score path)
+  explicitly exempts `payment_type === "auto"` bills from ever being marked Overdue, but the
+  separate push-reminder cron (`generateReminders.ts`) computes overdue straight from the bill's
+  raw, unadjusted `due_date` with no such exemption — two independent overdue checks, only one of
+  which knows about auto-pay. Straightforward, unambiguous bug fix, no CRD needed.
+- **[#144](https://github.com/mp3anthony/funded/issues/144)** — reminder notifications drift off
+  the household's configured time (Auckland/7pm) instead of arriving consistently at that hour.
+  **Architecture-level cause already located:** the generation cron only runs once/day at a fixed
+  UTC instant (Vercel Hobby-plan cron-frequency ceiling, same constraint as the #96/Slice 11 gotcha
+  already documented above) and just fires per-household reminders whenever that single run
+  happens — a household's actual configured hour only matters for whether that reminder lands close
+  to on-time or noticeably off, depending on which side of the fixed daily run its timezone offset
+  falls on. The code's own comments call this an accepted trade-off already, not an oversight — so
+  this ticket is really "make the accepted trade-off less visible to users" rather than a pure
+  logic bug; worth surfacing that distinction to Anthony before scoping a fix, since a real fix
+  likely means revisiting the once-daily architecture (e.g. extending the existing Supabase
+  `pg_cron`/`pg_net` pattern already used for delivery, rather than another Vercel Cron attempt).
+- **[#145](https://github.com/mp3anthony/funded/issues/145)** — a secondary household member
+  (Anthony's wife) barely receives bill reminder push notifications despite having notifications
+  enabled on her phone, while the primary/owner member gets them reliably. **Leading hypothesis
+  from exploration, not yet confirmed:** delivery needs two separate per-user prerequisites that
+  aren't part of onboarding/invite-accept — a `notification_settings` row (only lazily created the
+  first time that user's client loads household data) and a `push_subscriptions` row (only created
+  when that specific person manually taps "Enable push notifications" in Settings on their own
+  device). A secondary member can easily be missing one or both without realizing it, and a missing
+  subscription is currently swallowed silently (marked delivered, nothing actually sent, no retry).
+  Worth asking Anthony to have her specifically check Settings → Push Notifications on her own
+  phone before assuming this is a logic bug rather than a one-time setup gap.
+
+All 4 labeled `bug`/`needs-triage` on GitHub — none touch a Part A locked invariant, no CRD needed,
+all clean build-when-picked-up bug fixes. No version bump, no patch-notes entry (nothing shipped).
+
 ## 2026-09-05 (new session) — #98 sub-slice 6 of 6 (final piece) built, reviewed, merged; #98 CLOSED
 
 Picked up exactly where the prior HANDOFF pointed ("→ START HERE NEXT SESSION: #98 sub-slice 6").
