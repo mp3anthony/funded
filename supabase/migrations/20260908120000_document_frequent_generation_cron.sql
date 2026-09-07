@@ -1,0 +1,45 @@
+-- #144: fix bill reminder notifications not arriving at the household's
+-- configured time.
+--
+-- Root cause: the push-reminders generation route (see
+-- src/app/api/cron/push-reminders/route.ts) only ran once a day, at a
+-- single fixed UTC hour (Vercel Cron, `vercel.json`: `0 15 * * *` — a
+-- Vercel Hobby-plan limitation carried over from the 20260903180000
+-- migration's "Slice 11 v2" rework). If a household's chosen local
+-- `notify_hour` had already passed by the time that one daily run
+-- happened, the computed `scheduled_for` ended up in the past, so the
+-- reminder fired almost immediately instead of at the chosen local time.
+-- Delivery itself (deliver-scheduled) was never the problem — it already
+-- runs every 5 minutes via a live Supabase `pg_cron` job (jobid 1,
+-- schedule `*/5 * * * *`), calling /api/cron/deliver-scheduled with its
+-- own `deliver_scheduled_cron_secret` vault secret.
+--
+-- Fix: generation needs the same kind of frequent, timezone-aware
+-- invocation delivery already has. The application code
+-- (push-reminders/route.ts) now accepts a second bearer secret,
+-- `GENERATION_CRON_SECRET`, alongside the existing `CRON_SECRET` — so a
+-- new Supabase `pg_cron` job (NOT added by this migration) can call
+-- /api/cron/push-reminders every 15-30 minutes via `pg_net`, the same way
+-- the existing delivery job calls deliver-scheduled. This is safe to do
+-- because the route's existing dedupe-key logic (`existingKeys`, sourced
+-- from `notifications.dedupe_key`) already prevents duplicate inserts for
+-- the same household/day/reminder-type — calling generation more often
+-- just means the very next run after a household's local day rolls over
+-- (or after their notify_hour) catches that household's reminders
+-- promptly and computes a correct future `scheduled_for`, instead of one
+-- fixed daily run computing it wrong for whichever timezones don't line
+-- up with it.
+--
+-- This migration is PURELY DOCUMENTATION, matching the precedent set by
+-- 20260903180000_add_scheduled_delivery_to_notifications.sql for the
+-- delivery-side cron. It deliberately contains no DDL and does not itself
+-- schedule anything: the actual `cron.schedule(...)` call and the
+-- `generation_cron_secret` vault secret (mirroring the existing
+-- `deliver_scheduled_cron_secret` vault secret used by the delivery job)
+-- are applied directly against the Supabase project outside of migrations,
+-- the same way the existing delivery cron job was set up. `vercel.json`'s
+-- once-daily Vercel Cron entry for this same route is left in place
+-- unchanged as a fallback/manual-trigger path — retiring it once the new
+-- pg_cron path is confirmed live in production is a separate decision.
+--
+-- No DDL follows — this file is comment-only, by design.

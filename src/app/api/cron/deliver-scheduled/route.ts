@@ -13,8 +13,11 @@ const PUSH_ICON = '/icons/icon-192x192.png?v=2';
  * Delivery cron (Slice 11 v2, #96 half B rework). Called every few minutes
  * by a Supabase `pg_cron` job (via `pg_net`, not Vercel Cron — Vercel's
  * Hobby plan only allows once-per-day cron, which is why generation and
- * delivery are split into two routes; see `push-reminders/route.ts` for the
- * daily generation half).
+ * delivery were originally split into two routes). #144: generation
+ * (`push-reminders/route.ts`) can now also be invoked frequently, via its
+ * own `GENERATION_CRON_SECRET` Supabase `pg_cron` path, the same way this
+ * route already is — the two routes remain separate endpoints/secrets so
+ * their trigger paths can still be rotated/revoked independently.
  *
  * Finds every `notifications` row whose `scheduled_for` has arrived but
  * hasn't been delivered yet, groups them by user, and pushes each one via
