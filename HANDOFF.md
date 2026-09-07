@@ -1,37 +1,33 @@
 # Handoff
 
-**Last updated:** 2026-09-07 — **#99 (Slice 13 motion overhaul) is fully CLOSED.**
-[PR #141](https://github.com/mp3anthony/funded/pull/141) squash-merged to `main`, production
-deployment verified `READY` via the Vercel MCP tool. Whole-app motion pass (Foundation, Settings,
-AppShell, Dashboard, Funds/Goals, Bills/Payday/shared sheets, Auth screens) is live at `v0.9.38`.
+**Last updated:** 2026-09-07 (continued) — **#143 (auto-pay overdue push false-positive) is fully
+CLOSED.** [PR #147](https://github.com/mp3anthony/funded/pull/147) squash-merged to `main`,
+production deployment verified `READY` via the Vercel MCP tool, live at `v0.9.39`. **#99 also
+closed on GitHub this session** (the work itself had been done/merged for a while — HANDOFF said so
+last update, but the issue was never actually closed on GitHub until now; if this doc ever again
+says something is "done" while GitHub still shows it open, close it, don't assume the doc is wrong).
 
-**→ START HERE NEXT SESSION: four standalone bugs queued, already filed and triaged, priority
-order below.** No scoping needed on any of them — all are clean bug fixes, no CRD required.
-1. **[#143](https://github.com/mp3anthony/funded/issues/143)** — auto-pay bills wrongly fire
-   "Bill Overdue" pushes. Root cause already located: `mapBillFromDb` exempts `payment_type ===
-   "auto"` from ever showing Overdue, but the separate `generateReminders.ts` cron computes overdue
-   straight off raw `due_date` with no such exemption. Fastest, most unambiguous pickup.
-2. **[#142](https://github.com/mp3anthony/funded/issues/142)** — in-app bug-report form's
+**→ START HERE NEXT SESSION: three standalone bugs + one untriaged idea queued, priority order
+below.** No scoping needed on any of the bugs — all are clean, no CRD required.
+1. **[#142](https://github.com/mp3anthony/funded/issues/142)** — in-app bug-report form's
    Description field stops accepting input past some length. No `maxLength` found anywhere in the
    current code via grep — will need live reproduction, not just a source read, before a fix can be
    scoped.
-3. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife barely gets bill
+2. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife barely gets bill
    reminder pushes. Leading hypothesis, not confirmed: a secondary household member can be missing
    a `notification_settings` row and/or `push_subscriptions` row (both only lazily created on that
    person's own first load / manual "Enable push" tap) — a missing subscription is currently
    swallowed silently (marked delivered, nothing sent, no retry). **Ask her to check Settings →
    Push Notifications on her own phone first** before assuming this needs a code fix.
-4. **[#144](https://github.com/mp3anthony/funded/issues/144)** — reminder notifications drift off
+3. **[#144](https://github.com/mp3anthony/funded/issues/144)** — reminder notifications drift off
    the household's configured delivery hour. This is an accepted architecture trade-off (once-daily
    Vercel Hobby-plan cron fires reminders regardless of each household's actual hour), not a pure
    logic bug — the code's own comments already call this out. A real fix likely means extending the
    existing Supabase `pg_cron`/`pg_net` pattern (see the infra gotcha below) rather than another
-   Vercel Cron attempt. Biggest lift of the four, lowest priority.
+   Vercel Cron attempt. Biggest lift of the three, lowest priority.
 
 Also logged, not yet triaged: **[#146](https://github.com/mp3anthony/funded/issues/146)**
-(`out-of-spec`) — Anthony's idea for a dashboard tips banner (ticker/chyron style, app-green,
-visible only when Upcoming Bills + Goals are both minimised). Sits in `CHANGE-LOG.md`/GitHub until
-he decides to triage it — do not scope or build without that.
+(`out-of-spec`) — Anthony's idea for a dashboard tips banner. Sits until he decides to triage it.
 
 **Doc-divergence between this branch's `HANDOFF.md` and `main`'s copy (from earlier in the #99
 slice) is now resolved** — this file is the merged, authoritative version. The one piece that was
@@ -125,6 +121,71 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-07 (new session) — #99 closed on GitHub; #143 (auto-pay overdue push) built, reviewed (2 rounds), merged, CLOSED
+
+Opened by listing open GitHub issues and reading this file's own "→ START HERE NEXT SESSION"
+pointer. Found a doc/GitHub mismatch: HANDOFF already said #99 was fully done and merged, but the
+issue itself was still open on GitHub with `ready-for-agent`. Anthony confirmed it just needed
+closing (the work was genuinely done) — closed it with a comment pointing back to PR #141. **Worth
+remembering: this file being right about the work doesn't mean GitHub reflects it — check both.**
+
+**#143 built:** root cause was two independent overdue checks that disagreed for auto-pay bills.
+The UI (`AppContext.tsx`'s `mapBillFromDb`) calls `adjustAutopayBillDate()` (`src/lib/utils.ts`) to
+roll a recurring auto-pay bill's stale stored `due_date` forward to its real next occurrence before
+ever checking overdue — so a normal auto-pay bill with an old stored date never shows Overdue. The
+push-reminder cron (`generateReminders.ts`) computed `diffDays` straight off the **raw** `due_date`
+with no such rollforward, so it fired a daily "Bill Overdue" push for bills the UI never considered
+overdue. Fix: `generateReminders.ts`'s Auto-Pay Bills branch now calls the same
+`adjustAutopayBillDate` the UI already uses, so cron and UI agree. A bill still genuinely overdue
+after rolling forward still fires "Bill Overdue" daily — untouched.
+
+**First independent review round: NEEDS-REWORK, one real blocking bug found** — not a nitpick.
+`adjustAutopayBillDate` computed "today" via the calling process's own `new Date()`, which is
+correct for its original browser-side caller but wrong for the new server-side cron caller: the
+cron already computes a household-timezone-local `todayYmd` (via `todayInZone()` in
+`src/lib/notifications/timezone.ts`) specifically because the Vercel server process's own UTC clock
+can disagree with a household's local calendar date around the cron's fixed daily UTC run hour
+(e.g. Sydney/Auckland-ish timezones). Using the server's raw clock inside `adjustAutopayBillDate`
+could fail to roll a due date forward on time right at that boundary, reintroducing the exact #143
+symptom through a different door. **Fix**: `adjustAutopayBillDate` gained an optional 4th param
+`todayYmd?: string` — omitted, behaves exactly as before (existing `AppContext.tsx` call site
+untouched); supplied, used instead of `new Date()`. `generateReminders.ts` now passes its own
+household-local `todayYmd` into the call.
+
+**Second independent review round (fresh agent): APPROVED**, walked a concrete Auckland/UTC
+scenario end-to-end confirming the fix is genuinely correct, traced `todayYmd` all the way back to
+`todayInZone(tz)` in the cron route, confirmed the browser-side call site's behavior is byte-for-byte
+unchanged, confirmed the original bug's core fix wasn't regressed by the follow-up commit. Both
+review rounds independently ran `tsc`/`next build`/lint themselves rather than trusting the builder.
+**One lint-count wrinkle worth knowing if it comes up again**: this repo's real `"lint"` script in
+`package.json` is a bare `"eslint"` (no path arg) — running it via `npm run lint` lints the *entire*
+repo including `supabase/functions/*` (Deno edge functions) and reports ~13,900 problems, wildly
+different from the ~101 both build agents and the first reviewer got by invoking `eslint .` or
+similar directly. Both numbers are self-consistent baselines (identical on `main` vs. the branch
+either way — no regression either way), just scoped differently; the orchestrator verified this
+directly by running `npm run lint` itself on both `main` and the branch. Not a bug, just a trap for
+next time someone reports a lint count that looks different from a prior session's.
+
+**Pushed as [PR #147](https://github.com/mp3anthony/funded/pull/147), labeled
+`needs-merge-approval`** — pure cron/calc logic, no UI/layout surface, fully verifiable in-pipeline.
+Vercel preview confirmed green via `gh pr checks`. `v0.9.38` → `v0.9.39`, confirmed with Anthony
+before merge. Squash-merged, remote branch deleted by `gh pr merge --delete-branch`; local `main`
+fast-forwarded automatically since this session did the merge itself. This session's own build-agent
+worktree (`agent-ac2a1c4fade02a432`) and its branch cleaned up after the cherry-pick onto the
+tracked branch landed. **Production deployment verified directly via the Vercel MCP tool**
+(`list_teams` → `list_projects` → `list_deployments`, confirming the merge commit `ae192ec`'s own
+deployment shows `target: "production"`, `state: "READY"`) — not just trusted from a green GitHub
+merge, per this repo's standing gotcha. Issue auto-closed by the PR's "Closes #143".
+
+**Workflow, same pattern as every prior slice**: build sub-agent (isolated worktree) → independent
+review sub-agent (never the builder, fresh agent) found a real bug → same builder fixed it (full
+context) → a second fresh reviewer verified the fix → orchestrator cherry-picked/pushed/opened the
+PR → Anthony's go-ahead → merge. **One rework round needed, not zero** — worth noting since several
+recent sub-slices went first-pass-clean; this is a reminder the review step actually catches things.
+
+**Next session: three standalone bugs left (#142, #145, #144, in that priority order) + one
+untriaged idea (#146)** — see "→ START HERE NEXT SESSION" at the top of this file.
 
 ## 2026-09-07 (continued) — PR #141 review-fix round, manual-test pass, merged; #99 CLOSED
 
