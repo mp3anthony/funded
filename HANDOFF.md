@@ -1,60 +1,52 @@
 # Handoff
 
-**Last updated:** 2026-09-06 — **#99 (Slice 13 motion overhaul) is now built across every
-screen** on the long-lived branch `slice/99-motion-overhaul`, pushed to origin at commit
-`540720d` (v0.9.38). **[PR #141](https://github.com/mp3anthony/funded/pull/141) is now OPEN
-against `main`**, Vercel preview confirmed green via `gh pr checks`, labeled `needs-manual-test`.
-**Still not merged to `main` — Anthony's preview-only constraint is still in effect; do not merge
-without his explicit go-ahead.**
+**Last updated:** 2026-09-07 — **#99 (Slice 13 motion overhaul) is fully CLOSED.**
+[PR #141](https://github.com/mp3anthony/funded/pull/141) squash-merged to `main`, production
+deployment verified `READY` via the Vercel MCP tool. Whole-app motion pass (Foundation, Settings,
+AppShell, Dashboard, Funds/Goals, Bills/Payday/shared sheets, Auth screens) is live at `v0.9.38`.
 
-**→ START HERE NEXT SESSION: PR #141 is awaiting Anthony's manual test pass.** A 9-item checklist
-covering the two untested screen groups (Bills/Payday/shared sheets, Auth screens — Funds/Goals
-already signed off, not repeated) was posted directly as [a PR comment](https://github.com/mp3anthony/funded/pull/141#issuecomment-5555553805)
-so he can check it over on his phone and report back pass/fail. When he returns:
-- **All pass** → relabel `needs-manual-test` → `needs-merge-approval`, reconfirm version
-  (`v0.9.38`) with him, squash-merge, verify production deployment via the Vercel MCP tool
-  (`list_deployments`/`get_deployment`, target: "production", state: "READY" — don't just trust a
-  green GitHub merge, per this repo's standing cron-deploy gotcha above). **Also reconcile this
-  file's history with `main`'s own `HANDOFF.md`** per the doc-divergence note below before/during
-  the merge — don't let a squash-merge silently pick one copy's history and lose the other's.
-- **Anything fails** → same build→independent-review loop as every prior sub-slice: fix sub-agent
-  (full context) → fresh reviewer (never the builder) → re-test the specific failed item(s) only.
+**→ START HERE NEXT SESSION: four standalone bugs queued, already filed and triaged, priority
+order below.** No scoping needed on any of them — all are clean bug fixes, no CRD required.
+1. **[#143](https://github.com/mp3anthony/funded/issues/143)** — auto-pay bills wrongly fire
+   "Bill Overdue" pushes. Root cause already located: `mapBillFromDb` exempts `payment_type ===
+   "auto"` from ever showing Overdue, but the separate `generateReminders.ts` cron computes overdue
+   straight off raw `due_date` with no such exemption. Fastest, most unambiguous pickup.
+2. **[#142](https://github.com/mp3anthony/funded/issues/142)** — in-app bug-report form's
+   Description field stops accepting input past some length. No `maxLength` found anywhere in the
+   current code via grep — will need live reproduction, not just a source read, before a fix can be
+   scoped.
+3. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife barely gets bill
+   reminder pushes. Leading hypothesis, not confirmed: a secondary household member can be missing
+   a `notification_settings` row and/or `push_subscriptions` row (both only lazily created on that
+   person's own first load / manual "Enable push" tap) — a missing subscription is currently
+   swallowed silently (marked delivered, nothing sent, no retry). **Ask her to check Settings →
+   Push Notifications on her own phone first** before assuming this needs a code fix.
+4. **[#144](https://github.com/mp3anthony/funded/issues/144)** — reminder notifications drift off
+   the household's configured delivery hour. This is an accepted architecture trade-off (once-daily
+   Vercel Hobby-plan cron fires reminders regardless of each household's actual hour), not a pure
+   logic bug — the code's own comments already call this out. A real fix likely means extending the
+   existing Supabase `pg_cron`/`pg_net` pattern (see the infra gotcha below) rather than another
+   Vercel Cron attempt. Biggest lift of the four, lowest priority.
 
-**⚠️ Doc-divergence note, read this before trusting any other copy of this file:** this branch's
-own `HANDOFF.md` and `main`'s `HANDOFF.md` drifted apart — `main`'s copy got a docs-only update
-partway through this slice (tracking the branch's progress: preview-only constraint, screen-by-
-screen status) that was never carried onto this branch, while this branch's own copy kept
-recording an unrelated, later notification-subsystem thread that landed on `main` directly. A
-session starting fresh on `main` and one resuming this branch would see two different stories.
-**Whoever next merges this branch to `main` must manually reconcile both files' history sections —
-don't let a squash-merge silently pick one and lose the other's detail.**
+Also logged, not yet triaged: **[#146](https://github.com/mp3anthony/funded/issues/146)**
+(`out-of-spec`) — Anthony's idea for a dashboard tips banner (ticker/chyron style, app-green,
+visible only when Upcoming Bills + Goals are both minimised). Sits in `CHANGE-LOG.md`/GitHub until
+he decides to triage it — do not scope or build without that.
 
-**Current state of the #99 pass, screen by screen — this is now the authoritative, complete
-picture (verified against real commits, not inferred from a screen list):**
-- ✅ Foundation (tokens, `tailwindcss-animate` plugin, `Dialog.tsx`), Settings, AppShell,
-  NotificationCenter, PatchNotesPopup, Dashboard stat tiles (#100 fold-in) — done, merged to
-  `main` in PR #129 (Slice 13, v0.9.27).
-- ✅ Funds/Goals — done, reviewed, **Anthony manually tested and signed off** (6-item checklist,
-  all passed). Commits `5543401` (build) + `b9dddec` (review-fix, 3 real bugs found and fixed:
-  count-up backward-jump, `GoalDetailSheet` not actually remounting, collapsed goal-rows staying
-  keyboard-tabbable).
-- ✅ Bills, Payday, shared sheets/menus (`Onboarding.tsx`, `AddPayScheduleSheet.tsx`,
-  `AvatarDropdown.tsx`, `JoinHouseholdSheet.tsx`, `UserProfileMenu.tsx`) — done, committed
-  (`6ae1785`, v0.9.37). **Not yet manually tested** — Anthony explicitly deferred testing this to
-  batch it with the rest rather than test screen-by-screen this time.
-- ✅ Auth screens (`login`, `reset-password/update`, `confirm-email`) — done this session, commit
-  `7254a37` (build) + `75daa12` (review-fix: one eye-toggle button missing press-feedback,
-  independently reviewed APPROVED after the fix). v0.9.38.
+**Doc-divergence between this branch's `HANDOFF.md` and `main`'s copy (from earlier in the #99
+slice) is now resolved** — this file is the merged, authoritative version. The one piece that was
+only on `main`'s copy and not here has been folded in: **[PR #138](https://github.com/mp3anthony/funded/pull/138)**
+(notification fixes #134/#132/#139, squash-merged to `main` mid-slice at `v0.9.35`) and
+**[PR #140](https://github.com/mp3anthony/funded/pull/140)** (backfilled the missing v0.9.35
+patch-notes entry, and added a permanent rule to `CLAUDE.md` §4: **every version bump now requires
+a patch-notes entry in the same PR going forward, including backend-only/no-UI changes** — a
+genuinely invisible change still gets a one-line "no visible change" note rather than being
+skipped). Both landed directly on `main` while this branch was still in progress, parallel to the
+#99 work — worth knowing since neither PR number appeared anywhere else in this branch's own
+history until now.
 
-The whole-app #99 motion pass is code-complete — nothing left to build for this slice. PR #141 is
-open and the manual-test checklist is already posted (see the top of this file for the live
-next-step pointer, so this section doesn't duplicate it). Recommend merging the whole branch to
-`main` in one go once testing passes, since it was built as one continuous pass, rather than in
-pieces — but that's Anthony's call.
-
-Two open issues remain outside #99: **#88** (`needs-info`, Direct Pay end-to-end testing) is
-blocked waiting on real-world testers, not actionable by an agent — leave it alone unless Anthony
-has an update.
+**#88 (Direct Pay end-to-end testing) is CLOSED** — redundant with the in-app bug-report tool per
+Anthony's call; no longer an open issue.
 
 **Notification subsystem — worth knowing if it ever comes up again:**
 - **#134 root cause was NOT a timezone bug** — household timezone/notify_hour were both already
@@ -133,6 +125,53 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-07 (continued) — PR #141 review-fix round, manual-test pass, merged; #99 CLOSED
+
+Anthony gave feedback on the PR #141 checklist from his phone: Dashboard's Household Health and
+Savings Goals expand/collapse showed the slow motion correctly, but **Upcoming Bills** and
+**Contributors** were instant; **Payday**'s pay-history expand was instant; the **avatar dropdown**
+opened/closed with zero motion (checklist item 5's explicit requirement). No spec question, no
+locked invariant — straight into the normal fail→fix→re-review loop.
+
+**Build sub-agent (isolated worktree)** fixed all four. Two turned out to live in different files
+than the ticket's literal names suggested — worth remembering if this class of report comes up
+again: "Dashboard Contributors" is a subsection inside `HealthScoreCard.tsx`, not a separate
+component; `ContributorSplits.tsx` is actually a bill-split-entry form with no collapse behavior at
+all. Likewise "Payday history" lives in `src/app/payday/payday-client.tsx`, not `PayHistoryCard.tsx`
+(a single non-collapsing row). The agent caught this itself by reading the real live code paths
+rather than forcing the fix onto the named-but-wrong file. `UpcomingBillsCard.tsx` and the
+`HealthScoreCard.tsx`/`payday-client.tsx` collapse sections were brought in line with the existing
+known-good `grid-template-rows: 1fr↔0fr` technique (same tokens as `ActiveGoalsCard.tsx`).
+`AvatarDropdown.tsx` gained a new `menu-panel-in` keyframe and a 3-state open/closing/closed machine
+so it plays its exit animation before unmounting, plus `active:scale-[0.98]` press feedback on its
+menu items.
+
+**Independent review (fresh agent, not the builder): APPROVED, zero findings.** Verified the two
+file-redirections were genuinely correct (grepped `ContributorSplits.tsx`/`PayHistoryCard.tsx` for
+collapse logic — none exists), confirmed the grid-row technique matches the reference implementation
+token-for-token, checked the AvatarDropdown state machine for a rapid open→close→open race or a
+timeout leak on unmount (none found), confirmed zero diff outside the 5 intended files. Independently
+re-ran `tsc`/`eslint`/`next build` itself rather than trusting the builder's numbers — matched
+exactly (101 problems/56 errors/45 warnings vs. 102/56/46 baseline, one dead-handler warning removed
+incidentally).
+
+Cherry-picked the reviewed commit onto the branch as `c607df8`, pushed, Vercel preview confirmed
+green. Posted a follow-up PR comment naming exactly the 4 items to re-test (everything already
+passed didn't need re-checking). **Anthony re-tested and confirmed all pass**, said "merge that."
+
+**Merge:** version reconfirmed at `v0.9.38` (unchanged — this was a rework commit on the same open
+PR, not a new build cycle, matching every prior round's convention). Relabeled `needs-manual-test` →
+`needs-merge-approval`. Reconciled this file's history against `main`'s own divergent copy (see the
+note near the top of this file) before merging, so the squash-merge wouldn't silently drop either
+copy's detail. Squash-merged PR #141, production deployment verified `READY` via the Vercel MCP
+tool (not just a green GitHub merge, per this repo's standing cron-deploy gotcha).
+
+**#99 is now fully CLOSED — the entire whole-app motion pass (7 sessions across multiple
+sub-passes: Foundation/Settings/AppShell/Dashboard in PR #129, Funds/Goals, Bills/Payday/shared
+sheets, Auth screens, this review-fix round) is live in production.** No ticket queued next beyond
+the four standalone bugs — see "→ START HERE NEXT SESSION" at the top of this file for priority
+order.
 
 ## 2026-09-07 — QA session: 4 new bugs filed (no code touched), PR #141 still the priority
 
