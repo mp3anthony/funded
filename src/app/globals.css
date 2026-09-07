@@ -399,6 +399,40 @@ body.modal-open main {
   }
 }
 
+/* ── Popover/dropdown menu entrance (Slice 99: motion overhaul, PR #141
+   review-fix) ──
+   Matches the dialog entrance's shape (fade + translate, standard ease,
+   no bounce) with a small scale added so the panel visibly "settles in"
+   rather than sliding 4px — the previous tailwindcss-animate
+   fade-in/slide-in-from-top-1 at duration-fast (120ms) was too subtle to
+   read as motion. Used for the avatar dropdown menu. */
+@keyframes menu-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.menu-panel-animate {
+  animation: menu-panel-in var(--duration-base) var(--ease-standard) both;
+  transform-origin: top right;
+}
+/* Closing state (set via data-closing while the trigger holds the panel
+   mounted for one duration-base tick) plays the same keyframes in
+   reverse, so the panel fades/shrinks back out instead of popping away
+   the instant isOpen flips false. */
+.menu-panel-animate[data-closing="true"] {
+  animation-direction: reverse;
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-panel-animate {
+    animation: none !important;
+  }
+}
+
 /* ── Floating Avatar Button ── */
 .floating-avatar {
   position: fixed;
