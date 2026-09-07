@@ -31,6 +31,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successUrl, setSuccessUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastLoggedDescriptionLengthRef = useRef(0);
 
   function resetAndClose() {
     setTitle("");
@@ -44,6 +45,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     setSubmitError(null);
     setSuccessUrl(null);
     setIsSubmitting(false);
+    lastLoggedDescriptionLengthRef.current = 0;
     onClose();
   }
 
@@ -68,6 +70,22 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
     });
+  }
+
+  function handleDescriptionChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const value = e.target.value;
+    setDescription(value);
+
+    // Diagnostic breadcrumb for #142 ("description field stops accepting
+    // input after a certain length") — investigation couldn't reproduce a
+    // freeze, so this just captures evidence for if it recurs in
+    // production. Logs at 100-char boundaries crossed, not every keystroke,
+    // to stay non-intrusive.
+    const length = value.length;
+    if (Math.floor(length / 100) !== Math.floor(lastLoggedDescriptionLengthRef.current / 100)) {
+      console.log(`[BugReportSheet] description length=${length} at ${new Date().toISOString()}`);
+    }
+    lastLoggedDescriptionLengthRef.current = length;
   }
 
   function removeScreenshot() {
@@ -189,13 +207,18 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="bug-description" className="text-[10px] font-bold text-subtle uppercase tracking-wider font-mono">
-              Description
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="bug-description" className="text-[10px] font-bold text-subtle uppercase tracking-wider font-mono">
+                Description
+              </label>
+              <span className="text-[10px] text-subtle font-mono tabular-nums">
+                {description.length.toLocaleString()}
+              </span>
+            </div>
             <textarea
               id="bug-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleDescriptionChange}
               placeholder="What happened? What did you expect instead? Steps to reproduce help a lot."
               rows={5}
               required
