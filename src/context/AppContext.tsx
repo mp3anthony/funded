@@ -4542,9 +4542,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // generated rows into "push now" (today's notify_hour has already
         // arrived/passed in the household's own timezone) and "defer"
         // (notify_hour is still later today) groups, matching the exact
-        // gating the daily cron (push-reminders/route.ts) already applies —
-        // this just does it inline, once, at the instant the row is created
-        // instead of waiting for tomorrow's cron run.
+        // gating the generation cron (push-reminders/route.ts) already
+        // applies — this just does it inline, once, at the instant the row
+        // is created instead of waiting for the next cron run.
         const tz = householdTimezone || 'Australia/Sydney';
         const notifyHour = notificationSettings.notify_hour ?? 9;
         const notifyHourReached = hourInZone(tz) >= notifyHour;

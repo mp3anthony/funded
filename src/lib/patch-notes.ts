@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.41",
+    date: "September 2026",
+    highlights: [
+      "Bill reminder notifications should now arrive closer to the time you actually chose in your settings, instead of sometimes showing up at a random point during the day.",
+    ],
+  },
+  {
     version: "0.9.40",
     date: "September 2026",
     highlights: [
