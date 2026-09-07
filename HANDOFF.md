@@ -1,10 +1,11 @@
 # Handoff
 
-**Last updated:** 2026-09-08 — **#142 and #144 both scoped, built, reviewed, merged, and CLOSED**
-this session. Production is live at `v0.9.41`. See the dated section below for full detail. **#145
-parked at Anthony's explicit request** (new info from Hannah contradicts the DB evidence gathered —
-needs a live conversation with her before it's scoped further). #148 (`needs-info`) and #146
-(`out-of-spec`) untouched this session.
+**Last updated:** 2026-09-08 (new session) — **#151 (dashboard tips ticker banner) scoped, built,
+reviewed, tuned on manual-test feedback, merged, CLOSED.** Production is live at `v0.9.42`. See the
+dated section below for full detail. **#146 (out-of-spec idea) triaged this session** — closed,
+superseded by #151. **#152 (Known Issues tab on patch-notes page) scoped and filed this session,
+deliberately NOT built** — Anthony is taking it in a different session; leave it alone unless he
+says otherwise. #148 and #145 (both `needs-info`) untouched this session.
 
 **→ START HERE NEXT SESSION:**
 0. **#144 post-deploy confirmation still outstanding** — not yet verified whether a real reminder
@@ -33,8 +34,11 @@ needs a live conversation with her before it's scoped further). #148 (`needs-inf
    2026-09-07 dated section for full evidence/theory. Caveat still applies: Anthony manually
    corrected his pay schedule's date mid-investigation, so re-pull current `pay_schedules`/
    `pay_history` rows fresh rather than trusting any earlier snapshot.
-3. **[#146](https://github.com/mp3anthony/funded/issues/146)** (`out-of-spec`) — dashboard tips
-   banner idea. Sits until Anthony decides to triage it.
+3. **[#152](https://github.com/mp3anthony/funded/issues/152)** — Known Issues tab on the
+   patch-notes page (sourced from GitHub issues labeled `known-issue`, plain-language blurb parsed
+   from a `## User-facing blurb` section in the issue body). Fully scoped, filed, `ready-for-agent`
+   — but Anthony said he's building this one in a different session. **Do not pick this up unless he
+   explicitly says otherwise.**
 
 **Worth knowing about the notification generation cron if it ever comes up again:** as of this
 session it is no longer strictly once-daily — see the 2026-09-08 dated section below for the full
@@ -133,6 +137,77 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-08 (new session) — #146 triaged into #151, built, reviewed, tuned, merged, CLOSED; #152 filed and parked for Anthony
+
+Opened by listing open GitHub issues. Anthony picked #146 (`out-of-spec` idea, dashboard tips
+ticker banner) to triage live rather than leave logged. Per his explicit steer, skipped the full
+`crd` skill (too small a feature to warrant it) and instead ran a plain-language discovery
+interview — one question at a time via `AskUserQuestion` — until every gap was closed (content
+source, motion style, dismiss persistence/behavior, placement vs. the existing mobile `BottomNav`,
+reduced-motion handling, tip copy ownership, hover-pause) before filing anything. Filed as
+[#151](https://github.com/mp3anthony/funded/issues/151), closed #146 pointing to it.
+
+**#151 built, reviewed, merged.** Build sub-agent added `DashboardTipsTicker.tsx` (fixed to
+viewport bottom, above `BottomNav` on mobile using the same clearance value `AppShell.tsx` already
+reserves), a `useReducedMotion` hook (new — none existed), and `dashboard-tips.ts` (a plain
+`string[]`, 10 tips, kept separate from the component per the ticket's "easily editable" ask, now
+carrying a staleness-review comment instructing future sessions to update it whenever a shipped
+feature changes user-facing behavior). `UpcomingBillsCard`/`ActiveGoalsCard` gained an
+`onMinimisedChange` callback prop so `page-client.tsx` can track both cards' minimised state and
+derive `bothCardsMinimised`, which drives the ticker's `active` prop. `v0.9.41` → `v0.9.42`,
+patch-notes entry added, confirmed with Anthony before merge.
+
+**Independent review (code-review skill, Standards + Spec axes, separate sub-agent from the
+builder, Anthony's explicit choice again this session):** Spec axis — 7/8 testing-checklist items
+passed; item 5 (dismiss) flagged as fading rather than hiding "immediately" per the issue's literal
+wording. Standards axis — two minor findings (unnecessary `useCallback`/`useMemo` wrappers around
+already-stable setters/cheap derivations in `page-client.tsx`, a Middle Man smell). Anthony asked
+for both fixed before merge; a separate builder sub-agent applied both, re-verified clean.
+
+**Three rounds of manual-test tuning after Anthony tried the PR preview, each a small direct
+build-sub-agent fix (never edited by the Orchestrator itself — caught and corrected one slip where
+the Orchestrator almost made a direct Edit, reverted immediately, redone via sub-agent):**
+1. Scroll speed too fast, banner popped in with zero delay → halved marquee speed (32s → 64s loop)
+   and added a 2s delay before the *initial* fade-in only (fade-out and dismiss stay instant).
+2. Fade-in still popped instead of animating → root cause was the `instantHide` mechanism toggling
+   the `transition-opacity` class on/off, so the class's presence and the opacity value could
+   change in the same render with nothing to transition from. Fixed by keeping the transition class
+   always present and doing the instant-dismiss via a direct `transitionDuration` DOM override
+   (reflowed, then handed back to CSS on the next frame) instead of removing the class.
+3. **Still** popped even with the transition structurally correct → real root cause was the easing
+   curve, not the transition mechanism: `--ease-standard` (`cubic-bezier(0.16,1,0.3,1)`,
+   documented as a "decelerate" curve for movement/scale) puts an opacity value at
+   ~visually-complete within the first ~20-30% of a 520ms duration, then flat for the rest — right
+   curve for something sliding into place, wrong for a plain crossfade. Swapped to `ease-in-out`,
+   which spreads the change evenly across the full duration. **Worth remembering if any other fade
+   in this codebase ever "looks instant" despite a correct transition-duration/class setup — check
+   the easing token before assuming the transition mechanism itself is broken.**
+
+Anthony confirmed round 3 ("Waaaay better") and said merge. Squash-merged PR #153, branch deleted,
+local `main` fast-forwarded, issue #151 auto-closed via "Closes #151".
+
+**#152 (Known Issues tab) scoped the same way (live discovery interview) and filed, then
+deliberately NOT built** — Anthony is taking it in a different session. Full spec, mechanism, and
+an 8-item testing checklist are on the issue itself; key decisions worth knowing if it resurfaces
+here anyway: repo is **public** (confirmed via `gh repo view`), so no GitHub token/secret needed;
+which issues surface is gated by a new `known-issue` label that **Claude** decides to apply (Anthony
+explicitly declined to own that judgment call — "I don't know what should be withheld from users");
+the user-facing blurb lives in a `## User-facing blurb` marked section inside the issue body itself
+(not a separate config file); fetch is server-side or in the pipeline, unauthenticated GitHub REST
+API, cached ~15 min (60 req/hr rate limit on an unauthenticated public-repo call otherwise); the
+tab must fail gracefully (friendly empty state, never an error) if the fetch fails; seeding at
+launch means adding the `known-issue` label + blurb to whichever currently-open bugs warrant it
+(candidates named on the issue: #148, #145).
+
+**Workflow, same pattern as every prior slice**: Orchestrator ran the discovery interview directly
+(no sub-agent for that — it's plan/scope work, not code) → filed the issue → build sub-agent →
+independent Standards+Spec review (separate sub-agent, code-review skill) → fixes sent back to a
+build sub-agent → pushed, PR opened `needs-manual-test` (layout/animation/mobile-stacking, correctly
+not pipeline-verifiable) → three small manual-test-driven tuning rounds, each delegated to a fresh
+build sub-agent → Anthony's go-ahead → merge. **No orchestrator-authored code landed in the diff** —
+one near-miss where the Orchestrator made a direct one-line Edit mid-diagnosis, caught immediately,
+reverted, and redone through a sub-agent before anything was pushed.
 
 ## 2026-09-08 — #142 and #144 scoped, built, reviewed, merged, CLOSED; #145 investigated then parked
 
