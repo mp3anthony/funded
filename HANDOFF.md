@@ -7,6 +7,16 @@ needs a live conversation with her before it's scoped further). #148 (`needs-inf
 (`out-of-spec`) untouched this session.
 
 **→ START HERE NEXT SESSION:**
+0. **#144 post-deploy confirmation still outstanding** — not yet verified whether a real reminder
+   actually landed at the right local time after the fix. Anthony's own notify_hour is 19 (7pm)
+   Auckland; check any time after ~7:05-7:20pm Auckland on a day he has a bill/reminder due —
+   `notifications.scheduled_for` vs `delivered_at` for his user_id (`4200aca8-dd57-4443-8369-
+   be77ab8221b0`) should show `scheduled_for` at his local 7pm and `delivered_at` within ~5 min of
+   it, not hours later. Also worth a `net._http_response` check on the `generate-scheduled-
+   reminders` pg_cron job (every 15 min) to confirm it's returning 200 now that
+   `GENERATION_CRON_SECRET` is set in Vercel (last checked, only a pre-deploy 401 had happened —
+   too little time had passed to see a real post-deploy run). If this all checks out, consider
+   labeling #144 confirmed-in-production in a closing comment; if not, reopen and re-investigate.
 1. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife (Hannah) barely/not
    getting bill reminder pushes. **Parked, not abandoned** — see the dated section below for the
    full investigation (Supabase evidence: generation/delivery both look fine for her by the numbers,
