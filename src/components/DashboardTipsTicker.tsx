@@ -20,6 +20,10 @@ interface DashboardTipsTickerProps {
  * (either card expands), so it's ready to reappear next time both cards
  * are minimised again rather than being gone forever.
  */
+/** Delay before the banner starts fading in after `active` becomes true.
+ * Only the initial appearance is delayed — fade-out and dismiss are instant. */
+const SHOW_DELAY_MS = 2000;
+
 export default function DashboardTipsTicker({ active }: DashboardTipsTickerProps) {
   const [dismissed, setDismissed] = useState(false);
   // True only for the dismiss (X button) path — hides the banner instantly
@@ -28,6 +32,21 @@ export default function DashboardTipsTicker({ active }: DashboardTipsTickerProps
   const [instantHide, setInstantHide] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
   const prefersReducedMotion = useReducedMotion();
+
+  // `active` flips to true the instant both cards are minimised, but the
+  // banner shouldn't start fading in until ~2s later — gives the user a
+  // beat before it appears. Going the other way (active -> false) is
+  // instant, no delay, so the fade-out/dismiss paths are unaffected.
+  const [shouldShow, setShouldShow] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      setShouldShow(false);
+      return;
+    }
+    const id = setTimeout(() => setShouldShow(true), SHOW_DELAY_MS);
+    return () => clearTimeout(id);
+  }, [active]);
 
   // Dismiss only lasts for the current "both minimised" streak — reset the
   // moment the trigger condition is broken so the banner is armed again
@@ -39,7 +58,7 @@ export default function DashboardTipsTicker({ active }: DashboardTipsTickerProps
     }
   }, [active]);
 
-  const visible = active && !dismissed;
+  const visible = shouldShow && !dismissed;
 
   const handleDismiss = () => {
     setInstantHide(true);
