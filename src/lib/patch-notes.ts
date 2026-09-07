@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.39",
+    date: "September 2026",
+    highlights: [
+      "Fixed a bug where automatic-payment bills were incorrectly sending \"overdue\" notifications every day, even for bills that weren't actually overdue — the app's own Bills list and health score never showed them as overdue, so the notifications no longer will either. A bill that's genuinely overdue (even accounting for its regular repeat schedule) will still keep reminding you daily until it's paid.",
+    ],
+  },
+  {
     version: "0.9.38",
     date: "September 2026",
     highlights: [

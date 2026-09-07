@@ -1,4 +1,5 @@
 import { diffDaysYmd } from './timezone';
+import { adjustAutopayBillDate } from '@/lib/utils';
 
 export type ReminderType =
   | 'manual_bill'
@@ -39,6 +40,13 @@ export interface ReminderBill {
   status?: string | null;
   due_date?: string | null;
   dueDate?: string | null;
+  /** Issue #143: recurrence cadence (weekly/fortnightly/monthly/yearly) for
+   *  auto-pay bills, needed to compute the same rolled-forward "real" due
+   *  date the UI uses (see adjustAutopayBillDate in src/lib/utils.ts) —
+   *  without it, a recurring auto-pay bill's stale raw due_date reads as
+   *  perpetually overdue even though the UI/health-score never shows it
+   *  that way. */
+  frequency?: string | null;
 }
 
 /** Minimal pay-history shape needed to evaluate lodge reminders. */
@@ -183,7 +191,16 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
       if (bill.payment_type === 'auto' && bill.status !== 'Paid') {
         const dueYmd = bill.due_date || bill.dueDate;
         if (!dueYmd) continue;
-        const diffDays = diffDaysYmd(todayYmd, dueYmd);
+        // #143: the raw due_date column isn't rolled forward automatically
+        // for recurring auto-pay bills, so a stale-but-still-recurring
+        // due_date sitting in the past is normal/expected — not actually
+        // overdue. Mirror the UI's own mapBillFromDb (src/context/
+        // AppContext.tsx), which calls this same adjustAutopayBillDate
+        // before ever computing an overdue/due-soon status, so the cron
+        // agrees with what the UI/health-score shows instead of inventing
+        // a separate "auto-pay overdue" rule off the raw date.
+        const adjustedDueYmd = adjustAutopayBillDate(dueYmd, bill.frequency || 'monthly', bill.payment_type);
+        const diffDays = diffDaysYmd(todayYmd, adjustedDueYmd);
         if (diffDays <= threshold) {
           const id = bill.id?.toString();
           // #132: diffDays <= 0 used to be treated as one single "passed"
@@ -219,9 +236,14 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
             title: isOverdue ? 'Bill Overdue' : diffDays === 0 ? 'Auto-Pay Bill Passed' : 'Auto-Pay Upcoming',
             message,
             related_entity_id: id,
+            // Keyed by the adjusted (real) due date, not the raw stored one —
+            // the raw due_date column doesn't roll forward per cycle for
+            // recurring auto-pay bills, so keying off it here would keep
+            // reusing the same "auto_pay" dedupe_key across every recurrence
+            // and only ever fire the upcoming/day-0 notice once, ever.
             dedupe_key: isOverdue
-              ? `${id}-${dueYmd}-auto_pay-overdue-${todayYmd}`
-              : `${id}-${dueYmd}-auto_pay`,
+              ? `${id}-${adjustedDueYmd}-auto_pay-overdue-${todayYmd}`
+              : `${id}-${adjustedDueYmd}-auto_pay`,
           });
         }
       }
