@@ -433,6 +433,41 @@ body.modal-open main {
   }
 }
 
+/* ── Dashboard tips ticker (#151) ──
+   Continuous right-to-left marquee: the track renders the tip list twice
+   back-to-back and scrolls exactly -50% (one full copy's width), so the
+   loop point is invisible. Paused on hover/focus so a reader can finish a
+   tip. Respects prefers-reduced-motion by not animating at all — the
+   ticker component itself swaps to a static/crossfading single tip in
+   that case rather than relying on the animation being skipped here. */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 64s linear infinite;
+}
+.ticker-viewport:hover .ticker-track,
+.ticker-viewport:focus-within .ticker-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none !important;
+  }
+}
+
+/* Slow crossfade used for the single-tip reduced-motion fallback. Opacity
+   only — no translation — so it stays within reduced-motion guidance while
+   still giving the tip content some life. */
+@keyframes ticker-tip-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ticker-tip-fade {
+  animation: ticker-tip-fade 900ms ease-out both;
+}
+
 /* ── Floating Avatar Button ── */
 .floating-avatar {
   position: fixed;
