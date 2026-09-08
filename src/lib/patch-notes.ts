@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.43",
+    date: "September 2026",
+    highlights: [
+      "Fixed a bug where some auto-pay bills were incorrectly showing up as \"overdue\" in push notifications, even though they weren't actually overdue.",
+      "Notifications that arrive late because your device was offline or asleep now show the time they were actually sent, instead of showing up as \"just now\" whenever your phone catches up.",
+    ],
+  },
+  {
     version: "0.9.42",
     date: "September 2026",
     highlights: [

@@ -1,5 +1,5 @@
 // Manual-test redeploy trigger — see PR #121, no functional change
-const CACHE_NAME = 'funded-pwa-cache-dev';
+const CACHE_NAME = 'funded-pwa-cache-dev-1788824110539';
 const OFFLINE_URL = '/offline';
 
 const ASSETS_TO_CACHE = [
@@ -126,7 +126,12 @@ self.addEventListener('push', (event) => {
       icon: payload.icon || '/icons/icon-192x192.png?v=2',
       badge: '/icons/logo-icon.svg',
       data: payload.data || { url: '/' },
-      vibrate: [200, 100, 200]
+      vibrate: [200, 100, 200],
+      // Use the server's actual send time when the payload carries one
+      // (src/lib/push.ts) so a notification the OS delays delivering (device
+      // asleep/offline) still shows its true send time instead of defaulting
+      // to "now" — the instant this handler happens to run.
+      timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : Date.now()
     };
 
     event.waitUntil(

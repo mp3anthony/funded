@@ -30,10 +30,22 @@ export async function sendPushToSubscriptions(
     return { successCount: 0, failureCount: subscriptions.length, expiredIds: [] };
   }
 
+  // Stamp the true send time so the service worker can pass it through as
+  // the Notification's `timestamp` (public/sw.js). Web push has no
+  // delivery-time guarantee: `webpush.sendNotification` below accepts the
+  // message into the push service's queue, but the OS/browser may not
+  // actually hand it to the service worker until much later (device
+  // asleep/offline, Doze mode, browser fully closed). Without an explicit
+  // timestamp, `showNotification()` defaults to "now" — the moment the
+  // device finally renders it — which makes a backlog of overnight
+  // notifications appear freshly delivered whenever the user's phone next
+  // reconnects, well after their actual send time.
+  const sentAt = Date.now();
   const payloadString = JSON.stringify({
     title: payload.title,
     body: payload.body,
     icon: payload.icon || '/icons/icon-192x192.png?v=2',
+    timestamp: sentAt,
     data: {
       url: payload.url || '/',
     },
