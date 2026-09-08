@@ -1,24 +1,42 @@
 # Handoff
 
-**Last updated:** 2026-09-08 (new session) — **#151 (dashboard tips ticker banner) scoped, built,
-reviewed, tuned on manual-test feedback, merged, CLOSED.** Production is live at `v0.9.42`. See the
-dated section below for full detail. **#146 (out-of-spec idea) triaged this session** — closed,
-superseded by #151. **#152 (Known Issues tab on patch-notes page) scoped and filed this session,
-deliberately NOT built** — Anthony is taking it in a different session; leave it alone unless he
-says otherwise. #148 and #145 (both `needs-info`) untouched this session.
+**Last updated:** 2026-09-08 (continued session) — **#154 (auto-pay bills firing false "Overdue"
+pushes + notifications appearing hours late) investigated, built, merged, CLOSED.** Production is
+live at `v0.9.43`. See the dated section below for full detail. This directly confirms #144's
+post-deploy check item (below) was never actually clean — worth reading before assuming #144 is
+fully settled.
+
+**Last updated before that:** 2026-09-08 (new session) — **#151 (dashboard tips ticker banner)
+scoped, built, reviewed, tuned on manual-test feedback, merged, CLOSED.** Production was live at
+`v0.9.42`. See the dated section below for full detail. **#146 (out-of-spec idea) triaged this
+session** — closed, superseded by #151. **#152 (Known Issues tab on patch-notes page) scoped and
+filed this session, deliberately NOT built** — Anthony is taking it in a different session; leave
+it alone unless he says otherwise. #148 and #145 (both `needs-info`) untouched this session.
 
 **→ START HERE NEXT SESSION:**
-0. **#144 post-deploy confirmation still outstanding** — not yet verified whether a real reminder
-   actually landed at the right local time after the fix. Anthony's own notify_hour is 19 (7pm)
-   Auckland; check any time after ~7:05-7:20pm Auckland on a day he has a bill/reminder due —
-   `notifications.scheduled_for` vs `delivered_at` for his user_id (`4200aca8-dd57-4443-8369-
-   be77ab8221b0`) should show `scheduled_for` at his local 7pm and `delivered_at` within ~5 min of
-   it, not hours later. Also worth a `net._http_response` check on the `generate-scheduled-
-   reminders` pg_cron job (every 15 min) to confirm it's returning 200 now that
-   `GENERATION_CRON_SECRET` is set in Vercel (last checked, only a pre-deploy 401 had happened —
-   too little time had passed to see a real post-deploy run). If this all checks out, consider
-   labeling #144 confirmed-in-production in a closing comment; if not, reopen and re-investigate.
-1. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife (Hannah) barely/not
+0. **#144 post-deploy confirmation — now PARTIALLY answered by #154's investigation (2026-09-08
+   continued session), not fully closed.** Confirmed live: Anthony's own household (`4821ab06-
+   a09a-4cfe-8160-e53e52550b57`) genuinely delivers on schedule — his notifications land at his
+   real 19:00 NZT `notify_hour` and Hannah's at her 09:00 NZT, both within ~3 seconds of
+   `scheduled_for`. So the *scheduling* side of #144 is confirmed working. What's still open: the
+   symptom Anthony actually experienced (notifications appearing to arrive hours late, e.g. an
+   overnight 7pm batch showing up at 11am) was NOT a scheduling bug — it was a **push-delivery
+   display bug**, fixed as part of #154 (see that section): `push.ts`/`sw.js` weren't stamping a
+   real send-`timestamp` on the notification payload, so a message that reached a sleeping/offline
+   device late got stamped "now" by the OS instead of showing its true original send time. That
+   fix is live in `v0.9.43` but **has not yet been confirmed against a real delayed-delivery
+   scenario on Anthony's own device** — worth checking with him after a day or two whether backlog
+   notifications now show the correct original time instead of "just now"/minutes-ago.
+1. **[#154](https://github.com/mp3anthony/funded/issues/154) — mostly resolved, one loose end.**
+   GEM VISA / ASB VISA / "Power" overdue notifications Anthony reported in his second screenshot
+   have **no matching row anywhere in the notifications table's history**, and none of those bills
+   are actually overdue per their current `bills` rows. Not explained by the case-sensitivity bug
+   that was fixed (that only affected Cloud services/Day Care/Disney/PC Finance/Prime/Rent, all of
+   which _did_ have matching false-overdue rows, confirmed and fixed). Ask Anthony to check the
+   actual per-notification timestamp on his phone for those three specifically next time it
+   happens — possible explanations raised but unconfirmed: a stale/cross-account render, or a
+   transcription slip relaying the screenshot.
+3. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife (Hannah) barely/not
    getting bill reminder pushes. **Parked, not abandoned** — see the dated section below for the
    full investigation (Supabase evidence: generation/delivery both look fine for her by the numbers,
    leading root-cause candidate is `sendPushToSubscriptions` in `src/lib/push.ts` only cleaning up
@@ -29,16 +47,28 @@ says otherwise. #148 and #145 (both `needs-info`) untouched this session.
    they are NOT on the same schedule despite being in the same household (notify_hour is per-user,
    not per-household). If Anthony/Hannah want them aligned, that's a Settings change on her end, not
    a bug. Do not scope a build here until Anthony has actually talked to her.
-2. **[#148](https://github.com/mp3anthony/funded/issues/148)** (`needs-info`) — Anthony's own
+4. **[#148](https://github.com/mp3anthony/funded/issues/148)** (`needs-info`) — Anthony's own
    fortnightly pay schedule's `next_pay_date` drifted +1 day with no pay logged. See the
    2026-09-07 dated section for full evidence/theory. Caveat still applies: Anthony manually
    corrected his pay schedule's date mid-investigation, so re-pull current `pay_schedules`/
    `pay_history` rows fresh rather than trusting any earlier snapshot.
-3. **[#152](https://github.com/mp3anthony/funded/issues/152)** — Known Issues tab on the
+5. **[#152](https://github.com/mp3anthony/funded/issues/152)** — Known Issues tab on the
    patch-notes page (sourced from GitHub issues labeled `known-issue`, plain-language blurb parsed
    from a `## User-facing blurb` section in the issue body). Fully scoped, filed, `ready-for-agent`
    — but Anthony said he's building this one in a different session. **Do not pick this up unless he
    explicitly says otherwise.**
+6. **NOT YET FILED, needs Anthony's decision first (`needs-info`-shaped, surfaced during #154's
+   investigation):** a bill's `due_date`/`invoice_date` don't self-correct once a bill is marked
+   "Paid" — `mapBillFromDb` only recomputes Overdue/Due-Soon status when `status !== "Paid"`, so a
+   manual bill stuck at "Paid" silently stops generating reminders forever and its detail-sheet
+   dates freeze at whatever they were when last touched (this is what Anthony's "Internet" bill
+   screenshot showed — Aug 13 due date, Jun 26 invoice date, both stale). Two real product questions
+   for Anthony before this can be scoped as a build: (1) should a "Paid" manual bill automatically
+   flip back to Due Soon/Overdue once its next cycle's due date arrives with no further user action?
+   (2) should `markAsPaid()` also roll `invoice_date` forward in lockstep with `due_date` (currently
+   `invoice_date` has no rollover code anywhere in the codebase — frozen at creation forever)? Both
+   are logic-only changes (`AppContext.tsx`), no schema/migration involved, but the behavior change
+   itself is a judgment call, not a clean bug fix — ask before building.
 
 **Worth knowing about the notification generation cron if it ever comes up again:** as of this
 session it is no longer strictly once-daily — see the 2026-09-08 dated section below for the full
@@ -137,6 +167,94 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-08 (continued session) — #154 (auto-pay false-overdue pushes + late-timestamp display) investigated, built, merged, CLOSED
+
+Anthony reported live, with two phone screenshots: a wall of "Bill Overdue" pushes for bills he
+believes are auto-pay (shouldn't be overdue at all), all timestamped "now"/"27m ago" at 11am/11:27am
+NZT despite his `notify_hour` being 19 (7pm); plus a bill detail modal showing a stale August due
+date and June invoice date that never seemed to progress cycle-to-cycle. No CRD needed — straight
+bug-fix territory per `CLAUDE.md` Step 1.
+
+**Investigation (background sub-agent, read-only first, then resumed to build once confirmed):**
+- **Root cause of the false-overdue pushes**: `generateReminders.ts` compared `bill.payment_type`
+  case-sensitively (`=== 'auto'` / `!== 'auto'`), but the DB stores it capitalized (`'Auto'`/
+  `'Manual'`), and the server cron path (`push-reminders/route.ts`) never normalizes it before this
+  check — only the client's `mapBillFromDb` lowercases it first. Every real Auto-pay bill was
+  silently falling into the Manual branch on the cron path, using the raw un-rolled-forward
+  `due_date` instead of `adjustAutopayBillDate()` — reproducing the exact #143 symptom, one
+  branch-selection step earlier than #143 itself touched. Confirmed live against 6 real bills
+  (Cloud services, Day Care, Disney, PC Finance, Prime, Rent) all genuinely misfiring.
+- **Root cause of the apparent 11am delivery**: NOT a scheduling bug — verified directly against
+  live Supabase data that Anthony's household delivers correctly (his pushes land at 19:00 NZT,
+  Hannah's at 09:00 NZT, both within ~3 seconds of `scheduled_for`). The real cause: `push.ts`/
+  `public/sw.js` never stamped a send-time `timestamp` on the push payload. Web push has no
+  delivery-time guarantee — a message can sit queued and only reach a sleeping/offline device much
+  later — so with no explicit timestamp, the OS stamps a late-rendered notification "now" (render
+  time, not send time), making an on-time overnight 7pm batch look like it just arrived once the
+  device reconnects. This matches Anthony's report closely (DB "now" at investigation time was
+  itself ~11:15am NZT, right when he reported seeing the burst).
+- **One dead end investigated and correctly ruled out, worth remembering:** an unscoped SQL query
+  (joining `notifications`/`bills` without a household filter) briefly looked like it had found a
+  *worse* bug — the same `dedupe_key` appearing at 3 different `scheduled_for` times per day. Turned
+  out to be the Orchestrator's own query mistake, pulling in an entirely different customer's
+  household ("Paull's Direct", Sydney timezone) that happens to reuse generic bill names like "Rent"
+  and "Cloud services". **This DB has other real customers' data in it, not just Anthony's test
+  household — always scope notification/bill queries to a specific household_id/user_id, never a
+  bare bill-name join.** Re-scoped correctly, no such bug exists for Anthony's own household.
+- **Unresolved, flagged rather than guessed at:** GEM VISA / ASB VISA / "Power" from Anthony's
+  second screenshot have zero matching notification history and aren't overdue per their current
+  `bills` rows — not explained by the case-sensitivity bug (which only affects the 6 bills above).
+  See "→ START HERE NEXT SESSION" item 1.
+- **Due date/invoice date question, deliberately NOT built** — confirmed as a real gap
+  (`invoice_date` has no rollover code anywhere; a "Paid" manual bill's status/due_date never
+  re-evaluates once cycled past again) but ambiguous product behavior, not a clean bug — flagged to
+  Anthony as `needs-info`-shaped rather than silently built. See "→ START HERE NEXT SESSION" item 6.
+
+**What got built and shipped, [PR #155](https://github.com/mp3anthony/funded/pull/155) (closes
+[#154](https://github.com/mp3anthony/funded/issues/154)):**
+- `generateReminders.ts`: case-insensitive `payment_type` comparison in both the Manual and Auto-Pay
+  branches, matching `adjustAutopayBillDate`'s own convention.
+- `push.ts`: stamps a real `timestamp: Date.now()` into the push payload at send time.
+- `public/sw.js`: passes that `timestamp` through into `showNotification()` (falling back to
+  `Date.now()` if absent) so a delayed on-device render shows the true send time.
+- Deleted 6 already-queued false-overdue notification rows generated under the old buggy logic
+  (Cloud services/Day Care/Disney/PC Finance/Prime/Rent, all for tonight's 7pm cycle) so they
+  wouldn't re-fire before the fix shipped.
+
+**Orchestrator independently re-verified before committing, not just trusted the sub-agent's
+self-report** — this run had come back flagged with a security-classifier warning ("blocked by
+classifier — review actions carefully"), so before acting on it: read the full `git diff` directly
+(clean, matches the stated changes, the one non-obvious line — a `CACHE_NAME` cache-bust bump in
+`sw.js` — matches this repo's own pre-existing "manual-test redeploy trigger" pattern from PR #121,
+not something new); re-ran the DB queries myself with correct household scoping to confirm both the
+bug and the cleanup were real (this is where the "Paull's Direct" false alarm above was caught and
+corrected); confirmed the 6 pending bad rows were actually gone before proceeding. **Worth
+remembering: a security-classifier flag on a sub-agent's tool use is a signal to verify independently
+before acting, not to blindly trust or blindly discard the agent's work — in this case the flagged
+run's actual changes were legitimate.**
+
+No CRD, no schema/migration — pure application logic. `v0.9.42` → `v0.9.43`, patch notes added.
+Filed [#154](https://github.com/mp3anthony/funded/issues/154) (retroactively, after building, given
+the same-day 7pm-cycle urgency — Anthony had already said "let's fix this first" before the issue
+existed) with a testing checklist. Vercel preview confirmed green via `gh pr checks`. Anthony
+confirmed merge. Squash-merged, branch deleted, local `main` fast-forwarded. **Production deployment
+verified directly via the Vercel MCP tool** (`list_teams` → `list_projects` → `list_deployments` →
+polled `get_deployment` on the merge commit `6883fc0`'s own deployment through `BUILDING` to
+`READY`, `target: "production"`, alias `funded-alpha.vercel.app` confirmed pointing at it) — not
+just trusted from a green GitHub merge, per this repo's standing gotcha.
+
+**Workflow, slightly different from the usual pattern given urgency:** Orchestrator delegated
+investigation-only first (background sub-agent, read-only) → user supplied a second screenshot with
+new evidence mid-investigation that contradicted the first pass's timing conclusion → Orchestrator
+resumed the same agent with the new evidence and authorized it to build once the cause was confirmed
+(skipping a separate build-sub-agent handoff, given the same-day urgency and that the investigating
+agent already had full context) → Orchestrator independently re-verified the diff and the live DB
+state before committing anything (extra scrutiny here specifically because of the classifier flag) →
+issue filed retroactively → PR opened, labeled `needs-merge-approval` → Anthony's go-ahead → merge →
+production verified. **No separate independent-review sub-agent this round** — a deliberate
+trade-off for same-day urgency, not the norm; worth resuming the normal build→independent-review
+split next time this isn't time-critical.
 
 ## 2026-09-08 (new session) — #146 triaged into #151, built, reviewed, tuned, merged, CLOSED; #152 filed and parked for Anthony
 
