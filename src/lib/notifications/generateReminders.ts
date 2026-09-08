@@ -143,10 +143,21 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   };
 
   // ── Manual Bills ───────────────────────────────
+  // Follow-up to #143/#144: `payment_type` is compared case-insensitively
+  // here and in the Auto-Pay branch below. The DB stores it capitalized
+  // ('Auto'/'Manual'), and the server cron (push-reminders/route.ts) reads
+  // bills straight from Supabase with no normalization — only the client
+  // path (AppContext.tsx's mapBillFromDb) lowercases it before calling this
+  // function. A literal `=== 'auto'` / `!== 'auto'` check therefore always
+  // routed every real-world Auto bill into THIS manual branch on the cron
+  // path (since 'Auto' !== 'auto'), using the raw un-rolled-forward due_date
+  // instead of the Auto-Pay branch's adjustAutopayBillDate — reintroducing
+  // the exact false-overdue symptom #143 fixed, just one branch-selection
+  // step earlier than #143 touched.
   if (settings.manual_bill_reminders) {
     const threshold = settings.manual_bill_reminder_days || 3;
     for (const bill of bills) {
-      if (bill.payment_type !== 'auto' && bill.status !== 'Paid') {
+      if (bill.payment_type?.toLowerCase() !== 'auto' && bill.status !== 'Paid') {
         const dueYmd = bill.due_date || bill.dueDate;
         if (!dueYmd) continue;
         const diffDays = diffDaysYmd(todayYmd, dueYmd);
@@ -188,7 +199,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   if (settings.auto_pay_reminders) {
     const threshold = settings.auto_pay_reminder_days || 1;
     for (const bill of bills) {
-      if (bill.payment_type === 'auto' && bill.status !== 'Paid') {
+      if (bill.payment_type?.toLowerCase() === 'auto' && bill.status !== 'Paid') {
         const dueYmd = bill.due_date || bill.dueDate;
         if (!dueYmd) continue;
         // #143: the raw due_date column isn't rolled forward automatically
