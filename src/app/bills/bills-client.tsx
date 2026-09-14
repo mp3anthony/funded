@@ -154,14 +154,46 @@ export default function BillsClient() {
   }, [bills, filter, searchQuery, categoryFilter]);
 
   /* Expenses share the same search/category filters as bills now that
-   * they're in one list (Issue #98, Slice 2 fix-round). They have no due
-   * date, so a due-date filter ("This Week"/"This Month"/"Overdue") can't
-   * apply to them — an expense simply drops out of the list while one of
-   * those is active, matching the bill-only meaning of that filter. */
+   * they're in one list (Issue #98, Slice 2 fix-round).
+   *
+   * Issue #164: the Due Date filter ("This Week"/"This Month"/"Overdue")
+   * can't be applied to expenses — the `expenses` table (see
+   * supabase/migrations/20260904120000_add_expenses_table.sql) deliberately
+   * has no due_date, frequency, or is_recurring column; those were dropped
+   * on purpose as "bill-only concepts that don't apply to variable spend".
+   * The only date on an expense is `created_at`, which is when the row was
+   * logged, not a due date or a recurring cadence — using it to answer
+   * "is this due this week?" would invent a semantic the data doesn't
+   * actually carry (e.g. a grocery expense logged three months ago would
+   * wrongly vanish from "This Week" even though it recurs weekly). So
+   * expenses are deliberately excluded whenever a due-date filter other
+   * than "All" is active, rather than guessing at a fake due date.
+   *
+   * That exclusion is silent otherwise, so `hasExpensesHiddenByDateFilter`
+   * below drives an explanatory UI note instead of expenses just
+   * disappearing with no indication why. */
   const filteredExpenses = useMemo(() => {
     if (filter !== "all") return [];
 
     return expenses.filter((e) => {
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase();
+        if (!e.name.toLowerCase().includes(query)) return false;
+      }
+      if (categoryFilter !== "All" && e.category !== categoryFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [expenses, filter, searchQuery, categoryFilter]);
+
+  // Issue #164: true when the Due Date filter is the reason expenses aren't
+  // showing (i.e. there ARE expenses that match search/category, they're
+  // just excluded because expenses have no due date to filter by) — used to
+  // show an explanatory note instead of a silent disappearance.
+  const hasExpensesHiddenByDateFilter = useMemo(() => {
+    if (filter === "all") return false;
+    return expenses.some((e) => {
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
         if (!e.name.toLowerCase().includes(query)) return false;
@@ -221,6 +253,18 @@ export default function BillsClient() {
     if (filter === "overdue") return "No overdue bills";
     return "No bills or expenses found";
   }, [filter, searchQuery, categoryFilter]);
+
+  // Issue #164: plain-English explanation shown whenever the Due Date
+  // filter is hiding expenses that would otherwise be in the list, so the
+  // disappearance isn't silent/unexplained.
+  const dateFilterHidesExpensesMessage =
+    filter === "week"
+      ? "Expenses aren't shown when filtering by “This Week” — expenses don't have a due date, so this filter only applies to bills."
+      : filter === "month"
+      ? "Expenses aren't shown when filtering by “This Month” — expenses don't have a due date, so this filter only applies to bills."
+      : filter === "overdue"
+      ? "Expenses aren't shown here — there's no overdue concept for expenses since they don't have a due date."
+      : null;
 
   const hasItems = Object.keys(groupedItems).length > 0;
 
@@ -352,6 +396,17 @@ export default function BillsClient() {
           )}
         </div>
       </div>
+
+      {/* Issue #164: explanatory note when the Due Date filter is hiding
+          expenses that would otherwise be in this list, instead of them
+          silently disappearing with no indication why. */}
+      {hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
+        <div className="px-1">
+          <p className="text-[11px] text-muted font-body italic">
+            {dateFilterHidesExpensesMessage}
+          </p>
+        </div>
+      )}
 
       {/* Bills & Expenses Scrollable Container */}
       <div className="space-y-3">
