@@ -1,10 +1,17 @@
 # Handoff
 
-**Last updated:** 2026-09-08 (continued session) — **#154 (auto-pay bills firing false "Overdue"
-pushes + notifications appearing hours late) investigated, built, merged, CLOSED.** Production is
-live at `v0.9.43`. See the dated section below for full detail. This directly confirms #144's
-post-deploy check item (below) was never actually clean — worth reading before assuming #144 is
-fully settled.
+**Last updated:** 2026-09-14 — **#158/#161 (dashboard weekly income/surplus/health-score ignoring
+actual logged pay for fixed-amount schedules) investigated, built, reviewed (1 rework round),
+merged, CLOSED.** Production is live at `v0.9.44`. See the dated section below for full detail.
+Also surfaced this session: **4 new in-app bug-report issues (#157/#159/#160, plus #156 which is
+unrelated infra) filed 09-09/09-10, none yet triaged/scoped** — see "→ START HERE NEXT SESSION"
+below.
+
+**Last updated before that:** 2026-09-08 (continued session) — **#154 (auto-pay bills firing false
+"Overdue" pushes + notifications appearing hours late) investigated, built, merged, CLOSED.**
+Production was live at `v0.9.43`. See the dated section below for full detail. This directly
+confirms #144's post-deploy check item (below) was never actually clean — worth reading before
+assuming #144 is fully settled.
 
 **Last updated before that:** 2026-09-08 (new session) — **#151 (dashboard tips ticker banner)
 scoped, built, reviewed, tuned on manual-test feedback, merged, CLOSED.** Production was live at
@@ -14,7 +21,29 @@ filed this session, deliberately NOT built** — Anthony is taking it in a diffe
 it alone unless he says otherwise. #148 and #145 (both `needs-info`) untouched this session.
 
 **→ START HERE NEXT SESSION:**
-0. **#144 post-deploy confirmation — now PARTIALLY answered by #154's investigation (2026-09-08
+0. **Four new in-app bug-report issues, filed 09-09/09-10, NONE triaged/scoped yet — read these
+   before anything else below, they're newer than every other item on this list:**
+   - **[#159](https://github.com/mp3anthony/funded/issues/159)** — Hannah reports she can't attach
+     a screenshot on the Report a Bug page. Clean, unambiguous bug, no CRD needed — just needs
+     someone to actually reproduce and fix it (not yet investigated this session, only triaged as
+     "worth doing").
+   - **[#160](https://github.com/mp3anthony/funded/issues/160)** — Hannah's notification arrived 46
+     min late (Android S25FE). Don't scope as a standalone fix — this is more evidence for the
+     already-parked #145 (below), not a new bug. Add it to that thread, keep it parked with #145
+     until Anthony has actually talked to her.
+   - **[#157](https://github.com/mp3anthony/funded/issues/157)** — Hannah reports the Bills page
+     filters can't isolate expenses from bills. Looks like a real gap, but do a Scope Check against
+     SPEC.md's bills/expenses slice first (per CLAUDE.md Step 1) — could be "not yet built" rather
+     than "broken." Not yet investigated.
+   - **[#156](https://github.com/mp3anthony/funded/issues/156)** — NOT from-app, migrated from
+     ATLAS's cross-department task bank. Move transactional email off Anthony's personal Gmail to a
+     verified sending domain. **Explicitly self-blocked** until the main Hazardous Schematics site
+     has landed on its own domain — do not pick this up until Anthony says that's done.
+1. **#158/#161 CLOSED this session (2026-09-14) — see the dated section below.** No further action
+   needed; flagged here only so a future session doesn't re-litigate it. Worth a casual visual
+   confirm next time Anthony's in the app that his real $3502.24 back-pay still shows correctly in
+   Weekly Income/Surplus/Contributors before his next payday (2026-09-22) cycles it out of view.
+2. **#144 post-deploy confirmation — now PARTIALLY answered by #154's investigation (2026-09-08
    continued session), not fully closed.** Confirmed live: Anthony's own household (`4821ab06-
    a09a-4cfe-8160-e53e52550b57`) genuinely delivers on schedule — his notifications land at his
    real 19:00 NZT `notify_hour` and Hannah's at her 09:00 NZT, both within ~3 seconds of
@@ -27,7 +56,7 @@ it alone unless he says otherwise. #148 and #145 (both `needs-info`) untouched t
    fix is live in `v0.9.43` but **has not yet been confirmed against a real delayed-delivery
    scenario on Anthony's own device** — worth checking with him after a day or two whether backlog
    notifications now show the correct original time instead of "just now"/minutes-ago.
-1. **[#154](https://github.com/mp3anthony/funded/issues/154) — mostly resolved, one loose end.**
+3. **[#154](https://github.com/mp3anthony/funded/issues/154) — mostly resolved, one loose end.**
    GEM VISA / ASB VISA / "Power" overdue notifications Anthony reported in his second screenshot
    have **no matching row anywhere in the notifications table's history**, and none of those bills
    are actually overdue per their current `bills` rows. Not explained by the case-sensitivity bug
@@ -36,7 +65,7 @@ it alone unless he says otherwise. #148 and #145 (both `needs-info`) untouched t
    actual per-notification timestamp on his phone for those three specifically next time it
    happens — possible explanations raised but unconfirmed: a stale/cross-account render, or a
    transcription slip relaying the screenshot.
-3. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife (Hannah) barely/not
+4. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Anthony's wife (Hannah) barely/not
    getting bill reminder pushes. **Parked, not abandoned** — see the dated section below for the
    full investigation (Supabase evidence: generation/delivery both look fine for her by the numbers,
    leading root-cause candidate is `sendPushToSubscriptions` in `src/lib/push.ts` only cleaning up
@@ -47,17 +76,17 @@ it alone unless he says otherwise. #148 and #145 (both `needs-info`) untouched t
    they are NOT on the same schedule despite being in the same household (notify_hour is per-user,
    not per-household). If Anthony/Hannah want them aligned, that's a Settings change on her end, not
    a bug. Do not scope a build here until Anthony has actually talked to her.
-4. **[#148](https://github.com/mp3anthony/funded/issues/148)** (`needs-info`) — Anthony's own
+5. **[#148](https://github.com/mp3anthony/funded/issues/148)** (`needs-info`) — Anthony's own
    fortnightly pay schedule's `next_pay_date` drifted +1 day with no pay logged. See the
    2026-09-07 dated section for full evidence/theory. Caveat still applies: Anthony manually
    corrected his pay schedule's date mid-investigation, so re-pull current `pay_schedules`/
    `pay_history` rows fresh rather than trusting any earlier snapshot.
-5. **[#152](https://github.com/mp3anthony/funded/issues/152)** — Known Issues tab on the
+6. **[#152](https://github.com/mp3anthony/funded/issues/152)** — Known Issues tab on the
    patch-notes page (sourced from GitHub issues labeled `known-issue`, plain-language blurb parsed
    from a `## User-facing blurb` section in the issue body). Fully scoped, filed, `ready-for-agent`
    — but Anthony said he's building this one in a different session. **Do not pick this up unless he
    explicitly says otherwise.**
-6. **NOT YET FILED, needs Anthony's decision first (`needs-info`-shaped, surfaced during #154's
+7. **NOT YET FILED, needs Anthony's decision first (`needs-info`-shaped, surfaced during #154's
    investigation):** a bill's `due_date`/`invoice_date` don't self-correct once a bill is marked
    "Paid" — `mapBillFromDb` only recomputes Overdue/Due-Soon status when `status !== "Paid"`, so a
    manual bill stuck at "Paid" silently stops generating reminders forever and its detail-sheet
@@ -167,6 +196,88 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-14 — #158/#161 (weekly income/surplus/health-score ignoring logged pay for fixed-amount schedules) investigated, built, reviewed (1 rework round), merged, CLOSED; 4 new in-app issues surfaced, untriaged
+
+Opened with the standard Step 0 flow: read `HANDOFF.md` first. Listed open GitHub issues to check
+for drift against the doc and found **4 issues filed via the in-app bug-report tool that weren't in
+HANDOFF at all** — [#157](https://github.com/mp3anthony/funded/issues/157),
+[#159](https://github.com/mp3anthony/funded/issues/159),
+[#160](https://github.com/mp3anthony/funded/issues/160) (all `from-app`), plus
+[#156](https://github.com/mp3anthony/funded/issues/156) (not from-app, migrated from ATLAS's
+cross-department task bank, self-blocked on the main Hazardous Schematics site landing first — no
+action taken or needed). Surfaced these to Anthony but did not scope/build any of them this
+session — see "→ START HERE NEXT SESSION" above for the full breakdown and priority read on each.
+
+**#158 (Anthony, from-app): "Weekly surplus not including surplus added to payday."** Anthony flagged
+real urgency mid-conversation — the evidence (a ~$1600 back-pay bump) would age out of visibility
+once his next scheduled payday (2026-09-22) landed, so investigated immediately rather than parking
+as a scoping conversation.
+
+**Root cause found and confirmed live, not guessed:** `HealthScoreCard.tsx`'s `weeklyIncome`/
+`weeklyActualIncome` calcs only checked `pay_history` for **variable**-amount pay schedules
+(`if (!schedule.is_fixed_amount)`) — a **fixed**-amount schedule always fell back to the static
+`schedule.amount`, even though fixed-amount schedules log real pay via the identical "Log Pay" flow.
+Confirmed directly in Supabase (project `cswjhomkhuzxxdwvtbjv`): Anthony's fortnightly schedule
+(`amount: 1893.79`, `is_fixed_amount: true`) had a real `pay_history` row of `3502.24` logged
+2026-09-08 that the dashboard never picked up. Filed as
+[#161](https://github.com/mp3anthony/funded/issues/161) (closes #158) with a 4-item testing
+checklist, per Step 1 (clear bug fix, no CRD needed).
+
+**Workflow deviation this session, worth remembering:** Anthony initially said "just merge it, you
+can approve it as the orchestrator" (i.e. skip independent review entirely). The Orchestrator pushed
+back per `CLAUDE.md`'s "Challenge Me"/separation-of-duties rules — this touches real money-facing
+calculations, and self-approval is exactly what that rule exists to prevent — and asked for explicit
+confirmation before taking that shortcut. Anthony then clarified he actually wanted the normal
+independent-review flow, just without a manual test on his end ("as long as it's reviewed... I'm
+sure with your approval we will be ok"). Reverted to the standard build → independent review →
+Orchestrator-verified → merge pipeline. **This paid off**: the independent reviewer found a real,
+correctly-scoped miss — the identical bug pattern existed a **third** time in the same file
+(`HealthScoreCard.tsx`'s per-member "Contributors" breakdown, ~line 317), which the original build
+agent's own repo-wide grep claim ("no duplicate found") had missed because it was a second
+occurrence *inside* the same file it had already touched, not a separate file. Sent back to the same
+build agent (full context retained) → fixed identically → re-reviewed → **APPROVED**, zero further
+findings.
+
+**What got built, [PR #162](https://github.com/mp3anthony/funded/pull/162) (closes #161, closes
+#158):** all three occurrences in `HealthScoreCard.tsx` (`weeklyIncome`, `weeklyActualIncome`, and
+the per-member Contributors reducer) now check the latest `pay_history` row for a schedule
+unconditionally, falling back to `schedule.amount` only when no history exists yet — bringing
+fixed-amount schedules in line with how variable-amount ones already worked. Logic-only, no
+schema/migration.
+
+**Verification, both by the reviewer and independently by the Orchestrator:** `tsc --noEmit` clean,
+`next build` clean (all 19 routes), `npm run lint` 101 problems (56 errors/45 warnings) — identical
+to `main`'s own baseline, zero regression. Orchestrator personally read the full diff before
+approving (not just the sub-agents' self-reports) — confirmed scoped to exactly the 3 intended files
+(`HealthScoreCard.tsx`, `version.ts`, `patch-notes.ts`), no scope creep. All 4 testing-checklist items
+on #161 verified by hand-trace by both the reviewer and Orchestrator (pure calc logic, no live device
+needed): fixed-schedule-with-history now uses the logged amount; no-history falls back safely
+(no NaN/crash); variable-schedule behavior is byte-for-byte unchanged; Joint Fund households
+(`isJointFund` branch, uses `householdContributions`) are untouched by the diff.
+
+`v0.9.43` → `v0.9.44`, patch notes added ("Fixed the weekly income, weekly surplus, and health score
+on your dashboard not updating when your pay comes in higher or lower than usual, for people on a
+fixed pay schedule..."). Pushed as PR #162, labeled `needs-merge-approval` (pure calc logic, fully
+pipeline-verifiable, no manual test needed). Vercel preview confirmed green via `gh pr checks`.
+Squash-merged, branch/worktrees cleaned up, local `main` fast-forwarded to `cf825d7`. **Production
+deployment verified directly via the Vercel MCP tool** (`list_teams` → `list_projects` →
+`list_deployments`, confirming the merge commit's own deployment `dpl_AmeTycJagiG9FsVFuZQFSBXzFMKo`
+shows `target: "production"`, `state: "READY"`) — not just trusted from a green GitHub merge, per
+this repo's standing gotcha.
+
+**Worth checking next time Anthony's in the app** (see "→ START HERE NEXT SESSION" item 1): his real
+$3502.24 back-pay should now show correctly in Weekly Income/Surplus/Contributors — worth a casual
+visual confirm before his next scheduled payday (2026-09-22) cycles the evidence out of view.
+
+**Workflow, same pattern as most prior sessions after the one deliberate detour above:** Orchestrator
+investigated and confirmed root cause directly (live Supabase queries, not guessed) → filed the issue
+with a testing checklist → build sub-agent (isolated worktree) → independent review sub-agent (never
+the builder, fresh agent) found a real bug on round 1 → same builder fixed it (full context) →
+re-reviewed, APPROVED → Orchestrator independently re-verified the diff itself before merging → PR
+opened, Vercel green → merged → production verified via Vercel MCP. **One rework round needed, not
+zero** — the near-miss on skipping review entirely is worth remembering next time speed pressure
+tempts cutting that step.
 
 ## 2026-09-08 (continued session) — #154 (auto-pay false-overdue pushes + late-timestamp display) investigated, built, merged, CLOSED
 
