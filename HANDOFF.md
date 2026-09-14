@@ -1,11 +1,14 @@
 # Handoff
 
-**Last updated:** 2026-09-14 — **#158/#161 (dashboard weekly income/surplus/health-score ignoring
-actual logged pay for fixed-amount schedules) investigated, built, reviewed (1 rework round),
-merged, CLOSED.** Production is live at `v0.9.44`. See the dated section below for full detail.
-Also surfaced this session: **4 new in-app bug-report issues (#157/#159/#160, plus #156 which is
-unrelated infra) filed 09-09/09-10, none yet triaged/scoped** — see "→ START HERE NEXT SESSION"
-below.
+**Last updated:** 2026-09-14 (continued session) — **all 4 queued in-app issues (#157/#159/#160/#156)
+triaged. Two built and PRs open, awaiting Anthony's action; two closed with no code needed.** See
+the dated section below for full detail. **PRs #165 and #166 are the two things this session left
+in-flight** — see "→ START HERE NEXT SESSION" below for exactly what each needs from Anthony.
+
+**Last updated before that:** 2026-09-14 (earlier same session) — **#158/#161 (dashboard weekly
+income/surplus/health-score ignoring actual logged pay for fixed-amount schedules) investigated,
+built, reviewed (1 rework round), merged, CLOSED.** Production is live at `v0.9.44`. See the dated
+section below for full detail.
 
 **Last updated before that:** 2026-09-08 (continued session) — **#154 (auto-pay bills firing false
 "Overdue" pushes + notifications appearing hours late) investigated, built, merged, CLOSED.**
@@ -21,24 +24,26 @@ filed this session, deliberately NOT built** — Anthony is taking it in a diffe
 it alone unless he says otherwise. #148 and #145 (both `needs-info`) untouched this session.
 
 **→ START HERE NEXT SESSION:**
-0. **Four new in-app bug-report issues, filed 09-09/09-10, NONE triaged/scoped yet — read these
-   before anything else below, they're newer than every other item on this list:**
-   - **[#159](https://github.com/mp3anthony/funded/issues/159)** — Hannah reports she can't attach
-     a screenshot on the Report a Bug page. Clean, unambiguous bug, no CRD needed — just needs
-     someone to actually reproduce and fix it (not yet investigated this session, only triaged as
-     "worth doing").
-   - **[#160](https://github.com/mp3anthony/funded/issues/160)** — Hannah's notification arrived 46
-     min late (Android S25FE). Don't scope as a standalone fix — this is more evidence for the
-     already-parked #145 (below), not a new bug. Add it to that thread, keep it parked with #145
-     until Anthony has actually talked to her.
-   - **[#157](https://github.com/mp3anthony/funded/issues/157)** — Hannah reports the Bills page
-     filters can't isolate expenses from bills. Looks like a real gap, but do a Scope Check against
-     SPEC.md's bills/expenses slice first (per CLAUDE.md Step 1) — could be "not yet built" rather
-     than "broken." Not yet investigated.
-   - **[#156](https://github.com/mp3anthony/funded/issues/156)** — NOT from-app, migrated from
-     ATLAS's cross-department task bank. Move transactional email off Anthony's personal Gmail to a
-     verified sending domain. **Explicitly self-blocked** until the main Hazardous Schematics site
-     has landed on its own domain — do not pick this up until Anthony says that's done.
+0. **Two PRs open from this session, both need Anthony's action before anything else:**
+   - **[PR #165](https://github.com/mp3anthony/funded/pull/165)** (closes #159, closes #163) — the
+     screenshot-attach fix. Labeled `needs-manual-test` — the actual fix (replacing a
+     programmatic-`.click()` file-input trigger with a `<label>`-wrapped one, since that pattern is
+     a known cause of unresponsive taps on iOS Safari inside a modal) can't be confirmed without a
+     real iOS device. Vercel preview green. Reviewed and approved, cleanups already folded in
+     (unused `fileInputRef` removed, `storage.ts`'s `mimeExtMap` widened to match the new HEIC/
+     HEIF/GIF support). **Ask Anthony (or Hannah) to actually tap "Attach a screenshot" on the PR
+     preview from an iPhone before merging** — that's the one thing no amount of code review can
+     confirm.
+   - **[PR #166](https://github.com/mp3anthony/funded/pull/166)** (closes #164) — the expense
+     Due-Date-filter fix (found while investigating #157, see below). Labeled
+     `needs-merge-approval` — pure calc/logic + a UI text note, fully pipeline-verifiable, no
+     manual test needed. Vercel preview green, reviewed and approved. Just needs Anthony's
+     go-ahead to merge.
+   - **Both bump `APP_VERSION` 0.9.44 → 0.9.45 independently** — when merging both, expect the
+     exact same version.ts/patch-notes.ts conflict documented in the 2026-09-08 dated section below
+     (two same-day PRs both bumping the version). Resolve by keeping the higher version number and
+     both patch-notes entries in newest-first order, same as that precedent. Re-run `tsc` after
+     resolving, before completing the merge commit.
 1. **#158/#161 CLOSED this session (2026-09-14) — see the dated section below.** No further action
    needed; flagged here only so a future session doesn't re-litigate it. Worth a casual visual
    confirm next time Anthony's in the app that his real $3502.24 back-pay still shows correctly in
@@ -196,6 +201,109 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+
+## 2026-09-14 (continued session) — all 4 queued in-app issues triaged one by one; 2 built + PRs open (#165/#166), 2 closed with no code needed
+
+Continuation of the same day's session, picked up exactly where the earlier entry (below) left off:
+the 4 untriaged in-app issues. Anthony asked to triage one at a time, pausing between each for his
+input, with each disposition reflected on the GitHub issue itself — followed that pattern
+throughout, no batch decisions.
+
+**[#159](https://github.com/mp3anthony/funded/issues/159) (Hannah: can't attach a screenshot on
+Report a Bug) → built as [#163](https://github.com/mp3anthony/funded/issues/163) →
+[PR #165](https://github.com/mp3anthony/funded/pull/165), `needs-manual-test`.** Investigated
+first: the client-side MIME/size check, the Supabase Storage bucket policy, and the GitHub-issue
+API route were all internally consistent — nothing in the code was an obvious, confirmed bug.
+Rather than guess blind, asked Anthony directly; he confirmed the actual symptom was "tapping the
+button did nothing," which pointed at the hidden-`<input type=file>` +
+`fileInputRef.current?.click()` trigger pattern — a known source of unresponsive taps on iOS Safari
+inside a modal/sheet. Filed #163 as defensive hardening (root cause not 100% pinned, but
+high-confidence): replaced the click-trigger pattern with a `<label>`-wrapped file input (also
+fixes keyboard accessibility — the old hidden input was unreachable by Tab/Enter, now it isn't);
+widened accepted screenshot types to include HEIC/HEIF (iPhone's default photo format) and GIF
+alongside JPEG/PNG/WebP, via both the client check and a new Supabase migration
+(`20260914000000_widen_bug_report_screenshot_mime_types.sql`) widening the bucket's
+`allowed_mime_types`; made the inline validation error visually prominent (matched to the existing
+`submitError` banner pattern already in the same file, not invented styling). Independent review
+(separate agent, not the builder): **APPROVED**, two non-blocking nits found and folded in before
+the PR was opened — an unused `fileInputRef` left over after removing the programmatic click, and
+`storage.ts`'s `mimeExtMap` not yet covering the new HEIC/HEIF/GIF types (fell back to a
+filename-extension guess, worked but was inconsistent). Both fixed by the same builder, re-verified
+clean. `v0.9.44` → `v0.9.45`, patch notes added. **Labeled `needs-manual-test`, not
+`needs-merge-approval`** — the one thing this fix can't be confirmed by without a real iOS device is
+exactly the bug it's fixing (a tap not registering), so code review alone can't close the loop here.
+
+**[#160](https://github.com/mp3anthony/funded/issues/160) (Hannah: notification 46 min late,
+Android S25FE) → folded into #145, closed, no code touched.** Per the prior session's own steer,
+did not scope this as a standalone bug — posted the report as a comment on the already-parked #145
+thread (secondary-member push-delivery investigation) and closed #160 to avoid tracking the same
+likely root cause under two issue numbers. #145 stays parked exactly as before, still waiting on
+Anthony talking to Hannah directly.
+
+**[#157](https://github.com/mp3anthony/funded/issues/157) (Hannah: Bills page filters can't isolate
+expenses) → scope-checked, logged `out-of-spec`, left open/untriaged. One real bug found along the
+way → built as [#164](https://github.com/mp3anthony/funded/issues/164) →
+[PR #166](https://github.com/mp3anthony/funded/pull/166), `needs-merge-approval`.** Ran the Step 1
+Scope Check before touching anything: no bill-vs-expense type filter exists anywhere in the code,
+and — critically — this isn't an oversight. Slice 12/#98's own history (see the dated section
+further down) shows Anthony explicitly rejected a separate-tabs bills/expenses design in favor of
+one interleaved list ("I hate the switch"), so a "filter to isolate expenses" request reopens a
+direction already deliberately steered away from once. Logged to `CHANGE-LOG.md` as `out-of-spec`
+rather than silently built — it's a cheap, low-risk addition if Anthony wants it (a third dropdown
+alongside the existing Category/Due-Date filters, no schema/redesign involved), but it's his call,
+not a bug fix. **#157 itself was left open and untouched on GitHub**, no label change, pending
+Anthony's triage.
+
+While investigating #157's filter code, found a real, separate, unambiguous bug: the existing Due
+Date filter (This Week/This Month/Overdue) makes `filteredExpenses` silently return `[]` whenever
+it's active — expenses just vanish with zero explanation, likely part of what Hannah is actually
+hitting even though it's not the "type filter" she asked for. Filed as #164 (clear bug, no CRD
+needed per Step 1's carve-out). Investigated the `expenses` schema before building anything: no
+`due_date`/`frequency`/`is_recurring` field exists at all (`20260904120000_add_expenses_table.sql`'s
+own comment confirms these were deliberately dropped as "not applicable to variable spend"). Per the
+issue's explicit instruction not to guess, the builder did not fabricate a `created_at`-based
+date-filter semantic (which would misrepresent recurring variable spend — e.g. a 3-month-old logged
+grocery expense would wrongly vanish from "This Week" despite recurring weekly). Instead: expenses
+stay excluded when the Due Date filter is active, but a clear explanatory note now renders instead
+of a silent disappearance, with the "Overdue" case explicitly documented as intentional (no overdue
+concept for expenses). Independent review: **APPROVED** — schema claim independently reverified,
+the `hasExpensesHiddenByDateFilter` flag checked for false positives (correctly returns `false` for
+a genuinely empty household, not just "filter is off"), all 4 testing-checklist items walked and
+passed. One non-blocking suggestion noted for later, not actioned: `filteredExpenses` and the
+hidden-note flag duplicate the same search/category predicate in two places — safe today, worth a
+shared-helper extraction if either filter's logic changes independently in future. `v0.9.44` →
+`v0.9.45`, patch notes added. Labeled `needs-merge-approval` — pure calc/logic + UI text, no
+device-specific behavior involved.
+
+**[#156](https://github.com/mp3anthony/funded/issues/156) (infra: move transactional email off
+Anthony's personal Gmail) → unblocked, re-scoped, re-labeled `ready-for-human`, no code touched.**
+Anthony confirmed the main Hazardous Schematics site has now landed on its own domain, clearing the
+self-block from the prior session. **Scope correction found before doing anything else:** grepped
+the entire `funded` codebase for `mailjet`/`resend`/`smtp`/any from-address — zero matches anywhere
+in application code. This means the sender configuration almost certainly lives in **Supabase's own
+dashboard** (Authentication → Emails → SMTP Settings), not in this repo's code — so the original
+issue's step 4 ("update funded's own app code") is very likely not needed; there's nothing here for
+a build sub-agent to touch. Anthony confirmed Mailjet is already set up, he just needs the sending
+domain swapped from his personal Gmail. Since account/domain-setting changes are things the
+Orchestrator is not permitted to do on Anthony's behalf even with permission, posted a full
+step-by-step walkthrough as a comment on #156 (Mailjet: add + verify the sending domain → get its
+DNS records; Vercel: add those DNS records to the `hazardousschematics.com` domain, verify; Mailjet:
+create the actual sending address once verified; Supabase dashboard: swap the Sender email under
+Auth → Emails → SMTP Settings) and relabeled `ready-for-human`. **Worth knowing if this resurfaces:**
+no code path in this repo constructs or sends transactional email directly — if that assumption
+turns out wrong later (e.g. a hidden edge function does something with email), re-verify before
+trusting this note.
+
+**Workflow, extending the same pattern as every prior slice, but with an extra scoping layer this
+time (bug-report triage, not a single pre-scoped ticket):** for each of the 4 issues — investigate
+first (read-only sub-agent or direct grep/read), present findings in plain English, ask Anthony
+which direction to take, only then act. Two issues (#163, #164) went through the full
+build → independent review → cleanup-round → PR pipeline; two (#160, #156) needed no code at all,
+just correct triage disposition (fold into an existing thread; re-scope and hand off manual steps).
+**No orchestrator-authored code landed in either diff** — all implementation went through build
+sub-agents in isolated worktrees, all review went through separate fresh reviewer agents, matching
+`CLAUDE.md`'s separation-of-duties rule throughout. **Both #165 and #166 are left open, unmerged,
+awaiting Anthony** — see "→ START HERE NEXT SESSION" above for exactly what each needs.
 
 ## 2026-09-14 — #158/#161 (weekly income/surplus/health-score ignoring logged pay for fixed-amount schedules) investigated, built, reviewed (1 rework round), merged, CLOSED; 4 new in-app issues surfaced, untriaged
 
