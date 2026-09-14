@@ -30,7 +30,6 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successUrl, setSuccessUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastLoggedDescriptionLengthRef = useRef(0);
 
   function resetAndClose() {
@@ -264,7 +263,6 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
               >
                 <input
                   type="file"
-                  ref={fileInputRef}
                   onChange={handleFileChange}
                   accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif"
                   className="sr-only"

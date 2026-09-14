@@ -65,6 +65,9 @@ export async function uploadBugReportScreenshot(userId: string, file: File): Pro
     "image/jpeg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
+    "image/heic": "heic",
+    "image/heif": "heif",
+    "image/gif": "gif",
   };
   const fileExt = mimeExtMap[file.type] || file.name.split(".").pop() || "jpg";
   const timestamp = Date.now();
