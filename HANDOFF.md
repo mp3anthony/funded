@@ -1,9 +1,9 @@
 # Handoff
 
 **Last updated:** 2026-09-14 (continued session) — **all 4 queued in-app issues (#157/#159/#160/#156)
-triaged. Two built and PRs open, awaiting Anthony's action; two closed with no code needed.** See
-the dated section below for full detail. **PRs #165 and #166 are the two things this session left
-in-flight** — see "→ START HERE NEXT SESSION" below for exactly what each needs from Anthony.
+triaged; #163/#159 and #164 both merged to production at `v0.9.45`, both CLOSED.** Anthony
+confirmed manual testing passed on #165 (the iOS Safari tap fix) before merge. See the dated section
+below for full detail.
 
 **Last updated before that:** 2026-09-14 (earlier same session) — **#158/#161 (dashboard weekly
 income/surplus/health-score ignoring actual logged pay for fixed-amount schedules) investigated,
@@ -24,26 +24,12 @@ filed this session, deliberately NOT built** — Anthony is taking it in a diffe
 it alone unless he says otherwise. #148 and #145 (both `needs-info`) untouched this session.
 
 **→ START HERE NEXT SESSION:**
-0. **Two PRs open from this session, both need Anthony's action before anything else:**
-   - **[PR #165](https://github.com/mp3anthony/funded/pull/165)** (closes #159, closes #163) — the
-     screenshot-attach fix. Labeled `needs-manual-test` — the actual fix (replacing a
-     programmatic-`.click()` file-input trigger with a `<label>`-wrapped one, since that pattern is
-     a known cause of unresponsive taps on iOS Safari inside a modal) can't be confirmed without a
-     real iOS device. Vercel preview green. Reviewed and approved, cleanups already folded in
-     (unused `fileInputRef` removed, `storage.ts`'s `mimeExtMap` widened to match the new HEIC/
-     HEIF/GIF support). **Ask Anthony (or Hannah) to actually tap "Attach a screenshot" on the PR
-     preview from an iPhone before merging** — that's the one thing no amount of code review can
-     confirm.
-   - **[PR #166](https://github.com/mp3anthony/funded/pull/166)** (closes #164) — the expense
-     Due-Date-filter fix (found while investigating #157, see below). Labeled
-     `needs-merge-approval` — pure calc/logic + a UI text note, fully pipeline-verifiable, no
-     manual test needed. Vercel preview green, reviewed and approved. Just needs Anthony's
-     go-ahead to merge.
-   - **Both bump `APP_VERSION` 0.9.44 → 0.9.45 independently** — when merging both, expect the
-     exact same version.ts/patch-notes.ts conflict documented in the 2026-09-08 dated section below
-     (two same-day PRs both bumping the version). Resolve by keeping the higher version number and
-     both patch-notes entries in newest-first order, same as that precedent. Re-run `tsc` after
-     resolving, before completing the merge commit.
+0. **#163/#159 and #164 CLOSED this session (2026-09-14, continued) — both merged, production
+   confirmed live at `v0.9.45`.** No further action needed on either; flagged here only so a future
+   session doesn't re-litigate them. See the dated section below for full detail, including the
+   version.ts/patch-notes.ts merge conflict between the two PRs and how it was resolved (both
+   independently bumped to the same 0.9.45 — combined both patch-notes highlights under that one
+   entry rather than stacking two version numbers, since they landed at the identical number).
 1. **#158/#161 CLOSED this session (2026-09-14) — see the dated section below.** No further action
    needed; flagged here only so a future session doesn't re-litigate it. Worth a casual visual
    confirm next time Anthony's in the app that his real $3502.24 back-pay still shows correctly in
@@ -274,6 +260,22 @@ hidden-note flag duplicate the same search/category predicate in two places — 
 shared-helper extraction if either filter's logic changes independently in future. `v0.9.44` →
 `v0.9.45`, patch notes added. Labeled `needs-merge-approval` — pure calc/logic + UI text, no
 device-specific behavior involved.
+
+**Merge, same day:** Anthony manually tested #165 on a real device and confirmed both PRs good to
+merge. #165 merged first (clean, no conflicts against `main` yet). #166 then conflicted exactly as
+predicted — both PRs independently bumped `APP_VERSION` to the identical `0.9.45` (so `version.ts`
+itself merged automatically with no conflict at all — same string on both sides), leaving only
+`patch-notes.ts`'s `highlights` array in conflict. Resolved by combining both bullet points under
+the single 0.9.45 entry (not stacking two version numbers — precedent from 2026-09-08 doesn't
+directly apply here since the numbers matched exactly, but the same spirit: keep both entries'
+content, don't pick one side). Re-ran `tsc` clean after resolving, pushed the merge commit, waited
+for the fresh Vercel preview to go green, then squash-merged #166. **Production deployment verified
+directly via the Vercel MCP tool** (`list_teams` → `list_projects` → `list_deployments`, confirming
+deployment `dpl_FpWb743nCwTudYQFGPLgnBNQ7FjN` — the #166 merge commit `71fd533`, which by definition
+also carries #165's changes since it's the latest `main` — shows `target: "production"`,
+`state: "READY"`) — not just trusted from a green GitHub merge, per this repo's standing gotcha.
+Local `main` fast-forwarded, both worktrees removed, issues #159/#163/#164 all auto-closed via each
+PR's "Closes #___".
 
 **[#156](https://github.com/mp3anthony/funded/issues/156) (infra: move transactional email off
 Anthony's personal Gmail) → unblocked, re-scoped, re-labeled `ready-for-human`, no code touched.**
