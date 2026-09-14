@@ -32,6 +32,7 @@ export const patchNotes: PatchNoteEntry[] = [
     version: "0.9.45",
     date: "September 2026",
     highlights: [
+      "Fixed the screenshot attach button on the Report a Bug page not responding on some devices, and added support for more photo formats (including iPhone's default HEIC format and GIFs). Also made the \"invalid file\"/\"too large\" message easier to spot if a screenshot can't be attached.",
       "On the Bills page, filtering by Due Date (This Week, This Month, or Overdue) used to make all your expenses vanish from the list with no explanation. Expenses don't have a due date to filter by, so they're now clearly labelled as hidden while one of those filters is active, instead of silently disappearing.",
     ],
   },
