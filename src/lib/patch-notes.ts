@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.45",
+    date: "September 2026",
+    highlights: [
+      "Fixed the screenshot attach button on the Report a Bug page not responding on some devices, and added support for more photo formats (including iPhone's default HEIC format and GIFs). Also made the \"invalid file\"/\"too large\" message easier to spot if a screenshot can't be attached.",
+    ],
+  },
+  {
     version: "0.9.44",
     date: "September 2026",
     highlights: [

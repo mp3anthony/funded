@@ -30,7 +30,6 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successUrl, setSuccessUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastLoggedDescriptionLengthRef = useRef(0);
 
   function resetAndClose() {
@@ -54,9 +53,16 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     e.target.value = "";
     if (!file) return;
 
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    const validTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/heic",
+      "image/heif",
+      "image/gif",
+    ];
     if (!validTypes.includes(file.type)) {
-      setScreenshotError("Invalid file type. Only JPEG, PNG, and WebP are allowed.");
+      setScreenshotError("Invalid file type. Only JPEG, PNG, WebP, HEIC/HEIF, and GIF are allowed.");
       return;
     }
     if (file.size > MAX_SCREENSHOT_BYTES) {
@@ -250,29 +256,29 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
                 </button>
               </div>
             ) : (
-              <>
+              <label
+                className={`flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-border text-muted hover:text-foreground hover:bg-surface-raised text-xs font-semibold rounded-[2px] transition-colors w-fit ${
+                  isSubmitting ? "opacity-50 pointer-events-none" : "cursor-pointer"
+                }`}
+              >
                 <input
                   type="file"
-                  ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif"
+                  className="sr-only"
                   disabled={isSubmitting}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isSubmitting}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-border text-muted hover:text-foreground hover:bg-surface-raised text-xs font-semibold rounded-[2px] transition-colors disabled:opacity-50"
-                >
-                  <Paperclip size={14} />
-                  Attach a screenshot
-                </button>
-              </>
+                <Paperclip size={14} />
+                Attach a screenshot
+              </label>
             )}
 
             {screenshotError && (
-              <p className="text-[10px] text-destructive font-semibold uppercase tracking-wider">{screenshotError}</p>
+              <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+                <span className="font-bold">Screenshot not attached:</span>
+                <br />
+                {screenshotError}
+              </div>
             )}
           </div>
 
