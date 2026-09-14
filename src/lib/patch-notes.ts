@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.45",
+    date: "September 2026",
+    highlights: [
+      "On the Bills page, filtering by Due Date (This Week, This Month, or Overdue) used to make all your expenses vanish from the list with no explanation. Expenses don't have a due date to filter by, so they're now clearly labelled as hidden while one of those filters is active, instead of silently disappearing.",
+    ],
+  },
+  {
     version: "0.9.44",
     date: "September 2026",
     highlights: [
