@@ -117,12 +117,15 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
     } else {
       return paySchedules.reduce((sum, schedule) => {
         let amount = schedule.amount || 0;
-        if (!schedule.is_fixed_amount) {
-          const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
-          if (historyItems.length > 0) {
-            historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-            amount = historyItems[0].amount;
-          }
+        // #161: use the latest logged pay_history amount when one exists,
+        // regardless of is_fixed_amount — a fixed-amount schedule can still
+        // log a different actual pay (back pay, bonus, short pay) via the
+        // same "Log Pay" flow as a variable schedule. Fall back to the
+        // static schedule.amount only when no history has been logged yet.
+        const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
+        if (historyItems.length > 0) {
+          historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
+          amount = historyItems[0].amount;
         }
         return sum + convertAmount(amount, schedule.frequency, "weekly");
       }, 0);
@@ -132,12 +135,13 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
   const weeklyActualIncome = useMemo(() => {
     return paySchedules.reduce((sum, schedule) => {
       let amount = schedule.amount || 0;
-      if (!schedule.is_fixed_amount) {
-        const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
-        if (historyItems.length > 0) {
-          historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-          amount = historyItems[0].amount;
-        }
+      // #161: same fix as weeklyIncome above — check pay_history regardless
+      // of is_fixed_amount, falling back to schedule.amount only when no
+      // history exists yet.
+      const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
+      if (historyItems.length > 0) {
+        historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
+        amount = historyItems[0].amount;
       }
       return sum + convertAmount(amount, schedule.frequency, "weekly");
     }, 0);
@@ -314,12 +318,13 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
                 if (memberPaySchedules.length > 0) {
                   weeklyAmount = memberPaySchedules.reduce((sum, schedule) => {
                     let amount = schedule.amount || 0;
-                    if (!schedule.is_fixed_amount) {
-                      const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
-                      if (historyItems.length > 0) {
-                        historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-                        amount = historyItems[0].amount;
-                      }
+                    // #161: same fix as weeklyIncome/weeklyActualIncome above —
+                    // check pay_history regardless of is_fixed_amount, falling
+                    // back to schedule.amount only when no history exists yet.
+                    const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
+                    if (historyItems.length > 0) {
+                      historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
+                      amount = historyItems[0].amount;
                     }
                     return sum + convertAmount(amount, schedule.frequency, "weekly");
                   }, 0);

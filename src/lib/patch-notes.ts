@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.44",
+    date: "September 2026",
+    highlights: [
+      "Fixed the weekly income, weekly surplus, and health score on your dashboard not updating when your pay comes in higher or lower than usual, for people on a fixed pay schedule (e.g. back pay, a bonus, or a short pay). It now always reflects your latest logged pay, just like it already did for variable-pay schedules.",
+    ],
+  },
+  {
     version: "0.9.43",
     date: "September 2026",
     highlights: [
