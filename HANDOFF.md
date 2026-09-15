@@ -3,7 +3,16 @@
 Older, fully-closed session history (everything before 2026-09-07) lives in `HANDOFF-ARCHIVE.md` —
 not read at session start, open it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-14 (continued session) — **all 4 queued in-app issues (#157/#159/#160/#156)
+**Last updated:** 2026-09-15 — **process/tooling session, no app code touched.** Trimmed redundant
+restatement out of `CLAUDE.md`; split `HANDOFF.md`'s closed-out history (pre-2026-09-07) into
+`HANDOFF-ARCHIVE.md`; added a `CLAUDE.md` rule folding approved `to-spec` GitHub issues' durable
+decisions into `SPEC.md`; ran `setup-matt-pocock-skills` for this repo (`docs/agents/issue-tracker.md`,
+`triage-labels.md`, `domain.md`) so `to-spec`/`to-tickets`/`triage`/`qa` are configured instead of
+stopping to ask. All committed directly to `main` (commit `c93498a`) — no ticket, no version bump, no
+patch-notes entry (nothing user-facing changed). The open-items list below (#144/#145/#148/#152) is
+unaffected by this session; still the actual next work.
+
+**Last updated before that:** 2026-09-14 (continued session) — **all 4 queued in-app issues (#157/#159/#160/#156)
 triaged; #163/#159 and #164 both merged to production at `v0.9.45`, both CLOSED.** Anthony
 confirmed manual testing passed on #165 (the iOS Safari tap fix) before merge. See the dated section
 below for full detail.
