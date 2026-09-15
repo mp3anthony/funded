@@ -1,5 +1,3 @@
-# Lead Developer Liaison Protocol
-
 Applies to the app rebuild (React/Next.js on Vercel, Supabase backend).
 
 ## 1. The Orchestrator & Safety Gates
@@ -18,6 +16,7 @@ The Orchestrator is your single point of contact, project manager, and the only 
    * **In spec:** proceed to Step 2 as normal.
    * **Not in spec:** do not scope, do not touch the CRD. Append one line to root-level `CHANGE-LOG.md` (date, one-line description, affected area, status: `pending`). Label the conversation turn `out-of-spec` and tell you in plain English what was logged. Nothing else happens until you triage it in client hat.
    * **Bug fixes:** a clear defect in already-intended behaviour does not need a CRD — file it as an issue per Step 2 and build it directly. This only holds while the fix is unambiguous; see the Step 3 escalation trigger for when a "bug" turns out to be something else.
+   * **New feature specs (`to-spec`):** a spec produced by the `to-spec` skill publishes straight to a GitHub issue, not to `SPEC.md` — so `SPEC.md` never learns about it on its own. Once you approve that issue, fold only its durable/binding parts (Implementation Decisions, any new locked invariants) into a new `SPEC.md` section, with a one-line link back to the issue for the full Problem Statement/User Stories/Testing Decisions. Do this before or as `to-tickets` slices it, so Step 0/1/3 of a future session check against the real current spec instead of a stale one.
 2. **Problem Agreement:** You bring a problem or feature. The Orchestrator scopes it with you, agrees on the outcome, and files the issue with a testing checklist.
 3. **Autonomous Execution:** Once a plan is approved, the orchestrator delegates to sub-agents without interrupting you, **unless** a mandatory escalation trigger is hit:
    * Touches any hard invariant or locked architecture decision defined in `SPEC.md` (e.g. schema/migration changes, security-policy changes, or any guardrail the spec flags as locked).
@@ -26,18 +25,16 @@ The Orchestrator is your single point of contact, project manager, and the only 
    * **If the change touches layout, styling, or platform-native behaviour that needs hands-on verification:** label **`needs-manual-test`** — pings you to verify on the relevant device/platform before merge.
    * **If the change is fully verifiable in-pipeline (no manual verification needed):** label **`needs-merge-approval`** — sub-agent team pre-ticks the checklist; you just give the go-ahead to merge.
    * **Manual test checklist format (`needs-manual-test` only):** each scenario is a numbered item — a short bold title, then the exact setup steps, then one ✅ line stating the pass condition. Add a ❌ line only where there's a specific wrong-looking failure worth naming so you know it on sight (verbatim wording, an empty-state flash, a silent bounce-back). Call out explicitly any step that must happen without a reload / in a single tab / on a specific device — a fresh load can paper over the exact bug being tested.
-5. **Session Wrap-Up & Hand-Off:** When asked to wrap up or end the session, the orchestrator summarizes progress into a clean commit, updates the PR description, and updates a single root-level `HANDOFF.md` file — including exactly which ticket/section of `SPEC.md` was last active, so Step 0 of the next session can pick up without re-reading the whole spec.
+5. **Session Wrap-Up & Hand-Off:** When asked to wrap up or end the session, the orchestrator summarizes progress into a clean commit, updates the PR description, and updates a single root-level `HANDOFF.md` file — including exactly which ticket/section of `SPEC.md` was last active, so Step 0 of the next session can pick up without re-reading the whole spec. As part of the same wrap-up, sweep `HANDOFF.md`: any dated section whose issue is now fully closed with no open loose end still cited by the live digest gets moved into `HANDOFF-ARCHIVE.md`, so `HANDOFF.md` stays a short, current pointer instead of an ever-growing log.
 
 ---
 
 ## 3. Labels & Tracking
 
+`needs-info`, `needs-manual-test`, `needs-merge-approval`, and `out-of-spec` are defined inline in Section 2 above. Two more, not covered there:
+
 * **`needs-triage`**: Applied when an issue is filed; removed after review.
-* **`needs-info`**: Applied when manual input is required (always paired with a direct message to you).
-* **`ready-for-agent` / `ready-for-human`**: Indicates execution autonomy — whether the agent team can do the whole job, or part of it needs you directly (e.g. third-party dashboard config, account setup).
-* **`needs-manual-test`**: Applied when a preview needs your hands-on verification before merge.
-* **`needs-merge-approval`**: Applied when a change is complete and checklist pre-ticked — you just approve the merge.
-* **`out-of-spec`**: Applied when a request falls outside the current spec. Logged to `CHANGE-LOG.md`, not scoped, not actioned until you triage.
+* **`ready-for-agent` / `ready-for-human`**: Whether the agent team can do the whole job, or part of it needs you directly (e.g. third-party dashboard config, account setup).
 
 ---
 
@@ -57,6 +54,23 @@ The Orchestrator is your single point of contact, project manager, and the only 
 * **`SPEC.md`** — vertically-sliced spec derived from the CRD, **including this project's own technical guardrails** (stack, schema, layout, security rules, locked architecture decisions). This is the working reference during builds.
 * **`CHANGE-LOG.md`** — append-only inbox for out-of-spec requests. Read/written cheaply; triaged on demand.
 * **`HANDOFF.md`** — rolling session state, updated at wrap-up, read first at session start. Records exactly which ticket/section of `SPEC.md` was last active, so a new session usually doesn't need to re-read the full spec.
+* **`HANDOFF-ARCHIVE.md`** — closed-out session history swept out of `HANDOFF.md` at wrap-up (see Step 5). Not read at session start; open by hand only for old investigation detail.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub (`mp3anthony/funded`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default 5-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — all already exist verbatim on GitHub, no renames. This repo also has 3 additional project-specific labels (`needs-manual-test`, `needs-merge-approval`, `out-of-spec`, defined in Section 3 above) outside that vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context — no `CONTEXT.md`/`docs/adr/` yet; created lazily by `/domain-modeling` when needed. See `docs/agents/domain.md`.
 
 ---
 
