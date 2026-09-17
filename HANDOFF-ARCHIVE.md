@@ -1839,6 +1839,333 @@ Two things came out of that worth carrying forward:
   `overdueBills` filters the stored `status` **string** while `allInFuture` parses `dueDate` —
   independent. `mapBillFromDb` only ever *upgrades* status to `"Overdue"`, never clears a stored
   `"Overdue"` on a future date, and its `else if` skips the derivation entirely for
+
+---
+
+*(Swept from `HANDOFF.md` on 2026-09-17 — all issues below are closed/merged with no open loose end
+still cited by that file's live digest. #145's investigation stayed in `HANDOFF.md` itself since it
+was still an open, actively-referenced thread as of the sweep.)*
+
+## 2026-09-08 (continued session) — #154 (auto-pay false-overdue pushes + late-timestamp display) investigated, built, merged, CLOSED
+
+Anthony reported live, with two phone screenshots: a wall of "Bill Overdue" pushes for bills he
+believes are auto-pay (shouldn't be overdue at all), all timestamped "now"/"27m ago" at 11am/11:27am
+NZT despite his `notify_hour` being 19 (7pm); plus a bill detail modal showing a stale August due
+date and June invoice date that never seemed to progress cycle-to-cycle. No CRD needed — straight
+bug-fix territory per `CLAUDE.md` Step 1.
+
+**Investigation (background sub-agent, read-only first, then resumed to build once confirmed):**
+- **Root cause of the false-overdue pushes**: `generateReminders.ts` compared `bill.payment_type`
+  case-sensitively (`=== 'auto'` / `!== 'auto'`), but the DB stores it capitalized (`'Auto'`/
+  `'Manual'`), and the server cron path (`push-reminders/route.ts`) never normalizes it before this
+  check — only the client's `mapBillFromDb` lowercases it first. Every real Auto-pay bill was
+  silently falling into the Manual branch on the cron path, using the raw un-rolled-forward
+  `due_date` instead of `adjustAutopayBillDate()` — reproducing the exact #143 symptom, one
+  branch-selection step earlier than #143 itself touched. Confirmed live against 6 real bills
+  (Cloud services, Day Care, Disney, PC Finance, Prime, Rent) all genuinely misfiring.
+- **Root cause of the apparent 11am delivery**: NOT a scheduling bug — verified directly against
+  live Supabase data that Anthony's household delivers correctly (his pushes land at 19:00 NZT,
+  Hannah's at 09:00 NZT, both within ~3 seconds of `scheduled_for`). The real cause: `push.ts`/
+  `public/sw.js` never stamped a send-time `timestamp` on the push payload. Web push has no
+  delivery-time guarantee — a message can sit queued and only reach a sleeping/offline device much
+  later — so with no explicit timestamp, the OS stamps a late-rendered notification "now" (render
+  time, not send time), making an on-time overnight 7pm batch look like it just arrived once the
+  device reconnects. This matches Anthony's report closely (DB "now" at investigation time was
+  itself ~11:15am NZT, right when he reported seeing the burst).
+- **One dead end investigated and correctly ruled out, worth remembering:** an unscoped SQL query
+  (joining `notifications`/`bills` without a household filter) briefly looked like it had found a
+  *worse* bug — the same `dedupe_key` appearing at 3 different `scheduled_for` times per day. Turned
+  out to be the Orchestrator's own query mistake, pulling in an entirely different customer's
+  household ("Paull's Direct", Sydney timezone) that happens to reuse generic bill names like "Rent"
+  and "Cloud services". **This DB has other real customers' data in it, not just Anthony's test
+  household — always scope notification/bill queries to a specific household_id/user_id, never a
+  bare bill-name join.** Re-scoped correctly, no such bug exists for Anthony's own household.
+- **Unresolved, flagged rather than guessed at:** GEM VISA / ASB VISA / "Power" from Anthony's
+  second screenshot have zero matching notification history and aren't overdue per their current
+  `bills` rows — not explained by the case-sensitivity bug (which only affects the 6 bills above).
+  **Update (2026-09-17): Anthony confirmed no false overdue notifications since — this loose end has
+  not recurred and is being treated as closed.**
+- **Due date/invoice date question, deliberately NOT built** — confirmed as a real gap
+  (`invoice_date` has no rollover code anywhere; a "Paid" manual bill's status/due_date never
+  re-evaluates once cycled past again) but ambiguous product behavior, not a clean bug — flagged to
+  Anthony as `needs-info`-shaped rather than silently built. Still outstanding as of 2026-09-17 — see
+  `HANDOFF.md`'s "→ START HERE NEXT SESSION" list.
+
+**What got built and shipped, [PR #155](https://github.com/mp3anthony/funded/pull/155) (closes
+[#154](https://github.com/mp3anthony/funded/issues/154)):**
+- `generateReminders.ts`: case-insensitive `payment_type` comparison in both the Manual and Auto-Pay
+  branches, matching `adjustAutopayBillDate`'s own convention.
+- `push.ts`: stamps a real `timestamp: Date.now()` into the push payload at send time.
+- `public/sw.js`: passes that `timestamp` through into `showNotification()` (falling back to
+  `Date.now()` if absent) so a delayed on-device render shows the true send time.
+- Deleted 6 already-queued false-overdue notification rows generated under the old buggy logic
+  (Cloud services/Day Care/Disney/PC Finance/Prime/Rent, all for tonight's 7pm cycle) so they
+  wouldn't re-fire before the fix shipped.
+
+**Orchestrator independently re-verified before committing, not just trusted the sub-agent's
+self-report** — this run had come back flagged with a security-classifier warning ("blocked by
+classifier — review actions carefully"), so before acting on it: read the full `git diff` directly
+(clean, matches the stated changes, the one non-obvious line — a `CACHE_NAME` cache-bust bump in
+`sw.js` — matches this repo's own pre-existing "manual-test redeploy trigger" pattern from PR #121,
+not something new); re-ran the DB queries myself with correct household scoping to confirm both the
+bug and the cleanup were real (this is where the "Paull's Direct" false alarm above was caught and
+corrected); confirmed the 6 pending bad rows were actually gone before proceeding. **Worth
+remembering: a security-classifier flag on a sub-agent's tool use is a signal to verify independently
+before acting, not to blindly trust or blindly discard the agent's work — in this case the flagged
+run's actual changes were legitimate.**
+
+No CRD, no schema/migration — pure application logic. `v0.9.42` → `v0.9.43`, patch notes added.
+Filed [#154](https://github.com/mp3anthony/funded/issues/154) (retroactively, after building, given
+the same-day 7pm-cycle urgency — Anthony had already said "let's fix this first" before the issue
+existed) with a testing checklist. Vercel preview confirmed green via `gh pr checks`. Anthony
+confirmed merge. Squash-merged, branch deleted, local `main` fast-forwarded. **Production deployment
+verified directly via the Vercel MCP tool** (`list_teams` → `list_projects` → `list_deployments` →
+polled `get_deployment` on the merge commit `6883fc0`'s own deployment through `BUILDING` to
+`READY`, `target: "production"`, alias `funded-alpha.vercel.app` confirmed pointing at it) — not
+just trusted from a green GitHub merge, per this repo's standing gotcha.
+
+**Workflow, slightly different from the usual pattern given urgency:** Orchestrator delegated
+investigation-only first (background sub-agent, read-only) → user supplied a second screenshot with
+new evidence mid-investigation that contradicted the first pass's timing conclusion → Orchestrator
+resumed the same agent with the new evidence and authorized it to build once the cause was confirmed
+(skipping a separate build-sub-agent handoff, given the same-day urgency and that the investigating
+agent already had full context) → Orchestrator independently re-verified the diff and the live DB
+state before committing anything (extra scrutiny here specifically because of the classifier flag) →
+issue filed retroactively → PR opened, labeled `needs-merge-approval` → Anthony's go-ahead → merge →
+production verified. **No separate independent-review sub-agent this round** — a deliberate
+trade-off for same-day urgency, not the norm; worth resuming the normal build→independent-review
+split next time this isn't time-critical.
+
+## 2026-09-08 (new session) — #146 triaged into #151, built, reviewed, tuned, merged, CLOSED; #152 filed and parked for Anthony
+
+Opened by listing open GitHub issues. Anthony picked #146 (`out-of-spec` idea, dashboard tips
+ticker banner) to triage live rather than leave logged. Per his explicit steer, skipped the full
+`crd` skill (too small a feature to warrant it) and instead ran a plain-language discovery
+interview — one question at a time via `AskUserQuestion` — until every gap was closed (content
+source, motion style, dismiss persistence/behavior, placement vs. the existing mobile `BottomNav`,
+reduced-motion handling, tip copy ownership, hover-pause) before filing anything. Filed as
+[#151](https://github.com/mp3anthony/funded/issues/151), closed #146 pointing to it.
+
+**#151 built, reviewed, merged.** Build sub-agent added `DashboardTipsTicker.tsx` (fixed to
+viewport bottom, above `BottomNav` on mobile using the same clearance value `AppShell.tsx` already
+reserves), a `useReducedMotion` hook (new — none existed), and `dashboard-tips.ts` (a plain
+`string[]`, 10 tips, kept separate from the component per the ticket's "easily editable" ask, now
+carrying a staleness-review comment instructing future sessions to update it whenever a shipped
+feature changes user-facing behavior). `UpcomingBillsCard`/`ActiveGoalsCard` gained an
+`onMinimisedChange` callback prop so `page-client.tsx` can track both cards' minimised state and
+derive `bothCardsMinimised`, which drives the ticker's `active` prop. `v0.9.41` → `v0.9.42`,
+patch-notes entry added, confirmed with Anthony before merge.
+
+**Independent review (code-review skill, Standards + Spec axes, separate sub-agent from the
+builder, Anthony's explicit choice again this session):** Spec axis — 7/8 testing-checklist items
+passed; item 5 (dismiss) flagged as fading rather than hiding "immediately" per the issue's literal
+wording. Standards axis — two minor findings (unnecessary `useCallback`/`useMemo` wrappers around
+already-stable setters/cheap derivations in `page-client.tsx`, a Middle Man smell). Anthony asked
+for both fixed before merge; a separate builder sub-agent applied both, re-verified clean.
+
+**Three rounds of manual-test tuning after Anthony tried the PR preview, each a small direct
+build-sub-agent fix (never edited by the Orchestrator itself — caught and corrected one slip where
+the Orchestrator almost made a direct Edit, reverted immediately, redone via sub-agent):**
+1. Scroll speed too fast, banner popped in with zero delay → halved marquee speed (32s → 64s loop)
+   and added a 2s delay before the *initial* fade-in only (fade-out and dismiss stay instant).
+2. Fade-in still popped instead of animating → root cause was the `instantHide` mechanism toggling
+   the `transition-opacity` class on/off, so the class's presence and the opacity value could
+   change in the same render with nothing to transition from. Fixed by keeping the transition class
+   always present and doing the instant-dismiss via a direct `transitionDuration` DOM override
+   (reflowed, then handed back to CSS on the next frame) instead of removing the class.
+3. **Still** popped even with the transition structurally correct → real root cause was the easing
+   curve, not the transition mechanism: `--ease-standard` (`cubic-bezier(0.16,1,0.3,1)`,
+   documented as a "decelerate" curve for movement/scale) puts an opacity value at
+   ~visually-complete within the first ~20-30% of a 520ms duration, then flat for the rest — right
+   curve for something sliding into place, wrong for a plain crossfade. Swapped to `ease-in-out`,
+   which spreads the change evenly across the full duration. **Worth remembering if any other fade
+   in this codebase ever "looks instant" despite a correct transition-duration/class setup — check
+   the easing token before assuming the transition mechanism itself is broken.**
+
+Anthony confirmed round 3 ("Waaaay better") and said merge. Squash-merged PR #153, branch deleted,
+local `main` fast-forwarded, issue #151 auto-closed via "Closes #151".
+
+**#152 (Known Issues tab) scoped the same way (live discovery interview) and filed, then
+deliberately NOT built at the time.** Full spec, mechanism, and an 8-item testing checklist are on
+the issue itself; key decisions worth knowing if it resurfaces: repo was **public** at the time of
+scoping (confirmed via `gh repo view`), so no GitHub token/secret was assumed needed — **correction,
+2026-09-17: this assumption needs re-checking if the repo has since gone private; a comment was
+added to issue #152 itself noting it'll need a server-side token in that case, same PAT pattern as
+the bug-report route. Also corrected: this was never reserved for Anthony to build by hand — he's
+not a developer; it's `ready-for-agent` and gets picked up by whichever Claude session builds it.**
+Which issues surface is gated by a new `known-issue` label that **Claude** decides to apply (Anthony
+explicitly declined to own that judgment call — "I don't know what should be withheld from users");
+the user-facing blurb lives in a `## User-facing blurb` marked section inside the issue body itself
+(not a separate config file); fetch is server-side or in the pipeline, cached ~15 min; the tab must
+fail gracefully (friendly empty state, never an error) if the fetch fails; seeding at launch means
+adding the `known-issue` label + blurb to whichever currently-open bugs warrant it (candidates named
+on the issue: #148, #145).
+
+**Workflow, same pattern as every prior slice**: Orchestrator ran the discovery interview directly
+(no sub-agent for that — it's plan/scope work, not code) → filed the issue → build sub-agent →
+independent Standards+Spec review (separate sub-agent, code-review skill) → fixes sent back to a
+build sub-agent → pushed, PR opened `needs-manual-test` (layout/animation/mobile-stacking, correctly
+not pipeline-verifiable) → three small manual-test-driven tuning rounds, each delegated to a fresh
+build sub-agent → Anthony's go-ahead → merge. **No orchestrator-authored code landed in the diff** —
+one near-miss where the Orchestrator made a direct one-line Edit mid-diagnosis, caught immediately,
+reverted, and redone through a sub-agent before anything was pushed.
+
+## 2026-09-07 (new session) — #99 closed on GitHub; #143 (auto-pay overdue push) built, reviewed (2 rounds), merged, CLOSED
+
+Opened by listing open GitHub issues and reading this file's own "→ START HERE NEXT SESSION"
+pointer. Found a doc/GitHub mismatch: HANDOFF already said #99 was fully done and merged, but the
+issue itself was still open on GitHub with `ready-for-agent`. Anthony confirmed it just needed
+closing (the work was genuinely done) — closed it with a comment pointing back to PR #141. **Worth
+remembering: this file being right about the work doesn't mean GitHub reflects it — check both.**
+
+**#143 built:** root cause was two independent overdue checks that disagreed for auto-pay bills.
+The UI (`AppContext.tsx`'s `mapBillFromDb`) calls `adjustAutopayBillDate()` (`src/lib/utils.ts`) to
+roll a recurring auto-pay bill's stale stored `due_date` forward to its real next occurrence before
+ever checking overdue — so a normal auto-pay bill with an old stored date never shows Overdue. The
+push-reminder cron (`generateReminders.ts`) computed `diffDays` straight off the **raw** `due_date`
+with no such rollforward, so it fired a daily "Bill Overdue" push for bills the UI never considered
+overdue. Fix: `generateReminders.ts`'s Auto-Pay Bills branch now calls the same
+`adjustAutopayBillDate` the UI already uses, so cron and UI agree. A bill still genuinely overdue
+after rolling forward still fires "Bill Overdue" daily — untouched.
+
+**First independent review round: NEEDS-REWORK, one real blocking bug found** — not a nitpick.
+`adjustAutopayBillDate` computed "today" via the calling process's own `new Date()`, which is
+correct for its original browser-side caller but wrong for the new server-side cron caller: the
+cron already computes a household-timezone-local `todayYmd` (via `todayInZone()` in
+`src/lib/notifications/timezone.ts`) specifically because the Vercel server process's own UTC clock
+can disagree with a household's local calendar date around the cron's fixed daily UTC run hour
+(e.g. Sydney/Auckland-ish timezones). Using the server's raw clock inside `adjustAutopayBillDate`
+could fail to roll a due date forward on time right at that boundary, reintroducing the exact #143
+symptom through a different door. **Fix**: `adjustAutopayBillDate` gained an optional 4th param
+`todayYmd?: string` — omitted, behaves exactly as before (existing `AppContext.tsx` call site
+untouched); supplied, used instead of `new Date()`. `generateReminders.ts` now passes its own
+household-local `todayYmd` into the call.
+
+**Second independent review round (fresh agent): APPROVED**, walked a concrete Auckland/UTC
+scenario end-to-end confirming the fix is genuinely correct, traced `todayYmd` all the way back to
+`todayInZone(tz)` in the cron route, confirmed the browser-side call site's behavior is byte-for-byte
+unchanged, confirmed the original bug's core fix wasn't regressed by the follow-up commit. Both
+review rounds independently ran `tsc`/`next build`/lint themselves rather than trusting the builder.
+**One lint-count wrinkle worth knowing if it comes up again**: this repo's real `"lint"` script in
+`package.json` is a bare `"eslint"` (no path arg) — running it via `npm run lint` lints the *entire*
+repo including `supabase/functions/*` (Deno edge functions) and reports ~13,900 problems, wildly
+different from the ~101 both build agents and the first reviewer got by invoking `eslint .` or
+similar directly. Both numbers are self-consistent baselines (identical on `main` vs. the branch
+either way — no regression either way), just scoped differently; the orchestrator verified this
+directly by running `npm run lint` itself on both `main` and the branch. Not a bug, just a trap for
+next time someone reports a lint count that looks different from a prior session's.
+
+**Pushed as [PR #147](https://github.com/mp3anthony/funded/pull/147), labeled
+`needs-merge-approval`** — pure cron/calc logic, no UI/layout surface, fully verifiable in-pipeline.
+Vercel preview confirmed green via `gh pr checks`. `v0.9.38` → `v0.9.39`, confirmed with Anthony
+before merge. Squash-merged, remote branch deleted by `gh pr merge --delete-branch`; local `main`
+fast-forwarded automatically since this session did the merge itself. This session's own build-agent
+worktree (`agent-ac2a1c4fade02a432`) and its branch cleaned up after the cherry-pick onto the
+tracked branch landed. **Production deployment verified directly via the Vercel MCP tool**
+(`list_teams` → `list_projects` → `list_deployments`, confirming the merge commit `ae192ec`'s own
+deployment shows `target: "production"`, `state: "READY"`) — not just trusted from a green GitHub
+merge, per this repo's standing gotcha. Issue auto-closed by the PR's "Closes #143".
+
+**Workflow, same pattern as every prior slice**: build sub-agent (isolated worktree) → independent
+review sub-agent (never the builder, fresh agent) found a real bug → same builder fixed it (full
+context) → a second fresh reviewer verified the fix → orchestrator cherry-picked/pushed/opened the
+PR → Anthony's go-ahead → merge. **One rework round needed, not zero** — worth noting since several
+recent sub-slices went first-pass-clean; this is a reminder the review step actually catches things.
+
+## 2026-09-07 (continued) — PR #141 review-fix round, manual-test pass, merged; #99 CLOSED
+
+Anthony gave feedback on the PR #141 checklist from his phone: Dashboard's Household Health and
+Savings Goals expand/collapse showed the slow motion correctly, but **Upcoming Bills** and
+**Contributors** were instant; **Payday**'s pay-history expand was instant; the **avatar dropdown**
+opened/closed with zero motion (checklist item 5's explicit requirement). No spec question, no
+locked invariant — straight into the normal fail→fix→re-review loop.
+
+**Build sub-agent (isolated worktree)** fixed all four. Two turned out to live in different files
+than the ticket's literal names suggested — worth remembering if this class of report comes up
+again: "Dashboard Contributors" is a subsection inside `HealthScoreCard.tsx`, not a separate
+component; `ContributorSplits.tsx` is actually a bill-split-entry form with no collapse behavior at
+all. Likewise "Payday history" lives in `src/app/payday/payday-client.tsx`, not `PayHistoryCard.tsx`
+(a single non-collapsing row). The agent caught this itself by reading the real live code paths
+rather than forcing the fix onto the named-but-wrong file. `UpcomingBillsCard.tsx` and the
+`HealthScoreCard.tsx`/`payday-client.tsx` collapse sections were brought in line with the existing
+known-good `grid-template-rows: 1fr↔0fr` technique (same tokens as `ActiveGoalsCard.tsx`).
+`AvatarDropdown.tsx` gained a new `menu-panel-in` keyframe and a 3-state open/closing/closed machine
+so it plays its exit animation before unmounting, plus `active:scale-[0.98]` press feedback on its
+menu items.
+
+**Independent review (fresh agent, not the builder): APPROVED, zero findings.** Verified the two
+file-redirections were genuinely correct (grepped `ContributorSplits.tsx`/`PayHistoryCard.tsx` for
+collapse logic — none exists), confirmed the grid-row technique matches the reference implementation
+token-for-token, checked the AvatarDropdown state machine for a rapid open→close→open race or a
+timeout leak on unmount (none found), confirmed zero diff outside the 5 intended files. Independently
+re-ran `tsc`/`eslint`/`next build` itself rather than trusting the builder's numbers — matched
+exactly (101 problems/56 errors/45 warnings vs. 102/56/46 baseline, one dead-handler warning removed
+incidentally).
+
+Cherry-picked the reviewed commit onto the branch as `c607df8`, pushed, Vercel preview confirmed
+green. Posted a follow-up PR comment naming exactly the 4 items to re-test (everything already
+passed didn't need re-checking). **Anthony re-tested and confirmed all pass**, said "merge that."
+
+**Merge:** version reconfirmed at `v0.9.38` (unchanged — this was a rework commit on the same open
+PR, not a new build cycle, matching every prior round's convention). Relabeled `needs-manual-test` →
+`needs-merge-approval`. Reconciled this file's history against `main`'s own divergent copy (see the
+note near the top of this file) before merging, so the squash-merge wouldn't silently drop either
+copy's detail. Squash-merged PR #141, production deployment verified `READY` via the Vercel MCP
+tool (not just a green GitHub merge, per this repo's standing cron-deploy gotcha).
+
+**#99 is now fully CLOSED — the entire whole-app motion pass (7 sessions across multiple
+sub-passes: Foundation/Settings/AppShell/Dashboard in PR #129, Funds/Goals, Bills/Payday/shared
+sheets, Auth screens, this review-fix round) is live in production.** No ticket queued next beyond
+the four standalone bugs.
+
+## 2026-09-07 — QA session: 4 new bugs filed (no code touched), PR #141 still the priority
+
+Anthony reported 3 problems conversationally (in-app bug-report form freezing, auto-pay bills
+pinging "overdue" pushes, notification timing acting up including his wife barely getting any).
+Ran the `qa` skill: explored the relevant code in the background (bug-report form, overdue calc,
+notification scheduling/delivery) while lightly clarifying with him, then filed. **No code was
+changed this session** — pure triage/filing.
+
+- **[#142](https://github.com/mp3anthony/funded/issues/142)** — in-app "Report a Bug" form's
+  Description box stops accepting keystrokes past a certain length, no error/feedback, reported as
+  consistent/reproducible. **Worth knowing before picking this up:** the codebase exploration found
+  *no* `maxLength` or any other cap on the Description field in the current code (the sibling Title
+  field does have `maxLength={150}`, which would silently do exactly this if it were the field
+  mistaken for Description) — so the cause isn't obvious from reading the code and will need actual
+  reproduction, not just a source read.
+- **[#143](https://github.com/mp3anthony/funded/issues/143)** — auto-pay bills fire daily "Bill
+  Overdue" push notifications despite never showing as overdue in the bill list/health score.
+  **Root cause already located, not just reported:** `mapBillFromDb` (display/health-score path)
+  explicitly exempts `payment_type === "auto"` bills from ever being marked Overdue, but the
+  separate push-reminder cron (`generateReminders.ts`) computes overdue straight from the bill's
+  raw, unadjusted `due_date` with no such exemption — two independent overdue checks, only one of
+  which knows about auto-pay. Straightforward, unambiguous bug fix, no CRD needed.
+- **[#144](https://github.com/mp3anthony/funded/issues/144)** — reminder notifications drift off
+  the household's configured time (Auckland/7pm) instead of arriving consistently at that hour.
+  **Architecture-level cause already located:** the generation cron only runs once/day at a fixed
+  UTC instant (Vercel Hobby-plan cron-frequency ceiling, same constraint as the #96/Slice 11 gotcha
+  already documented above) and just fires per-household reminders whenever that single run
+  happens — a household's actual configured hour only matters for whether that reminder lands close
+  to on-time or noticeably off, depending on which side of the fixed daily run its timezone offset
+  falls on. The code's own comments call this an accepted trade-off already, not an oversight — so
+  this ticket is really "make the accepted trade-off less visible to users" rather than a pure
+  logic bug; worth surfacing that distinction to Anthony before scoping a fix, since a real fix
+  likely means revisiting the once-daily architecture (e.g. extending the existing Supabase
+  `pg_cron`/`pg_net` pattern already used for delivery, rather than another Vercel Cron attempt).
+- **[#145](https://github.com/mp3anthony/funded/issues/145)** — a secondary household member
+  (Anthony's wife) barely receives bill reminder push notifications despite having notifications
+  enabled on her phone, while the primary/owner member gets them reliably. **Leading hypothesis
+  from exploration, not yet confirmed:** delivery needs two separate per-user prerequisites that
+  aren't part of onboarding/invite-accept — a `notification_settings` row (only lazily created the
+  first time that user's client loads household data) and a `push_subscriptions` row (only created
+  when that specific person manually taps "Enable push notifications" in Settings on their own
+  device). A secondary member can easily be missing one or both without realizing it, and a missing
+  subscription is currently swallowed silently (marked delivered, nothing actually sent, no retry).
+  Worth asking Anthony to have her specifically check Settings → Push Notifications on her own
+  phone before assuming this is a logic bug rather than a one-time setup gap.
+
+All 4 labeled `bug`/`needs-triage` on GitHub — none touch a Part A locked invariant, no CRD needed,
+all clean build-when-picked-up bug fixes. No version bump, no patch-notes entry (nothing shipped).
   `payment_type === "auto"`. An auto-pay bill with stored `"Overdue"` and a future due date
   scores **100** with the flag, **80** without — an 8-point swing across the 80 boundary.
 - **`npm run lint` fails outright** — 96 problems, 53 errors, all pre-existing. One sits on
