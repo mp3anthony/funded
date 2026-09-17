@@ -17,9 +17,22 @@ const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024; // 5MB, matches the storage bucket
 // serialized, so it's never persisted — see the restore note below.
 const DRAFT_STORAGE_KEY = "bugReportDraft";
 
+// A restored draft is only honored if it was written within this many
+// milliseconds of being read. Without this, a draft left behind by a normal
+// SPA navigation away from Settings (which unmounts this component with no
+// synchronous cleanup on an Android renderer kill — see the unmount effect
+// below for the *clean* unmount case) would sit in sessionStorage for the
+// rest of the tab's lifetime and force-reopen the sheet with stale content
+// the next time the user happens to visit Settings, hours later, for an
+// unrelated reason. The window needs to be long enough to survive a real
+// Android reload-and-relaunch (which can take several seconds) but short
+// enough that it never plausibly spans "user wandered off and came back".
+const DRAFT_RESTORE_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
+
 interface BugReportDraft {
   title: string;
   description: string;
+  savedAt: number;
 }
 
 function readDraft(): BugReportDraft | null {
@@ -27,8 +40,14 @@ function readDraft(): BugReportDraft | null {
     const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (typeof parsed?.title !== "string" || typeof parsed?.description !== "string") return null;
-    return { title: parsed.title, description: parsed.description };
+    if (typeof parsed?.title !== "string" || typeof parsed?.description !== "string" || typeof parsed?.savedAt !== "number") {
+      return null;
+    }
+    if (Date.now() - parsed.savedAt > DRAFT_RESTORE_WINDOW_MS) {
+      // Stale — belongs to a much earlier visit, not a just-happened reload.
+      return null;
+    }
+    return { title: parsed.title, description: parsed.description, savedAt: parsed.savedAt };
   } catch {
     // sessionStorage unavailable (private browsing, blocked storage, etc.) —
     // fail silently, same as the app's other storage reads.
@@ -36,9 +55,9 @@ function readDraft(): BugReportDraft | null {
   }
 }
 
-function writeDraft(draft: BugReportDraft) {
+function writeDraft(draft: Omit<BugReportDraft, "savedAt">) {
   try {
-    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }));
   } catch {
     // Storage unavailable — draft persistence is best-effort only.
   }
@@ -104,6 +123,21 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     if (!effectiveOpen || successUrl) return;
     writeDraft({ title, description });
   }, [effectiveOpen, title, description, successUrl]);
+
+  // Clear the draft on unmount (#168 follow-up). BugReportSheet only lives
+  // inside the Settings page, so a normal in-app SPA navigation away from
+  // Settings unmounts this component cleanly and runs this cleanup — closing
+  // the gap where a leftover draft could force-reopen the sheet on some
+  // later, unrelated visit to Settings. This is a no-op for the Android
+  // renderer-kill case the feature exists for, since that kill doesn't run
+  // React cleanup effects at all — the DRAFT_RESTORE_WINDOW_MS staleness
+  // check above is what protects that path.
+  useEffect(() => {
+    return () => {
+      clearDraft();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function resetAndClose() {
     setTitle("");
