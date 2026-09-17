@@ -1,12 +1,56 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { CheckCircle2, Loader2, Paperclip, X } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 import { uploadBugReportScreenshot } from "@/lib/storage";
 
 const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024; // 5MB, matches the storage bucket's own limit
+
+// sessionStorage key for the in-progress draft (#168). Android/Chrome can
+// kill this tab's renderer while the native file-picker is foregrounded for
+// "Attach a screenshot", then does a fresh page load on return — wiping all
+// in-memory React state. We persist title/description (and the fact the
+// sheet was open) as the user types/attaches, and restore + reopen on mount
+// so that trip doesn't lose their draft. The screenshot File itself can't be
+// serialized, so it's never persisted — see the restore note below.
+const DRAFT_STORAGE_KEY = "bugReportDraft";
+
+interface BugReportDraft {
+  title: string;
+  description: string;
+}
+
+function readDraft(): BugReportDraft | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.title !== "string" || typeof parsed?.description !== "string") return null;
+    return { title: parsed.title, description: parsed.description };
+  } catch {
+    // sessionStorage unavailable (private browsing, blocked storage, etc.) —
+    // fail silently, same as the app's other storage reads.
+    return null;
+  }
+}
+
+function writeDraft(draft: BugReportDraft) {
+  try {
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch {
+    // Storage unavailable — draft persistence is best-effort only.
+  }
+}
+
+function clearDraft() {
+  try {
+    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch {
+    // Storage unavailable — nothing to clear.
+  }
+}
 
 interface BugReportSheetProps {
   isOpen: boolean;
@@ -32,6 +76,35 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   const [successUrl, setSuccessUrl] = useState<string | null>(null);
   const lastLoggedDescriptionLengthRef = useRef(0);
 
+  // Restored-draft state (#168) — set once on mount if a saved draft is
+  // found. `restoredOpen` forces the sheet open even though the parent's own
+  // `isOpen` state also got wiped by the reload; `showScreenshotRestoreNote`
+  // tells the user their previously-attached screenshot didn't survive.
+  const [restoredOpen, setRestoredOpen] = useState(false);
+  const [showScreenshotRestoreNote, setShowScreenshotRestoreNote] = useState(false);
+
+  const effectiveOpen = isOpen || restoredOpen;
+
+  // On mount: restore a saved draft, if any, and reopen the sheet.
+  useEffect(() => {
+    const draft = readDraft();
+    if (!draft) return;
+    setTitle(draft.title);
+    setDescription(draft.description);
+    setRestoredOpen(true);
+    setShowScreenshotRestoreNote(true);
+    // Mount-only restore.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the draft (title, description, and the fact the sheet is open)
+  // as the user types/interacts, so an Android renderer kill mid-picker
+  // doesn't lose it. Only while the sheet is actually open.
+  useEffect(() => {
+    if (!effectiveOpen || successUrl) return;
+    writeDraft({ title, description });
+  }, [effectiveOpen, title, description, successUrl]);
+
   function resetAndClose() {
     setTitle("");
     setDescription("");
@@ -45,6 +118,9 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     setSuccessUrl(null);
     setIsSubmitting(false);
     lastLoggedDescriptionLengthRef.current = 0;
+    setRestoredOpen(false);
+    setShowScreenshotRestoreNote(false);
+    clearDraft();
     onClose();
   }
 
@@ -76,6 +152,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
     });
+    setShowScreenshotRestoreNote(false);
   }
 
   function handleDescriptionChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -145,6 +222,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
       }
 
       setSuccessUrl(result.issueUrl || null);
+      clearDraft();
     } catch (err: unknown) {
       console.error("Bug report submission failed:", err);
       const message = err instanceof Error ? err.message : "Something went wrong submitting your report. Please try again.";
@@ -156,7 +234,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
 
   return (
     <Dialog
-      open={isOpen}
+      open={effectiveOpen}
       onClose={resetAndClose}
       title="Report a Bug"
       footer={
@@ -278,6 +356,13 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
                 <span className="font-bold">Screenshot not attached:</span>
                 <br />
                 {screenshotError}
+              </div>
+            )}
+
+            {showScreenshotRestoreNote && !screenshotPreviewUrl && (
+              <div className="bg-white/5 border border-border rounded-[2px] p-3 text-muted text-xs font-mono break-words whitespace-pre-wrap">
+                <span className="font-bold text-foreground">We restored your draft,</span> but your
+                screenshot couldn&apos;t be — please re-attach it if you still want it included.
               </div>
             )}
           </div>

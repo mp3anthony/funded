@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.46",
+    date: "September 2026",
+    highlights: [
+      "Fixed the Report a Bug form on some Android phones losing everything you'd typed (and closing itself) if the screen went blank for a moment while picking a screenshot. If that happens again, your title and description will now come back automatically — you'll just need to re-attach the screenshot, since the picked photo itself can't be recovered.",
+    ],
+  },
+  {
     version: "0.9.45",
     date: "September 2026",
     highlights: [
