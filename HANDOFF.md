@@ -3,12 +3,41 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-17 — **#144/#154/#148 all confirmed resolved and closed by Anthony; #168
-(Android bug-report draft loss) built + reviewed + PR open, waiting on Hannah's real-device test;
-#170 (remove bug-report tracking link) built, reviewed, merged, live in production at `v0.9.46`.**
+**Last updated:** 2026-09-21 — **#173 (light icon asset files) built, independently reviewed,
+merged (PR #175), live at `v0.9.47`. #174 was re-scoped mid-session and is next — nothing built yet.**
+Prior state (2026-09-17): #144/#154/#148 closed; #168 PR open waiting on Hannah's device test.
 See "→ START HERE NEXT SESSION" below for the current open-item list.
 
 **→ START HERE NEXT SESSION:**
+A. **BUILD [#174](https://github.com/mp3anthony/funded/issues/174)** (sub-issue of
+   [#172](https://github.com/mp3anthony/funded/issues/172), `ready-for-agent`; #173 is done, merged as
+   [PR #175](https://github.com/mp3anthony/funded/pull/175), production deployment verified `success`
+   at merge commit `15caca1`, `v0.9.47`). The issue body holds the full **revised** spec and testing
+   checklist — read it, don't re-grill. Branch from current `main` (already has #173's files and the
+   `0.9.47` bump → bump to `0.9.48`). Summary:
+   - **Scope was revised this session (Anthony approved) — the old "tab favicon only, home-screen icon
+     stays dark" plan is superseded.** #174 now: (1) media-scoped tab `<link rel="icon">` (light icon
+     under `prefers-color-scheme: light`, existing dark under dark), **and** (2) the home-screen icon —
+     `apple-touch-icon` in `src/app/layout.tsx` + `icons` in `public/manifest.json` — switches to the
+     **light** icon (`icon-light-512x512.png` for apple-touch; manifest 192+512 light), `?v=3` cache-bust.
+     Leave `manifest.json` `theme_color`/`background_color` and `viewport.themeColor` alone.
+   - **Why (don't re-litigate):** Anthony's bookmarked **Cartel** web link switches between light/dark
+     in iPhone Home Screen > Customise even though it's a plain Vercel PWA. Cartel declares ONE opaque
+     light icon (`cartel/mobile/public/icon.png`, 1024px, no alpha) and **iOS 18 auto-generates the dark
+     variant**. Funded's icon was already black (and 192px with semi-transparent corners), so the
+     auto-dark was visually identical and it never seemed to switch. Earlier HANDOFF/#174 text saying
+     "iOS has no dark support for web apps" (Apple forum thread 761615) was **wrong** — no *developer-
+     supplied* dark icon, but the OS darkens a single icon. Anthony's screenshots of the "Test"
+     (Funded preview) icon in Dark mode showed a slightly lighter charcoal tile, consistent with this.
+   - **Accepted trade-offs:** iOS's auto-dark isn't our black + lime; Android just shows the light icon;
+     already-installed home-screen icons never update (delete + re-add to see it); default icon for
+     new installs flips dark → light. True branded dark/light icons still need the future native/store
+     move (Anthony will file that himself; locked-stack change, nothing to do now).
+   - **Needs in the PR:** version bump + patch note, a `CHANGE-LOG.md` row (`done`, links #174, "not in
+     SPEC.md"), label `needs-manual-test` (iPhone: delete old icon → re-add from the preview → check
+     Default shows light, Customise > Dark shows OS-darkened version; report what Dark looks like).
+   - **Process:** build sub-agent in an isolated worktree → independent review sub-agent (standing rule,
+     don't ask) → Orchestrator commits/pushes/opens PR → `needs-manual-test`.
 0. **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
    bug-report screenshot-attach losing the draft) — open, `needs-manual-test`, NOT yet merged.**
    Hannah was going to try it for real (attach a screenshot on her actual device — Samsung Internet,
@@ -41,7 +70,16 @@ See "→ START HERE NEXT SESSION" below for the current open-item list.
    Both are logic-only changes (`AppContext.tsx`), no schema/migration involved, but the behavior
    change itself is a judgment call, not a clean bug fix — ask before building.
 
-**Closed this session (2026-09-17), no further action needed — flagged only so a future session
+**Other open issues, for completeness (2026-09-21 snapshot, no action taken this session):**
+[#167](https://github.com/mp3anthony/funded/issues/167) (Mailjet onboarding email campaign,
+`needs-info`/`ready-for-human`, not previously in this file),
+[#157](https://github.com/mp3anthony/funded/issues/157) (Bills page can't filter to expenses —
+logged `out-of-spec`, needs Anthony's call), and
+[#156](https://github.com/mp3anthony/funded/issues/156) (move transactional email off personal Gmail —
+`ready-for-human`, waiting on Anthony's manual Mailjet/DNS/Supabase steps). Also #168/PR #169 still
+waiting on Hannah's device test (item 0 above) — status unchecked this session.
+
+**Closed the previous session (2026-09-17), no further action needed — flagged only so a future session
 doesn't re-litigate:**
 - **[#144](https://github.com/mp3anthony/funded/issues/144)** — Anthony confirmed his own
   notifications now arrive at his configured time with nothing false. Closed.
