@@ -29,7 +29,7 @@ import AppShell from "@/components/AppShell";
 export const metadata: Metadata = {
   title: "Funded",
   description: "Household Finance Control Center",
-  manifest: "/manifest.json?v=2",
+  manifest: "/manifest.json?v=3",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -57,9 +57,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased bg-background">
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png?v=2" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png?v=2" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512x512.png?v=2" />
+        <link rel="apple-touch-icon" href="/icons/icon-light-512x512.png?v=3" />
+        <link rel="icon" type="image/png" sizes="192x192" media="(prefers-color-scheme: light)" href="/icons/icon-light-192x192.png?v=3" />
+        <link rel="icon" type="image/png" sizes="512x512" media="(prefers-color-scheme: light)" href="/icons/icon-light-512x512.png?v=3" />
+        <link rel="icon" type="image/png" sizes="192x192" media="(prefers-color-scheme: dark)" href="/icons/icon-192x192.png?v=3" />
+        <link rel="icon" type="image/png" sizes="512x512" media="(prefers-color-scheme: dark)" href="/icons/icon-512x512.png?v=3" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script
