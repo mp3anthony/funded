@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.47",
+    date: "September 2026",
+    highlights: [
+      "Added a light version of the app icon behind the scenes — no visible change.",
+    ],
+  },
+  {
     version: "0.9.46",
     date: "September 2026",
     highlights: [
