@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.48",
+    date: "September 2026",
+    highlights: [
+      "New light app icon: browser tabs now show it when your device is in light mode, and it is the icon used when you add Funded to your Home Screen. Icons already on your Home Screen will not change on their own. To get the new one, remove the app and add it again.",
+    ],
+  },
+  {
     version: "0.9.47",
     date: "September 2026",
     highlights: [
