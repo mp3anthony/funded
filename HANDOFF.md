@@ -3,13 +3,24 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-21 — **#173 (light icon asset files) built, independently reviewed,
-merged (PR #175), live at `v0.9.47`. #174 was re-scoped mid-session and is next — nothing built yet.**
+**Last updated:** 2026-09-21 (later) — **#174 built, independently reviewed (APPROVED), merged as
+[PR #176](https://github.com/mp3anthony/funded/pull/176) (`3934758`), production `READY` at `v0.9.48`.
+#172 (light icon) is now done end to end (#173 + #174).** Anthony gave the go-ahead to merge after
+looking at the preview; he did NOT report the full manual-test checklist results (iPhone re-add /
+Customise > Dark look, desktop light/dark tab check) — see item A below.
 Prior state (2026-09-17): #144/#154/#148 closed; #168 PR open waiting on Hannah's device test.
 See "→ START HERE NEXT SESSION" below for the current open-item list.
 
 **→ START HERE NEXT SESSION:**
-A. **BUILD [#174](https://github.com/mp3anthony/funded/issues/174)** (sub-issue of
+A. **#174 follow-ups (no build pending).** Ask Anthony how the icon looked: (1) desktop tab icon in
+   OS light/dark — if the tab shows the **Next.js default logo**, the unscoped `src/app/favicon.ico`
+   (create-next-app default, emitted by Next with no `media` scope) is winning over the media-scoped
+   icons; fix = delete/replace that file (reviewer's flagged risk, deliberately left out of PR #176);
+   (2) what iPhone Customise > Dark actually looks like after delete + re-add. Nothing to do if fine.
+   Worktree folder `.claude/worktrees/agent-af1dc5b8771b8d836` may remain on disk (Windows
+   "permission denied" on delete; git already unregistered it) — safe to delete by hand.
+   *Original #174 spec notes below are kept for context only (superseded — it's merged):*
+   **[#174](https://github.com/mp3anthony/funded/issues/174)** (sub-issue of
    [#172](https://github.com/mp3anthony/funded/issues/172), `ready-for-agent`; #173 is done, merged as
    [PR #175](https://github.com/mp3anthony/funded/pull/175), production deployment verified `success`
    at merge commit `15caca1`, `v0.9.47`). The issue body holds the full **revised** spec and testing
