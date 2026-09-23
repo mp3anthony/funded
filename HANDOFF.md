@@ -3,16 +3,37 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-21 (later) — **#174 built, independently reviewed (APPROVED), merged as
+**Last updated:** 2026-09-23 — **#157 (Bills page can't isolate expenses) grilled with Anthony and
+re-scoped from `out-of-spec` — decisions posted as a comment on the issue, sliced into 2 build
+sessions. Not built yet, no code touched this session.** See item A below for the full plan; a future
+session picks this up directly, no re-grilling needed.
+Prior state (2026-09-21 later): #174 built, independently reviewed (APPROVED), merged as
 [PR #176](https://github.com/mp3anthony/funded/pull/176) (`3934758`), production `READY` at `v0.9.48`.
-#172 (light icon) is now done end to end (#173 + #174).** Anthony gave the go-ahead to merge after
+#172 (light icon) is now done end to end (#173 + #174). Anthony gave the go-ahead to merge after
 looking at the preview; he did NOT report the full manual-test checklist results (iPhone re-add /
-Customise > Dark look, desktop light/dark tab check) — see item A below.
-Prior state (2026-09-17): #144/#154/#148 closed; #168 PR open waiting on Hannah's device test.
+Customise > Dark look, desktop light/dark tab check) — still open, see item B below.
 See "→ START HERE NEXT SESSION" below for the current open-item list.
 
 **→ START HERE NEXT SESSION:**
-A. **#174 follow-ups (no build pending).** Ask Anthony how the icon looked: (1) desktop tab icon in
+A. **[#157](https://github.com/mp3anthony/funded/issues/157) (Bills page can't isolate expenses) —
+   grilled and re-scoped 2026-09-23, ready to build, not yet started.** Full decisions are posted as a
+   comment on the issue — read that, don't re-grill. Summary: add a 4th filter, **Type** (All / Bills /
+   Expenses), to `bills-client.tsx`'s filter row (grid goes 2x2 mobile / 4-across desktop). When Type =
+   "Expenses", disable the Due Date control (it can never affect expenses — same spirit as #164's
+   existing explanatory note, but preventing the dead-end combo outright). Total Bar stays unaffected
+   by Type, consistent with how it already ignores Category/Due Date. Category dropdown keeps showing
+   all 7 fixed categories regardless of Type. Empty-state message becomes type-aware ("No expenses
+   match your search" / "No bills..."). **No schema change, no Part A escalation** — pure client-side
+   filter logic over data already fetched (`ListRow.kind`); confirmed this doesn't conflict with #98's
+   SPEC.md decision against a schema-level type-filter column (that was DB-level, this is UI-level).
+   **Build slicing (2 sessions):**
+   1. Type filter (functional): filter state, filteredBills/filteredExpenses logic, Type select
+      control + responsive layout change.
+   2. Interaction polish: disable Due Date when Type = Expenses; type-aware empty-state message.
+   Standard pipeline applies (isolated worktree build → independent review sub-agent, never the
+   builder → Orchestrator verifies diff → version bump + patch notes + `needs-merge-approval` label,
+   this is pure calc/UI logic, no device-specific behavior).
+B. **#174 follow-ups (no build pending).** Ask Anthony how the icon looked: (1) desktop tab icon in
    OS light/dark — if the tab shows the **Next.js default logo**, the unscoped `src/app/favicon.ico`
    (create-next-app default, emitted by Next with no `media` scope) is winning over the media-scoped
    icons; fix = delete/replace that file (reviewer's flagged risk, deliberately left out of PR #176);
@@ -83,9 +104,7 @@ A. **#174 follow-ups (no build pending).** Ask Anthony how the icon looked: (1) 
 
 **Other open issues, for completeness (2026-09-21 snapshot, no action taken this session):**
 [#167](https://github.com/mp3anthony/funded/issues/167) (Mailjet onboarding email campaign,
-`needs-info`/`ready-for-human`, not previously in this file),
-[#157](https://github.com/mp3anthony/funded/issues/157) (Bills page can't filter to expenses —
-logged `out-of-spec`, needs Anthony's call), and
+`needs-info`/`ready-for-human`, not previously in this file), and
 [#156](https://github.com/mp3anthony/funded/issues/156) (move transactional email off personal Gmail —
 `ready-for-human`, waiting on Anthony's manual Mailjet/DNS/Supabase steps). Also #168/PR #169 still
 waiting on Hannah's device test (item 0 above) — status unchecked this session.
