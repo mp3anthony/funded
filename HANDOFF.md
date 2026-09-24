@@ -11,18 +11,52 @@ message; #164 note now only shown for Type = All) merged as
 (APPROVED) and Anthony's manual test (all 5 items passed). No SPEC.md change (UI-only, no schema).
 CHANGE-LOG row for #157 marked `done`. Last active: #157 — not a SPEC.md ticket; no SPEC.md ticket in
 progress.
+**Later 2026-09-24 (no code changed):** #174 light home-screen icon confirmed broken on iPhone —
+investigated and scoped, fix handed to a new session. See item B below.
 See "→ START HERE NEXT SESSION" below for the current open-item list.
+
+**⚠️ FUNDED IS A MOBILE APP, NOT DESKTOP.** Installed home-screen app on iPhone (Anthony) and
+Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never lead with, test, or ask
+about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
 A. **#157 needs nothing further** — production deploy of `700e1ca` (v0.9.50) verified `success` at
    wrap-up. Next build is Anthony's pick from items B–3 below.
-B. **#174 follow-ups (no build pending).** Ask Anthony how the icon looked: (1) desktop tab icon in
-   OS light/dark — if the tab shows the **Next.js default logo**, the unscoped `src/app/favicon.ico`
-   (create-next-app default, emitted by Next with no `media` scope) is winning over the media-scoped
-   icons; fix = delete/replace that file (reviewer's flagged risk, deliberately left out of PR #176);
-   (2) what iPhone Customise > Dark actually looks like after delete + re-add. Nothing to do if fine.
-   Worktree folder `.claude/worktrees/agent-af1dc5b8771b8d836` may remain on disk (Windows
-   "permission denied" on delete; git already unregistered it) — safe to delete by hand.
+B. **#174 BUG — BUILD THIS NEXT (Anthony wants a new session to handle it).** The light home-screen
+   icon from PR #176 **does not work on iPhone**: after delete + re-add from Safari, the icon is still
+   the **OLD black + lime icon**, even with Customise set to Light. Anthony has already done delete +
+   re-add and the Customise toggle — **do not ask him to repeat those.** Treat as a bug fix to #174
+   (in scope, no CRD).
+   - **Verified 2026-09-24:** production (`funded-alpha.vercel.app`) serves the right head:
+     `apple-touch-icon` → `/icons/icon-light-512x512.png?v=3` (opaque off-white, green "f."), manifest
+     `?v=3` icons are the light PNGs. So the server side is correct; iOS is picking a dark icon instead.
+   - **Compared with Cartel** (`Code/cartel/mobile`, live `cartel-kappa.vercel.app`, whose icon *does*
+     switch light/dark in Customise). Cartel's head is minimal: one `apple-touch-icon` (`/icon.png`,
+     1024px, RGB no alpha), a manifest, a tiny 16–48px `favicon.ico`, theme-color metas. No other
+     icons, no `apple-mobile-web-app-*` metas, no service worker.
+   - **Likely causes in Funded, most likely first:**
+     1. `src/app/layout.tsx:60-64` also declares **dark** `rel="icon"` PNGs at 192/512 (media-scoped,
+        dark 512 listed last) + Next emits a 256px dark create-next-app `src/app/favicon.ico`. iOS
+        likely ignores `media` and grabs a large dark icon. Cartel offers nothing competing.
+     2. `public/sw.js` serves navigations stale-while-revalidate, so Safari can show an older cached
+        page whose head points at the dark icon; its precache list still holds the old dark icons
+        (`icon-192x192.png?v=2`, `icon-512x512.png?v=2`, `/favicon.ico`).
+   - **Agreed fix scope (Anthony saw it, told us to hand off):** make Funded's head match Cartel's —
+     light-only icons: remove the dark `rel="icon"` lines, replace `src/app/favicon.ico` with the
+     light Funded icon, drop the old dark icons from the SW precache list. **Do NOT touch**
+     `apple-mobile-web-app-capable` / standalone behaviour as a first step (bigger behaviour change;
+     only a fallback if the above fails). Desktop tab losing its dark variant is accepted (mobile app).
+   - **Test:** preview build → Anthony deletes icon, re-adds from the preview on iPhone. ✅ icon is
+     light AND flips in Customise > Dark. If it's light but *doesn't* flip, that settles it: iOS won't
+     darken it for us → the answer is the native app/store move, not more web tweaks.
+   - **Research caveat:** a sub-agent found **no primary Apple/WebKit source** saying iOS darkens
+     web-clip icons at all — the #174 premise rests only on Anthony's own observation of Cartel.
+     Trust his observation, but don't promise the Dark flip. The patch-note/#174 wording that "iOS
+     auto-generates the dark version" may need correcting after the test.
+   - Usual flow: sub-agent builds, separate sub-agent reviews, `+0.0.1` version bump + patch note,
+     label `needs-manual-test` (iPhone-only checklist).
+   - Worktree folder `.claude/worktrees/agent-af1dc5b8771b8d836` may remain on disk (Windows
+     "permission denied" on delete; git already unregistered it) — safe to delete by hand.
 0. **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
    bug-report screenshot-attach losing the draft) — open, `needs-manual-test`, NOT yet merged.**
    Hannah was going to try it for real (attach a screenshot on her actual device — Samsung Internet,
