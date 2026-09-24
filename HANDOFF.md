@@ -3,7 +3,20 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-24 (late session) — **#179 (iPhone home-screen icon still dark after #174)
+**Last updated:** 2026-09-24 (final session of the day) — **Notification tap destinations scoped
+(grilled with Anthony), filed as 2 tickets, nothing built yet.** Anthony wants tapping a payday
+notification to open Payday with the Log Pay / Confirm box up (like bill reminders open the bill
+popup). Investigation found a real bug too: every push with a related entity is linked to
+`/bills?billId=<id>` regardless of type (payday, lodge_payment, goal_milestone pushes all land on
+Bills). All decisions recorded in **SPEC.md Slice 16**; CHANGE-LOG entry logged as `approved`.
+Tickets: [#181](https://github.com/mp3anthony/funded/issues/181) (shared type→destination rule
+for both push paths + inbox; payday/lodge → Payday, goal → Funds; v0.9.52) →
+[#182](https://github.com/mp3anthony/funded/issues/182) (payday/confirm popups, schedule + pay
+date in link, late-tap-after-auto-log case; v0.9.53; natively `blocked_by` #181). Both
+`ready-for-agent` + `needs-manual-test`. **Last active: SPEC.md Slice 16 — next session starts
+#181.**
+
+Earlier same day: **#179 (iPhone home-screen icon still dark after #174)
 fixed, merged, closed.** Filed [#179](https://github.com/mp3anthony/funded/issues/179) as a bug
 follow-up to #174; build sub-agent made the head light-only (removed all media-scoped `rel="icon"`
 PNGs from `layout.tsx`, replaced dark `src/app/favicon.ico` with light 16/32/48 ICO, SW precache now
@@ -23,8 +36,12 @@ Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never le
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **#179/#174 need nothing further** — v0.9.51 live, confirmed on iPhone. Next build is Anthony's
-   pick from items B–3 below.
+A. **Build [#181](https://github.com/mp3anthony/funded/issues/181), then
+   [#182](https://github.com/mp3anthony/funded/issues/182)** — one session each, spec in SPEC.md
+   Slice 16. Build sub-agent → separate reviewer sub-agent (always, don't ask) → PR →
+   `needs-manual-test` (tap a real push on iPhone). #179/#174 need nothing further (v0.9.51 live).
+   Heads-up for #181: item B's push-icon fallback lives in the same two push-send spots — could be
+   folded in if Anthony agrees, but it's a separate unfiled change; ask first.
 B. **Small follow-up, NOT YET FILED (Anthony hasn't picked it):** push-notification fallback icon
    still uses the old dark `/icons/icon-192x192.png?v=2` in 4 places — `public/sw.js` (~line 125,
    push handler fallback), `src/lib/push.ts:47`, `src/app/api/cron/deliver-scheduled/route.ts:10`,

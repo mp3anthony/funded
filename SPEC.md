@@ -616,6 +616,35 @@ itself is a plain UI flow. Label **`needs-manual-test`**.
 
 ---
 
+### Slice 16: Notification tap destinations (Issues #181, #182)
+
+**Problem (out-of-spec item, approved by Anthony 2026-09-24):** tapping a
+bill reminder opens that bill's popup, but payday reminders do nothing in the
+inbox, and every push with a related entity is linked to
+`/bills?billId=<id>` regardless of type — so payday, "Payment Requires
+Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
+
+**Decisions (2026-09-24, grilled with Anthony):**
+- One shared type → destination rule, used by both push paths (client
+  app-open push + `deliver-scheduled` cron) **and** the inbox. Push and inbox
+  must never diverge.
+- Destinations: manual bill / auto-pay → Bills + that bill's popup
+  (unchanged); payday "Log Your Pay" → Payday; "Payment Requires
+  Confirmation" (lodge_payment) → Payday; goal milestone → Funds (page only,
+  no popup); anything else → home.
+- Payday landing: pay still loggable → Log Pay / Enter Pay Amount box for
+  that schedule; tapped late (already auto-logged as pending on load) →
+  Confirm box for the pending pay matching schedule **+ pay date**;
+  confirmation reminder → Confirm box for that pending pay; already
+  done/missing → plain Payday, no popup, no error.
+- Already-delivered pushes keep their old link — accepted, not backfilled.
+
+**Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52) →
+#182 (payday/confirm popups, v0.9.53, blocked by #181). Both
+**`needs-manual-test`** — real lock-screen push taps need a device.
+
+---
+
 ## Part C — Suggested Milestone Order (for confirmation, not final)
 
 Grouped by dependency, not strict sequence — slices within a group can
