@@ -2487,3 +2487,85 @@ checklist — read it, don't re-grill. Branch from current `main` (already has #
   Default shows light, Customise > Dark shows OS-darkened version; report what Dark looks like).
 - **Process:** build sub-agent in an isolated worktree → independent review sub-agent (standing rule,
   don't ask) → Orchestrator commits/pushes/opens PR → `needs-manual-test`.
+
+## 2026-09-14 — #158/#161 (weekly income/surplus/health-score ignoring logged pay for fixed-amount schedules) investigated, built, reviewed (1 rework round), merged, CLOSED; 4 new in-app issues surfaced, untriaged
+
+Opened with the standard Step 0 flow: read `HANDOFF.md` first. Listed open GitHub issues to check
+for drift against the doc and found **4 issues filed via the in-app bug-report tool that weren't in
+HANDOFF at all** — [#157](https://github.com/mp3anthony/funded/issues/157),
+[#159](https://github.com/mp3anthony/funded/issues/159),
+[#160](https://github.com/mp3anthony/funded/issues/160) (all `from-app`), plus
+[#156](https://github.com/mp3anthony/funded/issues/156) (not from-app, migrated from ATLAS's
+cross-department task bank, self-blocked on the main Hazardous Schematics site landing first — no
+action taken or needed). Surfaced these to Anthony but did not scope/build any of them this
+session — see "→ START HERE NEXT SESSION" above for the full breakdown and priority read on each.
+
+**#158 (Anthony, from-app): "Weekly surplus not including surplus added to payday."** Anthony flagged
+real urgency mid-conversation — the evidence (a ~$1600 back-pay bump) would age out of visibility
+once his next scheduled payday (2026-09-22) landed, so investigated immediately rather than parking
+as a scoping conversation.
+
+**Root cause found and confirmed live, not guessed:** `HealthScoreCard.tsx`'s `weeklyIncome`/
+`weeklyActualIncome` calcs only checked `pay_history` for **variable**-amount pay schedules
+(`if (!schedule.is_fixed_amount)`) — a **fixed**-amount schedule always fell back to the static
+`schedule.amount`, even though fixed-amount schedules log real pay via the identical "Log Pay" flow.
+Confirmed directly in Supabase (project `cswjhomkhuzxxdwvtbjv`): Anthony's fortnightly schedule
+(`amount: 1893.79`, `is_fixed_amount: true`) had a real `pay_history` row of `3502.24` logged
+2026-09-08 that the dashboard never picked up. Filed as
+[#161](https://github.com/mp3anthony/funded/issues/161) (closes #158) with a 4-item testing
+checklist, per Step 1 (clear bug fix, no CRD needed).
+
+**Workflow deviation this session, worth remembering:** Anthony initially said "just merge it, you
+can approve it as the orchestrator" (i.e. skip independent review entirely). The Orchestrator pushed
+back per `CLAUDE.md`'s "Challenge Me"/separation-of-duties rules — this touches real money-facing
+calculations, and self-approval is exactly what that rule exists to prevent — and asked for explicit
+confirmation before taking that shortcut. Anthony then clarified he actually wanted the normal
+independent-review flow, just without a manual test on his end ("as long as it's reviewed... I'm
+sure with your approval we will be ok"). Reverted to the standard build → independent review →
+Orchestrator-verified → merge pipeline. **This paid off**: the independent reviewer found a real,
+correctly-scoped miss — the identical bug pattern existed a **third** time in the same file
+(`HealthScoreCard.tsx`'s per-member "Contributors" breakdown, ~line 317), which the original build
+agent's own repo-wide grep claim ("no duplicate found") had missed because it was a second
+occurrence *inside* the same file it had already touched, not a separate file. Sent back to the same
+build agent (full context retained) → fixed identically → re-reviewed → **APPROVED**, zero further
+findings.
+
+**What got built, [PR #162](https://github.com/mp3anthony/funded/pull/162) (closes #161, closes
+#158):** all three occurrences in `HealthScoreCard.tsx` (`weeklyIncome`, `weeklyActualIncome`, and
+the per-member Contributors reducer) now check the latest `pay_history` row for a schedule
+unconditionally, falling back to `schedule.amount` only when no history exists yet — bringing
+fixed-amount schedules in line with how variable-amount ones already worked. Logic-only, no
+schema/migration.
+
+**Verification, both by the reviewer and independently by the Orchestrator:** `tsc --noEmit` clean,
+`next build` clean (all 19 routes), `npm run lint` 101 problems (56 errors/45 warnings) — identical
+to `main`'s own baseline, zero regression. Orchestrator personally read the full diff before
+approving (not just the sub-agents' self-reports) — confirmed scoped to exactly the 3 intended files
+(`HealthScoreCard.tsx`, `version.ts`, `patch-notes.ts`), no scope creep. All 4 testing-checklist items
+on #161 verified by hand-trace by both the reviewer and Orchestrator (pure calc logic, no live device
+needed): fixed-schedule-with-history now uses the logged amount; no-history falls back safely
+(no NaN/crash); variable-schedule behavior is byte-for-byte unchanged; Joint Fund households
+(`isJointFund` branch, uses `householdContributions`) are untouched by the diff.
+
+`v0.9.43` → `v0.9.44`, patch notes added ("Fixed the weekly income, weekly surplus, and health score
+on your dashboard not updating when your pay comes in higher or lower than usual, for people on a
+fixed pay schedule..."). Pushed as PR #162, labeled `needs-merge-approval` (pure calc logic, fully
+pipeline-verifiable, no manual test needed). Vercel preview confirmed green via `gh pr checks`.
+Squash-merged, branch/worktrees cleaned up, local `main` fast-forwarded to `cf825d7`. **Production
+deployment verified directly via the Vercel MCP tool** (`list_teams` → `list_projects` →
+`list_deployments`, confirming the merge commit's own deployment `dpl_AmeTycJagiG9FsVFuZQFSBXzFMKo`
+shows `target: "production"`, `state: "READY"`) — not just trusted from a green GitHub merge, per
+this repo's standing gotcha.
+
+**Worth checking next time Anthony's in the app** (see "→ START HERE NEXT SESSION" item 1): his real
+$3502.24 back-pay should now show correctly in Weekly Income/Surplus/Contributors — worth a casual
+visual confirm before his next scheduled payday (2026-09-22) cycles the evidence out of view.
+
+**Workflow, same pattern as most prior sessions after the one deliberate detour above:** Orchestrator
+investigated and confirmed root cause directly (live Supabase queries, not guessed) → filed the issue
+with a testing checklist → build sub-agent (isolated worktree) → independent review sub-agent (never
+the builder, fresh agent) found a real bug on round 1 → same builder fixed it (full context) →
+re-reviewed, APPROVED → Orchestrator independently re-verified the diff itself before merging → PR
+opened, Vercel green → merged → production verified via Vercel MCP. **One rework round needed, not
+zero** — the near-miss on skipping review entirely is worth remembering next time speed pressure
+tempts cutting that step.
