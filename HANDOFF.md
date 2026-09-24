@@ -3,7 +3,20 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-24 (final session of the day) — **Notification tap destinations scoped
+**Last updated:** 2026-09-24 (evening) — **Launch video made via `/brag`; no app code, no SPEC.md
+ticket touched.** 23.5s portrait video recreating Dashboard / Bill Details → Mark as Paid / Payday →
+Log Pay / Goals → Add Amount from the real components, all data fictional (members "Sam"/"Riley").
+Output lives **outside the repo** at
+`D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-09-24-060937\` (`brag.mp4`,
+`brag.jpg`, `brag-plan.md` with the substitution table, `share-copy.txt`, `composition/` for
+re-renders). Known deviations from the real UI were listed to Anthony in-session (scripted On Track →
+Fully Funded flip, tab crossfades, no iOS keyboard on autofocused inputs, Segoe UI wordmark on the
+Windows render). Offered next: install Hyperframes skills for music-reactive glow, show the keyboard,
+or re-roll tone — none picked. Check music licence (brag skill `assets/music/README.md`) before
+posting publicly. Also swept the closed 2026-09-14 section into `HANDOFF-ARCHIVE.md`. **Last active
+SPEC ticket unchanged: Slice 16 — next session still starts #181.**
+
+Earlier same day (final build-planning session): **Notification tap destinations scoped
 (grilled with Anthony), filed as 2 tickets, nothing built yet.** Anthony wants tapping a payday
 notification to open Payday with the Log Pay / Confirm box up (like bill reminders open the bill
 popup). Investigation found a real bug too: every push with a related entity is linked to
@@ -274,125 +287,6 @@ review) and should be the default going forward without needing to ask each time
 **Also caught and fixed mid-session:** local `main` had 3 unpushed doc-only commits from the
 2026-09-15 session (see the "Gotcha caught this session" note above) — merged and pushed alongside
 this session's own work so `main` is now fully in sync with GitHub.
-
-## 2026-09-14 (continued session) — all 4 queued in-app issues triaged one by one; 2 built + PRs open (#165/#166), 2 closed with no code needed
-
-Continuation of the same day's session, picked up exactly where the earlier entry (below) left off:
-the 4 untriaged in-app issues. Anthony asked to triage one at a time, pausing between each for his
-input, with each disposition reflected on the GitHub issue itself — followed that pattern
-throughout, no batch decisions.
-
-**[#159](https://github.com/mp3anthony/funded/issues/159) (Hannah: can't attach a screenshot on
-Report a Bug) → built as [#163](https://github.com/mp3anthony/funded/issues/163) →
-[PR #165](https://github.com/mp3anthony/funded/pull/165), `needs-manual-test`.** Investigated
-first: the client-side MIME/size check, the Supabase Storage bucket policy, and the GitHub-issue
-API route were all internally consistent — nothing in the code was an obvious, confirmed bug.
-Rather than guess blind, asked Anthony directly; he confirmed the actual symptom was "tapping the
-button did nothing," which pointed at the hidden-`<input type=file>` +
-`fileInputRef.current?.click()` trigger pattern — a known source of unresponsive taps on iOS Safari
-inside a modal/sheet. Filed #163 as defensive hardening (root cause not 100% pinned, but
-high-confidence): replaced the click-trigger pattern with a `<label>`-wrapped file input (also
-fixes keyboard accessibility — the old hidden input was unreachable by Tab/Enter, now it isn't);
-widened accepted screenshot types to include HEIC/HEIF (iPhone's default photo format) and GIF
-alongside JPEG/PNG/WebP, via both the client check and a new Supabase migration
-(`20260914000000_widen_bug_report_screenshot_mime_types.sql`) widening the bucket's
-`allowed_mime_types`; made the inline validation error visually prominent (matched to the existing
-`submitError` banner pattern already in the same file, not invented styling). Independent review
-(separate agent, not the builder): **APPROVED**, two non-blocking nits found and folded in before
-the PR was opened — an unused `fileInputRef` left over after removing the programmatic click, and
-`storage.ts`'s `mimeExtMap` not yet covering the new HEIC/HEIF/GIF types (fell back to a
-filename-extension guess, worked but was inconsistent). Both fixed by the same builder, re-verified
-clean. `v0.9.44` → `v0.9.45`, patch notes added. **Labeled `needs-manual-test`, not
-`needs-merge-approval`** — the one thing this fix can't be confirmed by without a real iOS device is
-exactly the bug it's fixing (a tap not registering), so code review alone can't close the loop here.
-
-**[#160](https://github.com/mp3anthony/funded/issues/160) (Hannah: notification 46 min late,
-Android S25FE) → folded into #145, closed, no code touched.** Per the prior session's own steer,
-did not scope this as a standalone bug — posted the report as a comment on the already-parked #145
-thread (secondary-member push-delivery investigation) and closed #160 to avoid tracking the same
-likely root cause under two issue numbers. #145 stays parked exactly as before, still waiting on
-Anthony talking to Hannah directly.
-
-**[#157](https://github.com/mp3anthony/funded/issues/157) (Hannah: Bills page filters can't isolate
-expenses) → scope-checked, logged `out-of-spec`, left open/untriaged. One real bug found along the
-way → built as [#164](https://github.com/mp3anthony/funded/issues/164) →
-[PR #166](https://github.com/mp3anthony/funded/pull/166), `needs-merge-approval`.** Ran the Step 1
-Scope Check before touching anything: no bill-vs-expense type filter exists anywhere in the code,
-and — critically — this isn't an oversight. Slice 12/#98's own history (see the dated section
-further down) shows Anthony explicitly rejected a separate-tabs bills/expenses design in favor of
-one interleaved list ("I hate the switch"), so a "filter to isolate expenses" request reopens a
-direction already deliberately steered away from once. Logged to `CHANGE-LOG.md` as `out-of-spec`
-rather than silently built — it's a cheap, low-risk addition if Anthony wants it (a third dropdown
-alongside the existing Category/Due-Date filters, no schema/redesign involved), but it's his call,
-not a bug fix. **#157 itself was left open and untouched on GitHub**, no label change, pending
-Anthony's triage.
-
-While investigating #157's filter code, found a real, separate, unambiguous bug: the existing Due
-Date filter (This Week/This Month/Overdue) makes `filteredExpenses` silently return `[]` whenever
-it's active — expenses just vanish with zero explanation, likely part of what Hannah is actually
-hitting even though it's not the "type filter" she asked for. Filed as #164 (clear bug, no CRD
-needed per Step 1's carve-out). Investigated the `expenses` schema before building anything: no
-`due_date`/`frequency`/`is_recurring` field exists at all (`20260904120000_add_expenses_table.sql`'s
-own comment confirms these were deliberately dropped as "not applicable to variable spend"). Per the
-issue's explicit instruction not to guess, the builder did not fabricate a `created_at`-based
-date-filter semantic (which would misrepresent recurring variable spend — e.g. a 3-month-old logged
-grocery expense would wrongly vanish from "This Week" despite recurring weekly). Instead: expenses
-stay excluded when the Due Date filter is active, but a clear explanatory note now renders instead
-of a silent disappearance, with the "Overdue" case explicitly documented as intentional (no overdue
-concept for expenses). Independent review: **APPROVED** — schema claim independently reverified,
-the `hasExpensesHiddenByDateFilter` flag checked for false positives (correctly returns `false` for
-a genuinely empty household, not just "filter is off"), all 4 testing-checklist items walked and
-passed. One non-blocking suggestion noted for later, not actioned: `filteredExpenses` and the
-hidden-note flag duplicate the same search/category predicate in two places — safe today, worth a
-shared-helper extraction if either filter's logic changes independently in future. `v0.9.44` →
-`v0.9.45`, patch notes added. Labeled `needs-merge-approval` — pure calc/logic + UI text, no
-device-specific behavior involved.
-
-**Merge, same day:** Anthony manually tested #165 on a real device and confirmed both PRs good to
-merge. #165 merged first (clean, no conflicts against `main` yet). #166 then conflicted exactly as
-predicted — both PRs independently bumped `APP_VERSION` to the identical `0.9.45` (so `version.ts`
-itself merged automatically with no conflict at all — same string on both sides), leaving only
-`patch-notes.ts`'s `highlights` array in conflict. Resolved by combining both bullet points under
-the single 0.9.45 entry (not stacking two version numbers — precedent from 2026-09-08 doesn't
-directly apply here since the numbers matched exactly, but the same spirit: keep both entries'
-content, don't pick one side). Re-ran `tsc` clean after resolving, pushed the merge commit, waited
-for the fresh Vercel preview to go green, then squash-merged #166. **Production deployment verified
-directly via the Vercel MCP tool** (`list_teams` → `list_projects` → `list_deployments`, confirming
-deployment `dpl_FpWb743nCwTudYQFGPLgnBNQ7FjN` — the #166 merge commit `71fd533`, which by definition
-also carries #165's changes since it's the latest `main` — shows `target: "production"`,
-`state: "READY"`) — not just trusted from a green GitHub merge, per this repo's standing gotcha.
-Local `main` fast-forwarded, both worktrees removed, issues #159/#163/#164 all auto-closed via each
-PR's "Closes #___".
-
-**[#156](https://github.com/mp3anthony/funded/issues/156) (infra: move transactional email off
-Anthony's personal Gmail) → unblocked, re-scoped, re-labeled `ready-for-human`, no code touched.**
-Anthony confirmed the main Hazardous Schematics site has now landed on its own domain, clearing the
-self-block from the prior session. **Scope correction found before doing anything else:** grepped
-the entire `funded` codebase for `mailjet`/`resend`/`smtp`/any from-address — zero matches anywhere
-in application code. This means the sender configuration almost certainly lives in **Supabase's own
-dashboard** (Authentication → Emails → SMTP Settings), not in this repo's code — so the original
-issue's step 4 ("update funded's own app code") is very likely not needed; there's nothing here for
-a build sub-agent to touch. Anthony confirmed Mailjet is already set up, he just needs the sending
-domain swapped from his personal Gmail. Since account/domain-setting changes are things the
-Orchestrator is not permitted to do on Anthony's behalf even with permission, posted a full
-step-by-step walkthrough as a comment on #156 (Mailjet: add + verify the sending domain → get its
-DNS records; Vercel: add those DNS records to the `hazardousschematics.com` domain, verify; Mailjet:
-create the actual sending address once verified; Supabase dashboard: swap the Sender email under
-Auth → Emails → SMTP Settings) and relabeled `ready-for-human`. **Worth knowing if this resurfaces:**
-no code path in this repo constructs or sends transactional email directly — if that assumption
-turns out wrong later (e.g. a hidden edge function does something with email), re-verify before
-trusting this note.
-
-**Workflow, extending the same pattern as every prior slice, but with an extra scoping layer this
-time (bug-report triage, not a single pre-scoped ticket):** for each of the 4 issues — investigate
-first (read-only sub-agent or direct grep/read), present findings in plain English, ask Anthony
-which direction to take, only then act. Two issues (#163, #164) went through the full
-build → independent review → cleanup-round → PR pipeline; two (#160, #156) needed no code at all,
-just correct triage disposition (fold into an existing thread; re-scope and hand off manual steps).
-**No orchestrator-authored code landed in either diff** — all implementation went through build
-sub-agents in isolated worktrees, all review went through separate fresh reviewer agents, matching
-`CLAUDE.md`'s separation-of-duties rule throughout. **Both #165 and #166 are left open, unmerged,
-awaiting Anthony** — see "→ START HERE NEXT SESSION" above for exactly what each needs.
 
 ## 2026-09-08 — #142 and #144 scoped, built, reviewed, merged, CLOSED; #145 investigated then parked
 
