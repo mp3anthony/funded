@@ -429,7 +429,10 @@ export default function BillsClient() {
       {/* Issue #164: explanatory note when the Due Date filter is hiding
           expenses that would otherwise be in this list, instead of them
           silently disappearing with no indication why. */}
-      {hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
+      {/* Issue #157: suppressed when Type = Bills — expenses are then hidden
+          by the user's own Type choice, not the date filter, so the note
+          would be misleading. */}
+      {typeFilter !== "bills" && hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
         <div className="px-1">
           <p className="text-[11px] text-muted font-body italic">
             {dateFilterHidesExpensesMessage}
