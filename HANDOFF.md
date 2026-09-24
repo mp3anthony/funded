@@ -3,16 +3,19 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-24 — **#157 (Bills page can't isolate expenses) fully done and closed.**
-Slice 1 (Type filter All/Bills/Expenses) merged as [PR #177](https://github.com/mp3anthony/funded/pull/177)
-(`v0.9.49`). Slice 2 (Due Date disabled + reset to "All" when Type = Expenses; type-aware empty-state
-message; #164 note now only shown for Type = All) merged as
-[PR #178](https://github.com/mp3anthony/funded/pull/178) (`700e1ca`, `v0.9.50`) after independent review
-(APPROVED) and Anthony's manual test (all 5 items passed). No SPEC.md change (UI-only, no schema).
-CHANGE-LOG row for #157 marked `done`. Last active: #157 — not a SPEC.md ticket; no SPEC.md ticket in
-progress.
-**Later 2026-09-24 (no code changed):** #174 light home-screen icon confirmed broken on iPhone —
-investigated and scoped, fix handed to a new session. See item B below.
+**Last updated:** 2026-09-24 (late session) — **#179 (iPhone home-screen icon still dark after #174)
+fixed, merged, closed.** Filed [#179](https://github.com/mp3anthony/funded/issues/179) as a bug
+follow-up to #174; build sub-agent made the head light-only (removed all media-scoped `rel="icon"`
+PNGs from `layout.tsx`, replaced dark `src/app/favicon.ico` with light 16/32/48 ICO, SW precache now
+lists light `?v=3` icons instead of dark `?v=2`). Separate reviewer: APPROVED. Merged as
+[PR #180](https://github.com/mp3anthony/funded/pull/180) (`ef08a68`, `v0.9.51`), production deploy
+verified `success`. **Anthony confirmed on iPhone: icon is light AND flips light/dark on demand in
+Customise** — so the #174 premise ("iOS auto-generates the dark version") is confirmed; the
+research caveat from the earlier session is resolved (comment posted on #174). Root cause was the
+competing dark icons in the head, not iOS refusing to darken. No SPEC.md change. Last active: #179 —
+not a SPEC.md ticket; no SPEC.md ticket in progress.
+Earlier same day: #157 fully closed ([PR #177](https://github.com/mp3anthony/funded/pull/177) `v0.9.49`,
+[PR #178](https://github.com/mp3anthony/funded/pull/178) `v0.9.50`).
 See "→ START HERE NEXT SESSION" below for the current open-item list.
 
 **⚠️ FUNDED IS A MOBILE APP, NOT DESKTOP.** Installed home-screen app on iPhone (Anthony) and
@@ -20,43 +23,19 @@ Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never le
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **#157 needs nothing further** — production deploy of `700e1ca` (v0.9.50) verified `success` at
-   wrap-up. Next build is Anthony's pick from items B–3 below.
-B. **#174 BUG — BUILD THIS NEXT (Anthony wants a new session to handle it).** The light home-screen
-   icon from PR #176 **does not work on iPhone**: after delete + re-add from Safari, the icon is still
-   the **OLD black + lime icon**, even with Customise set to Light. Anthony has already done delete +
-   re-add and the Customise toggle — **do not ask him to repeat those.** Treat as a bug fix to #174
-   (in scope, no CRD).
-   - **Verified 2026-09-24:** production (`funded-alpha.vercel.app`) serves the right head:
-     `apple-touch-icon` → `/icons/icon-light-512x512.png?v=3` (opaque off-white, green "f."), manifest
-     `?v=3` icons are the light PNGs. So the server side is correct; iOS is picking a dark icon instead.
-   - **Compared with Cartel** (`Code/cartel/mobile`, live `cartel-kappa.vercel.app`, whose icon *does*
-     switch light/dark in Customise). Cartel's head is minimal: one `apple-touch-icon` (`/icon.png`,
-     1024px, RGB no alpha), a manifest, a tiny 16–48px `favicon.ico`, theme-color metas. No other
-     icons, no `apple-mobile-web-app-*` metas, no service worker.
-   - **Likely causes in Funded, most likely first:**
-     1. `src/app/layout.tsx:60-64` also declares **dark** `rel="icon"` PNGs at 192/512 (media-scoped,
-        dark 512 listed last) + Next emits a 256px dark create-next-app `src/app/favicon.ico`. iOS
-        likely ignores `media` and grabs a large dark icon. Cartel offers nothing competing.
-     2. `public/sw.js` serves navigations stale-while-revalidate, so Safari can show an older cached
-        page whose head points at the dark icon; its precache list still holds the old dark icons
-        (`icon-192x192.png?v=2`, `icon-512x512.png?v=2`, `/favicon.ico`).
-   - **Agreed fix scope (Anthony saw it, told us to hand off):** make Funded's head match Cartel's —
-     light-only icons: remove the dark `rel="icon"` lines, replace `src/app/favicon.ico` with the
-     light Funded icon, drop the old dark icons from the SW precache list. **Do NOT touch**
-     `apple-mobile-web-app-capable` / standalone behaviour as a first step (bigger behaviour change;
-     only a fallback if the above fails). Desktop tab losing its dark variant is accepted (mobile app).
-   - **Test:** preview build → Anthony deletes icon, re-adds from the preview on iPhone. ✅ icon is
-     light AND flips in Customise > Dark. If it's light but *doesn't* flip, that settles it: iOS won't
-     darken it for us → the answer is the native app/store move, not more web tweaks.
-   - **Research caveat:** a sub-agent found **no primary Apple/WebKit source** saying iOS darkens
-     web-clip icons at all — the #174 premise rests only on Anthony's own observation of Cartel.
-     Trust his observation, but don't promise the Dark flip. The patch-note/#174 wording that "iOS
-     auto-generates the dark version" may need correcting after the test.
-   - Usual flow: sub-agent builds, separate sub-agent reviews, `+0.0.1` version bump + patch note,
-     label `needs-manual-test` (iPhone-only checklist).
-   - Worktree folder `.claude/worktrees/agent-af1dc5b8771b8d836` may remain on disk (Windows
-     "permission denied" on delete; git already unregistered it) — safe to delete by hand.
+A. **#179/#174 need nothing further** — v0.9.51 live, confirmed on iPhone. Next build is Anthony's
+   pick from items B–3 below.
+B. **Small follow-up, NOT YET FILED (Anthony hasn't picked it):** push-notification fallback icon
+   still uses the old dark `/icons/icon-192x192.png?v=2` in 4 places — `public/sw.js` (~line 125,
+   push handler fallback), `src/lib/push.ts:47`, `src/app/api/cron/deliver-scheduled/route.ts:10`,
+   `src/context/AppContext.tsx` (~line 4649). Once switched to light, the old dark files
+   `public/icons/icon-192x192.png` / `icon-512x512.png` can be deleted (nothing else references
+   them). Also optional: `public/manifest.json` still has black `background_color` / lime
+   `theme_color`, and `sw.js` line 1 has a stale "PR #121 redeploy trigger" comment. Cosmetic.
+   - **Stale worktrees on disk** under `.claude/worktrees/` (4 still git-registered from older
+     sessions: `agent-a2a73983b2b027590`, `agent-a69059c3969148cdd` (#157 branch, merged),
+     `agent-a69afbc08584a8fcc`, `agent-a7f44c7f216119be5`, plus unregistered
+     `agent-af1dc5b8771b8d836`). Offered cleanup to Anthony; not done yet.
 0. **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
    bug-report screenshot-attach losing the draft) — open, `needs-manual-test`, NOT yet merged.**
    Hannah was going to try it for real (attach a screenshot on her actual device — Samsung Internet,
