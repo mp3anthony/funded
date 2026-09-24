@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.50",
+    date: "September 2026",
+    highlights: [
+      "When you're viewing only Expenses on the Bills page, the Due Date filter is now greyed out and switches back to \"All\" — expenses don't have due dates, so it wouldn't do anything (and could otherwise hide all your expenses).",
+      "The \"nothing found\" message on the Bills page now says whether it's bills or expenses it couldn't find, based on the Type you've picked.",
+    ],
+  },
+  {
     version: "0.9.49",
     date: "September 2026",
     highlights: [
