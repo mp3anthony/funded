@@ -2453,3 +2453,37 @@ into the relevant issue body):
 - Closed: #91, #95 https://github.com/mp3anthony/funded/issues/91 (ensureHousehold error handling)
   and https://github.com/mp3anthony/funded/issues/95 (orphaned income table), both fixed in PR #108
   this session — see "#91 & #95" section above
+
+---
+
+## #174 light-icon wiring — original spec notes (archived 2026-09-24; merged as PR #176, v0.9.48)
+
+**[#174](https://github.com/mp3anthony/funded/issues/174)** (sub-issue of
+[#172](https://github.com/mp3anthony/funded/issues/172), `ready-for-agent`; #173 is done, merged as
+[PR #175](https://github.com/mp3anthony/funded/pull/175), production deployment verified `success`
+at merge commit `15caca1`, `v0.9.47`). The issue body holds the full **revised** spec and testing
+checklist — read it, don't re-grill. Branch from current `main` (already has #173's files and the
+`0.9.47` bump → bump to `0.9.48`). Summary:
+- **Scope was revised this session (Anthony approved) — the old "tab favicon only, home-screen icon
+  stays dark" plan is superseded.** #174 now: (1) media-scoped tab `<link rel="icon">` (light icon
+  under `prefers-color-scheme: light`, existing dark under dark), **and** (2) the home-screen icon —
+  `apple-touch-icon` in `src/app/layout.tsx` + `icons` in `public/manifest.json` — switches to the
+  **light** icon (`icon-light-512x512.png` for apple-touch; manifest 192+512 light), `?v=3` cache-bust.
+  Leave `manifest.json` `theme_color`/`background_color` and `viewport.themeColor` alone.
+- **Why (don't re-litigate):** Anthony's bookmarked **Cartel** web link switches between light/dark
+  in iPhone Home Screen > Customise even though it's a plain Vercel PWA. Cartel declares ONE opaque
+  light icon (`cartel/mobile/public/icon.png`, 1024px, no alpha) and **iOS 18 auto-generates the dark
+  variant**. Funded's icon was already black (and 192px with semi-transparent corners), so the
+  auto-dark was visually identical and it never seemed to switch. Earlier HANDOFF/#174 text saying
+  "iOS has no dark support for web apps" (Apple forum thread 761615) was **wrong** — no *developer-
+  supplied* dark icon, but the OS darkens a single icon. Anthony's screenshots of the "Test"
+  (Funded preview) icon in Dark mode showed a slightly lighter charcoal tile, consistent with this.
+- **Accepted trade-offs:** iOS's auto-dark isn't our black + lime; Android just shows the light icon;
+  already-installed home-screen icons never update (delete + re-add to see it); default icon for
+  new installs flips dark → light. True branded dark/light icons still need the future native/store
+  move (Anthony will file that himself; locked-stack change, nothing to do now).
+- **Needs in the PR:** version bump + patch note, a `CHANGE-LOG.md` row (`done`, links #174, "not in
+  SPEC.md"), label `needs-manual-test` (iPhone: delete old icon → re-add from the preview → check
+  Default shows light, Customise > Dark shows OS-darkened version; report what Dark looks like).
+- **Process:** build sub-agent in an isolated worktree → independent review sub-agent (standing rule,
+  don't ask) → Orchestrator commits/pushes/opens PR → `needs-manual-test`.

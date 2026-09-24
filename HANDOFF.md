@@ -3,36 +3,19 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-23 — **#157 (Bills page can't isolate expenses) grilled with Anthony and
-re-scoped from `out-of-spec` — decisions posted as a comment on the issue, sliced into 2 build
-sessions. Not built yet, no code touched this session.** See item A below for the full plan; a future
-session picks this up directly, no re-grilling needed.
-Prior state (2026-09-21 later): #174 built, independently reviewed (APPROVED), merged as
-[PR #176](https://github.com/mp3anthony/funded/pull/176) (`3934758`), production `READY` at `v0.9.48`.
-#172 (light icon) is now done end to end (#173 + #174). Anthony gave the go-ahead to merge after
-looking at the preview; he did NOT report the full manual-test checklist results (iPhone re-add /
-Customise > Dark look, desktop light/dark tab check) — still open, see item B below.
+**Last updated:** 2026-09-24 — **#157 (Bills page can't isolate expenses) fully done and closed.**
+Slice 1 (Type filter All/Bills/Expenses) merged as [PR #177](https://github.com/mp3anthony/funded/pull/177)
+(`v0.9.49`). Slice 2 (Due Date disabled + reset to "All" when Type = Expenses; type-aware empty-state
+message; #164 note now only shown for Type = All) merged as
+[PR #178](https://github.com/mp3anthony/funded/pull/178) (`700e1ca`, `v0.9.50`) after independent review
+(APPROVED) and Anthony's manual test (all 5 items passed). No SPEC.md change (UI-only, no schema).
+CHANGE-LOG row for #157 marked `done`. Last active: #157 — not a SPEC.md ticket; no SPEC.md ticket in
+progress.
 See "→ START HERE NEXT SESSION" below for the current open-item list.
 
 **→ START HERE NEXT SESSION:**
-A. **[#157](https://github.com/mp3anthony/funded/issues/157) (Bills page can't isolate expenses) —
-   grilled and re-scoped 2026-09-23, ready to build, not yet started.** Full decisions are posted as a
-   comment on the issue — read that, don't re-grill. Summary: add a 4th filter, **Type** (All / Bills /
-   Expenses), to `bills-client.tsx`'s filter row (grid goes 2x2 mobile / 4-across desktop). When Type =
-   "Expenses", disable the Due Date control (it can never affect expenses — same spirit as #164's
-   existing explanatory note, but preventing the dead-end combo outright). Total Bar stays unaffected
-   by Type, consistent with how it already ignores Category/Due Date. Category dropdown keeps showing
-   all 7 fixed categories regardless of Type. Empty-state message becomes type-aware ("No expenses
-   match your search" / "No bills..."). **No schema change, no Part A escalation** — pure client-side
-   filter logic over data already fetched (`ListRow.kind`); confirmed this doesn't conflict with #98's
-   SPEC.md decision against a schema-level type-filter column (that was DB-level, this is UI-level).
-   **Build slicing (2 sessions):**
-   1. Type filter (functional): filter state, filteredBills/filteredExpenses logic, Type select
-      control + responsive layout change.
-   2. Interaction polish: disable Due Date when Type = Expenses; type-aware empty-state message.
-   Standard pipeline applies (isolated worktree build → independent review sub-agent, never the
-   builder → Orchestrator verifies diff → version bump + patch notes + `needs-merge-approval` label,
-   this is pure calc/UI logic, no device-specific behavior).
+A. **#157 needs nothing further** — production deploy of `700e1ca` (v0.9.50) verified `success` at
+   wrap-up. Next build is Anthony's pick from items B–3 below.
 B. **#174 follow-ups (no build pending).** Ask Anthony how the icon looked: (1) desktop tab icon in
    OS light/dark — if the tab shows the **Next.js default logo**, the unscoped `src/app/favicon.ico`
    (create-next-app default, emitted by Next with no `media` scope) is winning over the media-scoped
@@ -40,36 +23,6 @@ B. **#174 follow-ups (no build pending).** Ask Anthony how the icon looked: (1) 
    (2) what iPhone Customise > Dark actually looks like after delete + re-add. Nothing to do if fine.
    Worktree folder `.claude/worktrees/agent-af1dc5b8771b8d836` may remain on disk (Windows
    "permission denied" on delete; git already unregistered it) — safe to delete by hand.
-   *Original #174 spec notes below are kept for context only (superseded — it's merged):*
-   **[#174](https://github.com/mp3anthony/funded/issues/174)** (sub-issue of
-   [#172](https://github.com/mp3anthony/funded/issues/172), `ready-for-agent`; #173 is done, merged as
-   [PR #175](https://github.com/mp3anthony/funded/pull/175), production deployment verified `success`
-   at merge commit `15caca1`, `v0.9.47`). The issue body holds the full **revised** spec and testing
-   checklist — read it, don't re-grill. Branch from current `main` (already has #173's files and the
-   `0.9.47` bump → bump to `0.9.48`). Summary:
-   - **Scope was revised this session (Anthony approved) — the old "tab favicon only, home-screen icon
-     stays dark" plan is superseded.** #174 now: (1) media-scoped tab `<link rel="icon">` (light icon
-     under `prefers-color-scheme: light`, existing dark under dark), **and** (2) the home-screen icon —
-     `apple-touch-icon` in `src/app/layout.tsx` + `icons` in `public/manifest.json` — switches to the
-     **light** icon (`icon-light-512x512.png` for apple-touch; manifest 192+512 light), `?v=3` cache-bust.
-     Leave `manifest.json` `theme_color`/`background_color` and `viewport.themeColor` alone.
-   - **Why (don't re-litigate):** Anthony's bookmarked **Cartel** web link switches between light/dark
-     in iPhone Home Screen > Customise even though it's a plain Vercel PWA. Cartel declares ONE opaque
-     light icon (`cartel/mobile/public/icon.png`, 1024px, no alpha) and **iOS 18 auto-generates the dark
-     variant**. Funded's icon was already black (and 192px with semi-transparent corners), so the
-     auto-dark was visually identical and it never seemed to switch. Earlier HANDOFF/#174 text saying
-     "iOS has no dark support for web apps" (Apple forum thread 761615) was **wrong** — no *developer-
-     supplied* dark icon, but the OS darkens a single icon. Anthony's screenshots of the "Test"
-     (Funded preview) icon in Dark mode showed a slightly lighter charcoal tile, consistent with this.
-   - **Accepted trade-offs:** iOS's auto-dark isn't our black + lime; Android just shows the light icon;
-     already-installed home-screen icons never update (delete + re-add to see it); default icon for
-     new installs flips dark → light. True branded dark/light icons still need the future native/store
-     move (Anthony will file that himself; locked-stack change, nothing to do now).
-   - **Needs in the PR:** version bump + patch note, a `CHANGE-LOG.md` row (`done`, links #174, "not in
-     SPEC.md"), label `needs-manual-test` (iPhone: delete old icon → re-add from the preview → check
-     Default shows light, Customise > Dark shows OS-darkened version; report what Dark looks like).
-   - **Process:** build sub-agent in an isolated worktree → independent review sub-agent (standing rule,
-     don't ask) → Orchestrator commits/pushes/opens PR → `needs-manual-test`.
 0. **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
    bug-report screenshot-attach losing the draft) — open, `needs-manual-test`, NOT yet merged.**
    Hannah was going to try it for real (attach a screenshot on her actual device — Samsung Internet,
