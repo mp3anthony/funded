@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.51",
+    date: "September 2026",
+    highlights: [
+      "On iPhone, the Funded home-screen icon should now show the new light icon instead of the old black one. If yours still looks dark, remove Funded from your home screen and add it again from Safari.",
+      "The small Funded icon shown in browser tabs now uses the new light design too.",
+    ],
+  },
+  {
     version: "0.9.50",
     date: "September 2026",
     highlights: [
