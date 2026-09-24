@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.49",
+    date: "September 2026",
+    highlights: [
+      "New Type filter on the Bills page: pick Bills or Expenses to see just one or the other, or All to see both together like before. It works alongside search and the other filters, and the total at the top stays the same whichever you pick.",
+    ],
+  },
+  {
     version: "0.9.48",
     date: "September 2026",
     highlights: [

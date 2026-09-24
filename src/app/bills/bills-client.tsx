@@ -56,6 +56,10 @@ export default function BillsClient() {
   const [isAddExpenseSheetOpen, setIsAddExpenseSheetOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "week" | "month" | "overdue">("all");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  // Issue #157: isolate bills from expenses in the unified list. Only
+  // affects which rows are listed — the Total Bar deliberately ignores it,
+  // same as Category and Due Date.
+  const [typeFilter, setTypeFilter] = useState<"all" | "bills" | "expenses">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [displayFrequency, setDisplayFrequency] = useState<FrequencyType>("weekly");
 
@@ -129,6 +133,8 @@ export default function BillsClient() {
     const today = isMounted ? new Date() : new Date("2026-07-05");
     today.setHours(0, 0, 0, 0);
 
+    if (typeFilter === "expenses") return [];
+
     return bills.filter((b) => {
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
@@ -151,7 +157,7 @@ export default function BillsClient() {
       if (filter === "overdue") return d.getTime() < today.getTime() && b.status !== "Paid";
       return true;
     });
-  }, [bills, filter, searchQuery, categoryFilter]);
+  }, [bills, filter, searchQuery, categoryFilter, typeFilter]);
 
   /* Expenses share the same search/category filters as bills now that
    * they're in one list (Issue #98, Slice 2 fix-round).
@@ -174,6 +180,7 @@ export default function BillsClient() {
    * disappearing with no indication why. */
   const filteredExpenses = useMemo(() => {
     if (filter !== "all") return [];
+    if (typeFilter === "bills") return [];
 
     return expenses.filter((e) => {
       if (searchQuery.trim() !== "") {
@@ -185,7 +192,7 @@ export default function BillsClient() {
       }
       return true;
     });
-  }, [expenses, filter, searchQuery, categoryFilter]);
+  }, [expenses, filter, searchQuery, categoryFilter, typeFilter]);
 
   // Issue #164: true when the Due Date filter is the reason expenses aren't
   // showing (i.e. there ARE expenses that match search/category, they're
@@ -301,7 +308,29 @@ export default function BillsClient() {
       <div className="flex flex-col gap-3 px-1">
 
         {/* Filters Row */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted capitalize tracking-wider ml-1">
+              Type
+            </label>
+            <div className="relative">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as "all" | "bills" | "expenses")}
+                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
+              >
+                <option value="all">All</option>
+                <option value="bills">Bills</option>
+                <option value="expenses">Expenses</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
+                <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
@@ -400,7 +429,10 @@ export default function BillsClient() {
       {/* Issue #164: explanatory note when the Due Date filter is hiding
           expenses that would otherwise be in this list, instead of them
           silently disappearing with no indication why. */}
-      {hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
+      {/* Issue #157: suppressed when Type = Bills — expenses are then hidden
+          by the user's own Type choice, not the date filter, so the note
+          would be misleading. */}
+      {typeFilter !== "bills" && hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
         <div className="px-1">
           <p className="text-[11px] text-muted font-body italic">
             {dateFilterHidesExpensesMessage}
