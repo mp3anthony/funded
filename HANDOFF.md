@@ -3,7 +3,20 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-27 — **Antigravity (agy) delegation set up; no app code, no SPEC.md
+**Last updated:** 2026-09-27 (later) — **Housekeeping + paid-bills decision; no app code.**
+(1) Worktree cleanup: all 15 folders under `.claude/worktrees/` removed, 25 local `worktree-agent-*`
+branches deleted (every one verified already on origin first). **Kept** `worktree-agent-afa605247a48203f1`
+— 1 commit (`1aacb99`, #98 Direct Pay split, sub-slice 3) not on origin; probably superseded; do NOT delete without Anthony's go-ahead —
+he hasn't decided. (2) Push fallback-icon fix (old item B) **folded into #181** per Anthony — scope
+comment on the issue; not built. (3) Paid-bills question (old item 3) **decided with Anthony, filed as
+[#187](https://github.com/mp3anthony/funded/issues/187)**, recorded as **SPEC.md Slice 17** via
+[PR #188](https://github.com/mp3anthony/funded/pull/188) (merged by Anthony), CHANGE-LOG `approved`.
+Independent review's implementation notes (real cron is pg_cron → `push-reminders` every ~5 min, not
+hourly; roll on-or-after due date; idempotent guard; month-end clamp) are in a comment on #187 — builder
+must read it. Note: auto-mode classifier blocked `gh pr merge` on a self-merged docs PR this session —
+Anthony merged by hand. **Last active SPEC ticket: Slice 16 — next session starts #181.**
+
+Earlier same day: **Antigravity (agy) delegation set up; no app code, no SPEC.md
 ticket touched.** [PR #184](https://github.com/mp3anthony/funded/pull/184) +
 [PR #185](https://github.com/mp3anthony/funded/pull/185) merged: `scripts/agy-delegate.ps1` (byte-identical
 copy of the shared kit at `D:\Anthonys-HQ\business\hazardous-schematics\agy-delegation-kit\`) and root
@@ -72,20 +85,16 @@ A. **Build [#181](https://github.com/mp3anthony/funded/issues/181), then
    [#182](https://github.com/mp3anthony/funded/issues/182)** — one session each, spec in SPEC.md
    Slice 16. Build sub-agent → separate reviewer sub-agent (always, don't ask) → PR →
    `needs-manual-test` (tap a real push on iPhone). #179/#174 need nothing further (v0.9.51 live).
-   Heads-up for #181: item B's push-icon fallback lives in the same two push-send spots — could be
-   folded in if Anthony agrees, but it's a separate unfiled change; ask first.
-B. **Small follow-up, NOT YET FILED (Anthony hasn't picked it):** push-notification fallback icon
-   still uses the old dark `/icons/icon-192x192.png?v=2` in 4 places — `public/sw.js` (~line 125,
-   push handler fallback), `src/lib/push.ts:47`, `src/app/api/cron/deliver-scheduled/route.ts:10`,
-   `src/context/AppContext.tsx` (~line 4649). Once switched to light, the old dark files
-   `public/icons/icon-192x192.png` / `icon-512x512.png` can be deleted (nothing else references
-   them). Also optional: `public/manifest.json` still has black `background_color` / lime
-   `theme_color`, and `sw.js` line 1 has a stale "PR #121 redeploy trigger" comment. Cosmetic.
-   - **Stale worktrees on disk** under `.claude/worktrees/` (4 still git-registered from older
-     sessions: `agent-a2a73983b2b027590`, `agent-a69059c3969148cdd` (#157 branch, merged),
-     `agent-a69afbc08584a8fcc`, `agent-a7f44c7f216119be5`, plus unregistered
-     `agent-af1dc5b8771b8d836`). Offered cleanup to Anthony; not done yet.
-0. **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
+   **#181 now also includes the push fallback-icon fix** (4 spots still on dark
+   `/icons/icon-192x192.png?v=2` → light `icon-light-192x192.png?v=3`, then delete the dark PNGs) —
+   see the scope comment on #181; add "notification shows light icon" to its checklist.
+B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.54
+   after #182): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
+   autopay can't be marked Paid, one-off reset of bills already stuck at Paid. Read the
+   implementation-notes comment on #187 first. Includes a one-off production data fix (not written yet) — must be idempotent, see #187 notes.
+   Still-optional cosmetics (unfiled): `public/manifest.json` black `background_color` / lime
+   `theme_color`; stale "PR #121 redeploy trigger" comment on `sw.js` line 1.
+0. **(Quick check any session, independent of A/B)** **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
    bug-report screenshot-attach losing the draft) — open, `needs-manual-test`, NOT yet merged.**
    Hannah was going to try it for real (attach a screenshot on her actual device — Samsung Internet,
    not Chrome, see the dated section below for why that correction matters) the evening of
@@ -106,16 +115,9 @@ B. **Small follow-up, NOT YET FILED (Anthony hasn't picked it):** push-notificat
    that if the repo has gone private since scoping, the Known Issues fetch will need a server-side
    GitHub token (same PAT pattern as `/api/bug-report/route.ts`), since the original scoping assumed
    an unauthenticated public-repo fetch.
-3. **NOT YET FILED, needs Anthony's decision first:** a bill's `due_date`/`invoice_date` don't
-   self-correct once a bill is marked "Paid" — `mapBillFromDb` only recomputes Overdue/Due-Soon
-   status when `status !== "Paid"`, so a manual bill stuck at "Paid" silently stops generating
-   reminders forever and its detail-sheet dates freeze at whatever they were when last touched. Two
-   real product questions for Anthony before this can be scoped as a build: (1) should a "Paid"
-   manual bill automatically flip back to Due Soon/Overdue once its next cycle's due date arrives
-   with no further user action? (2) should `markAsPaid()` also roll `invoice_date` forward in
-   lockstep with `due_date` (currently has no rollover code anywhere — frozen at creation forever)?
-   Both are logic-only changes (`AppContext.tsx`), no schema/migration involved, but the behavior
-   change itself is a judgment call, not a clean bug fix — ask before building.
+3. **[#183](https://github.com/mp3anthony/funded/issues/183)** (DESIGN-REFERENCE.md) —
+   `needs-triage`/`ready-for-human`, untouched. When it lands, restore the design-foundation rule in
+   `GEMINI-DELEGATION.md` (see top loose end (a)).
 
 **Other open issues, for completeness (2026-09-21 snapshot, no action taken this session):**
 [#167](https://github.com/mp3anthony/funded/issues/167) (Mailjet onboarding email campaign,
