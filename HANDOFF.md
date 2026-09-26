@@ -6,8 +6,8 @@ it by hand only if you need old investigation detail.
 **Last updated:** 2026-09-27 (later) — **Housekeeping + paid-bills decision; no app code.**
 (1) Worktree cleanup: all 15 folders under `.claude/worktrees/` removed, 25 local `worktree-agent-*`
 branches deleted (every one verified already on origin first). **Kept** `worktree-agent-afa605247a48203f1`
-— 1 commit (`1aacb99`, #98 Direct Pay split, sub-slice 3) not on origin; probably superseded, Anthony
-hasn't said delete. (2) Push fallback-icon fix (old item B) **folded into #181** per Anthony — scope
+— 1 commit (`1aacb99`, #98 Direct Pay split, sub-slice 3) not on origin; probably superseded; do NOT delete without Anthony's go-ahead —
+he hasn't decided. (2) Push fallback-icon fix (old item B) **folded into #181** per Anthony — scope
 comment on the issue; not built. (3) Paid-bills question (old item 3) **decided with Anthony, filed as
 [#187](https://github.com/mp3anthony/funded/issues/187)**, recorded as **SPEC.md Slice 17** via
 [PR #188](https://github.com/mp3anthony/funded/pull/188) (merged by Anthony), CHANGE-LOG `approved`.
@@ -91,10 +91,10 @@ A. **Build [#181](https://github.com/mp3anthony/funded/issues/181), then
 B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.54
    after #182): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
    autopay can't be marked Paid, one-off reset of bills already stuck at Paid. Read the
-   implementation-notes comment on #187 first. Includes a production data fix — reviewed, idempotent.
+   implementation-notes comment on #187 first. Includes a one-off production data fix (not written yet) — must be idempotent, see #187 notes.
    Still-optional cosmetics (unfiled): `public/manifest.json` black `background_color` / lime
    `theme_color`; stale "PR #121 redeploy trigger" comment on `sw.js` line 1.
-0. **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
+0. **(Quick check any session, independent of A/B)** **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
    bug-report screenshot-attach losing the draft) — open, `needs-manual-test`, NOT yet merged.**
    Hannah was going to try it for real (attach a screenshot on her actual device — Samsung Internet,
    not Chrome, see the dated section below for why that correction matters) the evening of
