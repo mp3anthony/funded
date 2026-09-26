@@ -3,7 +3,12 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-24 (evening) — **Launch video made via `/brag`; no app code, no SPEC.md
+**Last updated:** 2026-09-26 — **GitHub repo `mp3anthony/funded` flipped to PRIVATE** at
+Anthony's request (no code change). Knock-ons on a free GitHub plan: branch protection on `main` no
+longer enforced; Actions now counts against the monthly free minutes; Vercel Git deploys unaffected.
+**Last active SPEC ticket unchanged: Slice 16 — next session still starts #181.**
+
+Earlier (2026-09-24 evening): **Launch video made via `/brag`; no app code, no SPEC.md
 ticket touched.** 23.5s portrait video recreating Dashboard / Bill Details → Mark as Paid / Payday →
 Log Pay / Goals → Add Amount from the real components, all data fictional (members "Sam"/"Riley").
 Output lives **outside the repo** at
