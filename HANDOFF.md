@@ -3,10 +3,24 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-26 — **GitHub repo `mp3anthony/funded` flipped to private, then back
+**Last updated:** 2026-09-27 — **Antigravity (agy) delegation set up; no app code, no SPEC.md
+ticket touched.** [PR #184](https://github.com/mp3anthony/funded/pull/184) +
+[PR #185](https://github.com/mp3anthony/funded/pull/185) merged: `scripts/agy-delegate.ps1` (byte-identical
+copy of the shared kit at `D:\Anthonys-HQ\business\hazardous-schematics\agy-delegation-kit\`) and root
+`GEMINI-DELEGATION.md` (rules). `CLAUDE.md` §1 now says the Orchestrator hands planning/review/design/big
+reads to agy without asking, falls back to Claude sub-agents on exit 3, and an agy review replaces asking
+Anthony who reviews. Verified: `-Probe` → AGY_AVAILABLE, real quick task answered correctly, `.env*`/`.git`/PNG
+refused (exit 4). **Standing rule from Anthony (2026-09-26): docs/tooling-only PRs need no review from
+him** — independent agent review, fix, self-merge. Loose ends: (a) when **#183 (DESIGN-REFERENCE.md)**
+lands, restore the kit's design-foundation rule in `GEMINI-DELEGATION.md` pointing at it (currently
+dropped; rule 5 points at SPEC.md Part A); (b) future kit updates get re-synced here — script must stay
+byte-identical, keep this repo's adapted rules 5/6. Two kit-wording nits from the #185 review (SVG is
+still sent; the 24k cap includes the script's own preamble) belong in the kit, not here.
+**Last active SPEC ticket unchanged: Slice 16 — next session still starts #181.**
+
+Earlier (2026-09-26): **GitHub repo `mp3anthony/funded` flipped to private, then back
 to PUBLIC** same day (Anthony changed mind; no code change). Net state: public, as before. Only
 lasting side effect: GitHub wipes stars/watchers on a public→private flip, so any it had are gone.
-**Last active SPEC ticket unchanged: Slice 16 — next session still starts #181.**
 
 Earlier (2026-09-24 evening): **Launch video made via `/brag`; no app code, no SPEC.md
 ticket touched.** 23.5s portrait video recreating Dashboard / Bill Details → Mark as Paid / Payday →
@@ -229,6 +243,8 @@ NOT subject to Vercel's plan limit at all.
 Gemini CLI checked a few sessions ago and found broken (Google killed the free Code-Assist tier it
 authenticated against) — not usable for offloading build work until re-authed with an API key or
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
+**Superseded 2026-09-27:** offloading now goes through Antigravity (agy) via
+`scripts/agy-delegate.ps1` / `GEMINI-DELEGATION.md`, which works. Never use the gemini-cli MCP.
 
 ## 2026-09-17 — #144/#154/#148 closed on Anthony's confirmation; #168 (Android draft loss) built+reviewed, PR open pending Hannah's device test; #170 (remove tracking link) built, reviewed, merged, live
 
