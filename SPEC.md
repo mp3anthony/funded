@@ -643,6 +643,29 @@ Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
 #182 (payday/confirm popups, v0.9.53, blocked by #181). Both
 **`needs-manual-test`** — real lock-screen push taps need a device.
 
+### Slice 17: Paid bills reset on their due date (Issue #187)
+
+**Problem (approved by Anthony 2026-09-27):** a bill marked Paid never becomes
+unpaid again — `markAsPaid()` rolls `due_date` forward immediately and nothing
+flips the status back, so Overdue, Upcoming Bills and reminders all ignore it
+forever. `invoice_date` never rolls at all.
+
+**Decisions (2026-09-27):**
+- Paid = paid for this cycle. Marking Paid sets status only — no date change
+  at that moment (paying early is silent).
+- On or after that due date (household timezone) the bill rolls: status back to unpaid,
+  `due_date` +1 cycle, `invoice_date` +1 cycle in lockstep when present.
+  Rollover is persisted server-side (reminders read DB status). Non-recurring
+  bills stay Paid.
+- Autopay bills cannot be marked Paid/Unpaid — action hidden.
+- Mark as Unpaid = undo within the cycle, no date change.
+- One-off release fix: existing recurring Paid bills → unpaid at their next
+  upcoming due date (never Overdue); autopay just loses Paid.
+- Expenses out of scope. No schema change expected — escalate if one is needed.
+
+**Ticket:** #187 (v0.9.54, after #182), **`needs-manual-test`**. Full
+problem/checklist on the issue.
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)
