@@ -7,6 +7,7 @@ import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import { adjustAutopayBillDate } from "@/lib/utils";
 import { generateReminders } from "@/lib/notifications/generateReminders";
+import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
 
@@ -4643,10 +4644,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
                    userId: notif.user_id,
                    title: notif.title,
                    body: notif.message,
-                   url: notif.related_entity_id
-                     ? `/bills?billId=${notif.related_entity_id}`
-                     : '/',
-                   icon: '/icons/icon-192x192.png?v=2'
+                   url: getNotificationPushUrl(notif),
+                   icon: '/icons/icon-light-192x192.png?v=3'
                  }),
                });
              } catch (e) {
