@@ -44,7 +44,7 @@ export async function sendPushToSubscriptions(
   const payloadString = JSON.stringify({
     title: payload.title,
     body: payload.body,
-    icon: payload.icon || '/icons/icon-192x192.png?v=2',
+    icon: payload.icon || '/icons/icon-light-192x192.png?v=3',
     timestamp: sentAt,
     data: {
       url: payload.url || '/',

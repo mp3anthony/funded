@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendPushToSubscriptions } from '@/lib/push';
+import { getNotificationPushUrl } from '@/lib/notifications/destination';
 
 // Note: route handlers already run on the Node.js runtime by default, which
 // web-push requires. An explicit `export const runtime` is omitted because it
 // is incompatible with this project's Next.js `cacheComponents` config.
 export const maxDuration = 60;
 
-const PUSH_ICON = '/icons/icon-192x192.png?v=2';
+const PUSH_ICON = '/icons/icon-light-192x192.png?v=3';
 
 /**
  * Delivery cron (Slice 11 v2, #96 half B rework). Called every few minutes
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
     const nowIso = new Date().toISOString();
     const { data: due, error: dueError } = await supabase
       .from('notifications')
-      .select('id, user_id, title, message, related_entity_id')
+      .select('id, user_id, type, title, message, related_entity_id')
       .is('delivered_at', null)
       .lte('scheduled_for', nowIso);
 
@@ -126,9 +127,7 @@ export async function GET(request: Request) {
             const result = await sendPushToSubscriptions(subscriptions, {
               title: notif.title,
               body: notif.message,
-              url: notif.related_entity_id
-                ? `/bills?billId=${notif.related_entity_id}`
-                : '/',
+              url: getNotificationPushUrl(notif),
               icon: PUSH_ICON,
             });
             pushedTotal += result.successCount;
