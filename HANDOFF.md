@@ -3,7 +3,32 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-27 (later) — **Housekeeping + paid-bills decision; no app code.**
+**Last updated:** 2026-09-27 (evening) — **#181 built, reviewed, PR open awaiting Anthony's iPhone
+test; agy delegation bug fixed.** [PR #190](https://github.com/mp3anthony/funded/pull/190)
+(branch `feat/181-notification-tap-destinations`, v0.9.52, `needs-manual-test`): shared rule
+`src/lib/notifications/destination.ts` used by both push paths + inbox (bills → bill popup,
+payday/lodge_payment → `/payday`, goal → `/funds`, else home); cron select now fetches `type`;
+payday/confirm/goal inbox items tappable; push icon → light, dark PNGs deleted. tsc clean, no new lint.
+Plan: Claude sub-agent (agy fell back). Build: Claude sub-agent. Review: **agy Gemini — APPROVE**.
+**Before merge: Anthony runs the 6-item checklist in PR #190 on iPhone and confirms v0.9.52.**
+Worth checking on-device (flagged by builder): `sw.js` `notificationclick` focuses an already-open
+window via `client.url.includes(url)` — item 2 of the checklist (tap while app is open on another
+page) tests whether it actually navigates.
+**agy first real run:** Opus-in-agy (old `plan` model) tried the blocked `run_command` tool, headless
+denied it, turn ended, script saved the intro line as success (exit 0) — twice. Fixed in
+[PR #191](https://github.com/mp3anthony/funded/pull/191) (merged, self-merge per docs/tooling rule;
+agy review round 1 CHANGES REQUESTED → fixed → round 2 APPROVE): `--output-format json` parse,
+`denied_actions`/non-SUCCESS → exit 3, preamble names allowed tools, `-Files a,b,c` comma split,
+**`plan` now routes to `gemini-3.1-pro-high`** (Gemini Pro produced a full #181 plan in testing, a bit
+weaker than Claude's — missed #182 extensibility). Kit updated in lockstep (byte-identical; kit backup
+`agy-delegation-kit\_backup-20260927\`). The two #185 kit-wording nits are now done. Reminder: agy
+line-level claims can be incomplete (missed 2 of 16 grep hits in a test) — verify. Tip: call the
+script as `& .\scripts\agy-delegate.ps1 ... -Files @('a','b')` from PowerShell; agy only reads files
+passed via `-Files` (inside the repo), so stage diffs as a temp `.md` in the repo and delete after.
+**Last active SPEC ticket: Slice 16 — #181 in manual test; next build is #182 (good first full agy
+plan job).**
+
+Earlier same day: **Housekeeping + paid-bills decision; no app code.**
 (1) Worktree cleanup: all 15 folders under `.claude/worktrees/` removed, 25 local `worktree-agent-*`
 branches deleted (every one verified already on origin first). **Kept** `worktree-agent-afa605247a48203f1`
 — 1 commit (`1aacb99`, #98 Direct Pay split, sub-slice 3) not on origin; probably superseded; do NOT delete without Anthony's go-ahead —
@@ -28,7 +53,7 @@ him** — independent agent review, fix, self-merge. Loose ends: (a) when **#183
 lands, restore the kit's design-foundation rule in `GEMINI-DELEGATION.md` pointing at it (currently
 dropped; rule 5 points at SPEC.md Part A); (b) future kit updates get re-synced here — script must stay
 byte-identical, keep this repo's adapted rules 5/6. Two kit-wording nits from the #185 review (SVG is
-still sent; the 24k cap includes the script's own preamble) belong in the kit, not here.
+still sent; the 24k cap includes the script's own preamble) belong in the kit, not here — (done in PR #191).
 **Last active SPEC ticket unchanged: Slice 16 — next session still starts #181.**
 
 Earlier (2026-09-26): **GitHub repo `mp3anthony/funded` flipped to private, then back
@@ -81,13 +106,12 @@ Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never le
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **Build [#181](https://github.com/mp3anthony/funded/issues/181), then
-   [#182](https://github.com/mp3anthony/funded/issues/182)** — one session each, spec in SPEC.md
-   Slice 16. Build sub-agent → separate reviewer sub-agent (always, don't ask) → PR →
-   `needs-manual-test` (tap a real push on iPhone). #179/#174 need nothing further (v0.9.51 live).
-   **#181 now also includes the push fallback-icon fix** (4 spots still on dark
-   `/icons/icon-192x192.png?v=2` → light `icon-light-192x192.png?v=3`, then delete the dark PNGs) —
-   see the scope comment on #181; add "notification shows light icon" to its checklist.
+A. **#181 → [PR #190](https://github.com/mp3anthony/funded/pull/190) is waiting on Anthony's iPhone
+   test** (6-item checklist in the PR, incl. light icon) + version confirm (v0.9.52). Ask him the
+   result first; on pass, merge (issue closure). On fail, fix on the same branch.
+   **Then build [#182](https://github.com/mp3anthony/funded/issues/182)** (Slice 16, v0.9.53) on top
+   of `destination.ts` — extend the payday/lodge_payment entries with query params. Plan via agy
+   (`-Task plan`, now Gemini Pro) → Claude build sub-agent → agy review → PR → `needs-manual-test`.
 B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.54
    after #182): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
    autopay can't be marked Paid, one-off reset of bills already stuck at Paid. Read the
@@ -117,7 +141,7 @@ B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Sli
    an unauthenticated public-repo fetch.
 3. **[#183](https://github.com/mp3anthony/funded/issues/183)** (DESIGN-REFERENCE.md) —
    `needs-triage`/`ready-for-human`, untouched. When it lands, restore the design-foundation rule in
-   `GEMINI-DELEGATION.md` (see top loose end (a)).
+   `GEMINI-DELEGATION.md` (see loose end (a) in the "agy delegation set up" paragraph near the top).
 
 **Other open issues, for completeness (2026-09-21 snapshot, no action taken this session):**
 [#167](https://github.com/mp3anthony/funded/issues/167) (Mailjet onboarding email campaign,
