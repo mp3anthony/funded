@@ -19,7 +19,7 @@ result is his to judge (design output, anything visual or taste-driven).
 ## Which model (routing table lives at the top of the script; edit it there)
 | Task | Model | Why |
 |---|---|---|
-| plan | claude-opus-4-6-thinking | most capable, worth the spend on plans and hard decisions |
+| plan | gemini-3.1-pro-high | Opus-in-agy reaches for blocked shell tools and ends its turn (2026-09-27); strongest Gemini instead |
 | review | gemini-3.8-flash-medium | cheap, good enough for code review, audits, summaries |
 | design | gemini-3.1-pro-high | strongest Gemini for briefs, copy, visual direction (orchestrator's pick, untested) |
 | quick | gemini-3.8-flash-low | trivial lookups |
@@ -30,6 +30,8 @@ result is his to judge (design output, anything visual or taste-driven).
   failure (bad model name, empty answer, a hang or timeout) exits 3 for that task only and sets **no** cooldown, so
   a repeated hang can cost up to 10 minutes per call: run `-Probe` if delegation keeps failing. Any failed `-Probe`
   (missing agy, bad reply) does set the shared cooldown.
+- A model that tries a blocked tool (shell command, sub-agent) now makes the script exit 3 (no cooldown) instead of
+  silently returning a half answer (seen with the Opus plan model, 2026-09-27).
 - **On exit 3 the orchestrator does the task itself with Claude subagents** (never blocks on agy, never asks Ant).
 - To check whether agy is back: `... agy-delegate.ps1 -Probe` (tiny cheap call; prints `AGY_AVAILABLE` and clears the
   cooldown). Probe at session start if a cooldown is recorded, and whenever a delegation is next worthwhile.
@@ -42,11 +44,11 @@ result is his to judge (design output, anything visual or taste-driven).
    approve shell commands headless; it is told to use only its file-read tool inside the workspace.
 3. **Never** `--dangerously-skip-permissions`, `--mode accept-edits`, or the gemini-cli MCP.
 4. Secrets never go out (exit 4 on refusal): only allowlisted plain source/doc types are copied (`.md .txt .ts .tsx
-   .js .jsx .mjs .css .json .html .svg .yml .yaml .ps1 .toml`; images are not sent). Refused: anything under
+   .js .jsx .mjs .css .json .html .svg .yml .yaml .ps1 .toml`; SVG is sent as text, raster images are refused). Refused: anything under
    `.git`, `.vercel`, `.next`, `.claude`, `node_modules` or `db` (at any depth), a top-level `design/` folder, any path
    containing `.env`, `secret` or `credential`, `.npmrc`, `.mcp.json`, `settings.local`, `id_rsa`, `.pem/.key/.pfx/.p12`
    files, symlinks or junctions on the file or any parent folder, and anything outside the repo. A prompt over 24,000
-   characters is also refused (put the bulk in a file). It is a filter, not a guarantee: never name a file you suspect
+   characters (counting the script's own rules preamble) is also refused (put the bulk in a file). It is a filter, not a guarantee: never name a file you suspect
    holds secrets.
 5. **Suited to:** planning, review (agy is the independent reviewer, never the writer of the same code), audits
    against `SPEC.md` Part A guardrails, design and copy ideas, large-context reading.
