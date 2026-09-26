@@ -653,7 +653,7 @@ forever. `invoice_date` never rolls at all.
 **Decisions (2026-09-27):**
 - Paid = paid for this cycle. Marking Paid sets status only — no date change
   at that moment (paying early is silent).
-- On that due date (household timezone) the bill rolls: status back to unpaid,
+- On or after that due date (household timezone) the bill rolls: status back to unpaid,
   `due_date` +1 cycle, `invoice_date` +1 cycle in lockstep when present.
   Rollover is persisted server-side (reminders read DB status). Non-recurring
   bills stay Paid.
