@@ -3,9 +3,9 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-26 — **GitHub repo `mp3anthony/funded` flipped to PRIVATE** at
-Anthony's request (no code change). Knock-ons on a free GitHub plan: branch protection on `main` no
-longer enforced; Actions now counts against the monthly free minutes; Vercel Git deploys unaffected.
+**Last updated:** 2026-09-26 — **GitHub repo `mp3anthony/funded` flipped to private, then back
+to PUBLIC** same day (Anthony changed mind; no code change). Net state: public, as before. Only
+lasting side effect: GitHub wipes stars/watchers on a public→private flip, so any it had are gone.
 **Last active SPEC ticket unchanged: Slice 16 — next session still starts #181.**
 
 Earlier (2026-09-24 evening): **Launch video made via `/brag`; no app code, no SPEC.md
