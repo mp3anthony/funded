@@ -630,8 +630,9 @@ Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
   must never diverge.
 - Destinations: manual bill / auto-pay → Bills + that bill's popup
   (unchanged); payday "Log Your Pay" → Payday; "Payment Requires
-  Confirmation" (lodge_payment) → Payday; goal milestone → Funds (page only,
-  no popup); anything else → home.
+  Confirmation" (lodge_payment) → Payday; goal milestone → Goals page
+  (`/funds`) + that goal's popup (changed from "page only" 2026-09-27, #193);
+  anything else → home.
 - Payday landing: pay still loggable → Log Pay / Enter Pay Amount box for
   that schedule; tapped late (already auto-logged as pending on load) →
   Confirm box for the pending pay matching schedule **+ pay date**;
@@ -639,9 +640,15 @@ Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
   done/missing → plain Payday, no popup, no error.
 - Already-delivered pushes keep their old link — accepted, not backfilled.
 
-**Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52) →
-#182 (payday/confirm popups, v0.9.53, blocked by #181). Both
+**Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52,
+done) → #182 (payday/confirm popups, v0.9.53) → #193 (goal popup +
+user-visible "Funds" → "Goals" wording, v0.9.54). All
 **`needs-manual-test`** — real lock-screen push taps need a device.
+
+**Naming (2026-09-27, Anthony):** the page is **Goals** everywhere a user can
+see it (matches the bottom nav). The `/funds` route, `funds` table and code
+identifiers stay as-is — invisible in the installed app, and renaming the
+route would break already-delivered notification links.
 
 ### Slice 17: Paid bills reset on their due date (Issue #187)
 
@@ -663,7 +670,7 @@ forever. `invoice_date` never rolls at all.
   upcoming due date (never Overdue); autopay just loses Paid.
 - Expenses out of scope. No schema change expected — escalate if one is needed.
 
-**Ticket:** #187 (v0.9.54, after #182), **`needs-manual-test`**. Full
+**Ticket:** #187 (v0.9.55, after #193), **`needs-manual-test`**. Full
 problem/checklist on the issue.
 
 ---
