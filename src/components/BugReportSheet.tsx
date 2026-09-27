@@ -108,12 +108,12 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   useEffect(() => {
     const draft = readDraft();
     if (!draft) return;
+    // Mount-only restore.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- restore draft after hydration; sessionStorage is client-only
     setTitle(draft.title);
     setDescription(draft.description);
     setRestoredOpen(true);
     setShowScreenshotRestoreNote(true);
-    // Mount-only restore.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist the draft (title, description, and the fact the sheet is open)
@@ -136,7 +136,6 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     return () => {
       clearDraft();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function resetAndClose() {
