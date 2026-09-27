@@ -3,168 +3,110 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-27 (night) — **#169 readied for merge (not merged); merge block fixed;
-no new app code by the Orchestrator.**
-- **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168):** Anthony's call — **merge
-  without Hannah's device test** (she's asked 4–5×, not keen to test previews; she'll use it on live).
-  Sub-agent merged `origin/main` into the branch (conflicts: `version.ts`, `patch-notes.ts`,
-  `BugReportSheet.tsx` — main's `successUrl` → `isSubmitted` rename; draft-save effect now bails on
-  `isSubmitted`), re-versioned **v0.9.53**, pushed. Independent review: **APPROVE**; reviewer pushed
-  `88903e5` (lint: targeted `set-state-in-effect` disable on the restore effect — lazy `useState`
-  init would break hydration; removed 2 unused disables). tsc clean.
-  **Anthony approved one pre-merge fix (~10 min):** the 2-min draft expiry is measured from the last
-  keystroke/open, so a user who stops typing then spends >2 min taking the screenshot loses the draft
-  anyway. Fix: re-save the draft (refresh timestamp) on `visibilitychange` hidden / `pagehide` / when
-  "Attach a screenshot" is tapped. Optional cosmetic from the same review: restore note says "your
-  screenshot couldn't be" even when none was attached (draft doesn't record it). Build → review →
-  merge. PR body's "no new lint issues" line was inaccurate before the reviewer's fix — tidy it.
-  Stale worktree `.claude/worktrees/agent-a6feb009b8d57c899` still at `6e879c9` — remove it.
-- **Version renumber (done in this branch):** #169 = v0.9.53 ⇒ **#182 → v0.9.54,
-  #193 → v0.9.55, #187 → v0.9.56**. SPEC.md/HANDOFF updated on this branch
-  (`docs/goal-popup-193`, PR #194); new versions being commented on #182/#193/#187 by the
-  Orchestrator. Then merge #194.
-- **Merge block fixed (2026-09-27):** a plain permission rule doesn't help (`Bash(gh pr *)` was
-  already allowed in `settings.local.json`; the auto-mode classifier blocks "merge without review"
-  itself). Anthony added an `autoMode.allow` entry (with `"$defaults"`) to his user
-  `~/.claude/settings.json` permitting `gh pr merge` on this repo when he approved the merge or the
-  docs/tooling self-merge rule applies. Takes effect in a new session — the merge-block note in the
-  next bullet group is superseded.
-- **Next session order:** #169 timestamp fix → review → merge #169 (v0.9.53) → renumber in #194 +
-  issue comments → merge #194 → then #182 as planned below.
+**Last updated:** 2026-09-27 (late night) — **#169 merged (v0.9.53 live); #182 + #193 built, reviewed,
+PRs open awaiting Anthony's manual test; agy no longer plans.**
+- **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168) MERGED, v0.9.53, issue closed.**
+  Timestamp-refresh fix (re-save draft on `visibilitychange` hidden / `pagehide` / Attach tap) +
+  `hadScreenshot` flag (restore note only mentions a lost screenshot when one was being attached;
+  cleared on picker `cancel` via native listener — React 19 only wires `onCancel` on `<dialog>` — or
+  rejected file) + `submittedRef` guard against re-saving a submitted draft. agy review round 1
+  CHANGES REQUESTED (3) → fixed → round 2 APPROVE. Merged without Hannah's test per Anthony. If she
+  later reports the draft still lost on Samsung Internet, reopen #168.
+- **[PR #194](https://github.com/mp3anthony/funded/pull/194) MERGED** (docs: #193 spec + version
+  renumber). Versions: **#182 v0.9.54, #193 v0.9.55, #187 v0.9.56** — commented on all three issues.
+- **[PR #195](https://github.com/mp3anthony/funded/pull/195) — #182 payday taps, v0.9.54,
+  `needs-manual-test`, OPEN.** Payday reminder → `/payday?scheduleId=&payDate=` (pay date parsed from
+  the existing `notifications.dedupe_key` via `parsePaydayLogPayDate` in `generateReminders.ts` — no
+  migration); confirmation reminder → `/payday?historyId=`. Resolver in new pure
+  `src/lib/notifications/paydayLink.ts`. Payday page waits for `autoLogMissedPays` to settle, opens
+  the Log Pay or Confirm box once, strips params with `router.replace`. `sw.js` notificationclick: links
+  with params always `client.navigate()` an open window (fallback `openWindow`) — also affects bill
+  links. `deliver-scheduled` cron now selects `dedupe_key`. Plan: Claude sub-agent (agy plan failed —
+  blocked tool). Build: Claude sub-agent. Review: agy APPROVE. main merged in (9da3668). Auto-fix on.
+- **[PR #197](https://github.com/mp3anthony/funded/pull/197) — #193 goal popup, v0.9.55,
+  `needs-manual-test`, OPEN, STACKED on #195** (base `feat/182-payday-tap-popups`; both touch
+  `destination.ts`). Goal notification → `/funds?goalId=<fund id>`; Goals page waits for
+  `isDataLoading` false, opens that goal's GoalDetailSheet, strips the param. v0.9.52 patch note
+  "open Funds" → "open Goals". agy APPROVE. Auto-fix on. **After #195 merges: retarget #197's base to
+  `main` (`gh pr edit 197 --base main`), merge main in if needed, re-check CI.**
+- **Testing reality for #195/#197:** push taps only testable AFTER merge (pg_cron delivery job calls
+  production). Before merge: inbox items on the PR preview (#195 items 6–8; #197 items 2–6). Seed
+  test notifications with the method in the next section (tag `dedupe_key 'TEST-…'`, delete after).
+  Note: #182's link needs a real payday `dedupe_key` shape (`<scheduleId>-<YYYY-MM-DD>-payday_log_pay`)
+  on the test row, not `TEST-…`, or it falls back to plain `/payday` — use a real schedule id and pay
+  date, and delete the row after.
+- **agy change — [PR #196](https://github.com/mp3anthony/funded/pull/196) MERGED** (self-merge,
+  docs/tooling rule; reviewed by a Claude sub-agent, not agy): `-Task plan` removed (plan models kept
+  calling blocked `run_command`); on a blocked tool the script retries ONCE with a firmer line naming
+  the sanitised tool, sharing the `-TimeoutMin` budget; second failure → exit 3, no cooldown. Kit
+  updated byte-identical (backup `_backup-20260927b\`). Retry path not live-tested. Kit
+  `UPDATE-PROMPT.md` not refreshed — other repos (Cartel, website) need a new update prompt to pick
+  this up. Planning now always → Claude sub-agent. agy refuses `.sql` and `.claude/` paths (exit 4):
+  paste schema facts into prompts; stage worktree diffs as temp `.md` files in the repo root, delete after.
+- **Housekeeping:** stale worktree `agent-a6feb009b8d57c899` removed by Anthony. Merged worktrees
+  cleaned. Remaining worktree: `.claude/worktrees/wt-193` (branch `feat/193-goal-popup`, PR #197) —
+  remove after #197 merges. `worktree-agent-afa605247a48203f1` branch still kept (see below).
+- **Process slip this session:** Orchestrator read a stale HANDOFF (the real one was in unmerged
+  PR #194) and built #182 before #169. Lesson: at session start, also check open docs PRs
+  (`gh pr list`) for a newer HANDOFF.
+- **Anthony will run a new session to walk through closing the open PRs** — start with the
+  START HERE list below.
+**Last active SPEC ticket: Slice 16 — #182 (PR #195) + #193 (PR #197) in manual test; next build
+#187 (Slice 17, v0.9.56).**
 
-Earlier same day (late): **#181 passed on iPhone, merged (PR #190, Anthony merged by
-hand), v0.9.52 live, issue closed. #193 filed. No app code this session.**
+**Still-live notes carried from earlier sessions (2026-09-24 → 27; full detail in `HANDOFF-ARCHIVE.md`):**
 - **How #181 was tested (reuse for #182/#193):** pushes can only be tested *after* merge — the pg_cron
   delivery job calls **production**, so the push link is built by live code, not the PR preview.
   Inbox-only items can be tested on the preview. Method: insert a `notifications` row for Anthony
   (`user_id 4200aca8-…`, household `4821ab06-…`; his main login, NOT the
   gmail one — see agent memory) with `scheduled_for = now()`, `delivered_at = null` → push within ~5 min
   (arrives ×6, one per subscription). Inbox-only: set `delivered_at = now()`. Re-show an old item:
-  `is_read = false` (inbox hides read items). Tag test rows `dedupe_key 'TEST-…'` and delete after —
-  all #181 test rows deleted, borrowed item re-marked read.
-- **Anthony's feedback → [#193](https://github.com/mp3anthony/funded/issues/193)** (`ready-for-agent`,
-  `needs-manual-test`, v0.9.55, after #182): goal notifications open **that goal's popup** (like bills),
-  plus fix the v0.9.52 patch note that says "open Funds". **It's the Goals page** — call it that in
-  anything Anthony reads; no app-wide rename, `/funds` route/code unchanged. #187 → **v0.9.56**
-  (comment on #187). SPEC.md Slice 16/17 + CHANGE-LOG updated in
-  [PR #194](https://github.com/mp3anthony/funded/pull/194) (docs only, incl. this HANDOFF) —
-  **awaiting Anthony's merge.**
-- **⚠️ Merge block:** since ~2026-09-26 the auto-mode classifier denies `gh pr merge` ("Merge Without
-  Review"), and denied adding a permission rule ("Self-Modification"). Anthony will add
-  `"Bash(gh pr merge:*)"` to `.claude/settings.json` `permissions.allow` himself later. Until then,
-  ask him to merge by hand.
-
-Earlier same day: **#181 built, reviewed, PR #190 opened; agy delegation bug fixed.** Plan: Claude
-sub-agent (agy fell back). Build: Claude sub-agent. Review: agy Gemini — APPROVE.
-**agy first real run:** Opus-in-agy (old `plan` model) tried the blocked `run_command` tool, headless
-denied it, turn ended, script saved the intro line as success (exit 0) — twice. Fixed in
-[PR #191](https://github.com/mp3anthony/funded/pull/191) (merged, self-merge per docs/tooling rule;
-agy review round 1 CHANGES REQUESTED → fixed → round 2 APPROVE): `--output-format json` parse,
-`denied_actions`/non-SUCCESS → exit 3, preamble names allowed tools, `-Files a,b,c` comma split,
-**`plan` now routes to `gemini-3.1-pro-high`** (Gemini Pro produced a full #181 plan in testing, a bit
-weaker than Claude's — missed #182 extensibility). Kit updated in lockstep (byte-identical; kit backup
-`agy-delegation-kit\_backup-20260927\`). The two #185 kit-wording nits are now done. Reminder: agy
-line-level claims can be incomplete (missed 2 of 16 grep hits in a test) — verify. Tip: call the
-script as `& .\scripts\agy-delegate.ps1 ... -Files @('a','b')` from PowerShell; agy only reads files
-passed via `-Files` (inside the repo), so stage diffs as a temp `.md` in the repo and delete after.
-**Last active SPEC ticket: Slice 16 — #181 done; next build is #182 (good first full agy plan job),
-then #193.**
-
-Earlier same day: **Housekeeping + paid-bills decision; no app code.**
-(1) Worktree cleanup: all 15 folders under `.claude/worktrees/` removed, 25 local `worktree-agent-*`
-branches deleted (every one verified already on origin first). **Kept** `worktree-agent-afa605247a48203f1`
-— 1 commit (`1aacb99`, #98 Direct Pay split, sub-slice 3) not on origin; probably superseded; do NOT delete without Anthony's go-ahead —
-he hasn't decided. (2) Push fallback-icon fix (old item B) **folded into #181** per Anthony — scope
-comment on the issue; not built. (3) Paid-bills question (old item 3) **decided with Anthony, filed as
-[#187](https://github.com/mp3anthony/funded/issues/187)**, recorded as **SPEC.md Slice 17** via
-[PR #188](https://github.com/mp3anthony/funded/pull/188) (merged by Anthony), CHANGE-LOG `approved`.
-Independent review's implementation notes (real cron is pg_cron → `push-reminders` every ~5 min, not
-hourly; roll on-or-after due date; idempotent guard; month-end clamp) are in a comment on #187 — builder
-must read it. Note: auto-mode classifier blocked `gh pr merge` on a self-merged docs PR this session —
-Anthony merged by hand. **Last active SPEC ticket: Slice 16 — next session starts #181.**
-
-Earlier same day: **Antigravity (agy) delegation set up; no app code, no SPEC.md
-ticket touched.** [PR #184](https://github.com/mp3anthony/funded/pull/184) +
-[PR #185](https://github.com/mp3anthony/funded/pull/185) merged: `scripts/agy-delegate.ps1` (byte-identical
-copy of the shared kit at `D:\Anthonys-HQ\business\hazardous-schematics\agy-delegation-kit\`) and root
-`GEMINI-DELEGATION.md` (rules). `CLAUDE.md` §1 now says the Orchestrator hands planning/review/design/big
-reads to agy without asking, falls back to Claude sub-agents on exit 3, and an agy review replaces asking
-Anthony who reviews. Verified: `-Probe` → AGY_AVAILABLE, real quick task answered correctly, `.env*`/`.git`/PNG
-refused (exit 4). **Standing rule from Anthony (2026-09-26): docs/tooling-only PRs need no review from
-him** — independent agent review, fix, self-merge. Loose ends: (a) when **#183 (DESIGN-REFERENCE.md)**
-lands, restore the kit's design-foundation rule in `GEMINI-DELEGATION.md` pointing at it (currently
-dropped; rule 5 points at SPEC.md Part A); (b) future kit updates get re-synced here — script must stay
-byte-identical, keep this repo's adapted rules 5/6. Two kit-wording nits from the #185 review (SVG is
-still sent; the 24k cap includes the script's own preamble) belong in the kit, not here — (done in PR #191).
-**Last active SPEC ticket unchanged: Slice 16 — next session still starts #181.**
-
-Earlier (2026-09-26): **GitHub repo `mp3anthony/funded` flipped to private, then back
-to PUBLIC** same day (Anthony changed mind; no code change). Net state: public, as before. Only
-lasting side effect: GitHub wipes stars/watchers on a public→private flip, so any it had are gone.
-
-Earlier (2026-09-24 evening): **Launch video made via `/brag`; no app code, no SPEC.md
-ticket touched.** 23.5s portrait video recreating Dashboard / Bill Details → Mark as Paid / Payday →
-Log Pay / Goals → Add Amount from the real components, all data fictional (members "Sam"/"Riley").
-Output lives **outside the repo** at
-`D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-09-24-060937\` (`brag.mp4`,
-`brag.jpg`, `brag-plan.md` with the substitution table, `share-copy.txt`, `composition/` for
-re-renders). Known deviations from the real UI were listed to Anthony in-session (scripted On Track →
-Fully Funded flip, tab crossfades, no iOS keyboard on autofocused inputs, Segoe UI wordmark on the
-Windows render). Offered next: install Hyperframes skills for music-reactive glow, show the keyboard,
-or re-roll tone — none picked. Check music licence (brag skill `assets/music/README.md`) before
-posting publicly. Also swept the closed 2026-09-14 section into `HANDOFF-ARCHIVE.md`. **Last active
-SPEC ticket unchanged: Slice 16 — next session still starts #181.**
-
-Earlier same day (final build-planning session): **Notification tap destinations scoped
-(grilled with Anthony), filed as 2 tickets, nothing built yet.** Anthony wants tapping a payday
-notification to open Payday with the Log Pay / Confirm box up (like bill reminders open the bill
-popup). Investigation found a real bug too: every push with a related entity is linked to
-`/bills?billId=<id>` regardless of type (payday, lodge_payment, goal_milestone pushes all land on
-Bills). All decisions recorded in **SPEC.md Slice 16**; CHANGE-LOG entry logged as `approved`.
-Tickets: [#181](https://github.com/mp3anthony/funded/issues/181) (shared type→destination rule
-for both push paths + inbox; payday/lodge → Payday, goal → Funds; v0.9.52) →
-[#182](https://github.com/mp3anthony/funded/issues/182) (payday/confirm popups, schedule + pay
-date in link, late-tap-after-auto-log case; v0.9.54; natively `blocked_by` #181). Both
-`ready-for-agent` + `needs-manual-test`. **Last active: SPEC.md Slice 16 — next session starts
-#181.**
-
-Earlier same day: **#179 (iPhone home-screen icon still dark after #174)
-fixed, merged, closed.** Filed [#179](https://github.com/mp3anthony/funded/issues/179) as a bug
-follow-up to #174; build sub-agent made the head light-only (removed all media-scoped `rel="icon"`
-PNGs from `layout.tsx`, replaced dark `src/app/favicon.ico` with light 16/32/48 ICO, SW precache now
-lists light `?v=3` icons instead of dark `?v=2`). Separate reviewer: APPROVED. Merged as
-[PR #180](https://github.com/mp3anthony/funded/pull/180) (`ef08a68`, `v0.9.51`), production deploy
-verified `success`. **Anthony confirmed on iPhone: icon is light AND flips light/dark on demand in
-Customise** — so the #174 premise ("iOS auto-generates the dark version") is confirmed; the
-research caveat from the earlier session is resolved (comment posted on #174). Root cause was the
-competing dark icons in the head, not iOS refusing to darken. No SPEC.md change. Last active: #179 —
-not a SPEC.md ticket; no SPEC.md ticket in progress.
-Earlier same day: #157 fully closed ([PR #177](https://github.com/mp3anthony/funded/pull/177) `v0.9.49`,
-[PR #178](https://github.com/mp3anthony/funded/pull/178) `v0.9.50`).
-See "→ START HERE NEXT SESSION" below for the current open-item list.
+  `is_read = false` (inbox hides read items). Tag test rows `dedupe_key 'TEST-…'` and delete after.
+- **"Goals page" naming:** `/funds` is the **Goals page** — call it that in anything Anthony reads; no
+  app-wide rename, `/funds` route/code unchanged.
+- **agy tips:** agy line-level claims can be incomplete (missed 2 of 16 grep hits in a test) — verify.
+  Call the script as `& .\scripts\agy-delegate.ps1 ... -Files @('a','b')` from PowerShell; agy only
+  reads files passed via `-Files` (inside the repo). Never use the gemini-cli MCP.
+- **agy loose ends:** (a) when **#183 (DESIGN-REFERENCE.md)** lands, restore the kit's
+  design-foundation rule in `GEMINI-DELEGATION.md` pointing at it (currently dropped; rule 5 points at
+  SPEC.md Part A); (b) future kit updates (kit at
+  `D:\Anthonys-HQ\business\hazardous-schematics\agy-delegation-kit\`) get re-synced here — script must
+  stay byte-identical, keep this repo's adapted rules 5/6.
+- **Standing rule (Anthony, 2026-09-26):** docs/tooling-only PRs need no review from him —
+  independent agent review, fix, self-merge.
+- **Kept branch `worktree-agent-afa605247a48203f1`** — 1 commit (`1aacb99`, #98 Direct Pay split,
+  sub-slice 3) not on origin; probably superseded; do NOT delete without Anthony's go-ahead — he
+  hasn't decided.
+- **Repo `mp3anthony/funded` is PUBLIC** (flipped private and back on 2026-09-26; only side effect:
+  stars/watchers wiped).
+- **Launch video (`/brag`, 2026-09-24):** output outside the repo at
+  `D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-09-24-060937\`. Check the music
+  licence (brag skill `assets/music/README.md`) before posting publicly.
+- **Optional cosmetics (unfiled):** `public/manifest.json` black `background_color` / lime
+  `theme_color`; stale "PR #121 redeploy trigger" comment on `sw.js` line 1.
 
 **⚠️ FUNDED IS A MOBILE APP, NOT DESKTOP.** Installed home-screen app on iPhone (Anthony) and
 Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never lead with, test, or ask
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **First: is [PR #194](https://github.com/mp3anthony/funded/pull/194) (docs) merged?** If not,
-   ask Anthony (merge block — see top). Then **build [#182](https://github.com/mp3anthony/funded/issues/182)**
-   (Slice 16, v0.9.54) on top of `destination.ts` — extend the payday/lodge_payment entries with
-   query params. Plan via agy (`-Task plan`, now Gemini Pro) → Claude build sub-agent → agy review →
-   PR → `needs-manual-test`. For the phone test, seed a loggable pay + test notifications (method at
-   top); push items only testable after merge.
-   **Then [#193](https://github.com/mp3anthony/funded/issues/193)** (v0.9.55): goal popup via
-   `goalId` param, same pattern as bills' `billId`; fix v0.9.52 "Funds" patch-note wording.
-B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.56
-   after #193): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
-   autopay can't be marked Paid, one-off reset of bills already stuck at Paid. Read the
-   implementation-notes comment on #187 first. Includes a one-off production data fix (not written yet) — must be idempotent, see #187 notes.
-   Still-optional cosmetics (unfiled): `public/manifest.json` black `background_color` / lime
-   `theme_color`; stale "PR #121 redeploy trigger" comment on `sw.js` line 1.
-0. **Do before A:** [PR #169](https://github.com/mp3anthony/funded/pull/169) timestamp fix → merge,
-   then renumber + merge PR #194 — see "Next session order" at the top. No longer waiting on Hannah.
-   If she later reports the draft still lost on Samsung Internet, reopen #168.
+A. **Close [PR #195](https://github.com/mp3anthony/funded/pull/195)
+   ([#182](https://github.com/mp3anthony/funded/issues/182) payday taps, v0.9.54)** — walk Anthony
+   through it: inbox checks on the PR preview (items 6–8; seed rows per "How #181 was tested" above,
+   using a real payday `dedupe_key` shape) → his merge go-ahead + confirm version v0.9.54 → merge →
+   push-tap checks on live (items 1–5, 9–11) → follow-up PR if any fail.
+B. **Then [PR #197](https://github.com/mp3anthony/funded/pull/197)
+   ([#193](https://github.com/mp3anthony/funded/issues/193) goal popup, v0.9.55)** — after #195
+   merges, retarget base to `main` (`gh pr edit 197 --base main`), merge main in if needed, re-check
+   CI → inbox checks on the preview (items 2–6) → his merge go-ahead + version confirm → merge → push
+   check on live. Then remove worktree `.claude/worktrees/wt-193`.
+C. **Then build [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17,
+   v0.9.56): paid bills reset to unpaid on/after their due date, invoice date rolls with it, autopay
+   can't be marked Paid, one-off reset of bills already stuck at Paid. **Read the
+   implementation-notes comment on #187 first** (real cron is pg_cron → `push-reminders` every ~5 min,
+   not hourly; roll on-or-after due date; idempotent guard; month-end clamp). Includes a one-off
+   production data fix (not written yet) — must be idempotent. Plan via a Claude sub-agent (agy no
+   longer plans) → Claude build sub-agent → agy review → PR → `needs-manual-test`.
 1. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Hannah barely/not getting bill
    reminder pushes. Still parked, still unresolved. **New evidence 2026-09-17:** Anthony reported she
    got one notification ~40 minutes late on Android — logged as a comment on #145, not a new issue.
@@ -181,7 +123,7 @@ B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Sli
    an unauthenticated public-repo fetch.
 3. **[#183](https://github.com/mp3anthony/funded/issues/183)** (DESIGN-REFERENCE.md) —
    `needs-triage`/`ready-for-human`, untouched. When it lands, restore the design-foundation rule in
-   `GEMINI-DELEGATION.md` (see loose end (a) in the "agy delegation set up" paragraph near the top).
+   `GEMINI-DELEGATION.md` (see "agy loose ends" (a) in the still-live notes near the top).
 
 **Other open issues, for completeness (2026-09-21 snapshot, no action taken this session):**
 [#167](https://github.com/mp3anthony/funded/issues/167) (Mailjet onboarding email campaign,
