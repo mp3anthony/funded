@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const nowIso = new Date().toISOString();
     const { data: due, error: dueError } = await supabase
       .from('notifications')
-      .select('id, user_id, type, title, message, related_entity_id')
+      .select('id, user_id, type, title, message, related_entity_id, dedupe_key')
       .is('delivered_at', null)
       .lte('scheduled_for', nowIso);
 

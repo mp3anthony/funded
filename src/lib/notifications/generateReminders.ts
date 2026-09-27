@@ -82,6 +82,35 @@ export interface ReminderFund {
  *  picks sensible round numbers rather than inventing new product copy. */
 export const GOAL_MILESTONE_THRESHOLDS = [25, 50, 75, 100] as const;
 
+const PAYDAY_LOG_PAY_KEY_SUFFIX = '-payday_log_pay';
+
+/** dedupe_key for a "Payday — Log Your Pay" reminder. MUST stay
+ *  byte-identical to the historical format — changing it would make every
+ *  already-stored reminder look new and re-fire. */
+export function paydayLogPayDedupeKey(scheduleId: string, payYmd: string): string {
+  return `${scheduleId}-${payYmd}${PAYDAY_LOG_PAY_KEY_SUFFIX}`;
+}
+
+/** Recovers the pay date (YYYY-MM-DD) a payday_log_pay reminder was about
+ *  from its dedupe_key (#182) — so no extra column is needed. Matches on
+ *  the known schedule-id prefix + suffix rather than splitting on hyphens,
+ *  since schedule ids are UUIDs. Returns null for anything that isn't a
+ *  well-formed key for this exact schedule with a real calendar date. */
+export function parsePaydayLogPayDate(
+  key: string | null | undefined,
+  scheduleId: string
+): string | null {
+  if (!key) return null;
+  const prefix = `${scheduleId}-`;
+  if (!key.startsWith(prefix) || !key.endsWith(PAYDAY_LOG_PAY_KEY_SUFFIX)) return null;
+  if (key.length <= prefix.length + PAYDAY_LOG_PAY_KEY_SUFFIX.length) return null;
+  const ymd = key.slice(prefix.length, key.length - PAYDAY_LOG_PAY_KEY_SUFFIX.length);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  const ms = Date.parse(ymd + 'T00:00:00Z');
+  if (Number.isNaN(ms) || new Date(ms).toISOString().slice(0, 10) !== ymd) return null;
+  return ymd;
+}
+
 export interface ReminderInput {
   userId: string;
   householdId: string | null;
@@ -299,7 +328,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
           title: 'Payday — Log Your Pay',
           message: `Your pay from ${nextPayYmd} is ready to log.`,
           related_entity_id: String(schedule.id),
-          dedupe_key: `${schedule.id}-${nextPayYmd}-payday_log_pay`,
+          dedupe_key: paydayLogPayDedupeKey(String(schedule.id), nextPayYmd),
         });
       }
     }

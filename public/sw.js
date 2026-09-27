@@ -146,22 +146,34 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const urlToOpen = event.notification.data?.url || '/';
+  // Absolute target so it can be compared exactly with client.url (#182).
+  const target = new URL(urlToOpen, self.location.origin).href;
+  // Links with query params (e.g. /payday?historyId=…) carry a one-shot
+  // "open this box" instruction, so they must always navigate — just
+  // focusing a window already on that URL would open nothing.
+  const hasParams = new URL(target).search !== '';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there is already a window/tab open with the target URL
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
-        if (client.url.includes(urlToOpen) && 'focus' in client) {
-          return client.focus();
+      // Check if there is already a window/tab open with exactly the target URL
+      if (!hasParams) {
+        for (let i = 0; i < windowClients.length; i++) {
+          const client = windowClients[i];
+          if (client.url === target && 'focus' in client) {
+            return client.focus();
+          }
         }
       }
       // If not, check if any window is open and focus it, then navigate
+      // (falling back to a new window if navigate isn't allowed/returns null)
       if (windowClients.length > 0) {
          const client = windowClients[0];
          if ('focus' in client) {
            client.focus();
-           return client.navigate(urlToOpen);
+           return client
+             .navigate(target)
+             .then((c) => c || clients.openWindow(target))
+             .catch(() => clients.openWindow(target));
          }
       }
       // Otherwise, open a new window
