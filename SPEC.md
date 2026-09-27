@@ -616,7 +616,7 @@ itself is a plain UI flow. Label **`needs-manual-test`**.
 
 ---
 
-### Slice 16: Notification tap destinations (Issues #181, #182)
+### Slice 16: Notification tap destinations (Issues #181, #182, #193)
 
 **Problem (out-of-spec item, approved by Anthony 2026-09-24):** tapping a
 bill reminder opens that bill's popup, but payday reminders do nothing in the

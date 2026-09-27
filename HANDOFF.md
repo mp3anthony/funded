@@ -8,8 +8,8 @@ hand), v0.9.52 live, issue closed. #193 filed. No app code this session.**
 - **How #181 was tested (reuse for #182/#193):** pushes can only be tested *after* merge — the pg_cron
   delivery job calls **production**, so the push link is built by live code, not the PR preview.
   Inbox-only items can be tested on the preview. Method: insert a `notifications` row for Anthony
-  (`user_id 4200aca8-…`, household `4821ab06-…`; his main login is anthonypaull.nz@outlook.com, NOT
-  slmg.anthony@gmail.com) with `scheduled_for = now()`, `delivered_at = null` → push within ~5 min
+  (`user_id 4200aca8-…`, household `4821ab06-…`; his main login, NOT the
+  gmail one — see agent memory) with `scheduled_for = now()`, `delivered_at = null` → push within ~5 min
   (arrives ×6, one per subscription). Inbox-only: set `delivered_at = now()`. Re-show an old item:
   `is_read = false` (inbox hides read items). Tag test rows `dedupe_key 'TEST-…'` and delete after —
   all #181 test rows deleted, borrowed item re-marked read.
