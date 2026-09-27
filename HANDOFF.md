@@ -110,8 +110,8 @@ A. **#181 → [PR #190](https://github.com/mp3anthony/funded/pull/190) is waitin
    test** (6-item checklist in the PR, incl. light icon) + version confirm (v0.9.52). Ask him the
    result first; on pass, merge (issue closure). On fail, fix on the same branch.
    **Then build [#182](https://github.com/mp3anthony/funded/issues/182)** (Slice 16, v0.9.53) on top
-   of `destination.ts` — extend the payday/lodge_payment entries with query params. Plan via agy
-   (`-Task plan`, now Gemini Pro) → Claude build sub-agent → agy review → PR → `needs-manual-test`.
+   of `destination.ts` — extend the payday/lodge_payment entries with query params. Plan via a Claude
+   sub-agent (agy no longer plans, 2026-09-27) → Claude build sub-agent → agy review → PR → `needs-manual-test`.
 B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.54
    after #182): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
    autopay can't be marked Paid, one-off reset of bills already stuck at Paid. Read the
