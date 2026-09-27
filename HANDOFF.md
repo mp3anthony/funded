@@ -23,6 +23,16 @@ OPEN (v0.9.56, `needs-manual-test`); Anthony reviewing + manual-testing it himse
   Pass autopay (loses Paid only); 0 non-recurring, 0 paused, 0 null `is_recurring`. **Re-run the dry
   run before applying** (data may have changed). Run exactly once. Then confirm version 0.9.56 with
   Anthony and merge; both phones fully close + reopen.
+- **4 test bills SEEDED in Anthony's household (2026-09-27)** for the #202 manual test — full table,
+  steps and pass conditions in [#187 comment 5854160444](https://github.com/mp3anthony/funded/issues/187#issuecomment-5854160444):
+  `TEST-187 A Pay early` (`452eac9b-0688-428f-8b9a-83d83d4dda4a`), `TEST-187 B Edit while Paid`
+  (`8e82b93b-d58b-4200-be89-67b6cb070b5f`), `TEST-187 C Autopay` (`d72c5c0c-3370-4117-a975-9faaa62608e4`),
+  `TEST-187 D Resets on open` (`cd6c5449-fd33-47b7-8d2a-4663e91cdb7c`). All notes = "TEST-187 test
+  bill — safe to delete". **Delete all four (`WHERE name LIKE 'TEST-187 %'`, check count = 4) BEFORE
+  applying the data migration**, or it would reset any still Paid. Due dates 15–17 Oct keep them out of
+  reminder windows until ~12 Oct; if still around then, delete anyway.
+- **This handoff PR ([docs/handoff-2026-09-27g]) was left OPEN on purpose** — Anthony will open a new
+  session to report the checklist result; merge it then (Step 0: `gh pr list` shows it).
 - **Owed after #202 merges:** stuck bills show unpaid, none Overdue; next real paid bill rolls on its
   due date by itself (cron); Hannah's Android sees same state.
 - **Test logins — settled, don't re-raise:** Claude sessions must NOT create Funded users or type
@@ -94,10 +104,10 @@ Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never le
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **Ask Anthony how the PR #202 (#187) review + manual test went.** Failures → fix via the build
-   agent on `feat/187-paid-bill-rollover`. Pass → follow the release order at the top (re-run dry run,
-   `apply_migration`, confirm v0.9.56, merge). Offer to seed `TEST-…` bills via SQL for any test he
-   still has to set up.
+A. **Anthony returns to report the PR #202 (#187) checklist result** (test bills already seeded —
+   see top). First merge this open handoff PR. Failures → fix via a build sub-agent on
+   `feat/187-paid-bill-rollover`. Pass → delete the 4 `TEST-187` bills, re-run the dry run,
+   `apply_migration`, confirm v0.9.56 with Anthony, merge #202, then a fresh handoff.
 B. **Owed live checks (ask Anthony, don't block A):**
    - **#182 (v0.9.54)** — when the 30 Sep pay reminder arrives: tap the push (Log Pay box for that
      schedule), tap it from the bell, next day tap the old reminder (late tap → Confirm Pending Pay
