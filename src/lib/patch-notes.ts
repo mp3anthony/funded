@@ -29,6 +29,19 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.56",
+    date: "September 2026",
+    highlights: [
+      "Marking a bill as paid no longer jumps its due date ahead straight away. It stays on the date you paid it for, then moves on to the next due date by itself once that date arrives.",
+      "Bills you've paid now come back as due for the next round, so they show up in Upcoming Bills and send reminders again instead of going quiet for good.",
+      "Invoice dates now move forward along with the due date.",
+      "Auto-pay bills no longer have a Mark as Paid button, since they pay themselves.",
+      "Mark as Unpaid now just undoes the tap and leaves the date alone.",
+      "Editing a paid bill no longer marks it unpaid.",
+      "Bills that were stuck on Paid have been reset to their next upcoming due date.",
+    ],
+  },
+  {
     version: "0.9.55",
     date: "September 2026",
     highlights: [
