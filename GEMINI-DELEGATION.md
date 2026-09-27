@@ -5,21 +5,24 @@ Set up 2026-09-26 for Ant; kit copied per repo.
 result is his to judge (design output, anything visual or taste-driven).
 
 ## How
-`powershell -NoProfile -File scripts/agy-delegate.ps1 -Task plan|review|design|quick -PromptFile <f> -Files <repo paths>`
+`powershell -NoProfile -File scripts/agy-delegate.ps1 -Task review|design|quick -PromptFile <f> -Files <repo paths>`
 - Write the prompt file in the scratchpad, never in the repo.
 - agy runs in `D:\Anthonys-HQ\business\hazardous-schematics\agy-workspace\<repo-folder-name>\`, one workspace per
   repo, holding only fresh copies of the named files. agy is given no repo path and is told to stay inside that folder, but
   that is an instruction, not a sandbox: a headless agy cannot be technically walled in, so the file filter (rule 4)
   is the real protection. The script wipes that folder each run (except `outputs\`).
-- Every answer is also saved to `agy-workspace\<repo>\outputs\<timestamp>-<task>.md`.
+- Every answer is also saved to `agy-workspace\<repo>\outputs\<timestamp>-<task>.md` (`<timestamp>-<task>-retry.md`, with
+  a footer naming the blocked tool, when it came from the automatic retry below).
 - The cooldown file `agy-workspace\_state.json` is **shared by all repos** on purpose: the Google quota belongs to
   Ant's account, so one repo hitting the limit tells every repo.
 - The reusable kit for new repos lives in `D:\Anthonys-HQ\business\hazardous-schematics\agy-delegation-kit\`.
 
 ## Which model (routing table lives at the top of the script; edit it there)
+**No planning task: planning stays with Claude subagents** (agy's plan models, Opus then gemini-3.1-pro-high, kept
+calling blocked shell tools and exiting 3, 2026-09-27; Ant's decision).
+
 | Task | Model | Why |
 |---|---|---|
-| plan | gemini-3.1-pro-high | Opus-in-agy reaches for blocked shell tools and ends its turn (2026-09-27); strongest Gemini instead |
 | review | gemini-3.8-flash-medium | cheap, good enough for code review, audits, summaries |
 | design | gemini-3.1-pro-high | strongest Gemini for briefs, copy, visual direction (orchestrator's pick, untested) |
 | quick | gemini-3.8-flash-low | trivial lookups |
@@ -30,8 +33,12 @@ result is his to judge (design output, anything visual or taste-driven).
   failure (bad model name, empty answer, a hang or timeout) exits 3 for that task only and sets **no** cooldown, so
   a repeated hang can cost up to 10 minutes per call: run `-Probe` if delegation keeps failing. Any failed `-Probe`
   (missing agy, bad reply) does set the shared cooldown.
-- A model that tries a blocked tool (shell command, sub-agent) now makes the script exit 3 (no cooldown) instead of
-  silently returning a half answer (seen with the Opus plan model, 2026-09-27).
+- A model that tries a blocked tool (shell command, sub-agent) ends its turn with a half answer. The script then
+  **retries once automatically**: same files, same task, plus a firmer line naming the tool it tried and telling it
+  to use `grep_search` / `view_file` / `find_by_name` instead. Both attempts share one `-TimeoutMin` budget (default
+  10 minutes): the retry only gets the minutes left, and is skipped if under 2 are left or the extra line would push the
+  prompt over 24,000 characters. If the retry also hits a blocked tool, or cannot run, the script exits 3 with no
+  cooldown (a quota/outage message on the retry still sets the cooldown, as usual).
 - **On exit 3 the orchestrator does the task itself with Claude subagents** (never blocks on agy, never asks Ant).
 - To check whether agy is back: `... agy-delegate.ps1 -Probe` (tiny cheap call; prints `AGY_AVAILABLE` and clears the
   cooldown). Probe at session start if a cooldown is recorded, and whenever a delegation is next worthwhile.
@@ -50,7 +57,7 @@ result is his to judge (design output, anything visual or taste-driven).
    files, symlinks or junctions on the file or any parent folder, and anything outside the repo. A prompt over 24,000
    characters (counting the script's own rules preamble) is also refused (put the bulk in a file). It is a filter, not a guarantee: never name a file you suspect
    holds secrets.
-5. **Suited to:** planning, review (agy is the independent reviewer, never the writer of the same code), audits
+5. **Suited to:** review (agy is the independent reviewer, never the writer of the same code), audits
    against `SPEC.md` Part A guardrails, design and copy ideas, large-context reading.
    **Never:** Git/GitHub, migrations, env, production. Those stay with the orchestrator.
 6. **Its output is a claim, not a fact.** Verify before acting; design output is shown to Ant for approval
