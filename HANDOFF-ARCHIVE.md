@@ -120,9 +120,8 @@ longer before compaction. Saved to persistent memory; applied for the rest of th
 review) and should be the default going forward without needing to ask each time.
 
 **Also caught and fixed mid-session:** local `main` had 3 unpushed doc-only commits from the
-2026-09-15 session (see the "Gotcha caught this session" note above) — merged and pushed alongside
+2026-09-15 session (see the "Gotcha caught this session" note in HANDOFF.md) — merged and pushed alongside
 this session's own work so `main` is now fully in sync with GitHub.
-
 
 ## 2026-09-27 (late) — #181 passed on iPhone, merged (PR #190), v0.9.52 live; #193 filed
 

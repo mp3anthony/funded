@@ -37,6 +37,8 @@ open PRs; no new app code.**
   paths (exit 4): paste schema facts into prompts; stage worktree diffs as temp `.md` in repo root.
 - **Session-start check:** also run `gh pr list` for an unmerged docs PR carrying a newer HANDOFF
   (a stale HANDOFF caused an out-of-order build on 2026-09-27).
+- **#168 (bug-report draft, v0.9.53):** merged without Hannah's Samsung Internet test — if she
+  reports the draft still lost after attaching a screenshot, reopen #168.
 - **Payday test rows:** #182 links need a real `dedupe_key` shape
   (`<scheduleId>-<YYYY-MM-DD>-payday_log_pay`), not `TEST-…`, or they fall back to plain `/payday`.
 - **agy loose ends:** (a) when **#183 (DESIGN-REFERENCE.md)** lands, restore the kit's
