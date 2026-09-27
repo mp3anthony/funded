@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.54",
+    date: "September 2026",
+    highlights: [
+      "Tapping a payday reminder now opens the box to log that pay straight away — or, if the pay has already been saved as waiting for confirmation, the box to confirm it.",
+      "Tapping a \"confirm your payment\" reminder now opens that exact payment ready to confirm.",
+      "If there's nothing left to do (already logged or confirmed), you'll just land on Payday as normal.",
+    ],
+  },
+  {
     version: "0.9.53",
     date: "September 2026",
     highlights: [

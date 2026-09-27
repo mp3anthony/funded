@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Trash2, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
 import AddPayScheduleSheet from "@/components/AddPayScheduleSheet";
@@ -10,10 +11,14 @@ import SurplusSuggestionModal from "@/components/SurplusSuggestionModal";
 import PayScheduleDetailSheet from "@/components/PayScheduleDetailSheet";
 import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
+import { hasPaydayLinkParams, resolvePaydayLink, stripPaydayLinkParams } from "@/lib/notifications/paydayLink";
 
 export default function PaydayClient() {
   const { paySchedules, payHistory, householdMembers, deletePaySchedule, logPay, calculateAveragePay, addToGoal, isJointFund, householdContributions, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay } = useApp();
   const currentUser = useCurrentUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const [activeVariableSchedule, setActiveVariableSchedule] = useState<PaySchedule | null>(null);
@@ -39,14 +44,20 @@ export default function PaydayClient() {
     setIsMounted(true);
   }, []);
 
-  // Auto-log missed pays on mount / when schedules load
+  // Auto-log missed pays on mount / when schedules load.
+  // `autoLogSettled` flips once the auto-log (and its refetch) has finished;
+  // with no schedules there's nothing to auto-log, so the link handler below
+  // is ready straight away (#182). It waits on this so a late tap sees the
+  // freshly-created pending pay rather than the pre-auto-log state.
   const hasAutoLogged = useRef(false);
+  const [autoLogSettled, setAutoLogSettled] = useState(false);
   useEffect(() => {
     if (paySchedules.length > 0 && !hasAutoLogged.current) {
       hasAutoLogged.current = true;
-      autoLogMissedPays();
+      autoLogMissedPays().finally(() => setAutoLogSettled(true));
     }
   }, [paySchedules]);
+  const isLinkReady = isMounted && (autoLogSettled || paySchedules.length === 0);
 
   const today = isMounted ? new Date() : new Date("2026-07-05");
   today.setHours(0, 0, 0, 0);
@@ -57,6 +68,40 @@ export default function PaydayClient() {
     nextPay.setHours(0, 0, 0, 0);
     return nextPay.getTime() <= today.getTime();
   };
+
+  // Notification-tap links (#182): open the Log Pay or Confirm box the link
+  // points at, once per link. Runs post-mount (after auto-log), so `today`
+  // is the real date, not the hydration placeholder above. The link params
+  // are stripped as soon as they're used — not on close — so closing the
+  // box never re-opens it; a no-match link just lands on plain Payday.
+  const handledLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isLinkReady || !searchParams) return;
+    if (!hasPaydayLinkParams(searchParams)) {
+      // Reset so the same link tapped again later still works.
+      handledLinkRef.current = null;
+      return;
+    }
+    const linkKey = searchParams.toString();
+    if (handledLinkRef.current === linkKey) return;
+    handledLinkRef.current = linkKey;
+
+    // Opening a box from the URL is a one-shot sync with an external input
+    // (the tapped link), guarded by handledLinkRef — not a render cascade.
+    const resolved = resolvePaydayLink(searchParams, paySchedules, payHistory, isLoggable);
+    if (resolved.kind === "log") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveVariableSchedule(resolved.schedule);
+    } else if (resolved.kind === "confirm") {
+      setPendingHistoryToConfirm(resolved.history);
+    }
+
+    const rest = stripPaydayLinkParams(searchParams);
+    router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
+    // isLoggable is recreated every render; it only reads `today`, which is
+    // stable once mounted, so it's deliberately left out of the deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLinkReady, searchParams, paySchedules, payHistory, pathname, router]);
 
   // Helper for countdown
   const getCountdown = (schedule: PaySchedule) => {

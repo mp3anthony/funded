@@ -1,4 +1,5 @@
-import type { ReminderType } from './generateReminders';
+import { parsePaydayLogPayDate, type ReminderType } from './generateReminders';
+import { buildPaydayConfirmUrl, buildPaydayLogPayUrl } from './paydayLink';
 
 /**
  * Slice 16 (#181): the single shared "where does this notification go" rule,
@@ -13,21 +14,29 @@ import type { ReminderType } from './generateReminders';
  *   - payday_log_pay         → pay schedule id
  *   - goal_milestone         → fund id
  *
- * #182 will extend the payday cases here with query params (e.g. schedule id
- * / pay date) to open popups — keep all destination building in this file.
+ * #182 payday link contract (param names live in ./paydayLink):
+ *   - payday_log_pay → /payday?scheduleId=<id>&payDate=<YYYY-MM-DD>, the pay
+ *     date recovered from the row's dedupe_key (plain /payday if the key
+ *     can't be parsed, e.g. a row fetched without it)
+ *   - lodge_payment  → /payday?historyId=<pay_history id>
+ * Keep all destination building in this file.
  */
 export interface NotificationTarget {
   type: string | null | undefined;
   related_entity_id?: string | number | null;
+  dedupe_key?: string | null;
 }
 
 // Record (not a switch) so adding a new ReminderType fails type-checking
 // until it's given a destination here.
-const DESTINATIONS: Record<ReminderType, (id: string) => string | null> = {
+const DESTINATIONS: Record<ReminderType, (id: string, n: NotificationTarget) => string | null> = {
   manual_bill: (id) => `/bills?billId=${encodeURIComponent(id)}`,
   auto_pay: (id) => `/bills?billId=${encodeURIComponent(id)}`,
-  payday_log_pay: () => '/payday',
-  lodge_payment: () => '/payday',
+  payday_log_pay: (id, n) => {
+    const payDate = parsePaydayLogPayDate(n.dedupe_key, id);
+    return payDate ? buildPaydayLogPayUrl(id, payDate) : '/payday';
+  },
+  lodge_payment: (id) => buildPaydayConfirmUrl(id),
   goal_milestone: () => '/funds',
 };
 
@@ -38,7 +47,7 @@ export function getNotificationDestination(n: NotificationTarget): string | null
     return null;
   }
   if (!n.type || !Object.prototype.hasOwnProperty.call(DESTINATIONS, n.type)) return null;
-  return DESTINATIONS[n.type as ReminderType](String(n.related_entity_id));
+  return DESTINATIONS[n.type as ReminderType](String(n.related_entity_id), n);
 }
 
 /** URL to put on a push payload — falls back to home when there's no
