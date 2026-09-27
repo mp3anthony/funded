@@ -123,7 +123,7 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'New Notification';
     const options = {
       body: payload.body || '',
-      icon: payload.icon || '/icons/icon-192x192.png?v=2',
+      icon: payload.icon || '/icons/icon-light-192x192.png?v=3',
       badge: '/icons/logo-icon.svg',
       data: payload.data || { url: '/' },
       vibrate: [200, 100, 200],
