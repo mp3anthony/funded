@@ -3,8 +3,38 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-27 (wrap-up) — **#195 (#182) and #197 (#193) MERGED, v0.9.55 live; no
-open PRs; no new app code.**
+**Last updated:** 2026-09-27 (evening wrap-up) — **#187 built: [PR #202](https://github.com/mp3anthony/funded/pull/202)
+OPEN (v0.9.56, `needs-manual-test`); Anthony reviewing + manual-testing it himself. v0.9.55 still live.**
+- **PR #202 (#187 paid-bill rollover), branch `feat/187-paid-bill-rollover`, commits `35a5106` + `4950f4b`.**
+  Planned by Claude sub-agent, decisions recorded on #187 (comment 5853948972): month-end drift accepted
+  (no schema change), `updateBill` no longer un-pays on edit (in scope), paused bills skip rollover →
+  separate [#201](https://github.com/mp3anthony/funded/issues/201), stale-app window accepted. agy
+  reviewed: 1 false claim (addBill default status — verified fine), 4 fixed in `4950f4b` (migration
+  `coalesce(is_recurring,true) AND NOT coalesce(is_paused,false)`; cron + on-load catch-up re-read the
+  bill when their conditional update loses a race). Tests 10/10, tsc + build pass; `npm run lint` fails
+  on pre-existing errors only (same count as main). Preview:
+  https://funded-alpha-git-feat-187-paid-bill-4f1b39-mp3anthonys-projects.vercel.app (uses REAL data).
+- **⚠️ Release order for #202 — data migration `20260927120000_reset_stuck_paid_bills.sql` is NOT
+  applied yet.** Apply via `apply_migration` **immediately BEFORE merging** (not after): Internet (both
+  households, due 13 Aug) and Power (due 3 Sep) are dated in the past — if the new cron went live
+  first it would roll them only +1 cycle and Internet would show Overdue. Old live code handles unpaid
+  bills fine, so applying first is safe. Dry-run (in PR body) on 2026-09-27 showed 6 rows: Internet ×2 →
+  13 Oct (k=2), Power → 3 Oct (k=1), Hannah's Phone 6 Oct / ASB VISA 8 Oct (k=0, just unpaid), Game
+  Pass autopay (loses Paid only); 0 non-recurring, 0 paused, 0 null `is_recurring`. **Re-run the dry
+  run before applying** (data may have changed). Run exactly once. Then confirm version 0.9.56 with
+  Anthony and merge; both phones fully close + reopen.
+- **Owed after #202 merges:** stuck bills show unpaid, none Overdue; next real paid bill rolls on its
+  due date by itself (cron); Hannah's Android sees same state.
+- **Test logins — settled, don't re-raise:** Claude sessions must NOT create Funded users or type
+  passwords into the app (login goes to live Supabase). Anthony does manual testing himself. What
+  sessions CAN do to save him time: seed test rows (bills etc.) straight into his household via SQL,
+  tagged `TEST-…`, set up in the exact state each checklist item needs, and delete them after. A local
+  Supabase (Docker) with a seeded permanent test user was offered as the only compliant route to
+  Claude logging in — Anthony declined for now; not filed.
+- CLAUDE.md Step 5 updated ([PR #200](https://github.com/mp3anthony/funded/pull/200)): handoff-only
+  wrap-up PRs merge straight away, no sub-agent review.
+
+**Previous wrap-up (2026-09-27, earlier) — #195 (#182) and #197 (#193) MERGED, v0.9.55 live:**
 - **[PR #195](https://github.com/mp3anthony/funded/pull/195) (#182 payday taps) MERGED as v0.9.54,
   issue closed — before any manual test.** Anthony's call: no pay was due/pending (next pays: 30 Sep
   weekly variable schedule `832e9381-…`, 6 Oct fortnightly fixed `41041717-…`) and push taps are only
@@ -16,7 +46,7 @@ open PRs; no new app code.**
   nonexistent id — both deleted after). Goal **push** tap not yet seen live.
 - Housekeeping: worktree `wt-193` removed; local `feat/182`, `feat/193`, `docs/handoff-2026-09-27d`
   branches deleted. Swept the 2026-09-27 (late night) and 2026-09-17 sections into `HANDOFF-ARCHIVE.md`.
-**Last active SPEC ticket: Slice 16 done (pending live checks). Next: plan #187 (Slice 17, v0.9.56).**
+**Last active SPEC ticket: Slice 17 (#187) — built, PR #202 awaiting Anthony's review + manual test.**
 
 **Still-live notes carried from earlier sessions (2026-09-24 → 27; full detail in `HANDOFF-ARCHIVE.md`):**
 - **How #181 was tested (reuse for #182/#193):** pushes can only be tested *after* merge — the pg_cron
@@ -47,7 +77,7 @@ open PRs; no new app code.**
   `D:\Anthonys-HQ\business\hazardous-schematics\agy-delegation-kit\`) get re-synced here — script must
   stay byte-identical, keep this repo's adapted rules 5/6.
 - **Standing rule (Anthony, 2026-09-26):** docs/tooling-only PRs need no review from him —
-  independent agent review, fix, self-merge.
+  independent agent review, fix, self-merge. Handoff-only PRs: no review at all, merge straight away.
 - **Kept branch `worktree-agent-afa605247a48203f1`** — 1 commit (`1aacb99`, #98 Direct Pay split,
   sub-slice 3) not on origin; probably superseded; do NOT delete without Anthony's go-ahead — he
   hasn't decided.
@@ -64,14 +94,10 @@ Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never le
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **Plan [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.56) —
-   Anthony wants the session to open with this plan: paid bills reset to unpaid on/after their due
-   date, invoice date rolls with it, autopay can't be marked Paid, one-off reset of bills already stuck
-   at Paid. **Read the implementation-notes comment on #187 first** (real cron is pg_cron →
-   `push-reminders` every ~5 min, not hourly; roll on-or-after due date; idempotent guard; month-end
-   clamp). Includes a one-off production data fix (not written yet) — must be idempotent. Plan via a
-   Claude sub-agent (agy no longer plans) → Anthony approves → Claude build sub-agent → agy review →
-   PR → `needs-manual-test`.
+A. **Ask Anthony how the PR #202 (#187) review + manual test went.** Failures → fix via the build
+   agent on `feat/187-paid-bill-rollover`. Pass → follow the release order at the top (re-run dry run,
+   `apply_migration`, confirm v0.9.56, merge). Offer to seed `TEST-…` bills via SQL for any test he
+   still has to set up.
 B. **Owed live checks (ask Anthony, don't block A):**
    - **#182 (v0.9.54)** — when the 30 Sep pay reminder arrives: tap the push (Log Pay box for that
      schedule), tap it from the bell, next day tap the old reminder (late tap → Confirm Pending Pay
