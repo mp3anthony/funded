@@ -56,6 +56,10 @@ export default function BillsClient() {
   const [isAddExpenseSheetOpen, setIsAddExpenseSheetOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "week" | "month" | "overdue">("all");
   const [categoryFilter, setCategoryFilter] = useState("All");
+  // Issue #157: isolate bills from expenses in the unified list. Only
+  // affects which rows are listed — the Total Bar deliberately ignores it,
+  // same as Category and Due Date.
+  const [typeFilter, setTypeFilter] = useState<"all" | "bills" | "expenses">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [displayFrequency, setDisplayFrequency] = useState<FrequencyType>("weekly");
 
@@ -129,6 +133,8 @@ export default function BillsClient() {
     const today = isMounted ? new Date() : new Date("2026-07-05");
     today.setHours(0, 0, 0, 0);
 
+    if (typeFilter === "expenses") return [];
+
     return bills.filter((b) => {
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
@@ -151,7 +157,7 @@ export default function BillsClient() {
       if (filter === "overdue") return d.getTime() < today.getTime() && b.status !== "Paid";
       return true;
     });
-  }, [bills, filter, searchQuery, categoryFilter]);
+  }, [bills, filter, searchQuery, categoryFilter, typeFilter]);
 
   /* Expenses share the same search/category filters as bills now that
    * they're in one list (Issue #98, Slice 2 fix-round).
@@ -174,6 +180,7 @@ export default function BillsClient() {
    * disappearing with no indication why. */
   const filteredExpenses = useMemo(() => {
     if (filter !== "all") return [];
+    if (typeFilter === "bills") return [];
 
     return expenses.filter((e) => {
       if (searchQuery.trim() !== "") {
@@ -185,7 +192,7 @@ export default function BillsClient() {
       }
       return true;
     });
-  }, [expenses, filter, searchQuery, categoryFilter]);
+  }, [expenses, filter, searchQuery, categoryFilter, typeFilter]);
 
   // Issue #164: true when the Due Date filter is the reason expenses aren't
   // showing (i.e. there ARE expenses that match search/category, they're
@@ -245,14 +252,30 @@ export default function BillsClient() {
     return Array.from(new Set([...categoryOrder, ...ITEM_CATEGORIES, ...currentCats]));
   }, [groupedItems, categoryOrder]);
 
+  // Issue #157: wording follows the Type filter — "expenses" / "bills" when
+  // one is isolated, "bills or expenses" when showing both. The due-date
+  // messages already say "bills" and can't be reached with Type = Expenses
+  // (Due Date is disabled and reset to "All" then).
   const emptyStateMessage = useMemo(() => {
-    if (searchQuery.trim() !== "") return "No bills or expenses match your search";
-    if (categoryFilter !== "All") return `No bills or expenses in ${categoryFilter}`;
+    const noun =
+      typeFilter === "expenses" ? "expenses" : typeFilter === "bills" ? "bills" : "bills or expenses";
+    if (searchQuery.trim() !== "") return `No ${noun} match your search`;
+    if (categoryFilter !== "All") return `No ${noun} in ${categoryFilter}`;
     if (filter === "week") return "No bills due this week";
     if (filter === "month") return "No bills due this month";
     if (filter === "overdue") return "No overdue bills";
-    return "No bills or expenses found";
-  }, [filter, searchQuery, categoryFilter]);
+    return `No ${noun} found`;
+  }, [filter, searchQuery, categoryFilter, typeFilter]);
+
+  // Issue #157: expenses have no due date, so Due Date is disabled while
+  // Type = Expenses. Resetting it to "All" in the same change stops a stale
+  // "This Week"/"Overdue" silently hiding every expense behind a greyed-out
+  // control. Switching back to All/Bills leaves it on "All".
+  const isDueDateDisabled = typeFilter === "expenses";
+  const handleTypeFilterChange = (value: "all" | "bills" | "expenses") => {
+    setTypeFilter(value);
+    if (value === "expenses") setFilter("all");
+  };
 
   // Issue #164: plain-English explanation shown whenever the Due Date
   // filter is hiding expenses that would otherwise be in the list, so the
@@ -301,7 +324,29 @@ export default function BillsClient() {
       <div className="flex flex-col gap-3 px-1">
 
         {/* Filters Row */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted capitalize tracking-wider ml-1">
+              Type
+            </label>
+            <div className="relative">
+              <select
+                value={typeFilter}
+                onChange={(e) => handleTypeFilterChange(e.target.value as "all" | "bills" | "expenses")}
+                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
+              >
+                <option value="all">All</option>
+                <option value="bills">Bills</option>
+                <option value="expenses">Expenses</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
+                <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
@@ -330,15 +375,25 @@ export default function BillsClient() {
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted capitalize tracking-wider ml-1">
+          {/* Issue #157: whole field (label, select, chevron) dims while
+              disabled so it reads as unavailable, not just unfocused. */}
+          <div
+            className={`space-y-1.5 transition-opacity ${isDueDateDisabled ? "opacity-50" : ""}`}
+            title={isDueDateDisabled ? "Expenses don't have a due date" : undefined}
+          >
+            <label
+              htmlFor="bills-due-date-filter"
+              className="text-[10px] font-bold text-muted capitalize tracking-wider ml-1"
+            >
               Due Date
             </label>
             <div className="relative">
               <select
+                id="bills-due-date-filter"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as "all" | "week" | "month" | "overdue")}
-                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
+                disabled={isDueDateDisabled}
+                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer disabled:cursor-not-allowed pr-5"
               >
                 <option value="all">All</option>
                 <option value="week">This Week</option>
@@ -400,7 +455,11 @@ export default function BillsClient() {
       {/* Issue #164: explanatory note when the Due Date filter is hiding
           expenses that would otherwise be in this list, instead of them
           silently disappearing with no indication why. */}
-      {hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
+      {/* Issue #157: only shown when Type = All. With Type = Bills, expenses
+          are hidden by the user's own Type choice, not the date filter, so
+          the note would be misleading; with Type = Expenses, Due Date is
+          disabled and reset to "All", so it can't apply. */}
+      {typeFilter === "all" && hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
         <div className="px-1">
           <p className="text-[11px] text-muted font-body italic">
             {dateFilterHidesExpensesMessage}

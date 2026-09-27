@@ -8,6 +8,7 @@ import NotifyHourDialog from "@/components/NotifyHourDialog";
 import PushStatusDialog from "@/components/PushStatusDialog";
 import { useRouter } from "next/navigation";
 import type { PushStatus } from "@/lib/pushClient";
+import { getNotificationDestination } from "@/lib/notifications/destination";
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -47,8 +48,9 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
   };
 
   const handleNotificationClick = (notif: Notification) => {
-    if (notif.related_entity_id && (notif.type === 'manual_bill' || notif.type === 'auto_pay')) {
-      router.push(`/bills?billId=${notif.related_entity_id}`);
+    const destination = getNotificationDestination(notif);
+    if (destination) {
+      router.push(destination);
       onClose();
     }
   };
@@ -128,7 +130,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                       </button>
                     </div>
                     {visibleNotifications.map(notif => {
-                      const isTappable = !!(notif.related_entity_id && (notif.type === 'manual_bill' || notif.type === 'auto_pay'));
+                      const isTappable = getNotificationDestination(notif) !== null;
                       return (
                       <div
                         key={notif.id}

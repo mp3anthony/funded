@@ -92,7 +92,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [successUrl, setSuccessUrl] = useState<string | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const lastLoggedDescriptionLengthRef = useRef(0);
 
   // Restored-draft state (#168) — set once on mount if a saved draft is
@@ -120,9 +120,9 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   // as the user types/interacts, so an Android renderer kill mid-picker
   // doesn't lose it. Only while the sheet is actually open.
   useEffect(() => {
-    if (!effectiveOpen || successUrl) return;
+    if (!effectiveOpen || isSubmitted) return;
     writeDraft({ title, description });
-  }, [effectiveOpen, title, description, successUrl]);
+  }, [effectiveOpen, title, description, isSubmitted]);
 
   // Clear the draft on unmount (#168 follow-up). BugReportSheet only lives
   // inside the Settings page, so a normal in-app SPA navigation away from
@@ -149,7 +149,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     });
     setScreenshotError(null);
     setSubmitError(null);
-    setSuccessUrl(null);
+    setIsSubmitted(false);
     setIsSubmitting(false);
     lastLoggedDescriptionLengthRef.current = 0;
     setRestoredOpen(false);
@@ -255,7 +255,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
         throw new Error(result?.error || `Failed to submit bug report (status ${response.status}).`);
       }
 
-      setSuccessUrl(result.issueUrl || null);
+      setIsSubmitted(true);
       clearDraft();
     } catch (err: unknown) {
       console.error("Bug report submission failed:", err);
@@ -272,7 +272,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
       onClose={resetAndClose}
       title="Report a Bug"
       footer={
-        successUrl ? (
+        isSubmitted ? (
           <DialogButton variant="primary" onClick={resetAndClose} className="w-full">
             Done
           </DialogButton>
@@ -293,17 +293,11 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
         )
       }
     >
-      {successUrl ? (
+      {isSubmitted ? (
         <div className="flex flex-col items-center text-center gap-3 py-6">
           <CheckCircle2 className="h-12 w-12 text-primary" />
           <p className="text-sm font-semibold text-foreground">Thanks — your bug report was submitted.</p>
-          <p className="text-xs text-muted">
-            We&apos;ll take a look. You can track it{" "}
-            <a href={successUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
-              here
-            </a>
-            .
-          </p>
+          <p className="text-xs text-muted">We&apos;ll take a look.</p>
         </div>
       ) : (
         <form id="bug-report-form" onSubmit={handleSubmit} className="space-y-4">

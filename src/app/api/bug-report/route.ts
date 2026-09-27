@@ -126,8 +126,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const issue = await issueResponse.json();
-    return NextResponse.json({ success: true, issueUrl: issue.html_url, issueNumber: issue.number });
+    // Issue is filed server-side for tracking, but its URL/number are
+    // intentionally not returned to the client — users aren't meant to
+    // track issues directly (see #170). Known issues surface via the
+    // Known Issues tab; fixes surface via patch notes.
+    await issueResponse.json();
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Bug report API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

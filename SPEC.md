@@ -616,6 +616,58 @@ itself is a plain UI flow. Label **`needs-manual-test`**.
 
 ---
 
+### Slice 16: Notification tap destinations (Issues #181, #182)
+
+**Problem (out-of-spec item, approved by Anthony 2026-09-24):** tapping a
+bill reminder opens that bill's popup, but payday reminders do nothing in the
+inbox, and every push with a related entity is linked to
+`/bills?billId=<id>` regardless of type — so payday, "Payment Requires
+Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
+
+**Decisions (2026-09-24, grilled with Anthony):**
+- One shared type → destination rule, used by both push paths (client
+  app-open push + `deliver-scheduled` cron) **and** the inbox. Push and inbox
+  must never diverge.
+- Destinations: manual bill / auto-pay → Bills + that bill's popup
+  (unchanged); payday "Log Your Pay" → Payday; "Payment Requires
+  Confirmation" (lodge_payment) → Payday; goal milestone → Funds (page only,
+  no popup); anything else → home.
+- Payday landing: pay still loggable → Log Pay / Enter Pay Amount box for
+  that schedule; tapped late (already auto-logged as pending on load) →
+  Confirm box for the pending pay matching schedule **+ pay date**;
+  confirmation reminder → Confirm box for that pending pay; already
+  done/missing → plain Payday, no popup, no error.
+- Already-delivered pushes keep their old link — accepted, not backfilled.
+
+**Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52) →
+#182 (payday/confirm popups, v0.9.53, blocked by #181). Both
+**`needs-manual-test`** — real lock-screen push taps need a device.
+
+### Slice 17: Paid bills reset on their due date (Issue #187)
+
+**Problem (approved by Anthony 2026-09-27):** a bill marked Paid never becomes
+unpaid again — `markAsPaid()` rolls `due_date` forward immediately and nothing
+flips the status back, so Overdue, Upcoming Bills and reminders all ignore it
+forever. `invoice_date` never rolls at all.
+
+**Decisions (2026-09-27):**
+- Paid = paid for this cycle. Marking Paid sets status only — no date change
+  at that moment (paying early is silent).
+- On or after that due date (household timezone) the bill rolls: status back to unpaid,
+  `due_date` +1 cycle, `invoice_date` +1 cycle in lockstep when present.
+  Rollover is persisted server-side (reminders read DB status). Non-recurring
+  bills stay Paid.
+- Autopay bills cannot be marked Paid/Unpaid — action hidden.
+- Mark as Unpaid = undo within the cycle, no date change.
+- One-off release fix: existing recurring Paid bills → unpaid at their next
+  upcoming due date (never Overdue); autopay just loses Paid.
+- Expenses out of scope. No schema change expected — escalate if one is needed.
+
+**Ticket:** #187 (v0.9.54, after #182), **`needs-manual-test`**. Full
+problem/checklist on the issue.
+
+---
+
 ## Part C — Suggested Milestone Order (for confirmation, not final)
 
 Grouped by dependency, not strict sequence — slices within a group can

@@ -29,10 +29,63 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
-    version: "0.9.46",
+    version: "0.9.53",
     date: "September 2026",
     highlights: [
       "Fixed the Report a Bug form on some Android phones losing everything you'd typed (and closing itself) if the screen went blank for a moment while picking a screenshot. If that happens again, your title and description will now come back automatically — you'll just need to re-attach the screenshot, since the picked photo itself can't be recovered.",
+    ],
+  },
+  {
+    version: "0.9.52",
+    date: "September 2026",
+    highlights: [
+      "Tapping a notification now takes you to the right place: payday and \"confirm your payment\" reminders open Payday, goal milestones open Funds, and bill reminders still open that bill.",
+      "Payday, payment-confirmation and goal notifications in the in-app notification list can now be tapped too, just like bill reminders.",
+      "Notifications now show the new light Funded icon.",
+    ],
+  },
+  {
+    version: "0.9.51",
+    date: "September 2026",
+    highlights: [
+      "On iPhone, the Funded home-screen icon should now show the new light icon instead of the old black one. If yours still looks dark, remove Funded from your home screen and add it again from Safari.",
+      "The small Funded icon shown in browser tabs now uses the new light design too.",
+    ],
+  },
+  {
+    version: "0.9.50",
+    date: "September 2026",
+    highlights: [
+      "When you're viewing only Expenses on the Bills page, the Due Date filter is now greyed out and switches back to \"All\" — expenses don't have due dates, so it wouldn't do anything (and could otherwise hide all your expenses).",
+      "The \"nothing found\" message on the Bills page now says whether it's bills or expenses it couldn't find, based on the Type you've picked.",
+    ],
+  },
+  {
+    version: "0.9.49",
+    date: "September 2026",
+    highlights: [
+      "New Type filter on the Bills page: pick Bills or Expenses to see just one or the other, or All to see both together like before. It works alongside search and the other filters, and the total at the top stays the same whichever you pick.",
+    ],
+  },
+  {
+    version: "0.9.48",
+    date: "September 2026",
+    highlights: [
+      "New light app icon: browser tabs now show it when your device is in light mode, and it is the icon used when you add Funded to your Home Screen. Icons already on your Home Screen will not change on their own. To get the new one, remove the app and add it again.",
+    ],
+  },
+  {
+    version: "0.9.47",
+    date: "September 2026",
+    highlights: [
+      "Added a light version of the app icon behind the scenes — no visible change.",
+    ],
+  },
+  {
+    version: "0.9.46",
+    date: "September 2026",
+    highlights: [
+      "Simplified the bug report confirmation screen.",
     ],
   },
   {
