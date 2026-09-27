@@ -616,7 +616,7 @@ itself is a plain UI flow. Label **`needs-manual-test`**.
 
 ---
 
-### Slice 16: Notification tap destinations (Issues #181, #182)
+### Slice 16: Notification tap destinations (Issues #181, #182, #193)
 
 **Problem (out-of-spec item, approved by Anthony 2026-09-24):** tapping a
 bill reminder opens that bill's popup, but payday reminders do nothing in the
@@ -630,8 +630,9 @@ Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
   must never diverge.
 - Destinations: manual bill / auto-pay → Bills + that bill's popup
   (unchanged); payday "Log Your Pay" → Payday; "Payment Requires
-  Confirmation" (lodge_payment) → Payday; goal milestone → Funds (page only,
-  no popup); anything else → home.
+  Confirmation" (lodge_payment) → Payday; goal milestone → Goals page
+  (`/funds`) + that goal's popup (changed from "page only" 2026-09-27, #193);
+  anything else → home.
 - Payday landing: pay still loggable → Log Pay / Enter Pay Amount box for
   that schedule; tapped late (already auto-logged as pending on load) →
   Confirm box for the pending pay matching schedule **+ pay date**;
@@ -639,9 +640,15 @@ Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
   done/missing → plain Payday, no popup, no error.
 - Already-delivered pushes keep their old link — accepted, not backfilled.
 
-**Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52) →
-#182 (payday/confirm popups, v0.9.53, blocked by #181). Both
+**Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52,
+done) → #182 (payday/confirm popups, v0.9.54) → #193 (goal popup +
+fix "Funds" in the v0.9.52 patch note, v0.9.55). All
 **`needs-manual-test`** — real lock-screen push taps need a device.
+
+**Naming (2026-09-27, Anthony):** the page is the **Goals** page (bottom nav
+name) — agents must call it that in patch notes, checklists and chat, not
+"Funds". `/funds` route, `funds` table and code identifiers are unchanged; no
+app-wide rename.
 
 ### Slice 17: Paid bills reset on their due date (Issue #187)
 
@@ -663,7 +670,7 @@ forever. `invoice_date` never rolls at all.
   upcoming due date (never Overdue); autopay just loses Paid.
 - Expenses out of scope. No schema change expected — escalate if one is needed.
 
-**Ticket:** #187 (v0.9.54, after #182), **`needs-manual-test`**. Full
+**Ticket:** #187 (v0.9.56, after #193), **`needs-manual-test`**. Full
 problem/checklist on the issue.
 
 ---
