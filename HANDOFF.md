@@ -3,17 +3,59 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-27 (evening) — **#181 built, reviewed, PR open awaiting Anthony's iPhone
-test; agy delegation bug fixed.** [PR #190](https://github.com/mp3anthony/funded/pull/190)
-(branch `feat/181-notification-tap-destinations`, v0.9.52, `needs-manual-test`): shared rule
-`src/lib/notifications/destination.ts` used by both push paths + inbox (bills → bill popup,
-payday/lodge_payment → `/payday`, goal → `/funds`, else home); cron select now fetches `type`;
-payday/confirm/goal inbox items tappable; push icon → light, dark PNGs deleted. tsc clean, no new lint.
-Plan: Claude sub-agent (agy fell back). Build: Claude sub-agent. Review: **agy Gemini — APPROVE**.
-**Before merge: Anthony runs the 6-item checklist in PR #190 on iPhone and confirms v0.9.52.**
-Worth checking on-device (flagged by builder): `sw.js` `notificationclick` focuses an already-open
-window via `client.url.includes(url)` — item 2 of the checklist (tap while app is open on another
-page) tests whether it actually navigates.
+**Last updated:** 2026-09-27 (night) — **#169 readied for merge (not merged); merge block fixed;
+no new app code by the Orchestrator.**
+- **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168):** Anthony's call — **merge
+  without Hannah's device test** (she's asked 4–5×, not keen to test previews; she'll use it on live).
+  Sub-agent merged `origin/main` into the branch (conflicts: `version.ts`, `patch-notes.ts`,
+  `BugReportSheet.tsx` — main's `successUrl` → `isSubmitted` rename; draft-save effect now bails on
+  `isSubmitted`), re-versioned **v0.9.53**, pushed. Independent review: **APPROVE**; reviewer pushed
+  `88903e5` (lint: targeted `set-state-in-effect` disable on the restore effect — lazy `useState`
+  init would break hydration; removed 2 unused disables). tsc clean.
+  **Anthony approved one pre-merge fix (~10 min):** the 2-min draft expiry is measured from the last
+  keystroke/open, so a user who stops typing then spends >2 min taking the screenshot loses the draft
+  anyway. Fix: re-save the draft (refresh timestamp) on `visibilitychange` hidden / `pagehide` / when
+  "Attach a screenshot" is tapped. Optional cosmetic from the same review: restore note says "your
+  screenshot couldn't be" even when none was attached (draft doesn't record it). Build → review →
+  merge. PR body's "no new lint issues" line was inaccurate before the reviewer's fix — tidy it.
+  Stale worktree `.claude/worktrees/agent-a6feb009b8d57c899` still at `6e879c9` — remove it.
+- **Version renumber (done in this branch):** #169 = v0.9.53 ⇒ **#182 → v0.9.54,
+  #193 → v0.9.55, #187 → v0.9.56**. SPEC.md/HANDOFF updated on this branch
+  (`docs/goal-popup-193`, PR #194); new versions being commented on #182/#193/#187 by the
+  Orchestrator. Then merge #194.
+- **Merge block fixed (2026-09-27):** a plain permission rule doesn't help (`Bash(gh pr *)` was
+  already allowed in `settings.local.json`; the auto-mode classifier blocks "merge without review"
+  itself). Anthony added an `autoMode.allow` entry (with `"$defaults"`) to his user
+  `~/.claude/settings.json` permitting `gh pr merge` on this repo when he approved the merge or the
+  docs/tooling self-merge rule applies. Takes effect in a new session — the merge-block note in the
+  next bullet group is superseded.
+- **Next session order:** #169 timestamp fix → review → merge #169 (v0.9.53) → renumber in #194 +
+  issue comments → merge #194 → then #182 as planned below.
+
+Earlier same day (late): **#181 passed on iPhone, merged (PR #190, Anthony merged by
+hand), v0.9.52 live, issue closed. #193 filed. No app code this session.**
+- **How #181 was tested (reuse for #182/#193):** pushes can only be tested *after* merge — the pg_cron
+  delivery job calls **production**, so the push link is built by live code, not the PR preview.
+  Inbox-only items can be tested on the preview. Method: insert a `notifications` row for Anthony
+  (`user_id 4200aca8-…`, household `4821ab06-…`; his main login, NOT the
+  gmail one — see agent memory) with `scheduled_for = now()`, `delivered_at = null` → push within ~5 min
+  (arrives ×6, one per subscription). Inbox-only: set `delivered_at = now()`. Re-show an old item:
+  `is_read = false` (inbox hides read items). Tag test rows `dedupe_key 'TEST-…'` and delete after —
+  all #181 test rows deleted, borrowed item re-marked read.
+- **Anthony's feedback → [#193](https://github.com/mp3anthony/funded/issues/193)** (`ready-for-agent`,
+  `needs-manual-test`, v0.9.55, after #182): goal notifications open **that goal's popup** (like bills),
+  plus fix the v0.9.52 patch note that says "open Funds". **It's the Goals page** — call it that in
+  anything Anthony reads; no app-wide rename, `/funds` route/code unchanged. #187 → **v0.9.56**
+  (comment on #187). SPEC.md Slice 16/17 + CHANGE-LOG updated in
+  [PR #194](https://github.com/mp3anthony/funded/pull/194) (docs only, incl. this HANDOFF) —
+  **awaiting Anthony's merge.**
+- **⚠️ Merge block:** since ~2026-09-26 the auto-mode classifier denies `gh pr merge` ("Merge Without
+  Review"), and denied adding a permission rule ("Self-Modification"). Anthony will add
+  `"Bash(gh pr merge:*)"` to `.claude/settings.json` `permissions.allow` himself later. Until then,
+  ask him to merge by hand.
+
+Earlier same day: **#181 built, reviewed, PR #190 opened; agy delegation bug fixed.** Plan: Claude
+sub-agent (agy fell back). Build: Claude sub-agent. Review: agy Gemini — APPROVE.
 **agy first real run:** Opus-in-agy (old `plan` model) tried the blocked `run_command` tool, headless
 denied it, turn ended, script saved the intro line as success (exit 0) — twice. Fixed in
 [PR #191](https://github.com/mp3anthony/funded/pull/191) (merged, self-merge per docs/tooling rule;
@@ -25,8 +67,8 @@ weaker than Claude's — missed #182 extensibility). Kit updated in lockstep (by
 line-level claims can be incomplete (missed 2 of 16 grep hits in a test) — verify. Tip: call the
 script as `& .\scripts\agy-delegate.ps1 ... -Files @('a','b')` from PowerShell; agy only reads files
 passed via `-Files` (inside the repo), so stage diffs as a temp `.md` in the repo and delete after.
-**Last active SPEC ticket: Slice 16 — #181 in manual test; next build is #182 (good first full agy
-plan job).**
+**Last active SPEC ticket: Slice 16 — #181 done; next build is #182 (good first full agy plan job),
+then #193.**
 
 Earlier same day: **Housekeeping + paid-bills decision; no app code.**
 (1) Worktree cleanup: all 15 folders under `.claude/worktrees/` removed, 25 local `worktree-agent-*`
@@ -82,7 +124,7 @@ Bills). All decisions recorded in **SPEC.md Slice 16**; CHANGE-LOG entry logged 
 Tickets: [#181](https://github.com/mp3anthony/funded/issues/181) (shared type→destination rule
 for both push paths + inbox; payday/lodge → Payday, goal → Funds; v0.9.52) →
 [#182](https://github.com/mp3anthony/funded/issues/182) (payday/confirm popups, schedule + pay
-date in link, late-tap-after-auto-log case; v0.9.53; natively `blocked_by` #181). Both
+date in link, late-tap-after-auto-log case; v0.9.54; natively `blocked_by` #181). Both
 `ready-for-agent` + `needs-manual-test`. **Last active: SPEC.md Slice 16 — next session starts
 #181.**
 
@@ -106,25 +148,23 @@ Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never le
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **#181 → [PR #190](https://github.com/mp3anthony/funded/pull/190) is waiting on Anthony's iPhone
-   test** (6-item checklist in the PR, incl. light icon) + version confirm (v0.9.52). Ask him the
-   result first; on pass, merge (issue closure). On fail, fix on the same branch.
-   **Then build [#182](https://github.com/mp3anthony/funded/issues/182)** (Slice 16, v0.9.53) on top
-   of `destination.ts` — extend the payday/lodge_payment entries with query params. Plan via agy
-   (`-Task plan`, now Gemini Pro) → Claude build sub-agent → agy review → PR → `needs-manual-test`.
-B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.54
-   after #182): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
+A. **First: is [PR #194](https://github.com/mp3anthony/funded/pull/194) (docs) merged?** If not,
+   ask Anthony (merge block — see top). Then **build [#182](https://github.com/mp3anthony/funded/issues/182)**
+   (Slice 16, v0.9.54) on top of `destination.ts` — extend the payday/lodge_payment entries with
+   query params. Plan via agy (`-Task plan`, now Gemini Pro) → Claude build sub-agent → agy review →
+   PR → `needs-manual-test`. For the phone test, seed a loggable pay + test notifications (method at
+   top); push items only testable after merge.
+   **Then [#193](https://github.com/mp3anthony/funded/issues/193)** (v0.9.55): goal popup via
+   `goalId` param, same pattern as bills' `billId`; fix v0.9.52 "Funds" patch-note wording.
+B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.56
+   after #193): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
    autopay can't be marked Paid, one-off reset of bills already stuck at Paid. Read the
    implementation-notes comment on #187 first. Includes a one-off production data fix (not written yet) — must be idempotent, see #187 notes.
    Still-optional cosmetics (unfiled): `public/manifest.json` black `background_color` / lime
    `theme_color`; stale "PR #121 redeploy trigger" comment on `sw.js` line 1.
-0. **(Quick check any session, independent of A/B)** **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168, Android/Samsung Internet
-   bug-report screenshot-attach losing the draft) — open, `needs-manual-test`, NOT yet merged.**
-   Hannah was going to try it for real (attach a screenshot on her actual device — Samsung Internet,
-   not Chrome, see the dated section below for why that correction matters) the evening of
-   2026-09-17; Anthony said another session would close this out once she confirms. Check whether
-   that's happened before doing anything else with this PR — if she hasn't tried it yet, it's still
-   just waiting, not stuck.
+0. **Do before A:** [PR #169](https://github.com/mp3anthony/funded/pull/169) timestamp fix → merge,
+   then renumber + merge PR #194 — see "Next session order" at the top. No longer waiting on Hannah.
+   If she later reports the draft still lost on Samsung Internet, reopen #168.
 1. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Hannah barely/not getting bill
    reminder pushes. Still parked, still unresolved. **New evidence 2026-09-17:** Anthony reported she
    got one notification ~40 minutes late on Android — logged as a comment on #145, not a new issue.
@@ -147,9 +187,7 @@ B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Sli
 [#167](https://github.com/mp3anthony/funded/issues/167) (Mailjet onboarding email campaign,
 `needs-info`/`ready-for-human`, not previously in this file), and
 [#156](https://github.com/mp3anthony/funded/issues/156) (move transactional email off personal Gmail —
-`ready-for-human`, waiting on Anthony's manual Mailjet/DNS/Supabase steps). Also #168/PR #169 still
-waiting on Hannah's device test (item 0 above) — status unchecked this session.
-
+`ready-for-human`, waiting on Anthony's manual Mailjet/DNS/Supabase steps).
 **Closed the previous session (2026-09-17), no further action needed — flagged only so a future session
 doesn't re-litigate:**
 - **[#144](https://github.com/mp3anthony/funded/issues/144)** — Anthony confirmed his own
