@@ -179,12 +179,23 @@ export async function GET(request: Request) {
           console.error(`[push-reminders] rollover failed for bill ${b.id}:`, rollError);
           continue;
         }
-        // No row = something else (the app's on-load catch-up, or an Unpaid
-        // tap) changed it first; keep the fetched copy as-is.
         if (row) {
           Object.assign(b, row);
           rolledTotal++;
+          continue;
         }
+        // No row = something else (the app's on-load catch-up, or an Unpaid
+        // tap) changed it first; re-read so reminders see the current state.
+        const { data: fresh, error: readError } = await supabase
+          .from('bills')
+          .select('*')
+          .eq('id', b.id)
+          .maybeSingle();
+        if (readError) {
+          console.error(`[push-reminders] re-read failed for bill ${b.id}:`, readError);
+          continue;
+        }
+        if (fresh) Object.assign(b, fresh);
       } catch (rollErr) {
         console.error(`[push-reminders] rollover failed for bill ${b.id}:`, rollErr);
       }

@@ -20,7 +20,8 @@
 --   * autopay bills (payment_type 'auto', any case) -> status reset only, dates untouched (their
 --     displayed date already rolls via adjustAutopayBillDate).
 -- No bill comes out of this dated in the past, so none shows Overdue. Non-recurring Paid bills
--- are left Paid (nothing to roll to).
+-- are left Paid (nothing to roll to). Paused bills are skipped (same rule as computeRollover in
+-- src/lib/billCycle.ts): they stay Paid while paused and roll on normally once resumed.
 --
 -- Cycle arithmetic matches addCycles() in src/lib/billCycle.ts: weekly 7 days, fortnightly
 -- 14 days, yearly 1 year, anything else 1 month — always counted from the ORIGINAL date
@@ -63,7 +64,8 @@ BEGIN
     FROM bills b
     JOIN household_today ht ON ht.household_id = b.household_id
     WHERE b.status = 'Paid'
-      AND b.is_recurring
+      AND coalesce(b.is_recurring, true)
+      AND NOT coalesce(b.is_paused, false)
   ),
   planned AS (
     SELECT

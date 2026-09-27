@@ -1532,7 +1532,19 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
               console.error("[loadData] bill rollover failed:", row.id, rollError);
               return row;
             }
-            return rolled ?? row;
+            if (rolled) return rolled;
+            // No row = the cron (or another device) changed it first; re-read
+            // so state shows the rolled bill rather than the stale Paid row.
+            const { data: fresh, error: readError } = await supabase
+              .from("bills")
+              .select("*")
+              .eq("id", row.id)
+              .maybeSingle();
+            if (readError || !fresh) {
+              if (readError) console.error("[loadData] bill re-read failed:", row.id, readError);
+              return row;
+            }
+            return fresh;
           } catch (rollErr) {
             console.error("[loadData] bill rollover failed:", row.id, rollErr);
             return row;
