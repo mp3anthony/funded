@@ -19,11 +19,10 @@ no new app code by the Orchestrator.**
   screenshot couldn't be" even when none was attached (draft doesn't record it). Build → review →
   merge. PR body's "no new lint issues" line was inaccurate before the reviewer's fix — tidy it.
   Stale worktree `.claude/worktrees/agent-a6feb009b8d57c899` still at `6e879c9` — remove it.
-- **Version renumber (approved as a plan, NOT done yet):** #169 = v0.9.53 ⇒ **#182 → v0.9.54,
-  #193 → v0.9.55, #187 → v0.9.56**. Update SPEC.md/CHANGE-LOG/HANDOFF on this branch
-  (`docs/goal-popup-193`, PR #194) and comment the new version on #182/#193/#187 (a sub-agent was
-  blocked from the issue comments as "External System Writes" — Anthony said next session does it).
-  Then merge #194. References below still show the old numbers.
+- **Version renumber (done in this branch):** #169 = v0.9.53 ⇒ **#182 → v0.9.54,
+  #193 → v0.9.55, #187 → v0.9.56**. SPEC.md/HANDOFF updated on this branch
+  (`docs/goal-popup-193`, PR #194); new versions being commented on #182/#193/#187 by the
+  Orchestrator. Then merge #194.
 - **Merge block fixed (2026-09-27):** a plain permission rule doesn't help (`Bash(gh pr *)` was
   already allowed in `settings.local.json`; the auto-mode classifier blocks "merge without review"
   itself). Anthony added an `autoMode.allow` entry (with `"$defaults"`) to his user
@@ -44,9 +43,9 @@ hand), v0.9.52 live, issue closed. #193 filed. No app code this session.**
   `is_read = false` (inbox hides read items). Tag test rows `dedupe_key 'TEST-…'` and delete after —
   all #181 test rows deleted, borrowed item re-marked read.
 - **Anthony's feedback → [#193](https://github.com/mp3anthony/funded/issues/193)** (`ready-for-agent`,
-  `needs-manual-test`, v0.9.54, after #182): goal notifications open **that goal's popup** (like bills),
+  `needs-manual-test`, v0.9.55, after #182): goal notifications open **that goal's popup** (like bills),
   plus fix the v0.9.52 patch note that says "open Funds". **It's the Goals page** — call it that in
-  anything Anthony reads; no app-wide rename, `/funds` route/code unchanged. #187 → **v0.9.55**
+  anything Anthony reads; no app-wide rename, `/funds` route/code unchanged. #187 → **v0.9.56**
   (comment on #187). SPEC.md Slice 16/17 + CHANGE-LOG updated in
   [PR #194](https://github.com/mp3anthony/funded/pull/194) (docs only, incl. this HANDOFF) —
   **awaiting Anthony's merge.**
@@ -125,7 +124,7 @@ Bills). All decisions recorded in **SPEC.md Slice 16**; CHANGE-LOG entry logged 
 Tickets: [#181](https://github.com/mp3anthony/funded/issues/181) (shared type→destination rule
 for both push paths + inbox; payday/lodge → Payday, goal → Funds; v0.9.52) →
 [#182](https://github.com/mp3anthony/funded/issues/182) (payday/confirm popups, schedule + pay
-date in link, late-tap-after-auto-log case; v0.9.53; natively `blocked_by` #181). Both
+date in link, late-tap-after-auto-log case; v0.9.54; natively `blocked_by` #181). Both
 `ready-for-agent` + `needs-manual-test`. **Last active: SPEC.md Slice 16 — next session starts
 #181.**
 
@@ -151,13 +150,13 @@ about desktop behaviour.
 **→ START HERE NEXT SESSION:**
 A. **First: is [PR #194](https://github.com/mp3anthony/funded/pull/194) (docs) merged?** If not,
    ask Anthony (merge block — see top). Then **build [#182](https://github.com/mp3anthony/funded/issues/182)**
-   (Slice 16, v0.9.53) on top of `destination.ts` — extend the payday/lodge_payment entries with
+   (Slice 16, v0.9.54) on top of `destination.ts` — extend the payday/lodge_payment entries with
    query params. Plan via agy (`-Task plan`, now Gemini Pro) → Claude build sub-agent → agy review →
    PR → `needs-manual-test`. For the phone test, seed a loggable pay + test notifications (method at
    top); push items only testable after merge.
-   **Then [#193](https://github.com/mp3anthony/funded/issues/193)** (v0.9.54): goal popup via
+   **Then [#193](https://github.com/mp3anthony/funded/issues/193)** (v0.9.55): goal popup via
    `goalId` param, same pattern as bills' `billId`; fix v0.9.52 "Funds" patch-note wording.
-B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.55
+B. **Then [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.56
    after #193): paid bills reset to unpaid on/after their due date, invoice date rolls with it,
    autopay can't be marked Paid, one-off reset of bills already stuck at Paid. Read the
    implementation-notes comment on #187 first. Includes a one-off production data fix (not written yet) — must be idempotent, see #187 notes.

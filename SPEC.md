@@ -641,8 +641,8 @@ Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
 - Already-delivered pushes keep their old link — accepted, not backfilled.
 
 **Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52,
-done) → #182 (payday/confirm popups, v0.9.53) → #193 (goal popup +
-fix "Funds" in the v0.9.52 patch note, v0.9.54). All
+done) → #182 (payday/confirm popups, v0.9.54) → #193 (goal popup +
+fix "Funds" in the v0.9.52 patch note, v0.9.55). All
 **`needs-manual-test`** — real lock-screen push taps need a device.
 
 **Naming (2026-09-27, Anthony):** the page is the **Goals** page (bottom nav
@@ -670,7 +670,7 @@ forever. `invoice_date` never rolls at all.
   upcoming due date (never Overdue); autopay just loses Paid.
 - Expenses out of scope. No schema change expected — escalate if one is needed.
 
-**Ticket:** #187 (v0.9.55, after #193), **`needs-manual-test`**. Full
+**Ticket:** #187 (v0.9.56, after #193), **`needs-manual-test`**. Full
 problem/checklist on the issue.
 
 ---
