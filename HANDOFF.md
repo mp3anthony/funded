@@ -3,56 +3,20 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
-**Last updated:** 2026-09-27 (late night) — **#169 merged (v0.9.53 live); #182 + #193 built, reviewed,
-PRs open awaiting Anthony's manual test; agy no longer plans.**
-- **[PR #169](https://github.com/mp3anthony/funded/pull/169) (#168) MERGED, v0.9.53, issue closed.**
-  Timestamp-refresh fix (re-save draft on `visibilitychange` hidden / `pagehide` / Attach tap) +
-  `hadScreenshot` flag (restore note only mentions a lost screenshot when one was being attached;
-  cleared on picker `cancel` via native listener — React 19 only wires `onCancel` on `<dialog>` — or
-  rejected file) + `submittedRef` guard against re-saving a submitted draft. agy review round 1
-  CHANGES REQUESTED (3) → fixed → round 2 APPROVE. Merged without Hannah's test per Anthony. If she
-  later reports the draft still lost on Samsung Internet, reopen #168.
-- **[PR #194](https://github.com/mp3anthony/funded/pull/194) MERGED** (docs: #193 spec + version
-  renumber). Versions: **#182 v0.9.54, #193 v0.9.55, #187 v0.9.56** — commented on all three issues.
-- **[PR #195](https://github.com/mp3anthony/funded/pull/195) — #182 payday taps, v0.9.54,
-  `needs-manual-test`, OPEN.** Payday reminder → `/payday?scheduleId=&payDate=` (pay date parsed from
-  the existing `notifications.dedupe_key` via `parsePaydayLogPayDate` in `generateReminders.ts` — no
-  migration); confirmation reminder → `/payday?historyId=`. Resolver in new pure
-  `src/lib/notifications/paydayLink.ts`. Payday page waits for `autoLogMissedPays` to settle, opens
-  the Log Pay or Confirm box once, strips params with `router.replace`. `sw.js` notificationclick: links
-  with params always `client.navigate()` an open window (fallback `openWindow`) — also affects bill
-  links. `deliver-scheduled` cron now selects `dedupe_key`. Plan: Claude sub-agent (agy plan failed —
-  blocked tool). Build: Claude sub-agent. Review: agy APPROVE. main merged in (9da3668). Auto-fix on.
-- **[PR #197](https://github.com/mp3anthony/funded/pull/197) — #193 goal popup, v0.9.55,
-  `needs-manual-test`, OPEN, STACKED on #195** (base `feat/182-payday-tap-popups`; both touch
-  `destination.ts`). Goal notification → `/funds?goalId=<fund id>`; Goals page waits for
-  `isDataLoading` false, opens that goal's GoalDetailSheet, strips the param. v0.9.52 patch note
-  "open Funds" → "open Goals". agy APPROVE. Auto-fix on. **After #195 merges: retarget #197's base to
-  `main` (`gh pr edit 197 --base main`), merge main in if needed, re-check CI.**
-- **Testing reality for #195/#197:** push taps only testable AFTER merge (pg_cron delivery job calls
-  production). Before merge: inbox items on the PR preview (#195 items 6–8; #197 items 2–6). Seed
-  test notifications with the method in the next section (tag `dedupe_key 'TEST-…'`, delete after).
-  Note: #182's link needs a real payday `dedupe_key` shape (`<scheduleId>-<YYYY-MM-DD>-payday_log_pay`)
-  on the test row, not `TEST-…`, or it falls back to plain `/payday` — use a real schedule id and pay
-  date, and delete the row after.
-- **agy change — [PR #196](https://github.com/mp3anthony/funded/pull/196) MERGED** (self-merge,
-  docs/tooling rule; reviewed by a Claude sub-agent, not agy): `-Task plan` removed (plan models kept
-  calling blocked `run_command`); on a blocked tool the script retries ONCE with a firmer line naming
-  the sanitised tool, sharing the `-TimeoutMin` budget; second failure → exit 3, no cooldown. Kit
-  updated byte-identical (backup `_backup-20260927b\`). Retry path not live-tested. Kit
-  `UPDATE-PROMPT.md` not refreshed — other repos (Cartel, website) need a new update prompt to pick
-  this up. Planning now always → Claude sub-agent. agy refuses `.sql` and `.claude/` paths (exit 4):
-  paste schema facts into prompts; stage worktree diffs as temp `.md` files in the repo root, delete after.
-- **Housekeeping:** stale worktree `agent-a6feb009b8d57c899` removed by Anthony. Merged worktrees
-  cleaned. Remaining worktree: `.claude/worktrees/wt-193` (branch `feat/193-goal-popup`, PR #197) —
-  remove after #197 merges. `worktree-agent-afa605247a48203f1` branch still kept (see below).
-- **Process slip this session:** Orchestrator read a stale HANDOFF (the real one was in unmerged
-  PR #194) and built #182 before #169. Lesson: at session start, also check open docs PRs
-  (`gh pr list`) for a newer HANDOFF.
-- **Anthony will run a new session to walk through closing the open PRs** — start with the
-  START HERE list below.
-**Last active SPEC ticket: Slice 16 — #182 (PR #195) + #193 (PR #197) in manual test; next build
-#187 (Slice 17, v0.9.56).**
+**Last updated:** 2026-09-27 (wrap-up) — **#195 (#182) and #197 (#193) MERGED, v0.9.55 live; no
+open PRs; no new app code.**
+- **[PR #195](https://github.com/mp3anthony/funded/pull/195) (#182 payday taps) MERGED as v0.9.54,
+  issue closed — before any manual test.** Anthony's call: no pay was due/pending (next pays: 30 Sep
+  weekly variable schedule `832e9381-…`, 6 Oct fortnightly fixed `41041717-…`) and push taps are only
+  testable after merge anyway; faking a due pay would create a real pending pay. **Live checks still
+  owed** (see START HERE B).
+- **[PR #197](https://github.com/mp3anthony/funded/pull/197) (#193 goal popup) MERGED as v0.9.55,
+  issue closed.** Retargeted to `main` after #195 merged (no conflicts). Anthony passed all preview
+  inbox checks on iPhone (seeded 2 `goal_milestone` rows tagged `TEST-193-*`, one real goal, one
+  nonexistent id — both deleted after). Goal **push** tap not yet seen live.
+- Housekeeping: worktree `wt-193` removed; local `feat/182`, `feat/193`, `docs/handoff-2026-09-27d`
+  branches deleted. Swept the 2026-09-27 (late night) and 2026-09-17 sections into `HANDOFF-ARCHIVE.md`.
+**Last active SPEC ticket: Slice 16 done (pending live checks). Next: plan #187 (Slice 17, v0.9.56).**
 
 **Still-live notes carried from earlier sessions (2026-09-24 → 27; full detail in `HANDOFF-ARCHIVE.md`):**
 - **How #181 was tested (reuse for #182/#193):** pushes can only be tested *after* merge — the pg_cron
@@ -67,6 +31,16 @@ PRs open awaiting Anthony's manual test; agy no longer plans.**
 - **agy tips:** agy line-level claims can be incomplete (missed 2 of 16 grep hits in a test) — verify.
   Call the script as `& .\scripts\agy-delegate.ps1 ... -Files @('a','b')` from PowerShell; agy only
   reads files passed via `-Files` (inside the repo). Never use the gemini-cli MCP.
+- **agy state (PR #196, 2026-09-27):** `-Task plan` removed — planning always → Claude sub-agent.
+  On a blocked tool the script retries once (retry path not live-tested). Kit `UPDATE-PROMPT.md` not
+  refreshed — other repos (Cartel, website) need a new update prompt. agy refuses `.sql` and `.claude/`
+  paths (exit 4): paste schema facts into prompts; stage worktree diffs as temp `.md` in repo root.
+- **Session-start check:** also run `gh pr list` for an unmerged docs PR carrying a newer HANDOFF
+  (a stale HANDOFF caused an out-of-order build on 2026-09-27).
+- **#168 (bug-report draft, v0.9.53):** merged without Hannah's Samsung Internet test — if she
+  reports the draft still lost after attaching a screenshot, reopen #168.
+- **Payday test rows:** #182 links need a real `dedupe_key` shape
+  (`<scheduleId>-<YYYY-MM-DD>-payday_log_pay`), not `TEST-…`, or they fall back to plain `/payday`.
 - **agy loose ends:** (a) when **#183 (DESIGN-REFERENCE.md)** lands, restore the kit's
   design-foundation rule in `GEMINI-DELEGATION.md` pointing at it (currently dropped; rule 5 points at
   SPEC.md Part A); (b) future kit updates (kit at
@@ -90,23 +64,21 @@ Android/Samsung Internet (Hannah). Anthony has said this repeatedly — never le
 about desktop behaviour.
 
 **→ START HERE NEXT SESSION:**
-A. **Close [PR #195](https://github.com/mp3anthony/funded/pull/195)
-   ([#182](https://github.com/mp3anthony/funded/issues/182) payday taps, v0.9.54)** — walk Anthony
-   through it: inbox checks on the PR preview (items 6–8; seed rows per "How #181 was tested" above,
-   using a real payday `dedupe_key` shape) → his merge go-ahead + confirm version v0.9.54 → merge →
-   push-tap checks on live (items 1–5, 9–11) → follow-up PR if any fail.
-B. **Then [PR #197](https://github.com/mp3anthony/funded/pull/197)
-   ([#193](https://github.com/mp3anthony/funded/issues/193) goal popup, v0.9.55)** — after #195
-   merges, retarget base to `main` (`gh pr edit 197 --base main`), merge main in if needed, re-check
-   CI → inbox checks on the preview (items 2–6) → his merge go-ahead + version confirm → merge → push
-   check on live. Then remove worktree `.claude/worktrees/wt-193`.
-C. **Then build [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17,
-   v0.9.56): paid bills reset to unpaid on/after their due date, invoice date rolls with it, autopay
-   can't be marked Paid, one-off reset of bills already stuck at Paid. **Read the
-   implementation-notes comment on #187 first** (real cron is pg_cron → `push-reminders` every ~5 min,
-   not hourly; roll on-or-after due date; idempotent guard; month-end clamp). Includes a one-off
-   production data fix (not written yet) — must be idempotent. Plan via a Claude sub-agent (agy no
-   longer plans) → Claude build sub-agent → agy review → PR → `needs-manual-test`.
+A. **Plan [#187](https://github.com/mp3anthony/funded/issues/187)** (SPEC.md Slice 17, v0.9.56) —
+   Anthony wants the session to open with this plan: paid bills reset to unpaid on/after their due
+   date, invoice date rolls with it, autopay can't be marked Paid, one-off reset of bills already stuck
+   at Paid. **Read the implementation-notes comment on #187 first** (real cron is pg_cron →
+   `push-reminders` every ~5 min, not hourly; roll on-or-after due date; idempotent guard; month-end
+   clamp). Includes a one-off production data fix (not written yet) — must be idempotent. Plan via a
+   Claude sub-agent (agy no longer plans) → Anthony approves → Claude build sub-agent → agy review →
+   PR → `needs-manual-test`.
+B. **Owed live checks (ask Anthony, don't block A):**
+   - **#182 (v0.9.54)** — when the 30 Sep pay reminder arrives: tap the push (Log Pay box for that
+     schedule), tap it from the bell, next day tap the old reminder (late tap → Confirm Pending Pay
+     box), tap a bill reminder (bill popup still opens). PR #195 checklist items 1–11 have full steps.
+   - **#193 (v0.9.55)** — next goal-milestone push: tap it → that goal's popup.
+   - Any failure → reopen the issue / follow-up PR. Fully close + reopen the installed app first so
+     the new service worker is active.
 1. **[#145](https://github.com/mp3anthony/funded/issues/145)** — Hannah barely/not getting bill
    reminder pushes. Still parked, still unresolved. **New evidence 2026-09-17:** Anthony reported she
    got one notification ~40 minutes late on Android — logged as a comment on #145, not a new issue.
@@ -251,69 +223,6 @@ authenticated against) — not usable for offloading build work until re-authed 
 migrated; see the dated section below for detail, don't re-diagnose from scratch next time.
 **Superseded 2026-09-27:** offloading now goes through Antigravity (agy) via
 `scripts/agy-delegate.ps1` / `GEMINI-DELEGATION.md`, which works. Never use the gemini-cli MCP.
-
-## 2026-09-17 — #144/#154/#148 closed on Anthony's confirmation; #168 (Android draft loss) built+reviewed, PR open pending Hannah's device test; #170 (remove tracking link) built, reviewed, merged, live
-
-Opened by reading this file's own "→ START HERE NEXT SESSION" pointer. Anthony confirmed three
-outstanding loose ends were resolved: his own notifications arrive at his configured time with
-nothing false (closes #154, including its previously-unexplained GEM VISA/ASB VISA/Power loose end);
-the pay-schedule date drift hasn't recurred (closes #148); and by extension #144's remaining
-uncertainty (whether the v0.9.43 timestamp-display fix actually holds on a real delayed-delivery
-case) is resolved too, since he's seeing correct on-time delivery with nothing false. All three
-commented and closed on GitHub.
-
-**New bug reported mid-conversation:** attaching a screenshot to the in-app bug report on Android
-takes the user all the way back to a bare Settings page, losing the draft. Investigated
-`BugReportSheet.tsx`/`settings-client.tsx` directly: the sheet's open/draft state lives only in
-React `useState`, nothing persisted. Filed as
-[#168](https://github.com/mp3anthony/funded/issues/168) — likely cause is the browser reclaiming the
-backgrounded tab's renderer while the native file picker is up, then reloading the page fresh on
-return, wiping all in-memory state. **Correction from Anthony after filing:** the actual device is
-Hannah's, via **Samsung Internet**, not Chrome — corrected the issue and PR text accordingly (still
-the same class of bug; Samsung Internet is also Chromium/Blink-based, and the fix doesn't depend on
-anything Chrome-specific).
-
-**#168 built** (isolated worktree): persists the draft (title, description, timestamp) to
-`sessionStorage` while the sheet is open; restores and reopens the sheet on mount if a draft exists;
-shows a re-attach note for the screenshot itself (a `File` can't survive a reload). **Independent
-Spec review caught a real follow-up bug** before this went anywhere near a PR: the first draft of
-the fix only cleared the sessionStorage draft on Cancel/Submit, so a user who just navigated away
-from Settings normally (not Cancel, not a reload) would leave a stale draft sitting there that could
-force-reopen the sheet on some totally unrelated future Settings visit. Sent back to a fresh build
-agent: added a 2-minute timestamp-expiry window on the restored draft (long enough to survive a real
-Android reload-and-relaunch, short enough to never span "user wandered off") plus an unmount-cleanup
-clear for the normal-navigation case. Orchestrator independently re-read the full diff before
-opening [PR #169](https://github.com/mp3anthony/funded/pull/169) — confirmed correct. `v0.9.45` →
-`v0.9.46`. Labeled `needs-manual-test` (the actual Android reload-kill scenario can't be triggered
-reliably outside a real device) — **still open, not merged**, waiting on Hannah's real-device test.
-
-**New scope change from Anthony:** users shouldn't be able to track filed bug reports directly at
-all — the Known Issues tab (future, #152) and patch notes are the intended notification paths, not a
-direct GitHub issue link. Filed as [#170](https://github.com/mp3anthony/funded/issues/170), built
-(separate isolated worktree — removed the "track it here" link from `BugReportSheet.tsx`'s success
-screen and stopped `/api/bug-report/route.ts` returning `issueUrl`/`issueNumber`), independently
-reviewed (clean, no findings), pushed as [PR #171](https://github.com/mp3anthony/funded/pull/171).
-Anthony confirmed merge — squash-merged, production deployment verified `READY`/`target: production`
-via the Vercel MCP tool at commit `fa8e032`, `v0.9.46` live.
-
-**Also this session:** added a comment to #152 flagging that if the repo has gone private since it
-was scoped, the Known Issues tab's GitHub fetch will need a server-side token (same PAT pattern as
-the bug-report route) — the original scoping assumed an unauthenticated public-repo fetch. Confirmed
-for Anthony that flipping the repo to private doesn't break anything currently in the codebase (the
-only GitHub API usage, the bug-report route, already uses a server-side PAT, not anonymous access) —
-his call whenever he wants to do it. Corrected a stale assumption from a much earlier session: #152
-was never reserved for Anthony to hand-code himself; he's not a developer, it's `ready-for-agent` and
-any Claude session picks it up when he wants it built.
-
-**Process note:** Anthony gave explicit feedback this session — always delegate diff review to a
-separate sub-agent, never have the Orchestrator review its own (or any) diff directly, even for
-small changes, since keeping review work out of the Orchestrator's own context lets the session run
-longer before compaction. Saved to persistent memory; applied for the rest of this session (#170's
-review) and should be the default going forward without needing to ask each time.
-
-**Also caught and fixed mid-session:** local `main` had 3 unpushed doc-only commits from the
-2026-09-15 session (see the "Gotcha caught this session" note above) — merged and pushed alongside
-this session's own work so `main` is now fully in sync with GitHub.
 
 ## 2026-09-08 — #142 and #144 scoped, built, reviewed, merged, CLOSED; #145 investigated then parked
 
