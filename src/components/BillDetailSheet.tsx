@@ -49,7 +49,8 @@ export default function BillDetailSheet({
       title="Bill Details"
       footer={
         <div className="w-full flex flex-col space-y-3">
-          {bill.status === "Paid" ? (
+          {/* #187: autopay bills pay themselves — no Paid/Unpaid action. */}
+          {isAutoPay ? null : bill.status === "Paid" ? (
             <button
               onClick={() => {
                 markAsUnpaid(bill);

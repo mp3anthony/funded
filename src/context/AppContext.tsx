@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import { adjustAutopayBillDate } from "@/lib/utils";
+import { computeRollover, UNPAID_STATUS } from "@/lib/billCycle";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
@@ -1283,7 +1284,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsOnboarded(true);
 
       // Fetch related data
-      await loadHouseholdRelatedData(household.id, session.user.id, options);
+      await loadHouseholdRelatedData(household.id, session.user.id, { ...options, timezone: household.timezone });
     } catch (err) {
       console.error('[loadData] Failed loading all household data:', err);
       if (isNetworkFailure(err)) {
@@ -1457,7 +1458,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function loadHouseholdRelatedData(
     householdId: string,
     userId: string,
-    options?: { assumeEmptyPreviousState?: boolean }
+    options?: { assumeEmptyPreviousState?: boolean; timezone?: string | null }
   ) {
     const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
 
@@ -1505,7 +1506,40 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     ]);
 
     if (resolvedBills) {
-      setBills(resolvedBills.map(mapBillFromDb));
+      // Slice 17 (#187) belt-and-braces catch-up: roll any Paid bill whose due
+      // date has arrived (household timezone) before it reaches state, in case
+      // the push-reminders cron hasn't run yet. Same helper and same
+      // conditional guard (status still Paid AND due_date unchanged) as the
+      // cron, so the two can race safely. Runs here on load rather than as an
+      // effect on `bills`, so an in-session Paid → Unpaid undo is never
+      // second-guessed. Any failure keeps the raw row; never blocks or empties
+      // state.
+      const rolloverToday = todayInZone(options?.timezone || "Australia/Sydney");
+      const billsForState = await Promise.all(
+        resolvedBills.map(async (row) => {
+          const patch = computeRollover(row, rolloverToday);
+          if (!patch) return row;
+          try {
+            const { data: rolled, error: rollError } = await supabase
+              .from("bills")
+              .update(patch)
+              .eq("id", row.id)
+              .eq("status", "Paid")
+              .eq("due_date", row.due_date)
+              .select()
+              .maybeSingle();
+            if (rollError) {
+              console.error("[loadData] bill rollover failed:", row.id, rollError);
+              return row;
+            }
+            return rolled ?? row;
+          } catch (rollErr) {
+            console.error("[loadData] bill rollover failed:", row.id, rollErr);
+            return row;
+          }
+        })
+      );
+      setBills(billsForState.map(mapBillFromDb));
     }
     if (resolvedExpenses) {
       setExpenses(resolvedExpenses.map(mapExpenseFromDb));
@@ -1845,7 +1879,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // dashboard back. The finally still clears the flag unconditionally so
         // neither path can leave the gate raised (#73's permanent wheel).
         try {
-          await loadHouseholdRelatedData(existing.id, activeUser.id);
+          await loadHouseholdRelatedData(existing.id, activeUser.id, { timezone: existing.timezone });
 
           resolvedHouseholdUserIdRef.current = activeUser.id;
           setDbHouseholdId(existing.id);
@@ -2052,7 +2086,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         payment_type: billData.paymentType || billData.payment_type || "manual",
         assignee_id: billData.assignee || billData.assignee_id || null,
         category: billData.category || "Uncategorized",
-        status: billData.status || "Due Soon",
+        // #187: only write status when the caller passes one — the edit form
+        // doesn't, and defaulting to "Due Soon" here un-paid any Paid bill
+        // that was simply edited.
+        ...(billData.status ? { status: billData.status } : {}),
         frequency: billData.frequency || "Monthly",
         notes: billData.notes || null,
         is_recurring: true,
@@ -2262,29 +2299,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  // Slice 17 (#187): marking Paid sets status ONLY — the due date stays on the
+  // cycle that was paid. The rollover to the next cycle happens once that
+  // due date arrives (push-reminders cron + the on-load catch-up in
+  // loadHouseholdRelatedData, both via src/lib/billCycle.ts). Autopay bills
+  // can't be marked Paid at all (they pay themselves).
   async function markAsPaid(bill: Bill) {
+    if (bill.payment_type?.toLowerCase() === "auto") return;
     try {
-      let nextDueDateStr = bill.due_date || bill.dueDate;
-
-      if (bill.is_recurring) {
-        const d = new Date(nextDueDateStr + "T00:00:00");
-        if (!isNaN(d.getTime())) {
-          const freq = (bill.frequency || "monthly").toLowerCase();
-          if (freq === "weekly") d.setDate(d.getDate() + 7);
-          else if (freq === "fortnightly" || freq === "fortnightly") d.setDate(d.getDate() + 14);
-          else if (freq === "yearly") d.setFullYear(d.getFullYear() + 1);
-          else d.setMonth(d.getMonth() + 1); // default monthly
-
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, "0");
-          const day = String(d.getDate()).padStart(2, "0");
-          nextDueDateStr = `${year}-${month}-${day}`;
-        }
-      }
-
       const { data, error } = await supabase
         .from("bills")
-        .update({ status: "Paid", due_date: nextDueDateStr })
+        .update({ status: "Paid" })
         .eq("id", bill.id)
         .select()
         .single();
@@ -2313,41 +2338,44 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  // Slice 17 (#187): Mark as Unpaid is a plain undo within the cycle — status
+  // only, no date change. Conditional on the row still being Paid: if the
+  // cron already rolled it (status reset + new date), the update matches no
+  // row and we just re-read the bill so the UI shows the rolled state.
   async function markAsUnpaid(bill: Bill) {
+    if (bill.payment_type?.toLowerCase() === "auto") return;
     try {
-      let prevDueDateStr = bill.due_date || bill.dueDate;
-
-      if (bill.is_recurring) {
-        const d = new Date(prevDueDateStr + "T00:00:00");
-        if (!isNaN(d.getTime())) {
-          const freq = (bill.frequency || "monthly").toLowerCase();
-          if (freq === "weekly") d.setDate(d.getDate() - 7);
-          else if (freq === "fortnightly" || freq === "fortnightly") d.setDate(d.getDate() - 14);
-          else if (freq === "yearly") d.setFullYear(d.getFullYear() - 1);
-          else d.setMonth(d.getMonth() - 1); // default monthly
-
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, "0");
-          const day = String(d.getDate()).padStart(2, "0");
-          prevDueDateStr = `${year}-${month}-${day}`;
-        }
-      }
-
       const { data, error } = await supabase
         .from("bills")
-        .update({ status: "Due Soon", due_date: prevDueDateStr })
+        .update({ status: UNPAID_STATUS })
         .eq("id", bill.id)
+        .eq("status", "Paid")
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error updating bill as unpaid:", error);
         return;
       }
 
-      if (data) {
+      let row = data;
+      if (!row) {
+        const { data: current, error: readError } = await supabase
+          .from("bills")
+          .select("*")
+          .eq("id", bill.id)
+          .maybeSingle();
+        if (readError) {
+          console.error("Error re-reading bill after unpaid no-op:", readError);
+          return;
+        }
+        row = current;
+      }
+
+      if (row) {
+        const fresh = row;
         setBills((prev) =>
-          prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b))
+          prev.map((b) => (b.id === bill.id ? mapBillFromDb(fresh) : b))
         );
       }
     } catch (err) {
@@ -3076,7 +3104,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // sheet mid-hydration and swallow the error. The finally still clears the
         // flag on both paths so neither can leave the gate raised.
         try {
-          await loadHouseholdRelatedData(existing.id, userId);
+          await loadHouseholdRelatedData(existing.id, userId, { timezone: existing.timezone });
 
           resolvedHouseholdUserIdRef.current = userId;
           setDbHouseholdId(existing.id);

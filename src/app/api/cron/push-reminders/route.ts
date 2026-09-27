@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateReminders, type ReminderSettings } from '@/lib/notifications/generateReminders';
 import { todayInZone, zonedDateAtHour } from '@/lib/notifications/timezone';
+import { computeRollover } from '@/lib/billCycle';
 
 // Note: route handlers already run on the Node.js runtime by default, which
 // web-push requires. An explicit `export const runtime` is omitted because it
@@ -47,6 +48,16 @@ export const maxDuration = 60;
  * that day's reminders promptly, with a correct *future* `scheduled_for`,
  * instead of one fixed daily run computing it wrong for whichever
  * timezones don't line up with that hour.
+ *
+ * Paid-bill rollover (Slice 17, #187): before generating reminders, every
+ * recurring, unpaused bill still marked Paid whose due date is today or
+ * earlier (household timezone) is rolled exactly one cycle — status back to
+ * unpaid, due_date +1 cycle, invoice_date +1 cycle (autopay bills only get
+ * their status reset). See `computeRollover` in `src/lib/billCycle.ts`. Each
+ * update is conditional on `status = 'Paid' AND due_date = <old>`, so running
+ * every few minutes (or racing the app's on-load catch-up) can never roll a
+ * bill twice. Rolled rows are merged back into the fetched bills so the
+ * reminders generated in the same run already see the bill as unpaid.
  *
  * Runs with no user session, so it uses a service_role Supabase client that
  * bypasses RLS. Per-user failures are logged and skipped so one bad row can
@@ -142,11 +153,44 @@ export async function GET(request: Request) {
     const allFunds = fundsRes.data ?? [];
     const existingNotifs = existingNotifsRes.data ?? [];
 
-    // ── Group in memory ──────────────────────────
     const householdTz = new Map<string, string>();
     for (const h of households) {
       householdTz.set(String(h.id), h.timezone || 'Australia/Sydney');
     }
+
+    // ── Roll paid bills whose due date has arrived (#187) ──
+    let rolledTotal = 0;
+    for (const b of allBills) {
+      try {
+        const tz = householdTz.get(String(b.household_id)) || 'Australia/Sydney';
+        const patch = computeRollover(b, todayInZone(tz));
+        if (!patch) continue;
+
+        const { data: row, error: rollError } = await supabase
+          .from('bills')
+          .update(patch)
+          .eq('id', b.id)
+          .eq('status', 'Paid')
+          .eq('due_date', b.due_date)
+          .select()
+          .maybeSingle();
+
+        if (rollError) {
+          console.error(`[push-reminders] rollover failed for bill ${b.id}:`, rollError);
+          continue;
+        }
+        // No row = something else (the app's on-load catch-up, or an Unpaid
+        // tap) changed it first; keep the fetched copy as-is.
+        if (row) {
+          Object.assign(b, row);
+          rolledTotal++;
+        }
+      } catch (rollErr) {
+        console.error(`[push-reminders] rollover failed for bill ${b.id}:`, rollErr);
+      }
+    }
+
+    // ── Group in memory ──────────────────────────
 
     const settingsByUser = new Map<
       string,
@@ -293,6 +337,7 @@ export async function GET(request: Request) {
       households: households.length,
       users: usersProcessed,
       inserted: insertedTotal,
+      rolled: rolledTotal,
     });
   } catch (error) {
     console.error('[push-reminders] fatal error:', error);
