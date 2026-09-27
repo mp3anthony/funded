@@ -642,13 +642,13 @@ Confirmation" and goal-milestone pushes land on Bills with a bogus bill id.
 
 **Tickets:** #181 (shared rule + page routing + inbox tappable, v0.9.52,
 done) → #182 (payday/confirm popups, v0.9.53) → #193 (goal popup +
-user-visible "Funds" → "Goals" wording, v0.9.54). All
+fix "Funds" in the v0.9.52 patch note, v0.9.54). All
 **`needs-manual-test`** — real lock-screen push taps need a device.
 
-**Naming (2026-09-27, Anthony):** the page is **Goals** everywhere a user can
-see it (matches the bottom nav). The `/funds` route, `funds` table and code
-identifiers stay as-is — invisible in the installed app, and renaming the
-route would break already-delivered notification links.
+**Naming (2026-09-27, Anthony):** the page is the **Goals** page (bottom nav
+name) — agents must call it that in patch notes, checklists and chat, not
+"Funds". `/funds` route, `funds` table and code identifiers are unchanged; no
+app-wide rename.
 
 ### Slice 17: Paid bills reset on their due date (Issue #187)
 
