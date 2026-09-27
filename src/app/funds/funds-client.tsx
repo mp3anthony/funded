@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type Fund } from "@/context/AppContext";
 import AddGoalSheet from "@/components/AddGoalSheet";
@@ -37,8 +38,11 @@ const GOAL_CATEGORY_REMAP: Record<string, string> = {
 };
 
 export default function FundsClient() {
-  const { funds, deleteGoal, addToGoal, session } = useApp();
+  const { funds, deleteGoal, addToGoal, session, isDataLoading } = useApp();
   const currentUser = useCurrentUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   // ── Local UI state ────────────────────────────────────────────────
   const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
@@ -66,6 +70,39 @@ export default function FundsClient() {
       .then(setCategoryOrder)
       .catch(() => {});
   }, [session?.user?.id]);
+
+  // Notification-tap links (#193, same strip-on-use pattern as Payday's
+  // #182 links): /funds?goalId=<fund id> opens that goal's detail popup
+  // once household data has loaded. The param is stripped as soon as it's
+  // used, so refresh/back never re-opens it; a missing/deleted goal just
+  // lands on the plain Goals page.
+  const handledGoalLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isDataLoading || !searchParams) return;
+    const goalId = searchParams.get("goalId");
+    if (!goalId) {
+      // Reset so the same link tapped again later (e.g. from the inbox while
+      // already on this page) still works.
+      handledGoalLinkRef.current = null;
+      return;
+    }
+    if (handledGoalLinkRef.current === goalId) return;
+    handledGoalLinkRef.current = goalId;
+
+    const target = funds.find((f) => String(f.id) === goalId);
+    if (target) {
+      // One-shot sync with an external input (the tapped link), guarded by
+      // handledGoalLinkRef — not a render cascade.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedGoal(target);
+      setIsDetailOpen(true);
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("goalId");
+    const rest = params.toString();
+    router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
+  }, [isDataLoading, searchParams, funds, pathname, router]);
 
   // ── Derived summary values ────────────────────────────────────────
   const totalSaved = funds.reduce((sum, f) => sum + f.currentAmount, 0);

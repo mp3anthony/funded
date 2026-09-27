@@ -19,6 +19,11 @@ import { buildPaydayConfirmUrl, buildPaydayLogPayUrl } from './paydayLink';
  *     date recovered from the row's dedupe_key (plain /payday if the key
  *     can't be parsed, e.g. a row fetched without it)
  *   - lodge_payment  → /payday?historyId=<pay_history id>
+ *
+ * #193 goal link contract:
+ *   - goal_milestone → /funds?goalId=<fund id>. The Goals page opens that
+ *     goal's detail popup, then strips the param; a missing/deleted goal
+ *     just lands on the plain Goals page.
  * Keep all destination building in this file.
  */
 export interface NotificationTarget {
@@ -37,7 +42,7 @@ const DESTINATIONS: Record<ReminderType, (id: string, n: NotificationTarget) => 
     return payDate ? buildPaydayLogPayUrl(id, payDate) : '/payday';
   },
   lodge_payment: (id) => buildPaydayConfirmUrl(id),
-  goal_milestone: () => '/funds',
+  goal_milestone: (id) => `/funds?goalId=${encodeURIComponent(id)}`,
 };
 
 /** In-app route for a notification, or null when it has no specific

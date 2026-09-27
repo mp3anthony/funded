@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.55",
+    date: "September 2026",
+    highlights: [
+      "Tapping a goal notification now opens that goal straight away on the Goals page, instead of just the page.",
+      "If the goal has since been deleted, you'll just land on the Goals page as normal.",
+    ],
+  },
+  {
     version: "0.9.54",
     date: "September 2026",
     highlights: [
@@ -48,7 +56,7 @@ export const patchNotes: PatchNoteEntry[] = [
     version: "0.9.52",
     date: "September 2026",
     highlights: [
-      "Tapping a notification now takes you to the right place: payday and \"confirm your payment\" reminders open Payday, goal milestones open Funds, and bill reminders still open that bill.",
+      "Tapping a notification now takes you to the right place: payday and \"confirm your payment\" reminders open Payday, goal milestones open Goals, and bill reminders still open that bill.",
       "Payday, payment-confirmation and goal notifications in the in-app notification list can now be tapped too, just like bill reminders.",
       "Notifications now show the new light Funded icon.",
     ],
