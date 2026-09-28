@@ -29,8 +29,8 @@ merge `eed215a`), issue closed, production deploy confirmed READY. Next: [#211](
     (new nullable `bills.last_paid_for`), and a permanent one-level **"Undo payment"** button next to Mark as Paid.
     Build after #205 (done). Needs a SPEC.md Slice 17 amendment when built. CHANGE-LOG lines 2026-09-27/28 are
     marked approved.
-- **Still owed from #187 (v0.9.56), ask Anthony:** were the stuck bills fixed on both phones after a full close and
-  reopen, and does Hannah's Android show the same?
+- **#187 (v0.9.56) live check DONE:** Anthony confirmed the stuck bills are fixed on both phones (his iPhone +
+  Hannah's Android) after a full close and reopen (2026-09-28).
 
 **Earlier (2026-09-27, late evening) — #187 merged as v0.9.56:**
 - **Out of spec, logged pending in CHANGE-LOG.md:** persistent "Paid for <month>" line on a bill after it
@@ -119,8 +119,7 @@ about desktop behaviour.
 **→ START HERE NEXT SESSION:**
 A. **Build [#211](https://github.com/mp3anthony/funded/issues/211)**: "Paid for <Month>" + "Undo payment".
    The schema change is approved, so applying the migration is routine. Plan via a Claude sub-agent, then a build
-   agent, independent review, `needs-manual-test`, v0.9.58. Also ask Anthony about the v0.9.56 live checks
-   (see top).
+   agent, independent review, `needs-manual-test`, v0.9.58.
 B. **Owed live checks (ask Anthony, don't block A):**
    - **#182 (v0.9.54)** — when the 30 Sep pay reminder arrives: tap the push (Log Pay box for that
      schedule), tap it from the bell, next day tap the old reminder (late tap → Confirm Pending Pay
