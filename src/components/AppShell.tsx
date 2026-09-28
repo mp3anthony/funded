@@ -7,6 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
 import EmailVerifiedModal from "@/components/EmailVerifiedModal";
 import PatchNotesPopup from "@/components/PatchNotesPopup";
+import Toast from "@/components/ui/Toast";
 import Logo from "./Logo";
 import AvatarDropdown from "./AvatarDropdown";
 import NotificationCenter from "./NotificationCenter";
@@ -230,6 +231,9 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
 
       <EmailVerifiedModal isOpen={showVerifiedModal} onClose={() => setShowVerifiedModal(false)} />
       {!isLoading && currentUser && <PatchNotesPopup />}
+      {/* App-wide toast (#205), sits just above the bottom nav. Always mounted
+          so its aria-live region exists before the first message. */}
+      <Toast />
     </>
   );
 }

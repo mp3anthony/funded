@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.57",
+    date: "September 2026",
+    highlights: [
+      "Marking an overdue bill (or one due today) as paid now moves it straight on to its next due date, instead of sitting on the old date for a while.",
+      "A short message confirms which month you paid and when the bill is next due. It has an Undo button for a few seconds straight after you tap, in case you tapped by mistake — after that, you can still fix it by editing the bill's dates.",
+      "Paying a bill early works the same as before: it stays marked paid until its due date comes around.",
+    ],
+  },
+  {
     version: "0.9.56",
     date: "September 2026",
     highlights: [

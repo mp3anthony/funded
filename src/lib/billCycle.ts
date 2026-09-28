@@ -6,7 +6,9 @@
  * to unpaid, `due_date` +1 cycle, `invoice_date` +1 cycle in lockstep. The
  * rollover is persisted by the push-reminders cron route and, as a
  * belt-and-braces catch-up, by AppContext's load path — both share this
- * module so they can never disagree.
+ * module so they can never disagree. Since #205 a bill whose due date has
+ * already arrived rolls at the moment it is marked Paid (`computePaidRoll`),
+ * with an Undo (`computeUndoPaidRoll`).
  *
  * Deliberately has ZERO imports: `src/lib/billCycle.test.mjs` runs it under
  * plain `node --test` (Node's built-in TypeScript type stripping), so it must
@@ -120,4 +122,100 @@ export function computeRollover(bill: RolloverBillRow, todayYmd: string): Rollov
     due_date: addCycles(due, bill.frequency, 1),
     invoice_date: invoice ? addCycles(invoice, bill.frequency, 1) : null,
   };
+}
+
+/* ── Instant roll at Mark-as-Paid time (#205) ─────────────────────────── */
+
+/**
+ * Columns to write when a bill is marked Paid, if its due date has already
+ * arrived (today or earlier, `todayYmd` = today in the household's timezone):
+ * the cycle being paid is the current/overdue one, so the bill goes straight
+ * to the next cycle instead of sitting Paid until the cron catches up.
+ *
+ * Same eligibility as `computeRollover` (recurring, not paused, due date
+ * today or earlier) because it IS that rollover, just applied at tap time.
+ * Returns null when marking Paid should only set status (paying early,
+ * one-off bills, paused bills) — and for autopay, which can't be marked Paid.
+ *
+ * Callers must guard the write on the row still having the due date they
+ * read (`due_date = <old>`) so a double tap / second device / the cron can't
+ * move the date twice.
+ */
+export function computePaidRoll(bill: RolloverBillRow, todayYmd: string): RolloverPatch | null {
+  if (!bill) return null;
+  if ((bill.payment_type ?? '').toLowerCase() === 'auto') return null;
+  const patch = computeRollover({ ...bill, status: 'Paid' }, todayYmd);
+  if (!patch || !patch.due_date) return null;
+  return patch;
+}
+
+/** What Undo writes back: the row exactly as it was before the instant roll. */
+export interface UndoPaidRollPatch {
+  status: string;
+  due_date: string;
+  invoice_date: string | null;
+}
+
+/**
+ * Undo patch for an instant roll: restores the pre-tap due date, invoice
+ * date and status (the bill was unpaid/overdue before the mis-tap). A
+ * pre-tap status of 'Paid' (or missing) becomes UNPAID_STATUS — restoring
+ * Paid on a due-or-past date would just be rolled again by the cron /
+ * on-load catch-up. Returns null if the pre-tap row has no due date.
+ */
+export function computeUndoPaidRoll(preRoll: RolloverBillRow): UndoPaidRollPatch | null {
+  if (!preRoll || !preRoll.due_date) return null;
+  const status = preRoll.status && preRoll.status !== 'Paid' ? preRoll.status : UNPAID_STATUS;
+  return {
+    status,
+    due_date: preRoll.due_date,
+    invoice_date: preRoll.invoice_date ?? null,
+  };
+}
+
+/**
+ * True when two due-date values name the same calendar day (compares the
+ * 'YYYY-MM-DD' part, so a DB value with a time suffix still matches). Two
+ * missing values count as the same; one missing and one present do not.
+ * Used to spot a stale screen: the DB row is on a different cycle from the
+ * one the user tapped Mark as Paid on.
+ */
+export function sameDueDate(a: string | null | undefined, b: string | null | undefined): boolean {
+  const da = a ? String(a).slice(0, 10) : '';
+  const db = b ? String(b).slice(0, 10) : '';
+  return da === db;
+}
+
+/**
+ * dedupe_key prefix shared by every reminder for one bill cycle — the
+ * due-soon row (`${id}-${due}-manual_bill`) and each daily overdue row
+ * (`${id}-${due}-manual_bill-overdue-${today}`). MUST match the key shapes
+ * in src/lib/notifications/generateReminders.ts. Used to mark just the paid
+ * cycle's reminders read when a bill rolls, leaving the next cycle's alone.
+ */
+export function oldCycleNotificationKeyPrefix(billId: string | number, dueYmd: string): string {
+  return `${String(billId)}-${String(dueYmd).slice(0, 10)}-`;
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/**
+ * Toast text after an instant roll: "Paid for <Month> — next due <Month D>".
+ * <Month> is the month of the cycle just paid (the old due date). The year is
+ * added to the next-due date only when it differs from the paid cycle's year
+ * (e.g. December → January). Pure string maths — no Date parsing, so no
+ * timezone can shift the day.
+ */
+export function paidRollToastMessage(oldDueYmd: string, newDueYmd: string): string {
+  const oldMatch = YMD_RE.exec(oldDueYmd ?? '');
+  const newMatch = YMD_RE.exec(newDueYmd ?? '');
+  if (!oldMatch || !newMatch) return 'Marked as paid';
+  const paidMonth = MONTH_NAMES[Number(oldMatch[2]) - 1];
+  const nextMonth = MONTH_NAMES[Number(newMatch[2]) - 1];
+  const nextDay = Number(newMatch[3]);
+  const yearSuffix = newMatch[1] !== oldMatch[1] ? `, ${newMatch[1]}` : '';
+  return `Paid for ${paidMonth} — next due ${nextMonth} ${nextDay}${yearSuffix}`;
 }

@@ -1,12 +1,20 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { CheckCircle, Clock, AlertCircle, Plane, Shield, Car, PiggyBank, Home, BookOpen, CreditCard, TrendingUp, HelpCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import { adjustAutopayBillDate } from "@/lib/utils";
-import { computeRollover, UNPAID_STATUS } from "@/lib/billCycle";
+import {
+  computeRollover,
+  computePaidRoll,
+  computeUndoPaidRoll,
+  oldCycleNotificationKeyPrefix,
+  paidRollToastMessage,
+  sameDueDate,
+  UNPAID_STATUS,
+} from "@/lib/billCycle";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
@@ -36,6 +44,16 @@ export interface Bill {
   notes?: string | null;
   is_recurring?: boolean;
   is_paused?: boolean;
+}
+
+/** App-wide transient message (#205). One at a time; a new one replaces the old. */
+export interface AppToast {
+  /** Unique per show, so the Toast component restarts its auto-dismiss timer. */
+  id: number;
+  message: string;
+  /** Optional single action button, e.g. "Undo". */
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export interface Fund {
@@ -728,6 +746,11 @@ interface AppContextValue {
   togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
   deleteBill: (id: string | number) => void;
 
+  /* Toast (#205) — rendered once by AppShell */
+  toast: AppToast | null;
+  showToast: (toast: Omit<AppToast, "id">) => void;
+  dismissToast: (id?: number) => void;
+
   /* Expenses (Issue #98, Slice 2 of 6; split logic added Slice 3 of 6) */
   expenses: Expense[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1142,6 +1165,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [householdContributions, setHouseholdContributions] = useState<HouseholdContribution[]>([]);
   const [contributionRules, setContributionRules] = useState<ContributionRule[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [toast, setToast] = useState<AppToast | null>(null);
+  const toastSeqRef = useRef(0);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   /* Slice 13 (#99): this device's push subscription health, centralized here
    * (review finding 2) so every NotificationCenter mount point (AppShell's
@@ -2311,42 +2336,223 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  // Slice 17 (#187): marking Paid sets status ONLY — the due date stays on the
-  // cycle that was paid. The rollover to the next cycle happens once that
-  // due date arrives (push-reminders cron + the on-load catch-up in
-  // loadHouseholdRelatedData, both via src/lib/billCycle.ts). Autopay bills
-  // can't be marked Paid at all (they pay themselves).
+  function showToast(next: Omit<AppToast, "id">) {
+    toastSeqRef.current += 1;
+    setToast({ ...next, id: toastSeqRef.current });
+  }
+
+  // `id` given → only dismiss if that toast is still the one showing, so a
+  // stale auto-dismiss timer can't close a newer toast. Stable identity so the
+  // Toast's timer effect doesn't restart on every provider render.
+  const dismissToast = useCallback((id?: number) => {
+    setToast((current) => (id === undefined || current?.id === id ? null : current));
+  }, []);
+
+  // Pay-early (non-roll) path: deletes that bill's reminder notifications
+  // (pre-#205 behaviour, deliberately unchanged here).
+  async function clearBillNotifications(billId: string | number) {
+    const { error: deleteNotifError } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("related_entity_id", billId.toString());
+    if (!deleteNotifError) {
+      setNotifications((prev) => prev.filter((n) => n.related_entity_id !== billId.toString()));
+    }
+  }
+
+  // #205 roll path: mark the PAID cycle's reminders read (due-soon and every
+  // daily overdue row share the `${id}-${oldDue}-` dedupe prefix, see
+  // generateReminders). Never delete (SPEC A2): the rows must survive so
+  // their dedupe keys stop the generators recreating them — e.g. after an
+  // Undo puts the bill back on the old, overdue date. Next-cycle reminders
+  // are untouched.
+  async function markOldCycleNotificationsRead(billId: string | number, oldDueYmd: string) {
+    if (!session?.user) return;
+    const prefix = oldCycleNotificationKeyPrefix(billId, oldDueYmd);
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", session.user.id)
+      .eq("related_entity_id", billId.toString())
+      .like("dedupe_key", `${prefix}%`);
+    if (error) {
+      console.error("Error marking paid-cycle reminders read:", error);
+      return;
+    }
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.related_entity_id === billId.toString() && n.dedupe_key?.startsWith(prefix)
+          ? { ...n, is_read: true }
+          : n
+      )
+    );
+  }
+
+  // Re-reads one bill into state (used when a guarded update matched no row
+  // because something else — cron, another device — changed it first).
+  async function refreshBillFromDb(billId: string | number) {
+    const { data: fresh, error: readError } = await supabase
+      .from("bills")
+      .select("*")
+      .eq("id", billId)
+      .maybeSingle();
+    if (readError) {
+      console.error("Error re-reading bill:", readError);
+      return;
+    }
+    if (fresh) {
+      setBills((prev) => prev.map((b) => (b.id === billId ? mapBillFromDb(fresh) : b)));
+    }
+  }
+
+  // Slice 17 (#187) + #205. Marking Paid:
+  // - Due date still in the future (household timezone) → status Paid only;
+  //   the date stays on the paid cycle and the cron / on-load catch-up rolls
+  //   it once that date arrives (paying early is silent).
+  // - Due today or earlier (household timezone) → roll straight away via the
+  //   same `computeRollover` maths: unpaid, due_date +1 cycle, invoice_date
+  //   +1 cycle, then a "Paid for <Month> — next due <date>" toast with Undo.
+  //   The write is guarded on `due_date` still being the value we read, so a
+  //   double tap / second device can't roll twice; the cron only rolls rows
+  //   whose status is Paid, which this path never writes, so it can't race it.
+  //   The paid cycle's reminders are marked read (not deleted).
+  // - If the DB is already on a different cycle than the screen showed (stale
+  //   screen / other device), nothing is written: re-read + short toast.
+  // - One-off and paused bills never roll (same rule as the catch-up) → Paid
+  //   only. Autopay bills can't be marked Paid at all.
+  // Deliberately NOT routed through updateBill (it rewrites is_paused, #201).
   async function markAsPaid(bill: Bill) {
     if (bill.payment_type?.toLowerCase() === "auto") return;
     try {
-      const { data, error } = await supabase
+      // Fresh row, not UI state: the roll must start from the DB's due date
+      // and today's household date.
+      const { data: current, error: readError } = await supabase
+        .from("bills")
+        .select("*")
+        .eq("id", bill.id)
+        .maybeSingle();
+      if (readError) {
+        // Fall through to the guarded plain Paid write below — the cron /
+        // catch-up will still roll it later, so nothing is lost.
+        console.error("Error reading bill before mark-as-paid:", readError);
+      }
+
+      // Stale screen / second device: the DB is on a different cycle from the
+      // one the user is looking at (already rolled or edited elsewhere). Don't
+      // pay a cycle they didn't see — show what's actually there instead.
+      // (Manual bills only reach here; mapBillFromDb only shifts autopay dates.)
+      if (current && !sameDueDate(current.due_date, bill.due_date)) {
+        await refreshBillFromDb(bill.id);
+        showToast({ message: "This bill was already updated — check it and try again." });
+        return;
+      }
+
+      const today = todayInZone(householdTimezone || "Australia/Sydney");
+      const rollPatch = current ? computePaidRoll(current, today) : null;
+
+      if (current && rollPatch && rollPatch.due_date) {
+        const undoPatch = computeUndoPaidRoll(current);
+        const oldDue = String(current.due_date).slice(0, 10);
+        const { data: rolled, error: rollError } = await supabase
+          .from("bills")
+          .update(rollPatch)
+          .eq("id", bill.id)
+          .eq("due_date", current.due_date)
+          .select()
+          .maybeSingle();
+
+        if (rollError) {
+          console.error("Error rolling bill on mark-as-paid:", rollError);
+          return;
+        }
+        if (!rolled) {
+          // Someone else moved it first — show what's actually there.
+          await refreshBillFromDb(bill.id);
+          showToast({ message: "This bill was already updated — check it and try again." });
+          return;
+        }
+
+        // Before the bills state changes (so the reminder effect never sees
+        // the new bills without the updated notifications): mark the paid
+        // cycle's reminders read — never delete (SPEC A2), so their dedupe
+        // keys survive and an Undo can't resurrect today's overdue push.
+        await markOldCycleNotificationsRead(bill.id, oldDue);
+        setBills((prev) => prev.map((b) => (b.id === bill.id ? mapBillFromDb(rolled) : b)));
+
+        const rolledDue = rollPatch.due_date;
+        showToast({
+          message: paidRollToastMessage(oldDue, rolledDue),
+          ...(undoPatch
+            ? { actionLabel: "Undo", onAction: () => { void undoPaidRoll(bill.id, undoPatch, rolledDue); } }
+            : {}),
+        });
+        return;
+      }
+
+      // Paying early / one-off / paused: status only, guarded on the cycle
+      // the user was looking at.
+      let paidQuery = supabase
         .from("bills")
         .update({ status: "Paid" })
-        .eq("id", bill.id)
-        .select()
-        .single();
+        .eq("id", bill.id);
+      if (bill.due_date) paidQuery = paidQuery.eq("due_date", bill.due_date);
+      const { data, error } = await paidQuery.select().maybeSingle();
 
       if (error) {
         console.error("Error updating bill as paid:", error);
         return;
       }
-
-      if (data) {
-        setBills((prev) =>
-          prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b))
-        );
-
-        // Delete any notifications related to this bill
-        const { error: deleteNotifError } = await supabase
-          .from("notifications")
-          .delete()
-          .eq("related_entity_id", bill.id.toString());
-        if (!deleteNotifError) {
-          setNotifications((prev) => prev.filter((n) => n.related_entity_id !== bill.id.toString()));
-        }
+      if (!data) {
+        await refreshBillFromDb(bill.id);
+        showToast({ message: "This bill was already updated — check it and try again." });
+        return;
       }
+
+      setBills((prev) =>
+        prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b))
+      );
+      await clearBillNotifications(bill.id);
     } catch (err) {
       console.error("Failed to mark as paid:", err);
+    }
+  }
+
+  // #205 Undo for an instant roll: puts the bill back exactly as it was before
+  // the tap (original due/invoice dates, unpaid status). Guarded on the row
+  // still being at the rolled date AND still unpaid — if it has since been
+  // edited, re-paid, or otherwise moved, nothing is written; we re-read it and
+  // say so. (Restores unpaid rather than Paid on purpose: a Paid bill on a
+  // due-or-past date would just be rolled again by the cron / on-load
+  // catch-up within minutes.)
+  async function undoPaidRoll(
+    billId: string | number,
+    undoPatch: { status: string; due_date: string; invoice_date: string | null },
+    rolledDue: string
+  ) {
+    try {
+      const { data, error } = await supabase
+        .from("bills")
+        .update(undoPatch)
+        .eq("id", billId)
+        .eq("due_date", rolledDue)
+        .eq("status", UNPAID_STATUS)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error undoing paid roll:", error);
+        showToast({ message: "Couldn't undo — please try again." });
+        return;
+      }
+      if (!data) {
+        await refreshBillFromDb(billId);
+        showToast({ message: "Couldn't undo — this bill has already changed." });
+        return;
+      }
+      setBills((prev) => prev.map((b) => (b.id === billId ? mapBillFromDb(data) : b)));
+    } catch (err) {
+      console.error("Failed to undo paid roll:", err);
+      showToast({ message: "Couldn't undo — please try again." });
     }
   }
 
@@ -4716,6 +4922,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     markAsUnpaid,
     togglePauseBill,
     deleteBill,
+    toast,
+    showToast,
+    dismissToast,
     expenses,
     addExpense,
     updateExpense,

@@ -2,7 +2,16 @@
 // Run with `npm run test` (node --test, Node's built-in TS type stripping).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addCycles, computeRollover, UNPAID_STATUS } from './billCycle.ts';
+import {
+  addCycles,
+  computeRollover,
+  computePaidRoll,
+  computeUndoPaidRoll,
+  oldCycleNotificationKeyPrefix,
+  paidRollToastMessage,
+  sameDueDate,
+  UNPAID_STATUS,
+} from './billCycle.ts';
 
 test('weekly/fortnightly across month and year end', () => {
   assert.equal(addCycles('2026-01-28', 'weekly', 1), '2026-02-04');
@@ -92,4 +101,80 @@ test('computeRollover: autopay only resets status', () => {
   assert.deepEqual(computeRollover({ ...base, payment_type: 'auto', due_date: '2026-01-01' }, '2026-09-27'), {
     status: UNPAID_STATUS,
   });
+});
+
+/* ── #205 instant roll at Mark-as-Paid time ───────────────────────────── */
+
+const unpaid = { ...base, status: 'Due Soon', due_date: '2026-09-27', invoice_date: '2026-09-13' };
+
+test('computePaidRoll rolls when due today or earlier, whatever the current unpaid status', () => {
+  const expected = { status: UNPAID_STATUS, due_date: '2026-10-27', invoice_date: '2026-10-13' };
+  assert.deepEqual(computePaidRoll(unpaid, '2026-09-27'), expected); // due today
+  assert.deepEqual(computePaidRoll(unpaid, '2026-09-28'), expected); // overdue by a day
+  assert.deepEqual(computePaidRoll({ ...unpaid, status: 'Overdue' }, '2026-09-28'), expected);
+  assert.deepEqual(computePaidRoll({ ...unpaid, status: null }, '2026-09-28'), expected);
+});
+
+test('computePaidRoll: household-tz today decides (due date = tomorrow there → no roll)', () => {
+  // Device might already be on the 27th, but the household's today is the 26th.
+  assert.equal(computePaidRoll(unpaid, '2026-09-26'), null);
+});
+
+test('computePaidRoll returns null for early pay, one-off, paused, autopay, no date', () => {
+  assert.equal(computePaidRoll({ ...unpaid, due_date: '2026-10-02' }, '2026-09-27'), null);
+  assert.equal(computePaidRoll({ ...unpaid, is_recurring: false }, '2026-09-28'), null);
+  assert.equal(computePaidRoll({ ...unpaid, is_paused: true }, '2026-09-28'), null);
+  assert.equal(computePaidRoll({ ...unpaid, payment_type: 'Auto' }, '2026-09-28'), null);
+  assert.equal(computePaidRoll({ ...unpaid, due_date: null }, '2026-09-28'), null);
+});
+
+test('computePaidRoll: only +1 cycle and month-end clamp', () => {
+  assert.deepEqual(computePaidRoll({ ...unpaid, due_date: '2026-01-31', invoice_date: null }, '2026-09-27'), {
+    status: UNPAID_STATUS,
+    due_date: '2026-02-28',
+    invoice_date: null,
+  });
+});
+
+test('computeUndoPaidRoll restores the exact pre-tap row (no reverse-clamp drift)', () => {
+  // Jan 31 → Feb 28 on roll; Undo must give back Jan 31, not Jan 28.
+  assert.deepEqual(
+    computeUndoPaidRoll({ ...unpaid, status: 'Due Soon', due_date: '2026-01-31', invoice_date: '2026-01-17' }),
+    { status: 'Due Soon', due_date: '2026-01-31', invoice_date: '2026-01-17' }
+  );
+  assert.deepEqual(computeUndoPaidRoll({ ...unpaid, invoice_date: undefined }), {
+    status: 'Due Soon',
+    due_date: '2026-09-27',
+    invoice_date: null,
+  });
+  // Never restore 'Paid' on a due/past date — the cron would just roll it again.
+  assert.equal(computeUndoPaidRoll({ ...unpaid, status: 'Paid' }).status, UNPAID_STATUS);
+  assert.equal(computeUndoPaidRoll({ ...unpaid, status: null }).status, UNPAID_STATUS);
+  assert.equal(computeUndoPaidRoll({ ...unpaid, due_date: null }), null);
+});
+
+test('paidRollToastMessage names the paid month and the next due date', () => {
+  assert.equal(paidRollToastMessage('2026-09-27', '2026-10-27'), 'Paid for September — next due October 27');
+  assert.equal(paidRollToastMessage('2026-09-05', '2026-10-05'), 'Paid for September — next due October 5');
+  assert.equal(paidRollToastMessage('2026-12-30', '2027-01-06'), 'Paid for December — next due January 6, 2027');
+  assert.equal(paidRollToastMessage('bad', '2026-10-27'), 'Marked as paid');
+});
+
+test('sameDueDate compares the calendar day only', () => {
+  assert.equal(sameDueDate('2026-09-27', '2026-09-27'), true);
+  assert.equal(sameDueDate('2026-09-27T00:00:00+00:00', '2026-09-27'), true);
+  assert.equal(sameDueDate('2026-10-27', '2026-09-27'), false);
+  assert.equal(sameDueDate(null, undefined), true);
+  assert.equal(sameDueDate('2026-09-27', null), false);
+});
+
+test('oldCycleNotificationKeyPrefix matches only that cycle\'s reminder keys', () => {
+  const prefix = oldCycleNotificationKeyPrefix('abc-1', '2026-09-27');
+  assert.equal(prefix, 'abc-1-2026-09-27-');
+  // Key shapes from generateReminders.ts:
+  assert.ok('abc-1-2026-09-27-manual_bill'.startsWith(prefix));
+  assert.ok('abc-1-2026-09-27-manual_bill-overdue-2026-09-28'.startsWith(prefix));
+  // Next cycle's reminders are not touched.
+  assert.ok(!'abc-1-2026-10-27-manual_bill'.startsWith(prefix));
+  assert.equal(oldCycleNotificationKeyPrefix(42, '2026-09-27T00:00:00'), '42-2026-09-27-');
 });
