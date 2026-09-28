@@ -658,20 +658,41 @@ flips the status back, so Overdue, Upcoming Bills and reminders all ignore it
 forever. `invoice_date` never rolls at all.
 
 **Decisions (2026-09-27):**
-- Paid = paid for this cycle. Marking Paid sets status only — no date change
-  at that moment (paying early is silent).
+- Paid = paid for this cycle. Paying early (due date still in the future,
+  household timezone) sets status only — no date change at that moment
+  (silent). A bill already due today or earlier rolls at once — see the #205
+  amendment below.
 - On or after that due date (household timezone) the bill rolls: status back to unpaid,
   `due_date` +1 cycle, `invoice_date` +1 cycle in lockstep when present.
   Rollover is persisted server-side (reminders read DB status). Non-recurring
   bills stay Paid.
 - Autopay bills cannot be marked Paid/Unpaid — action hidden.
-- Mark as Unpaid = undo within the cycle, no date change.
+- Mark as Unpaid = undo within the cycle, no date change (applies to a bill
+  paid early, which stays Paid until its due date).
 - One-off release fix: existing recurring Paid bills → unpaid at their next
   upcoming due date (never Overdue); autopay just loses Paid.
 - Expenses out of scope. No schema change expected — escalate if one is needed.
 
 **Ticket:** #187 (v0.9.56, after #193), **`needs-manual-test`**. Full
 problem/checklist on the issue.
+
+**Amendment — instant roll on pay (Issue #205, v0.9.57, approved 2026-09-28):**
+- Mark as Paid on a manual recurring, non-paused bill whose due date is today
+  or earlier (household timezone) rolls it immediately via `computeRollover`
+  maths: status unpaid, `due_date` +1 cycle, `invoice_date` +1 cycle. The
+  write is guarded on `due_date` still being the value read (no double roll).
+  Paying early, one-off and paused bills: status only, as above.
+- Toast "Paid for <Month> — next due <date>" with Undo (8s, pauses while
+  touched/focused). Undo restores the exact pre-tap row (original dates,
+  unpaid status — not Paid, which the cron would just roll again), guarded on
+  the rolled `due_date` + status 'Due Soon'; if the bill has changed since,
+  nothing is written and a short message says so. Once the toast has gone, a
+  mis-tap is fixed by editing the bill's dates.
+- The paid cycle's reminders (dedupe prefix `${id}-${oldDue}-`) are marked
+  read, never deleted (A2), so Undo can't resurrect them.
+- Stale screen (DB already on a different cycle than shown): re-read + "This
+  bill was already updated" toast, no write.
+- Full issue: https://github.com/mp3anthony/funded/issues/205
 
 ---
 
