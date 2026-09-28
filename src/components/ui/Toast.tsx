@@ -64,7 +64,7 @@ function ToastBody({ toast, onDismiss }: { toast: AppToast; onDismiss: (id?: num
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
       }}
-      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[2px] border border-border bg-surface-elevated px-4 py-3 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
+      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[2px] border border-border-strong bg-surface-elevated pl-4 pr-2 py-2 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
     >
       <p className="flex-1 min-w-0 text-sm text-foreground">{toast.message}</p>
       {toast.actionLabel && toast.onAction && (
@@ -75,7 +75,10 @@ function ToastBody({ toast, onDismiss }: { toast: AppToast; onDismiss: (id?: num
             onDismiss(toast.id);
             action?.();
           }}
-          className="shrink-0 rounded-[2px] px-3 py-1.5 font-heading font-bold uppercase tracking-wider text-xs text-primary hover:bg-primary/10 active:scale-[0.98] transition-all cursor-pointer"
+          // Solid filled button (black on the lime primary, ~7:1+ in both themes)
+          // with a 44px minimum tap target. It used to be lime text on the grey
+          // toast (1.8:1 in light mode, 28px tall), which read as no button at all.
+          className="shrink-0 min-h-[44px] min-w-[72px] rounded-[2px] px-4 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-sm shadow-sm hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer touch-manipulation"
         >
           {toast.actionLabel}
         </button>
