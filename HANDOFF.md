@@ -3,6 +3,11 @@
 Older, fully-closed session history lives in `HANDOFF-ARCHIVE.md` — not read at session start, open
 it by hand only if you need old investigation detail.
 
+**2026-09-28 (short housekeeping session):** stale handoff [PR #204](https://github.com/mp3anthony/funded/pull/204)
+(conflicting, superseded by #206) CLOSED + branch deleted. Its 2 leftover test bills (`TEST-187 C Autopay`,
+`TEST-187 D Resets on open`) deleted from Anthony's household — 0 `TEST-187` bills remain. No code change;
+next work is still #205 (below).
+
 **Last updated:** 2026-09-27 (late evening) — **#187 MERGED as v0.9.56 ([PR #202](https://github.com/mp3anthony/funded/pull/202),
 merge `a7ebf4f`), issue closed. Follow-up [#205](https://github.com/mp3anthony/funded/issues/205) filed.**
 - **Why merged with a known gap (Anthony's call):** in the preview test, marking an Overdue bill Paid left
