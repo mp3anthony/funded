@@ -1,4 +1,108 @@
-# Handoff Archive
+# H
+## 2026-09-08 — #142 and #144 scoped, built, reviewed, merged, CLOSED; #145 investigated then parked
+
+Opened by listing open GitHub issues per the prior HANDOFF pointer. Scoped #145/#144/#142 with
+Anthony (Problem Agreement step) before building anything — for #145 and #144 this meant real
+investigation first (Supabase queries + reading the actual cron/push code), not just restating the
+prior session's hypotheses. Anthony chose a separate sub-agent (not the Orchestrator) to review both
+builds before merge, per `CLAUDE.md`'s "ask, don't assume" review-routing rule.
+
+**#142 (bug-report Description field) — scoped, built, reviewed, merged.** Prior session's repro
+attempt was already exhausted (see below), so this session didn't re-attempt reproduction — scoped
+straight to defensive hardening: a live character counter (no artificial cap invented — confirmed via
+`src/app/api/bug-report/route.ts` that the description goes straight into a GitHub issue body, no DB
+column/schema limit exists to justify one) and lightweight diagnostic logging on the change handler
+(fires once per 100-char boundary crossed, not every keystroke, so a real recurrence leaves evidence
+in the console). Independent review found two small real issues, both fixed by the same builder: (1)
+the log used `console.debug`, which Chrome/Edge DevTools filter out of the default view unless
+"Verbose" is enabled — defeats the point of leaving evidence — changed to `console.log`; (2) the
+boundary-tracking ref wasn't reset in `resetAndClose()`, so reopening the sheet for a second report
+in the same session could log a false "boundary crossed" on the very first keystroke — fixed.
+`v0.9.39` → `v0.9.40`, patch-notes entry added. Pushed as [PR #149](https://github.com/mp3anthony/funded/pull/149),
+labeled `needs-manual-test` (the original bug was never reproduced automatically, so this needs a
+real device). **Anthony tried to reproduce, couldn't, said merge anyway** — squash-merged, branch
+deleted.
+
+**#144 (reminder timing drift) — scoped, built, reviewed, merged.** Investigated fresh rather than
+trusting the prior session's "accepted architecture trade-off, needs a bigger pg_cron rework"
+framing — turned out half of that was already solved and undocumented as such. Confirmed via a live
+`select * from cron.job` query that a Supabase `pg_cron` job already delivers every 5 minutes via
+`pg_net` calling `/api/cron/deliver-scheduled` — delivery was never the problem. The actual bug was
+narrower: `push-reminders/route.ts` (generation) ran once a day at one fixed UTC hour (Vercel
+Hobby-plan cron limit), and its own code comment already admitted that a household whose local
+`notify_hour` had already passed by that single run gets `scheduled_for` set in the past, so it
+fires almost immediately instead of at the chosen time. **Fix:** extended the same
+Supabase-`pg_cron`-instead-of-Vercel-Cron pattern the delivery route already used, to generation
+too — `push-reminders/route.ts` now accepts a second independent bearer secret
+(`GENERATION_CRON_SECRET`, mirroring the existing `DELIVER_CRON_SECRET` pattern) alongside the
+existing `CRON_SECRET`, so it's safe to also be invoked frequently. Left `vercel.json`'s once-daily
+entry in place as a fallback (retiring it is a separate ops call, not bundled in). Independent review
+specifically verified — not just trusted — the claim that repeated same-day generation runs are safe
+no-ops: traced every `dedupe_key` in `generateReminders.ts` (all calendar-day/cycle-stable, never a
+call-time timestamp), confirmed the unique index backing the upsert exists, and confirmed
+`ignoreDuplicates: true` really does compile to `ON CONFLICT ... DO NOTHING`, leaving `scheduled_for`
+untouched on a duplicate. Auth-logic diff (OR of two secrets, 500 only if both unset) verified line
+by line, no fall-through bug. One round of minor cleanup sent back to the builder: two other files
+(`deliver-scheduled/route.ts`, `AppContext.tsx`) still described push-reminders as strictly "daily,"
+now stale — fixed. `v0.9.39` → `v0.9.41` (0.9.40 reserved for #142). Pushed as
+[PR #150](https://github.com/mp3anthony/funded/pull/150), labeled `needs-merge-approval`.
+
+**Infra applied directly by the Orchestrator, outside the PR** (matching how the existing delivery
+cron was set up — see the `20260908120000_document_frequent_generation_cron.sql` migration, which is
+comment-only by design): generated a new secret, stored it in Supabase's vault as
+`generation_cron_secret`, and scheduled a new `pg_cron` job (`generate-scheduled-reminders`, every 15
+min) calling `/api/cron/push-reminders` with it. **This required one manual step from Anthony** —
+adding `GENERATION_CRON_SECRET` as a Vercel env var with the generated value — since none of the
+available Vercel MCP tools can write env vars; he confirmed it was added.
+
+**Merge hit a real conflict, resolved by the Orchestrator**: both PRs branched off the same `main`
+and both touched `src/lib/version.ts`/`src/lib/patch-notes.ts` (every version bump does, by
+convention) — #142 merged clean first, #144 then conflicted on exactly those two files when merging
+`main` in. Resolved by keeping `APP_VERSION` at the higher `0.9.41` and keeping both patch-notes
+entries in newest-first order (0.9.41 above 0.9.40) — `tsc` re-run clean after resolving, before
+completing the merge commit. **Worth remembering for next time two same-day PRs both bump the
+version**: expect this exact conflict shape, and resolve by keeping the higher version number and
+both patch-notes entries rather than picking one side.
+
+**Post-merge verification**: production deployment confirmed `READY`/`target: production` via the
+Vercel MCP tool for both merge commits. Checked the new generation cron's actual HTTP responses in
+`net._http_response` — its one pre-deploy run correctly got a 401 (old code didn't know the new
+secret yet), confirming the auth logic behaves as expected; too little time had passed post-deploy
+to confirm a post-fix successful run before the session ended. GitHub auto-closed both #142 and #144
+via each PR's "Closes #___".
+
+**#145 — investigated with real Supabase queries, then parked at Anthony's request.** Queried
+`household_members` directly: confirmed the "both members show OWNER" observation from the prior
+session is real at the DB level (both rows in Hannah's household are `role: owner`, no `member` row
+exists at all) — but also confirmed via `notifications` row counts (54 generated for Hannah vs 69 for
+Anthony, comparable, both marked `delivered_at`) that this role anomaly isn't gating her reminders,
+so it's likely a separate, lower-priority data-shape issue rather than this bug's cause. Read
+`src/lib/push.ts` directly: `sendPushToSubscriptions` only treats an exact 404/410 as "dead" and
+cleans it up — any other failure (bad VAPID key, network error, a 400) just `console.error`s into
+Vercel's server logs and disappears, no retry, no user-facing signal, nothing written back to the
+DB. Hannah has exactly one push subscription (Chrome/FCM), untouched since 2026-09-05 — consistent
+with, but not proof of, a silent failure since then. Slice 10's `PushStatusDialog` health-check UI
+already exists, so the surfacing mechanism is there — it just isn't wired to catch this failure
+class. **Posted this as the working theory on the issue, then Anthony said Hannah now reports
+getting no notifications at all** (not just "barely," which is what the row-count evidence above
+actually supports) — parked rather than scoped into a build, per his explicit call, until he's
+talked to her further. Also surfaced in the same investigation: her `notify_hour` is 9 (9am),
+Anthony's is 19 (7pm) — not the shared "7pm for the household" both of them apparently assumed;
+worth clearing up with her directly since it's a plain Settings difference, not a bug.
+
+**Workflow, same pattern as every prior slice**: Orchestrator scoped/investigated first (real
+Supabase queries, not just re-stating hypotheses) → posted plans as issue comments, got Anthony's
+go-ahead → build sub-agent (not isolated worktree this time — sequential single-branch builds, since
+running two agents in parallel against the same working directory on different branches risks
+corruption) → independent review sub-agent (never the builder, fresh agent, Anthony's explicit
+choice this session) found real issues on both PRs → same builder fixed them (full context) →
+Orchestrator finalized version/patch-notes, pushed, opened both PRs → Anthony's go-ahead → merge,
+including one real conflict resolved by the Orchestrator directly (see above) → infra (Supabase vault
+secret + pg_cron job) applied directly by the Orchestrator, matching the existing precedent for this
+kind of change.
+
+---
+andoff Archive
 
 Closed-out session history, split off `HANDOFF.md` on 2026-09-15 once nothing in that file's live
 digest still pointed back here. Every issue below is merged/closed with no open loose end — this is
