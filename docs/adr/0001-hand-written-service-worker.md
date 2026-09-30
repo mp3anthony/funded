@@ -1,0 +1,5 @@
+# Hand-written service worker, not next-pwa or Workbox
+
+Status: accepted.
+
+Funded is used as an installed home-screen app, so offline support and push delivery run through a service worker (`public/sw.js`) that we write and maintain by hand rather than a generated one (next-pwa or Workbox). The worker is small, also handles Web Push and notification taps, and generated workers fight both that and `cacheComponents`. The cost is that cache busting is ours to get right: a hardcoded `CACHE_NAME` once left installed apps serving a stale build across many deploys (#71). The fix is a `prebuild` script (`scripts/stamp-sw.mjs`) that stamps `CACHE_NAME` with the build's commit hash so each deploy purges old caches, plus stale-while-revalidate for page navigations so offline still serves the last good shell. Consequence: the stamped `public/sw.js` is a build artifact, so a local build dirties it and that change is never committed; service worker lifecycle differs between iOS WebKit and Chromium, so changes here need an on-device check.

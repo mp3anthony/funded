@@ -7,7 +7,7 @@
  * unused npm-tooling metadata and is NOT the source of truth.
  *
  * Bump this by +0.0.1 per preview build — confirm the exact number with
- * Anthony before merge (CLAUDE.md §4). Do not bump as a side effect of an
+ * Anthony before merge (docs/conventions.md, Versioning). Do not bump as a side effect of an
  * unrelated change.
  */
 export const APP_VERSION = "0.9.57";
