@@ -441,7 +441,7 @@ actually affect delivery timing.
 - Scheduling runs more often than daily, via Supabase `pg_cron` (see
   Amendment), not a Vercel hourly cron.
 - A household/user only receives a push when their local time matches their
-  chosen notify hour, within the cron's hourly granularity.
+  chosen notify hour, within the scheduler's granularity.
 - No duplicate sends within the same local-hour window (respects existing
   `dedupe_key` handling, Part A2).
 
