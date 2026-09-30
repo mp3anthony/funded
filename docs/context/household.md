@@ -11,7 +11,7 @@ The shared space a group of people manage bills, goals and pay together in. A pe
 _Avoid_: Group, family account, team, workspace
 
 **Member**:
-A person in a household, either its owner or a regular member. A member can be shown as pending until they accept.
+A person in a household, either its owner or a regular member. A member can be shown as pending until they accept. Also called a Contributor when shown by what they pay or earn.
 _Avoid_: User (for a person in a household), roommate, partner
 
 **Owner**:
@@ -52,6 +52,6 @@ _Avoid_: Deposit, transfer, allowance
 How one bill's cost is divided between members, by percentage or by dollar amount. A bill with no split is paid entirely by its assignee.
 _Avoid_: Share, cut, division
 
-**Contributor**:
-A member who carries a share of a bill split or puts a contribution into the Joint Fund.
-_Avoid_: Participant, payer (except "Assignee (Payer)" on a bill)
+**Contributor** (alias of Member):
+A member, when shown by what they pay or earn (bill splits, the Joint Fund, the Payday filter). Same person as a Member; use Member when the payment context does not matter.
+_Avoid_: Participant, user

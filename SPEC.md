@@ -412,7 +412,7 @@ push subscription lifecycle) — platform-sensitive. Label
 
 ---
 
-### Slice 11: Push reliability — per-timezone hourly cron (Issue #96, half B)
+### Slice 11: Push reliability — per-timezone scheduled delivery (Issue #96, half B)
 
 **Problem:** The push-reminder cron is scheduled at a fixed UTC hour
 (`vercel.json`, `0 20 * * *`), which only coincidentally lands at a
@@ -424,14 +424,24 @@ checks every household's current local hour (via `todayInZone`/the household
 timezone from Slice 8) against each user's chosen notify hour (from Slice
 9's time-of-day picker), sending only to matches.
 
+**Amendment (as built, ADR 0004):** Vercel Hobby allows one cron run per day,
+and an hourly `vercel.json` schedule fails silently (the deployment never
+promotes). Scheduling therefore runs on Supabase `pg_cron` via `pg_net`: a job
+every 15 minutes generates scheduled reminders (`/api/cron/push-reminders`)
+and a job every 5 minutes delivers due ones (`/api/cron/deliver-scheduled`).
+`vercel.json` keeps a single daily fallback cron (`0 15 * * *`). The
+"hourly cron" wording in this slice is superseded; the real schedule lives in
+the Supabase database, not the repo.
+
 **Depends on:** Slice 8 (household timezone) and Slice 9 (per-user notify
 hour) — both must land first; this slice is the piece that makes them
 actually affect delivery timing.
 
 **Acceptance criteria:**
-- Cron runs hourly, not daily (`vercel.json` schedule change).
+- Scheduling runs more often than daily, via Supabase `pg_cron` (see
+  Amendment), not a Vercel hourly cron.
 - A household/user only receives a push when their local time matches their
-  chosen notify hour, within the cron's hourly granularity.
+  chosen notify hour, within the scheduler's granularity.
 - No duplicate sends within the same local-hour window (respects existing
   `dedupe_key` handling, Part A2).
 
@@ -444,15 +454,15 @@ Label **`needs-merge-approval`**.
 ### Slice 12: Bills vs Expenses split (Issue #98)
 
 **Problem:** Groceries/fuel are currently entered as bills purely as a
-workaround so they count toward the weekly joint-account draw — there's no
+workaround so they count toward the joint-account Household total — there's no
 real "expense" concept, and goal-contribution rules (e.g. "20% of surplus
 into a goal") should also count toward that same draw. This is a schema
 change — Part A escalation trigger, Anthony's sign-off recorded in the issue.
 
 **Decisions (2026-09-02, recorded in the issue):**
 - **Bill** = fixed/contractual/recurring. **Expense** = variable spend that
-  still counts toward the weekly draw.
-- **The weekly draw becomes bills + expenses + active goal-contribution
+  still counts toward the Household total (formerly "weekly draw").
+- **The Household total (formerly "weekly draw") becomes bills + expenses + active goal-contribution
   rules**, not just bills — touches #106's contribution-calc logic directly.
 - **Separate `expenses` table** (not a type-filter bolted onto `bills`) —
   avoids adding type-filters to every existing bills query.
@@ -718,7 +728,7 @@ weighting):**
 11. Slice 9 (#97) — notifications overhaul. **Depends on Slice 8.**
 12. Slice 10 (#96 half A) — dead-subscription detection. Independent, can
     slot in anywhere in this group.
-13. Slice 11 (#96 half B) — per-timezone hourly cron. **Depends on Slices 8
+13. Slice 11 (#96 half B) — per-timezone scheduled delivery (pg_cron). **Depends on Slices 8
     and 9 both.**
 
 **Group 4 — larger feature/design work, sequence last:**

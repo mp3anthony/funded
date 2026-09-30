@@ -11,7 +11,7 @@ A fixed, recurring obligation with a due date, such as rent or a subscription. B
 _Avoid_: Invoice (for the obligation), charge, payment
 
 **Expense**:
-Variable spending, such as groceries or fuel, that still counts toward what the household sets aside each week. An expense has no frequency of its own and is treated as a weekly amount.
+Variable spending, such as groceries or fuel, that still counts toward the Household total. An expense has no frequency of its own and is treated as a weekly amount.
 _Avoid_: Variable bill, spend, cost
 
 **Manual bill**:
@@ -100,9 +100,12 @@ _Avoid_: Funds, fund, sinking fund, savings pot
 An automation that moves part of a pay into a goal or a member's contribution whenever that pay exceeds a chosen threshold, as a fixed dollar amount or a percentage. The Settings row for these reads "Automation rules".
 _Avoid_: Auto-save rule, transfer rule
 
-**Weekly draw**:
-The total a household sets aside each week to cover bills, expenses and active fixed-dollar contribution rules. Percentage rules are left out because the next pay's surplus is unknown. Shown as the Total bar on the Bills page.
-_Avoid_: Budget, allowance
+**Household total**:
+The recurring amount the household commits to across bills, expenses and active fixed-dollar contribution rules, shown at whichever frequency is selected on the Bills page. Percentage rules are left out because the next pay's surplus is unknown. Shown as the Total bar on the Bills page.
+_Avoid_: Weekly draw, Bills total, Budget, Allowance
+
+**Surplus Pool** (planned, #215):
+Where extra pay above a member's usual pay can be held to cover bills. Today the Payday surplus popup offers it but it is a stub that records nothing. Definition still to be settled in #215.
 
 ### Household health
 
@@ -115,5 +118,5 @@ The dashboard card that shows the health score with a status label and this week
 _Avoid_: Health page, finance score, dashboard score
 
 **Fully Funded**:
-The Household Health status for a health score of 80 or more. Lower scores read On Track (60 and above) and Needs Attention; a household with no bills, goals or contributions reads Not Set Up Yet instead.
+The best Household Health status, shown when the health score is high. The lower statuses are On Track and Needs Attention; Not Set Up Yet appears when the household has no bills, goals or contributions.
 _Avoid_: Funded, all paid, healthy
