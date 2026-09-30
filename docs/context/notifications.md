@@ -15,12 +15,12 @@ A notification the app generates on its own about a bill, payday, pending pay or
 _Avoid_: Task, to-do, nudge
 
 **Reminder types**:
-Manual bill, auto-pay, lodge payment, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid.
+Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid.
 _Avoid_: Categories, alert kinds
 
-**Lodge payment reminder**:
-The reminder, titled "Payment Requires Confirmation", that a logged pay is still pending and needs confirming.
-_Avoid_: Payment reminder, confirm reminder
+**Confirm Pending Pay reminder**:
+The reminder, titled "Payment Requires Confirmation", that a logged pay is still pending and needs confirming. Its tap leads to the Confirm Pending Pay modal on the Payday page. The code key `lodge_payment` and some UI text still say "lodge"; that is legacy naming pending #216.
+_Avoid_: Lodge payment, payment reminder, confirm reminder
 
 **Goal milestone**:
 A goal reaching 25, 50, 75 or 100 percent of its target. Each milestone is announced once per goal, to the whole household.

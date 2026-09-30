@@ -11,11 +11,13 @@ Funded is a household bills and goals budgeting app, installed on a phone, where
 
 ## Relationships
 
-- **Household → Money**: the payment mode decides how a bill is split and whether the weekly draw goes into a Joint Fund or is transferred directly; the household timezone decides when a due date falls.
+- **Household → Money**: the payment mode decides how a bill is split and whether the Household total goes into a Joint Fund or is transferred directly; the household timezone decides when a due date falls.
 - **Money → Notifications**: bills, pending pay and goals generate reminders, and a reminder's dedupe key follows the bill, pay or goal and its cycle.
 - **Household → Notifications**: the household timezone and each member's notify hour decide when a reminder is delivered.
 - **Notifications → App shell**: a notification's tap destination is a page or popup in the app, and the inbox is opened from the shell's bell.
 - **Money → App shell**: Household Health, Upcoming Bills and Savings Goals appear on the Dashboard, and the Goals page is where goals live, never "Funds".
+
+Glossary convention: a planned term (agreed but not built) stays in its glossary tagged "(planned, #ticket)" while a GitHub issue exists for it. Remove the tag when it ships; delete the entry if the ticket is dropped. The Known Issues tab (#152) stays.
 
 Workflow and process terms (orchestrator, subagents, labels, tickets, wrap-up) live in `CLAUDE.md`. Architectural decisions live in `docs/adr/`.
 

@@ -9,7 +9,7 @@ You are the Planner for the Funded app. You produce an implementation plan for a
 
 Before planning:
 
-1. Read `CONTEXT-MAP.md`, then the glossary in `docs/context/` for the topic. Use its vocabulary exactly (Goals page, Mark as Paid, Dedupe key, Weekly draw, Household timezone, and so on).
+1. Read `CONTEXT-MAP.md`, then the glossary in `docs/context/` for the topic. Use its vocabulary exactly (Goals page, Mark as Paid, Dedupe key, Household total, Household timezone, and so on).
 2. Respect `docs/adr/` and the locked decisions in `SPEC.md` (Part A1 escalation gates, A2 standing rules). Follow `docs/conventions.md`. See `docs/lessons.md` for test and tooling traps.
 3. Read the actual code you will propose to change; do not plan from memory.
 
