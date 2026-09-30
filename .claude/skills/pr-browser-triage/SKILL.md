@@ -5,8 +5,8 @@ description: Triage an open GitHub PR's manual-testing checklist to work out whi
 
 # PR Browser Triage
 
-This repo's PRs carry a manual-testing checklist (see `CLAUDE.md` §2 Step 4 for the format, and
-`HANDOFF.md` for worked examples). Not every item on it can be meaningfully checked through a
+This repo's PRs carry a manual-testing checklist (see `CLAUDE.md`, Workflow Protocol, manual-test checklist format, and
+`docs/lessons.md` for worked examples). Not every item on it can be meaningfully checked through a
 Chromium browser hitting `localhost` — some need real iOS Safari, an installed PWA, a native
 gesture, or a network condition the browser tool can't simulate. Running those anyway doesn't
 save time — it produces a false "tested" result that then has to be caught later, which costs
@@ -29,7 +29,7 @@ gh pr view <number> --json body,comments
 ```
 
 If a comment exists in the "canonical format" (numbered items, ✅ pass line, optional ❌ named
-failure mode — see `CLAUDE.md` §2 Step 4) and its text says it supersedes the PR body's checklist
+failure mode — see `CLAUDE.md`, Workflow Protocol, manual-test checklist format) and its text says it supersedes the PR body's checklist
 (look for language like "this comment is the one to work from" or "supersedes the ... section
 above"), use that comment as the source of truth. Otherwise fall back to the PR body's checklist
 section. Note which source you used when you report back — it matters if the two ever drift.
@@ -111,7 +111,7 @@ agent stepping on the others' session state.
 
 Executing checklist items like "cold start, new user" or "join by code" creates real rows in
 Supabase — new auth users, households, bills, paydays. This repo has already hit the consequence
-of losing track of that (`HANDOFF.md`'s "Out-of-band: Supabase test-user cleanup" entry describes
+of losing track of that (`docs/lessons.md`, the test-data accumulation entry, describes
 cleaning up stray test users after they piled up). Keep a running list of what got created during
 execution — email/identifier, what it's for — and include it in the final report. Don't clean it
 up automatically without asking; just make sure it's visible so it doesn't quietly accumulate.

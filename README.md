@@ -37,7 +37,7 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 - **Payment modes** — choose between Joint Fund (pooled pot) or Direct Pay (split bills between members)
 - **Multi-member households** — invite members via join code, manage roles (owner/member), and assign bill splits
 - **Health score** — weighted financial health score (0–100) based on bill status, goal progress, and budget coverage
-- **Notifications** — in-app notification centre with bill-due alerts, snooze, read/unread state, and per-type settings
+- **Notifications** — in-app notification centre with bill-due alerts, read/unread state, and per-type settings
 - **Light and dark mode** — automatic via `prefers-color-scheme` CSS media query, with a manual class-based override (`.dark` / `.light`) toggle in settings
 - **PWA** — installable as a home screen app on iOS Safari and Android Chrome with full offline fallback
 - **Authentication** — email/password auth via Supabase (implicit flow, session persisted in `localStorage`), email confirmation, and password reset
@@ -195,7 +195,7 @@ funded-nextjs/
 │   │   ├── UpcomingBillsCard.tsx      # Dashboard upcoming bills widget
 │   │   ├── ActiveGoalsCard.tsx        # Dashboard goals widget
 │   │   ├── RecentActivityCard.tsx     # Dashboard activity feed
-│   │   ├── NotificationCenter.tsx     # In-app notification centre (alerts, snooze, settings)
+│   │   ├── NotificationCenter.tsx     # In-app notification centre (alerts, settings)
 │   │   ├── AddBillSheet.tsx           # Add/edit bill bottom sheet
 │   │   ├── BillDetailSheet.tsx        # Bill detail view bottom sheet
 │   │   ├── BillCard.tsx               # Individual bill card
@@ -382,11 +382,11 @@ Ensure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are config
 
 This is a solo project developed under a structured **Lead Developer Liaison Protocol**: a single orchestrator session is the sole point of contact and delegates to a sub-agent team, but never merges or approves its own code. The full protocol lives in [`CLAUDE.md`](CLAUDE.md) — the short version:
 
-- **Issues & PRDs** are tracked as GitHub issues on `mp3anthony/funded` via the `gh` CLI, triaged with canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `needs-mobile-test`, `needs-merge-approval`).
+- **Issues & PRDs** are tracked as GitHub issues on `mp3anthony/funded` via the `gh` CLI, triaged with canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `needs-manual-test`, `needs-merge-approval`).
 - **Problem Agreement** — the problem must be fully scoped and the issue filed with a testing checklist — is reached before any work starts.
 - **Once a plan is approved, the agent team works autonomously**, only interrupting for database migrations/RLS changes or locked architecture decisions.
 - **Every change goes on a branch**, which triggers an automatic Vercel preview deployment.
-- **Changes touching mobile layout, styling, or native browser behaviour** are labelled `needs-mobile-test` for iPhone/WebKit verification; code must still be written to work correctly on **both** iOS and Android, but Android is exercised post-merge on `main` by real users. **Backend/platform-agnostic changes** are labelled `needs-merge-approval` — checklist pre-ticked, just needs your go-ahead.
+- **Changes touching mobile layout, styling, or native browser behaviour** are labelled `needs-manual-test` for verification on the installed home-screen app on an iPhone; code must still be written to work correctly on **both** iOS and Android, but manual-test checklists never target Android. **Backend/platform-agnostic changes** are labelled `needs-merge-approval` — checklist pre-ticked, just needs your go-ahead.
 - **Closing the linked GitHub issue is the go-ahead to merge** into `main`. The version number is confirmed with Anthony at merge time (see Versioning).
 
 ### Code conventions
@@ -400,11 +400,11 @@ This is a solo project developed under a structured **Lead Developer Liaison Pro
 
 ## Versioning
 
-The current version is shown at the bottom of the Settings screen and tracked in `package.json` — not restated here, so this doc can't drift out of sync with it. Until the app is declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.x` → `v0.9.x+1` …). `v0.9.0` was deliberately skipped.
+The current version is shown at the bottom of the Settings screen and sourced from `src/lib/version.ts` (`APP_VERSION`), not `package.json` — not restated here, so this doc can't drift out of sync with it. Until the app is declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.x` → `v0.9.x+1` …). `v0.9.0` was deliberately skipped.
 
 > **Note:** This table is a loose guideline, not an enforced rule. The actual version applied at each
-> merge is decided with Anthony directly at merge time, via the Versioning step in
-> [`CLAUDE.md`](CLAUDE.md).
+> merge is decided with Anthony directly at merge time, per the Versioning section in
+> [`docs/conventions.md`](docs/conventions.md).
 
 | Milestone | Version |
 |-----------|---------|

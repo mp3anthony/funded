@@ -14,7 +14,7 @@ of this spec.
 Part A is split into two sections, and the split is load-bearing:
 
 * **A1 — Locked invariants** are **escalation gates**. A change touching one is
-  a mandatory stop-and-ask under liaison protocol Step 3. A sub-agent does not
+  a mandatory stop-and-ask under the escalation triggers in CLAUDE.md. A sub-agent does not
   decide these alone.
 * **A2 — Standing rules** are binding on how code gets written, but there is no
   decision for the user to make. A sub-agent follows them and proceeds without
@@ -102,13 +102,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   `if (res.data)` is not sufficient: `[]` is truthy, and a successful RLS query
   with no token applied returns zero rows and no error. See issue #74.
 
-  **The canary:** empty state computes to exactly **85** in
-  `calculateHealthScore` (`src/lib/utils.ts:88`) —
-  `(100 × 0.4) + (50 × 0.3) + (100 × 0.3)` — which clears the `>= 80` threshold
-  in `src/components/HealthScoreCard.tsx:34`. So an unexplained "Fully Funded"
-  is a reliable symptom that something has handed the dashboard empty arrays.
-  Two separate mechanisms have produced it; treat it as a signal to look at
-  loading state, not at the scoring formula.
+  **The canary:** an unexplained "Fully Funded" means something has handed the dashboard empty arrays. See `docs/lessons.md` (Testing).
 * **Layout — fixed-position/overflow:** never nest a `position: fixed` element
   inside a container with `overflow: hidden`. Breaks on iOS Safari in particular.
   Note-level rather than locked because this class of change carries
@@ -125,7 +119,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   bottom of the Settings screen) is the source of truth — `package.json`'s
   `version` field is unused npm-tooling metadata and does not need to track it.
   Default bump is `+0.0.1` per preview build. Confirming the exact number before
-  merge is a process step owned by `CLAUDE.md` §4, not an escalation trigger.
+  merge is a process step owned by `docs/conventions.md` (Versioning), not an escalation trigger.
 
 ---
 

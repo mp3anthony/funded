@@ -1,0 +1,5 @@
+# Supabase pg_cron for frequent scheduling, not Vercel Cron
+
+Status: accepted (PR #127 found the limit; PR #128 and #150 adopted the fix).
+
+Reminders need to fire at each user's chosen local hour, which requires runs every few minutes. The project is on Vercel's Hobby plan, which only permits one cron run per day, and an hourly `vercel.json` schedule fails silently: the deployment never promotes and production quietly keeps serving the last good build (this happened with the first attempt at #96 half B, PR #127). So scheduling is split from Vercel: Supabase `pg_cron` calls our protected API routes through `pg_net`, with a job generating scheduled reminders every 15 minutes (`/api/cron/push-reminders`) and another delivering due ones every 5 minutes (`/api/cron/deliver-scheduled`), each gated by its own secret. Vercel Cron stays as a once-daily fallback (`0 15 * * *`). Consequences: the real schedule lives in the Supabase database, not in the repo, so the repo holds only comment-only migrations documenting it; after any `vercel.json` cron change, confirm a production deployment actually reached READY.
