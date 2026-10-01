@@ -26,7 +26,7 @@ _Avoid_: Lodge payment, payment reminder, confirm reminder
 A goal reaching 25, 50, 75 or 100 percent of its target. Each milestone is announced once per goal, to the whole household.
 _Avoid_: Achievement, badge, goal complete
 
-**Auth email** (templates planned, #167):
+**Auth email** (templates built in #167):
 An email sent by Supabase Auth through Mailjet for an account action, currently Confirm signup and Reset password. It is not a Notification, which is only ever push or in-app.
 _Avoid_: Transactional email, system email
 
