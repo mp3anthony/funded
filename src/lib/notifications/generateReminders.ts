@@ -49,7 +49,7 @@ export interface ReminderBill {
   frequency?: string | null;
 }
 
-/** Minimal pay-history shape needed to evaluate lodge reminders. */
+/** Minimal pay-history shape needed to evaluate Confirm Pending Pay reminders. */
 export interface ReminderPayHistory {
   id: string;
   member_id?: string | null;
@@ -290,7 +290,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
     }
   }
 
-  // ── Lodge Payment ──────────────────────────────
+  // ── Confirm Pending Pay ──────────────────────────────
   if (settings.lodge_payment_reminders && currentMemberId) {
     for (const hist of payHistory) {
       if (hist.status === 'pending' && hist.member_id === currentMemberId) {

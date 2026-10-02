@@ -10,7 +10,7 @@ import { computeRollover } from '@/lib/billCycle';
 export const maxDuration = 60;
 
 /**
- * Reminder-generation cron (GET) that generates due-bill / auto-pay / lodge
+ * Reminder-generation cron (GET) that generates due-bill / auto-pay / Confirm Pending Pay
  * / payday / goal-milestone reminders for every household member and stores
  * them with a `scheduled_for` delivery timestamp. It does NOT send push
  * notifications itself — actual delivery is handled by a separate Supabase
