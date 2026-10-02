@@ -7,6 +7,9 @@ import {
   computeRollover,
   computePaidRoll,
   computeUndoPaidRoll,
+  canUndoPayment,
+  computeUndoPayment,
+  paidForLabel,
   oldCycleNotificationKeyPrefix,
   paidRollToastMessage,
   sameDueDate,
@@ -75,6 +78,7 @@ test('computeRollover rolls on the due date, invoice in lockstep', () => {
     status: UNPAID_STATUS,
     due_date: '2026-10-27',
     invoice_date: '2026-10-13',
+    last_paid_for: '2026-09-27',
   });
 });
 
@@ -83,6 +87,7 @@ test('computeRollover rolls only +1 cycle when far past due', () => {
     status: UNPAID_STATUS,
     due_date: '2026-02-28',
     invoice_date: null,
+    last_paid_for: '2026-01-31',
   });
 });
 
@@ -93,6 +98,7 @@ test('computeRollover: missing is_recurring counts as recurring; weekly lockstep
     status: UNPAID_STATUS,
     due_date: '2026-10-04',
     invoice_date: '2026-09-20',
+    last_paid_for: '2026-09-27',
   });
 });
 
@@ -108,7 +114,7 @@ test('computeRollover: autopay only resets status', () => {
 const unpaid = { ...base, status: 'Due Soon', due_date: '2026-09-27', invoice_date: '2026-09-13' };
 
 test('computePaidRoll rolls when due today or earlier, whatever the current unpaid status', () => {
-  const expected = { status: UNPAID_STATUS, due_date: '2026-10-27', invoice_date: '2026-10-13' };
+  const expected = { status: UNPAID_STATUS, due_date: '2026-10-27', invoice_date: '2026-10-13', last_paid_for: '2026-09-27' };
   assert.deepEqual(computePaidRoll(unpaid, '2026-09-27'), expected); // due today
   assert.deepEqual(computePaidRoll(unpaid, '2026-09-28'), expected); // overdue by a day
   assert.deepEqual(computePaidRoll({ ...unpaid, status: 'Overdue' }, '2026-09-28'), expected);
@@ -133,6 +139,7 @@ test('computePaidRoll: only +1 cycle and month-end clamp', () => {
     status: UNPAID_STATUS,
     due_date: '2026-02-28',
     invoice_date: null,
+    last_paid_for: '2026-01-31',
   });
 });
 
@@ -140,12 +147,16 @@ test('computeUndoPaidRoll restores the exact pre-tap row (no reverse-clamp drift
   // Jan 31 → Feb 28 on roll; Undo must give back Jan 31, not Jan 28.
   assert.deepEqual(
     computeUndoPaidRoll({ ...unpaid, status: 'Due Soon', due_date: '2026-01-31', invoice_date: '2026-01-17' }),
-    { status: 'Due Soon', due_date: '2026-01-31', invoice_date: '2026-01-17' }
+    { status: 'Due Soon', due_date: '2026-01-31', invoice_date: '2026-01-17', last_paid_for: null }
   );
+  // last_paid_for goes back to its pre-tap value exactly.
+  assert.equal(computeUndoPaidRoll({ ...unpaid, last_paid_for: '2026-08-27' }).last_paid_for, '2026-08-27');
+  assert.equal(computeUndoPaidRoll({ ...unpaid, last_paid_for: undefined }).last_paid_for, null);
   assert.deepEqual(computeUndoPaidRoll({ ...unpaid, invoice_date: undefined }), {
     status: 'Due Soon',
     due_date: '2026-09-27',
     invoice_date: null,
+    last_paid_for: null,
   });
   // Never restore 'Paid' on a due/past date — the cron would just roll it again.
   assert.equal(computeUndoPaidRoll({ ...unpaid, status: 'Paid' }).status, UNPAID_STATUS);
@@ -177,4 +188,62 @@ test('oldCycleNotificationKeyPrefix matches only that cycle\'s reminder keys', (
   // Next cycle's reminders are not touched.
   assert.ok(!'abc-1-2026-10-27-manual_bill'.startsWith(prefix));
   assert.equal(oldCycleNotificationKeyPrefix(42, '2026-09-27T00:00:00'), '42-2026-09-27-');
+});
+
+/* ── #211 last paid record and Undo payment ───────────────────────────── */
+
+const rolled = {
+  ...base,
+  status: 'Due Soon',
+  due_date: '2026-10-27',
+  invoice_date: '2026-10-13',
+  last_paid_for: '2026-09-27',
+};
+
+test('canUndoPayment true for a rolled manual monthly bill, incl. month-end', () => {
+  assert.equal(canUndoPayment(rolled), true);
+  assert.equal(canUndoPayment({ ...rolled, status: 'Overdue' }), true);
+  assert.equal(
+    canUndoPayment({ ...rolled, last_paid_for: '2026-01-31', due_date: '2026-02-28' }),
+    true
+  );
+});
+
+test('canUndoPayment false when ineligible', () => {
+  assert.equal(canUndoPayment({ ...rolled, last_paid_for: null }), false);
+  assert.equal(canUndoPayment({ ...rolled, last_paid_for: 'bad' }), false);
+  assert.equal(canUndoPayment({ ...rolled, payment_type: 'Auto' }), false);
+  assert.equal(canUndoPayment({ ...rolled, is_recurring: false }), false);
+  assert.equal(canUndoPayment({ ...rolled, is_paused: true }), false);
+  assert.equal(canUndoPayment({ ...rolled, status: 'Paid' }), false);
+  assert.equal(canUndoPayment({ ...rolled, due_date: '2026-10-28' }), false); // edited away
+  assert.equal(canUndoPayment({ ...rolled, frequency: 'weekly' }), false); // frequency changed
+  assert.equal(canUndoPayment({ ...rolled, due_date: null }), false);
+});
+
+test('computeUndoPayment restores the paid cycle exactly', () => {
+  assert.deepEqual(computeUndoPayment(rolled), {
+    status: UNPAID_STATUS,
+    due_date: '2026-09-27',
+    invoice_date: '2026-09-13',
+    last_paid_for: null,
+  });
+  // Jan 31 stays Jan 31 (no reverse-clamp drift from Feb 28).
+  assert.equal(
+    computeUndoPayment({ ...rolled, last_paid_for: '2026-01-31', due_date: '2026-02-28' }).due_date,
+    '2026-01-31'
+  );
+  assert.equal(computeUndoPayment({ ...rolled, invoice_date: null }).invoice_date, null);
+  assert.equal(computeUndoPayment({ ...rolled, last_paid_for: null }), null);
+  assert.equal(computeUndoPayment({ ...rolled, is_paused: true }), null);
+});
+
+test('paidForLabel adds the year only when it is not the current year', () => {
+  assert.equal(paidForLabel('2026-09-27', '2026-10-02'), 'Paid for September');
+  assert.equal(paidForLabel('2025-12-30', '2026-10-02'), 'Paid for December 2025');
+  assert.equal(paidForLabel('2026-12-30', '2027-01-03'), 'Paid for December 2026');
+  assert.equal(paidForLabel('2026-09-27T00:00:00+00:00', '2026-10-02'), 'Paid for September');
+  assert.equal(paidForLabel(null, '2026-10-02'), null);
+  assert.equal(paidForLabel(undefined, '2026-10-02'), null);
+  assert.equal(paidForLabel('bad', '2026-10-02'), null);
 });

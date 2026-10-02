@@ -61,12 +61,20 @@ Recording that a manual bill has been paid. If the bill is already due or past d
 _Avoid_: Pay, complete, tick off
 
 **Roll**:
-Moving a recurring bill on to its next cycle: status returns to unpaid and the due date, and the invoice date when present, advance one frequency.
+Moving a recurring bill on to its next cycle: status returns to unpaid and the due date, and the invoice date when present, advance one frequency. The cycle just paid is recorded as the bill's last paid.
 _Avoid_: Reset, renew, recur
 
 **Undo**:
-Reversing a Mark as Paid that just happened, restoring the bill exactly as it was. It is offered for a short time after paying, in the toast.
+The quick undo in the toast straight after paying, restoring the bill exactly as it was. It is offered for a short time only.
 _Avoid_: Revert, unpay, rollback
+
+**Undo payment**:
+The permanent button in the bill popup that puts a bill back on the cycle it was last paid for, as unpaid. One level only: it clears the last paid record, so it cannot be repeated.
+_Avoid_: Revert, unpay, rollback
+
+**Last paid** (shown as "Paid for <Month>"):
+The due date of the most recently paid cycle, shown in the bill popup under Paid By. The month comes from the due date while the bill is Paid, otherwise from the stored record; empty shows nothing.
+_Avoid_: Paid on, payment date
 
 ### Income and pay
 

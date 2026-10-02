@@ -23,5 +23,6 @@ export const dashboardTips: string[] = [
   "Tip: The Household Health card on your dashboard gives you an at-a-glance read on how funded you are this week.",
   "Tip: Split a shared bill or expense by percentage across household members in a couple of taps.",
   "Tip: Found a bug? Report it straight from Settings — add a title, description, and an optional screenshot.",
+  "Tip: Not sure you paid a bill? Open it — it shows the month you last paid for, and Undo payment fixes a mis-tap.",
   "Tip: Check \"What's new\" in Settings any time to see what's changed in the latest update.",
 ];

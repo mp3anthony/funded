@@ -53,7 +53,8 @@ export const maxDuration = 60;
  * recurring, unpaused bill still marked Paid whose due date is today or
  * earlier (household timezone) is rolled exactly one cycle — status back to
  * unpaid, due_date +1 cycle, invoice_date +1 cycle (autopay bills only get
- * their status reset). See `computeRollover` in `src/lib/billCycle.ts`. Each
+ * their status reset; a manual roll records the paid cycle in last_paid_for
+ * and never clears it, #211). See `computeRollover` in `src/lib/billCycle.ts`. Each
  * update is conditional on `status = 'Paid' AND due_date = <old>`, so running
  * every few minutes (or racing the app's on-load catch-up) can never roll a
  * bill twice. Rolled rows are merged back into the fetched bills so the

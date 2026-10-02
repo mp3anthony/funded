@@ -3,6 +3,8 @@
 import { Calendar, AlertTriangle } from "lucide-react";
 import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
 import Dialog, { DialogSection } from "@/components/ui/Dialog";
+import { todayInZone } from "@/lib/notifications/timezone";
+import { canUndoPayment, paidForLabel } from "@/lib/billCycle";
 
 interface BillDetailSheetProps {
   isOpen: boolean;
@@ -23,7 +25,7 @@ export default function BillDetailSheet({
   onEdit,
   onDelete,
 }: BillDetailSheetProps) {
-  const { isJointFund, markAsPaid, markAsUnpaid, togglePauseBill } = useApp();
+  const { isJointFund, markAsPaid, markAsUnpaid, undoPayment, togglePauseBill, householdTimezone } = useApp();
 
   if (!isOpen || !bill) return null;
 
@@ -41,6 +43,36 @@ export default function BillDetailSheet({
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+
+  // #211: month last paid for (from the due date while Paid, else the record).
+  const todayYmd = todayInZone(householdTimezone || "Australia/Sydney");
+  const paidForYmd = bill.status === "Paid" ? bill.due_date : bill.last_paid_for;
+  const paidLabel = paidForLabel(paidForYmd, todayYmd);
+  const showUndoPayment =
+    !isAutoPay &&
+    canUndoPayment({
+      status: bill.status,
+      is_recurring: bill.is_recurring,
+      is_paused: bill.is_paused,
+      due_date: bill.due_date,
+      frequency: bill.frequency,
+      payment_type: bill.payment_type,
+      last_paid_for: bill.last_paid_for,
+      invoice_date: bill.invoice_date,
+    });
+
+  function handleUndoPayment() {
+    if (!bill || !bill.last_paid_for) return;
+    const paidMonth = new Date(bill.last_paid_for + "T00:00:00").toLocaleDateString("en-US", { month: "long" });
+    const backDate = new Date(bill.last_paid_for + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+    const message =
+      bill.last_paid_for < todayYmd
+        ? `Undo the ${paidMonth} payment? This bill goes back to being due ${backDate}. That date has passed, so it will show as Overdue and overdue reminders will start again.`
+        : `Undo the ${paidMonth} payment? This bill goes back to being due today.`;
+    if (!window.confirm(message)) return;
+    void undoPayment(bill);
+    onClose();
+  }
 
   return (
     <Dialog
@@ -227,6 +259,20 @@ export default function BillDetailSheet({
                   );
                 })}
               </div>
+            )}
+
+            {paidLabel && (
+              <p className="text-xs text-muted font-mono">{paidLabel}</p>
+            )}
+
+            {showUndoPayment && (
+              <button
+                type="button"
+                onClick={handleUndoPayment}
+                className="min-h-[44px] w-full rounded-[2px] px-4 py-2.5 bg-surface-elevated text-foreground border border-border font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Undo payment
+              </button>
             )}
           </div>
 
