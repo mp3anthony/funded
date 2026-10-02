@@ -47,7 +47,8 @@ export default function BillDetailSheet({
   // #211: month last paid for (from the due date while Paid, else the record).
   const todayYmd = todayInZone(householdTimezone || "Australia/Sydney");
   const paidForYmd = bill.status === "Paid" ? bill.due_date : bill.last_paid_for;
-  const paidLabel = paidForLabel(paidForYmd, todayYmd);
+  // Autopay bills show no line: their mapped due date can be a future cycle and they never get last_paid_for.
+  const paidLabel = isAutoPay ? null : paidForLabel(paidForYmd, todayYmd);
   const showUndoPayment =
     !isAutoPay &&
     canUndoPayment({

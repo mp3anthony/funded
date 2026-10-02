@@ -73,7 +73,7 @@ The permanent button in the bill popup that puts a bill back on the cycle it was
 _Avoid_: Revert, unpay, rollback
 
 **Last paid** (shown as "Paid for <Month>"):
-The due date of the most recently paid cycle, shown in the bill popup under Paid By. The month comes from the due date while the bill is Paid, otherwise from the stored record; empty shows nothing.
+The due date of the most recently paid cycle, shown in the bill popup under Paid By. The month comes from the due date while the bill is Paid, otherwise from the stored record; empty shows nothing. Autopay bills show no Paid-for line.
 _Avoid_: Paid on, payment date
 
 ### Income and pay

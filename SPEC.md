@@ -709,7 +709,8 @@ problem/checklist on the issue.
   restores the pre-tap value exactly (including empty).
 - Bill popup, under Paid By: "Paid for <Month>" (year only if not the current
   year, household timezone). The month comes from the due date while the bill
-  is Paid, else from `last_paid_for`; empty shows nothing.
+  is Paid, else from `last_paid_for`; empty shows nothing. Autopay bills show
+  no Paid-for line.
 - "Undo payment" button (permanent, one level): shown only when
   `last_paid_for` is set, the bill is manual, recurring, not paused, not Paid,
   and its due date is exactly `last_paid_for` + 1 cycle. Tap (with confirm):
