@@ -304,7 +304,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
 
                     <div className="flex items-center justify-between p-3 border-b border-border-strong">
                       <div>
-                        <h5 className="font-medium text-sm text-foreground">Lodge Payment Reminders</h5>
+                        <h5 className="font-medium text-sm text-foreground">Confirm Pending Pay Reminders</h5>
                         <p className="text-xs text-muted">Alerts when a scheduled payment needs confirmation.</p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">

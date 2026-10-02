@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.59",
+    date: "October 2026",
+    highlights: [
+      "The notification setting formerly called \"Lodge Payment Reminders\" is now \"Confirm Pending Pay Reminders\". It works exactly the same, just with a clearer name.",
+    ],
+  },
+  {
     version: "0.9.58",
     date: "October 2026",
     highlights: [
