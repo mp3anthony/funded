@@ -4,7 +4,7 @@
 
 ## Current state (2026-10-03)
 
-- `main` = v0.9.59 (PR #233, #216 built and merged; before it v0.9.58 PR #231 for #211, and docs PRs #214, #217, #219, #221, #223, #224, #226, #227, #229). The v0.9.58 production deploy was confirmed `success`. The v0.9.59 production deploy was not yet confirmed when this was written: check it is READY at the start of the next session.
+- `main` = v0.9.59 (PR #233, #216 built and merged; before it v0.9.58 PR #231 for #211, and docs PRs #214, #217, #219, #221, #223, #224, #226, #227, #229). Production deploys of v0.9.58 and v0.9.59 both confirmed `success` (2026-10-03).
 - #216 DONE and closed (2026-10-03): the Settings toggle now reads "Confirm Pending Pay Reminders" (only user-visible "Lodge" text; internal `lodge_payment` keys unchanged by design). iPhone checks passed.
 - #211 DONE and closed (2026-10-03): `bills.last_paid_for` (nullable date, migration applied to prod before the build shipped), "Paid for <Month>" line under Paid By (not shown on autopay), permanent one-level "Undo payment" button (manual, recurring, non-paused, non-Paid bills whose due date is last_paid_for + 1 cycle). Recorded when a Paid bill rolls (instant roll, cron, on-open catch-up); pay-early records at roll time; Mark as Unpaid never touches it. SPEC Slice 17 amendment merged. All 12 iPhone checks passed. Known cosmetic: Undo payment can shift a month-end invoice date by a few days (due date always exact). Seeded TEST bills deleted. 19 notifications mentioning "TEST-" still exist (A2: never delete; mark read if they show in the bell).
 - #156 DONE and closed (2026-10-01): Supabase Auth email sends via Mailjet from a `noreply@` address on the `funded.` subdomain. Details in `docs/environment.md`. Optional later: DMARC.
@@ -19,9 +19,8 @@
 
 ## Next session, in order
 
-1. Confirm the v0.9.59 production deploy is READY (`gh pr list` and Vercel).
-2. Ask Anthony about the owed live checks (#182, #193) when a push arrives.
-3. Start #145, #152, #183, #201, #208, #209 or #215 only when Anthony says so (#215 first needs a definition session; #208 and #209 need escalation).
+1. Ask Anthony about the owed live checks (#182, #193) when a push arrives.
+2. Start #145, #152, #183, #201, #208, #209 or #215 only when Anthony says so (#215 first needs a definition session; #208 and #209 need escalation).
 
 ## Where things live
 
