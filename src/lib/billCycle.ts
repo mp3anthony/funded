@@ -28,6 +28,7 @@ export interface RolloverBillRow {
   invoice_date?: string | null;
   frequency?: string | null;
   payment_type?: string | null;
+  last_paid_for?: string | null;
 }
 
 /** Columns to write back when a bill rolls. */
@@ -35,6 +36,8 @@ export interface RolloverPatch {
   status: string;
   due_date?: string;
   invoice_date?: string | null;
+  /** Due date of the cycle just paid (#211). Set by a roll of a manual bill, never cleared. */
+  last_paid_for?: string;
 }
 
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})/;
@@ -97,7 +100,11 @@ export function addCycles(ymd: string, frequency: string | null | undefined, n: 
  * several cycles in the past — only one cycle was paid.
  *
  * Autopay bills (payment_type 'auto', any case) only get their status reset:
- * their displayed date already rolls via `adjustAutopayBillDate`.
+ * their displayed date already rolls via `adjustAutopayBillDate`. They never
+ * get `last_paid_for`.
+ *
+ * A manual roll records the cycle just paid: `last_paid_for` = the old due
+ * date (#211). The roll sets it and never clears it.
  *
  * Callers must apply the patch with a conditional update
  * (`status = 'Paid' AND due_date = <old>`) so a concurrent roller (cron vs
@@ -121,6 +128,7 @@ export function computeRollover(bill: RolloverBillRow, todayYmd: string): Rollov
     status: UNPAID_STATUS,
     due_date: addCycles(due, bill.frequency, 1),
     invoice_date: invoice ? addCycles(invoice, bill.frequency, 1) : null,
+    last_paid_for: due,
   };
 }
 
@@ -134,6 +142,7 @@ export function computeRollover(bill: RolloverBillRow, todayYmd: string): Rollov
  *
  * Same eligibility as `computeRollover` (recurring, not paused, due date
  * today or earlier) because it IS that rollover, just applied at tap time.
+ * The patch inherits `last_paid_for` (the old due date) from the rollover.
  * Returns null when marking Paid should only set status (paying early,
  * one-off bills, paused bills) — and for autopay, which can't be marked Paid.
  *
@@ -154,6 +163,7 @@ export interface UndoPaidRollPatch {
   status: string;
   due_date: string;
   invoice_date: string | null;
+  last_paid_for: string | null;
 }
 
 /**
@@ -161,7 +171,8 @@ export interface UndoPaidRollPatch {
  * date and status (the bill was unpaid/overdue before the mis-tap). A
  * pre-tap status of 'Paid' (or missing) becomes UNPAID_STATUS — restoring
  * Paid on a due-or-past date would just be rolled again by the cron /
- * on-load catch-up. Returns null if the pre-tap row has no due date.
+ * on-load catch-up. `last_paid_for` goes back to its pre-tap value exactly
+ * (empty stays empty). Returns null if the pre-tap row has no due date.
  */
 export function computeUndoPaidRoll(preRoll: RolloverBillRow): UndoPaidRollPatch | null {
   if (!preRoll || !preRoll.due_date) return null;
@@ -170,6 +181,7 @@ export function computeUndoPaidRoll(preRoll: RolloverBillRow): UndoPaidRollPatch
     status,
     due_date: preRoll.due_date,
     invoice_date: preRoll.invoice_date ?? null,
+    last_paid_for: preRoll.last_paid_for ? preRoll.last_paid_for.slice(0, 10) : null,
   };
 }
 
@@ -218,4 +230,63 @@ export function paidRollToastMessage(oldDueYmd: string, newDueYmd: string): stri
   const nextDay = Number(newMatch[3]);
   const yearSuffix = newMatch[1] !== oldMatch[1] ? `, ${newMatch[1]}` : '';
   return `Paid for ${paidMonth} — next due ${nextMonth} ${nextDay}${yearSuffix}`;
+}
+
+/* ── Last paid record and Undo payment (#211) ─────────────────────────── */
+
+/**
+ * True when the "Undo payment" button may show: `last_paid_for` is a valid
+ * date, the bill is manual, recurring, not paused, not Paid, and its due
+ * date is exactly one cycle after `last_paid_for` (so it is still the cycle
+ * the last payment rolled to; an edited date or changed frequency hides it).
+ */
+export function canUndoPayment(row: RolloverBillRow): boolean {
+  if (!row) return false;
+  const lpf = row.last_paid_for ? row.last_paid_for.slice(0, 10) : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(lpf)) return false;
+  if ((row.payment_type ?? '').toLowerCase() === 'auto') return false;
+  if (row.is_recurring === false) return false;
+  if (row.is_paused) return false;
+  if (row.status === 'Paid') return false;
+  if (!row.due_date) return false;
+  return sameDueDate(row.due_date, addCycles(lpf, row.frequency, 1));
+}
+
+/** What Undo payment writes: the bill back on the paid cycle, unpaid, record cleared. */
+export interface UndoPaymentPatch {
+  status: string;
+  due_date: string;
+  invoice_date: string | null;
+  last_paid_for: null;
+}
+
+/**
+ * Patch for Undo payment, or null if `canUndoPayment` is false. `due_date`
+ * is `last_paid_for` exactly (Jan 31 stays Jan 31, no reverse-clamp drift);
+ * `invoice_date` steps back one cycle when present.
+ */
+export function computeUndoPayment(row: RolloverBillRow): UndoPaymentPatch | null {
+  if (!canUndoPayment(row)) return null;
+  const invoice = row.invoice_date ? row.invoice_date.slice(0, 10) : null;
+  return {
+    status: UNPAID_STATUS,
+    due_date: (row.last_paid_for as string).slice(0, 10),
+    invoice_date: invoice ? addCycles(invoice, row.frequency, -1) : null,
+    last_paid_for: null,
+  };
+}
+
+/**
+ * "Paid for September" label for the bill popup. The year is added only when
+ * it differs from today's year (household timezone `todayYmd`), e.g.
+ * "Paid for December 2025". Null for a missing / invalid date.
+ */
+export function paidForLabel(ymd: string | null | undefined, todayYmd: string): string | null {
+  const m = YMD_RE.exec(ymd ?? '');
+  if (!m) return null;
+  const month = MONTH_NAMES[Number(m[2]) - 1];
+  if (!month) return null;
+  const t = YMD_RE.exec(todayYmd ?? '');
+  const showYear = !t || t[1] !== m[1];
+  return `Paid for ${month}${showYear ? ` ${m[1]}` : ''}`;
 }

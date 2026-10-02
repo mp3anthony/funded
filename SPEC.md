@@ -698,6 +698,28 @@ problem/checklist on the issue.
   bill was already updated" toast, no write.
 - Full issue: https://github.com/mp3anthony/funded/issues/205
 
+**Amendment — last paid record and Undo payment (Issue #211, v0.9.58, schema approved 2026-09-28):**
+- New nullable `bills.last_paid_for` date = due date of the most recently paid
+  cycle. No backfill; RLS unchanged.
+- Written by every roll of a Paid manual bill: the instant roll on Mark as Paid
+  (#205) and the cron / on-open catch-up roll of a bill paid early. A rollover
+  sets it, never clears it. Autopay status resets don't write it. Paying early
+  doesn't write it at tap time, and Mark as Unpaid never touches it, so the
+  previous record survives an unpaid tap. Edits keep it. The toast Undo
+  restores the pre-tap value exactly (including empty).
+- Bill popup, under Paid By: "Paid for <Month>" (year only if not the current
+  year, household timezone). The month comes from the due date while the bill
+  is Paid, else from `last_paid_for`; empty shows nothing. Autopay bills show
+  no Paid-for line.
+- "Undo payment" button (permanent, one level): shown only when
+  `last_paid_for` is set, the bill is manual, recurring, not paused, not Paid,
+  and its due date is exactly `last_paid_for` + 1 cycle. Tap (with confirm):
+  `due_date` = `last_paid_for`, `invoice_date` -1 cycle, status unpaid,
+  `last_paid_for` cleared. Fresh re-read plus guarded write (due_date,
+  last_paid_for, status, not paused); if anything changed: re-read, short
+  message, no write. Writes no notifications (A2).
+- Full issue: https://github.com/mp3anthony/funded/issues/211
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)

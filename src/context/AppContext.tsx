@@ -10,6 +10,8 @@ import {
   computeRollover,
   computePaidRoll,
   computeUndoPaidRoll,
+  computeUndoPayment,
+  type UndoPaidRollPatch,
   oldCycleNotificationKeyPrefix,
   paidRollToastMessage,
   sameDueDate,
@@ -44,6 +46,8 @@ export interface Bill {
   notes?: string | null;
   is_recurring?: boolean;
   is_paused?: boolean;
+  /** Due date of the most recently paid cycle (#211); null = no record. */
+  last_paid_for?: string | null;
 }
 
 /** App-wide transient message (#205). One at a time; a new one replaces the old. */
@@ -568,6 +572,7 @@ function mapBillFromDb(dbBill: any): Bill {
     due_date: adjustedDueDate,
     is_recurring: dbBill.is_recurring !== undefined ? dbBill.is_recurring : true,
     is_paused: dbBill.is_paused || false,
+    last_paid_for: dbBill.last_paid_for ? String(dbBill.last_paid_for).slice(0, 10) : null,
   };
 }
 
@@ -743,6 +748,7 @@ interface AppContextValue {
   togglePaid: (id: string | number) => void;
   markAsPaid: (bill: Bill) => Promise<void>;
   markAsUnpaid: (bill: Bill) => Promise<void>;
+  undoPayment: (bill: Bill) => Promise<void>;
   togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
   deleteBill: (id: string | number) => void;
 
@@ -1537,8 +1543,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // conditional guard (status still Paid AND due_date unchanged) as the
       // cron, so the two can race safely. Runs here on load rather than as an
       // effect on `bills`, so an in-session Paid → Unpaid undo is never
-      // second-guessed. Any failure keeps the raw row; never blocks or empties
-      // state.
+      // second-guessed. The roll records the paid cycle in last_paid_for
+      // (#211), never clears it. Any failure keeps the raw row; never blocks or
+      // empties state.
       const rolloverToday = todayInZone(options?.timezone || "Australia/Sydney");
       const billsForState = await Promise.all(
         resolvedBills.map(async (row) => {
@@ -2420,6 +2427,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   //   screen / other device), nothing is written: re-read + short toast.
   // - One-off and paused bills never roll (same rule as the catch-up) → Paid
   //   only. Autopay bills can't be marked Paid at all.
+  // The roll patch also records last_paid_for = the old due date (#211), in the
+  // same guarded update. Pay-early / one-off / paused write status only.
   // Deliberately NOT routed through updateBill (it rewrites is_paused, #201).
   async function markAsPaid(bill: Bill) {
     if (bill.payment_type?.toLowerCase() === "auto") return;
@@ -2483,7 +2492,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         showToast({
           message: paidRollToastMessage(oldDue, rolledDue),
           ...(undoPatch
-            ? { actionLabel: "Undo", onAction: () => { void undoPaidRoll(bill.id, undoPatch, rolledDue); } }
+            ? { actionLabel: "Undo", onAction: () => { void undoPaidRoll(bill.id, undoPatch, rolledDue, oldDue); } }
             : {}),
         });
         return;
@@ -2526,8 +2535,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // catch-up within minutes.)
   async function undoPaidRoll(
     billId: string | number,
-    undoPatch: { status: string; due_date: string; invoice_date: string | null },
-    rolledDue: string
+    undoPatch: UndoPaidRollPatch,
+    rolledDue: string,
+    oldDue: string
   ) {
     try {
       const { data, error } = await supabase
@@ -2535,6 +2545,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .update(undoPatch)
         .eq("id", billId)
         .eq("due_date", rolledDue)
+        .eq("last_paid_for", oldDue)
         .eq("status", UNPAID_STATUS)
         .select()
         .maybeSingle();
@@ -2560,6 +2571,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // only, no date change. Conditional on the row still being Paid: if the
   // cron already rolled it (status reset + new date), the update matches no
   // row and we just re-read the bill so the UI shows the rolled state.
+  // Must never touch last_paid_for (#211): the previous record survives an
+  // unpaid tap.
   async function markAsUnpaid(bill: Bill) {
     if (bill.payment_type?.toLowerCase() === "auto") return;
     try {
@@ -2598,6 +2611,70 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to mark as unpaid:", err);
+    }
+  }
+
+  // #211 Undo payment (permanent, one level). Puts a bill that was rolled by a
+  // payment back on the paid cycle: due_date = last_paid_for, invoice_date -1
+  // cycle, unpaid, record cleared. Fresh re-read, then a write guarded on the
+  // due_date, last_paid_for and status we read (and not paused); if anything
+  // changed, nothing is written. Writes no notifications (SPEC A2) and is NOT
+  // routed through updateBill.
+  async function undoPayment(bill: Bill) {
+    if (bill.payment_type?.toLowerCase() === "auto") return;
+    try {
+      const { data: current, error: readError } = await supabase
+        .from("bills")
+        .select("*")
+        .eq("id", bill.id)
+        .maybeSingle();
+      if (readError) {
+        console.error("Error reading bill before undo payment:", readError);
+        showToast({ message: "Couldn't undo — please try again." });
+        return;
+      }
+
+      const patch = current ? computeUndoPayment(current) : null;
+      if (
+        !current ||
+        !patch ||
+        !sameDueDate(current.due_date, bill.due_date) ||
+        !sameDueDate(current.last_paid_for, bill.last_paid_for)
+      ) {
+        await refreshBillFromDb(bill.id);
+        showToast({ message: "This bill was already updated — check it and try again." });
+        return;
+      }
+
+      let query = supabase
+        .from("bills")
+        .update(patch)
+        .eq("id", bill.id)
+        .eq("due_date", current.due_date)
+        .eq("last_paid_for", current.last_paid_for)
+        .eq("is_paused", false);
+      query = current.status ? query.eq("status", current.status) : query.is("status", null);
+      const { data, error } = await query.select().maybeSingle();
+
+      if (error) {
+        console.error("Error undoing payment:", error);
+        showToast({ message: "Couldn't undo — please try again." });
+        return;
+      }
+      if (!data) {
+        await refreshBillFromDb(bill.id);
+        showToast({ message: "Couldn't undo — this bill has already changed." });
+        return;
+      }
+
+      setBills((prev) => prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b)));
+      const dueYmd = patch.due_date;
+      const m = Number(dueYmd.slice(5, 7));
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      showToast({ message: `Payment undone — due ${monthNames[m - 1]} ${Number(dueYmd.slice(8, 10))} again` });
+    } catch (err) {
+      console.error("Failed to undo payment:", err);
+      showToast({ message: "Couldn't undo — please try again." });
     }
   }
 
@@ -4920,6 +4997,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     togglePaid,
     markAsPaid,
     markAsUnpaid,
+    undoPayment,
     togglePauseBill,
     deleteBill,
     toast,

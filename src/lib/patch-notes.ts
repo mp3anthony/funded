@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.58",
+    date: "October 2026",
+    highlights: [
+      "Open a bill and you can now see which month you last paid it for, under Paid By (for example \"Paid for September\"). The year shows too if it wasn't this year. Bills you haven't paid since this update show nothing yet.",
+      "There's a new Undo payment button on the bill. It puts the bill back on the date you paid it for, as unpaid. It undoes one payment only.",
+      "Heads up: if that date has already passed, the bill shows as Overdue again and overdue reminders start again.",
+    ],
+  },
+  {
     version: "0.9.57",
     date: "September 2026",
     highlights: [
