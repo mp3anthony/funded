@@ -10,7 +10,7 @@
 - #156 DONE and closed (2026-10-01): Supabase Auth email sends via Mailjet from a `noreply@` address on the `funded.` subdomain. Details in `docs/environment.md`. Optional later: DMARC.
 - #201 (paused bills still get server reminders; resumed bills may show Overdue): `needs-triage`, not started.
 - Triage session (2026-10-04, read-only, outcomes commented on both issues):
-  - #209 (pay-early hard-deletes notifications): clear defect, NO escalation. `clearBillNotifications` (`AppContext.tsx:2360-2368`, only caller `markAsPaid` ~line 2523) breaks SPEC A2. Fix: swap to `markOldCycleNotificationsRead` with the paid cycle's due date and delete `clearBillNotifications`; check whether the `deliver-scheduled` cron still pushes read rows. Labels `bug`, `ready-for-agent`, `needs-manual-test`; iPhone checklist is on the issue. Ready for Planner then Code Writer when Anthony says.
+  - #209 (pay-early hard-deletes notifications): clear defect, NO escalation. **Plan DONE** (Planner, 2026-10-04), posted as a comment on the issue with a replacement iPhone checklist. Next: a new session builds it with a Code Writer (v0.9.60, patch note, separate reviewer, `needs-manual-test`). Plan: swap `clearBillNotifications` at `AppContext.tsx:2523` for `markOldCycleNotificationsRead(bill.id, current?.due_date ?? bill.due_date)` and delete the old function; add `.not('is_read','is',true)` to the `deliver-scheduled` query (without it a deferred push still goes out after paying); comment tweaks; `docs/lessons.md` update. Tell Anthony: a reminder read before its push time no longer pushes. Seed only due-soon `TEST-` bills (overdue ones push to Hannah).
   - #215 (Surplus Pool): new feature, not a bug. The Payday option is a stub with a fake "Successfully allocated" alert (`payday-client.tsx:178-182`). Likely schema so escalation. Labels `needs-triage`, `needs-info`, `ready-for-human`. Needs a definition session (six questions on the issue), then `to-spec`, SPEC.md, schema sign-off. Optional separate small bug: hide or make the fake alert honest.
 - Grill session (2026-09-30) settled the migration's open Funded questions (merged in #217). Owed: fix the stale "not wired up" comment in `NotifyHourDialog.tsx` and the "weekly draw" comment in `bills-client.tsx` in the next PR touching those files. Anthony plans a UI/UX rework of every page and will tell a session when ready.
 - Filed, not started: #208 (notifications RLS exists live but not in migrations; security, so escalation).
@@ -23,7 +23,7 @@
 ## Next session, in order
 
 1. Ask Anthony about the owed live checks (#182, #193) when a push arrives.
-2. Anthony will review #209 and #215 in a new session. #209 can be built straight away (no escalation); #215 starts with the definition session.
+2. Build #209 from the plan on the issue (no escalation). #215 starts with the definition session when Anthony says.
 3. Start #145, #152, #183, #201 or #208 only when Anthony says so (#208 needs escalation).
 
 ## Where things live
