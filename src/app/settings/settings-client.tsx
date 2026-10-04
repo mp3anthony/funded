@@ -426,7 +426,7 @@ export default function SettingsClient() {
           <span className="font-mono text-[10px] tracking-wider text-subtle/70">
             funded. v{APP_VERSION}
           </span>
-          <div className="font-mono text-[10px] text-subtle/50 mt-1">Concept &amp; development · Anthony Paull</div>
+          <div className="font-mono text-[10px] text-subtle/50 mt-1">© 2026 HazardousSchematics.com</div>
         </div>
       </section>
 

@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.62",
+    date: "October 2026",
+    highlights: [
+      "The credit at the bottom of Settings now reads © 2026 HazardousSchematics.com.",
+    ],
+  },
+  {
     version: "0.9.61",
     date: "October 2026",
     highlights: [
