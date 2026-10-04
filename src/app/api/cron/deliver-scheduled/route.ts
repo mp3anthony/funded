@@ -22,7 +22,8 @@ const PUSH_ICON = '/icons/icon-light-192x192.png?v=3';
  *
  * Finds every `notifications` row whose `scheduled_for` has arrived but
  * hasn't been delivered yet, groups them by user, and pushes each one via
- * web push. Marks each attempted row `delivered_at = now()` regardless of
+ * web push. Rows already read (`is_read` true, e.g. the bill was paid) are
+ * never pushed (#209). Marks each attempted row `delivered_at = now()` regardless of
  * per-subscription push success/failure (a dead subscription is cleaned up
  * here, per Slice 10's dead-subscription handling, but is not a reason to
  * retry the notification itself — this route does not retry-loop).
@@ -68,6 +69,7 @@ export async function GET(request: Request) {
       .from('notifications')
       .select('id, user_id, type, title, message, related_entity_id, dedupe_key')
       .is('delivered_at', null)
+      .not('is_read', 'is', true)
       .lte('scheduled_for', nowIso);
 
     if (dueError) {

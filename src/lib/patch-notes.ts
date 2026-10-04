@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.60",
+    date: "October 2026",
+    highlights: [
+      "Paying a bill early, or paying a one-off or paused bill, now quietly clears its reminder instead of erasing it. If you then mark it unpaid, you won't get the same reminder pushed to you again.",
+      "If you've already cleared or paid a reminder, a scheduled push for it no longer arrives later that day.",
+    ],
+  },
+  {
     version: "0.9.59",
     date: "October 2026",
     highlights: [
