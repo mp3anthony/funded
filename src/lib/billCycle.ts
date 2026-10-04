@@ -203,7 +203,7 @@ export function sameDueDate(a: string | null | undefined, b: string | null | und
  * due-soon row (`${id}-${due}-manual_bill`) and each daily overdue row
  * (`${id}-${due}-manual_bill-overdue-${today}`). MUST match the key shapes
  * in src/lib/notifications/generateReminders.ts. Used to mark just the paid
- * cycle's reminders read when a bill rolls, leaving the next cycle's alone.
+ * cycle's reminders read when a bill is paid (rolled or not), leaving the next cycle's alone.
  */
 export function oldCycleNotificationKeyPrefix(billId: string | number, dueYmd: string): string {
   return `${String(billId)}-${String(dueYmd).slice(0, 10)}-`;

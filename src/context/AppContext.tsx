@@ -2355,19 +2355,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     setToast((current) => (id === undefined || current?.id === id ? null : current));
   }, []);
 
-  // Pay-early (non-roll) path: deletes that bill's reminder notifications
-  // (pre-#205 behaviour, deliberately unchanged here).
-  async function clearBillNotifications(billId: string | number) {
-    const { error: deleteNotifError } = await supabase
-      .from("notifications")
-      .delete()
-      .eq("related_entity_id", billId.toString());
-    if (!deleteNotifError) {
-      setNotifications((prev) => prev.filter((n) => n.related_entity_id !== billId.toString()));
-    }
-  }
-
-  // #205 roll path: mark the PAID cycle's reminders read (due-soon and every
+  // #205 roll path and #209 non-roll paths (pay-early, one-off, paused): mark
+  // the PAID cycle's reminders read (due-soon and every
   // daily overdue row share the `${id}-${oldDue}-` dedupe prefix, see
   // generateReminders). Never delete (SPEC A2): the rows must survive so
   // their dedupe keys stop the generators recreating them — e.g. after an
@@ -2423,6 +2412,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   //   double tap / second device can't roll twice; the cron only rolls rows
   //   whose status is Paid, which this path never writes, so it can't race it.
   //   The paid cycle's reminders are marked read (not deleted).
+  // - Pay-early / one-off / paused (no roll) also mark the paid cycle's
+  //   reminders read, never delete (#209).
   // - If the DB is already on a different cycle than the screen showed (stale
   //   screen / other device), nothing is written: re-read + short toast.
   // - One-off and paused bills never roll (same rule as the catch-up) → Paid
@@ -2517,10 +2508,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      // Mark the paid cycle's reminders read (never delete, #209) before the
+      // bills state changes, same ordering as the roll path.
+      const paidDue = current?.due_date ?? bill.due_date;
+      if (paidDue) await markOldCycleNotificationsRead(bill.id, String(paidDue).slice(0, 10));
       setBills((prev) =>
         prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b))
       );
-      await clearBillNotifications(bill.id);
     } catch (err) {
       console.error("Failed to mark as paid:", err);
     }
