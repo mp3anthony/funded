@@ -11,19 +11,19 @@
 - #156 DONE and closed (2026-10-01): Supabase Auth email sends via Mailjet from a `noreply@` address on the `funded.` subdomain. Details in `docs/environment.md`. Optional later: DMARC.
 - #201 (paused bills still get server reminders; resumed bills may show Overdue): `needs-triage`, not started.
 - Triage session (2026-10-04, outcomes commented on the issue):
-  - #215 (Surplus Pool): new feature, not a bug. The Payday option is a stub with a fake "Successfully allocated" alert (`payday-client.tsx:178-182`). Likely schema so escalation. Labels `needs-triage`, `needs-info`, `ready-for-human`. Needs a definition session (six questions on the issue), then `to-spec`, SPEC.md, schema sign-off. Optional separate small bug: hide or make the fake alert honest.
+  - #215 DEFINED (2026-10-04 definition session, outcome commented on the issue): decision is **no Surplus Pool** (a sinking fund is just a goal). Rescoped to a small UI cleanup, retitled "Remove stub Surplus Pool option from the Payday surplus popup", labels `ready-for-agent` + `needs-manual-test`, no schema, no escalation. Remove the "Bills Surplus Pool" button and fake alert (`SurplusSuggestionModal.tsx`, `payday-client.tsx:178-182`), reword popup copy to goals only, keep top-3 goals / full-surplus behaviour, delete the "Surplus Pool (planned, #215)" entry in `docs/context/money.md` in the build PR. Planner to decide the zero-goals edge case. Not started; a later session builds it.
 - Grill session (2026-09-30) settled the migration's open Funded questions (merged in #217). Owed: fix the stale "not wired up" comment in `NotifyHourDialog.tsx` and the "weekly draw" comment in `bills-client.tsx` in the next PR touching those files. Anthony plans a UI/UX rework of every page and will tell a session when ready.
 - Filed, not started: #208 (notifications RLS exists live but not in migrations; security, so escalation).
 - Owed live checks, ask Anthony, don't block the build: #182 (v0.9.54, tap the 30 Sep pay reminder push, the bell item, a late tap, and a bill reminder) and #193 (v0.9.55, tap the next goal-milestone push, expect that goal's popup). Fully close and reopen the installed app first. Any failure reopens the issue.
 - #145 (Hannah barely getting bill reminder pushes): parked, unresolved, root cause unconfirmed. Do not scope a build until Anthony has talked to her.
 - #152 (Known Issues tab on the patch-notes page): scoped, `ready-for-agent`, any session can build it when Anthony asks. If the repo ever goes private, the fetch needs a server-side GitHub token.
 - #183 (design reference doc): `needs-triage` / `ready-for-human`, untouched. When it lands, restore the design-foundation rule in `GEMINI-DELEGATION.md`.
-- Last active SPEC ticket: none (#216 was a text-only rename outside the slices; last slice work was Slice 17, #211, done).
+- Last active SPEC ticket: none (#215 definition session touched no SPEC section; last slice work was Slice 17, #211, done).
 
 ## Next session, in order
 
 1. Ask Anthony about the owed live checks (#182, #193) when a push arrives.
-2. #215 starts with the definition session when Anthony says.
+2. #215 is ready to build (Planner, Code Writer, independent review) when Anthony says.
 3. Start #145, #152, #183, #201 or #208 only when Anthony says so (#208 needs escalation).
 
 ## Where things live
