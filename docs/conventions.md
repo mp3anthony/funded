@@ -31,6 +31,12 @@ The popup shows once per version, tracked by a last-seen version key in localSto
 - Every PR that changes user-visible behaviour states "Getting started guide: checked, no change" in its description, or includes the guide update. The independent reviewer checks that line. Docs-only and tooling-only PRs are exempt.
 - Each "Good to know" item records the ticket it works around (data only, never shown). Delete the item in the PR that closes that ticket.
 
+## README upkeep
+
+- Every PR that changes project structure, screens, setup, env vars or key logic either updates `README.md` or states "README: checked, no change" in its description. The independent reviewer checks that line.
+- Docs-only and tooling-only PRs are exempt unless they change something README describes.
+- README never restates the current version (see the versioning rules above).
+
 ## Build conventions
 
 - **TypeScript:** strict types, no `any` unless suppressed with a comment. One component per file, `PascalCase` filenames.

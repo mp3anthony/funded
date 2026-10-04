@@ -4,7 +4,9 @@
 
 ## Current state (2026-10-04)
 
-- `main` = v0.9.61 (PR #253, #247 built and merged; before it v0.9.60 PR #238 for #209, v0.9.59 PR #233 for #216, v0.9.58 PR #231 for #211, and docs PRs #214, #217, #219, #221, #223, #224, #226, #227, #229, #239). Production deploys of v0.9.58 to v0.9.61 all confirmed `success`.
+- `main` = v0.9.62 (PR #256 for #246, merged 2026-10-04; before it v0.9.61 PR #253 for #247, v0.9.60 PR #238 for #209, v0.9.59 PR #233 for #216, v0.9.58 PR #231 for #211, and docs PRs #214, #217, #219, #221, #223, #224, #226, #227, #229, #239). Production deploys of v0.9.58 to v0.9.62 all confirmed `success`.
+- #246 DONE and closed (2026-10-04): Settings footer now reads `© 2026 HazardousSchematics.com`, plain text, no link, year hardcoded as the year made (2026); README credit matches. Review was code-only by a sub-agent: browser check could not reach Settings (login required, no test creds), and Anthony waived the iPhone check. Known unverified: whether iOS auto-underlines the domain; if it does, reopen and fix with a non-link wrapper.
+- #255 README accuracy sweep (one-off, ~30-60k tokens, `needs-triage`): run when budget allows. README upkeep rule added to `docs/conventions.md` (every PR touching structure, screens, setup, env vars or key logic updates README or states "README: checked, no change").
 - #209 DONE and closed (2026-10-04): pay-early/one-off/paused now marks the paid cycle's reminders read instead of deleting them; `deliver-scheduled` skips read rows. All 4 iPhone checks passed. Behaviour to know: a reminder read before its push time no longer pushes. `TEST-209*` bills deleted (notification rows kept, A2: mark read if they show in the bell). Not live-tested, offer if wanted: "paid before notify hour = no push" (prod only) and the "bill due today still rolls" regression.
 - #216 DONE and closed (2026-10-03): the Settings toggle now reads "Confirm Pending Pay Reminders" (only user-visible "Lodge" text; internal `lodge_payment` keys unchanged by design). iPhone checks passed.
 - #211 DONE and closed (2026-10-03): `bills.last_paid_for` (nullable date, migration applied to prod before the build shipped), "Paid for <Month>" line under Paid By (not shown on autopay), permanent one-level "Undo payment" button (manual, recurring, non-paused, non-Paid bills whose due date is last_paid_for + 1 cycle). Recorded when a Paid bill rolls (instant roll, cron, on-open catch-up); pay-early records at roll time; Mark as Unpaid never touches it. SPEC Slice 17 amendment merged. All 12 iPhone checks passed. Known cosmetic: Undo payment can shift a month-end invoice date by a few days (due date always exact). Seeded TEST bills deleted. 19 notifications mentioning "TEST-" still exist (A2: never delete; mark read if they show in the bell).
@@ -13,25 +15,24 @@
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and the bills/paydays/funds tables live only in `schema.sql`, so migrations alone can't rebuild a database from scratch.
 - #201 TRIAGED (2026-10-04, outcome commented on the issue): labels `ready-for-agent` + `needs-manual-test`. Decisions: paused bills get no server reminders at all; on resume a passed due date rolls to the next logical future date. Build in one PR: A (skip paused in generateReminders), B (roll on resume), C (editing a paused bill must not resume it). A later session builds it.
 - #247 DONE and closed (2026-10-04): public `/getting-started` page (copy in `src/lib/getting-started.ts`), Settings row, 9 optional missions, Good to know box, glossary entry, and the upkeep rule in `docs/conventions.md` (every user-visible PR states "Getting started guide: checked, no change" or updates it). Anthony approved the copy without running the iPhone checklist; reopen if anything looks off on the phone. Owed: delete each Good to know item when its ticket closes (#251, #250, #249). The website must link to `/getting-started` (website repo; URL is stable).
-- Logged 2026-10-04, all `needs-triage`, not yet grilled: #246 (Settings footer credit to HazardousSchematics.com; the credit currently reads "Anthony Paull"), #248 (onboarding rework, starting with a "Skip for now" button; end of onboarding links to the guide), #249 (household timezone defaults to Australia/Sydney), #250 (bill saved with a blank due date, behaviour untraced), #251 (owner "Leave household" deletes the household for everyone). Hazardous Schematics website work happens in that site's repo, not here.
+- Logged 2026-10-04, all `needs-triage`, not yet grilled: #248 (onboarding rework, starting with a "Skip for now" button; end of onboarding links to the guide), #249 (household timezone defaults to Australia/Sydney), #250 (bill saved with a blank due date, behaviour untraced), #251 (owner "Leave household" deletes the household for everyone). Hazardous Schematics website work happens in that site's repo, not here.
 - Pay schedule decision (2026-10-04): all household members can edit pay schedules, no change needed.
 - Triage session (2026-10-04, outcomes commented on the issue):
   - #215 DEFINED (2026-10-04 definition session, outcome commented on the issue): decision is **no Surplus Pool** (a sinking fund is just a goal). Rescoped to a small UI cleanup, retitled "Remove stub Surplus Pool option from the Payday surplus popup", labels `ready-for-agent` + `needs-manual-test`, no schema, no escalation. Remove the "Bills Surplus Pool" button and fake alert (`SurplusSuggestionModal.tsx`, `payday-client.tsx:178-182`), reword popup copy to goals only, keep top-3 goals / full-surplus behaviour, delete the "Surplus Pool (planned, #215)" entry in `docs/context/money.md` in the build PR. Planner to decide the zero-goals edge case. Not started; a later session builds it.
 - Grill session (2026-09-30) settled the migration's open Funded questions (merged in #217). Owed: fix the stale "not wired up" comment in `NotifyHourDialog.tsx` and the "weekly draw" comment in `bills-client.tsx` in the next PR touching those files. Anthony plans a UI/UX rework of every page and will tell a session when ready.
-- Owed live checks, ask Anthony, don't block the build: #182 (v0.9.54, tap the 30 Sep pay reminder push, the bell item, a late tap, and a bill reminder) and #193 (v0.9.55, tap the next goal-milestone push, expect that goal's popup). Fully close and reopen the installed app first. Any failure reopens the issue.
 - #145 (Hannah getting no pushes, ~2 weeks; #160 folded in): still parked, `needs-info`, root cause unconfirmed (2026-10-04 session, commented on the issue). Her PWA is installed and notification permission is on. Her Android/FCM subscription was refreshed 2 Oct, so it is alive (earlier "untouched since Sep 5" note was wrong). Reminders are generated fine, but `delivered_at` is stamped on every attempt so it proves nothing about receipt; Vercel keeps only ~24h of logs, so past push errors are gone. No test-push button exists. Anthony chose not to test with her yet. Options when ready: Android settings check (Chrome notification switches, Samsung background usage limits), wait for a real reminder, one-off push via `/api/push/send` (needs his go-ahead), or a small build logging non-404/410 push failures to a new DB table (migration, A1 escalation).
 - #152 (Known Issues tab on the patch-notes page): scoped, `ready-for-agent`, any session can build it when Anthony asks. If the repo ever goes private, the fetch needs a server-side GitHub token.
 - #183 (design reference doc): `needs-triage` / `ready-for-human`, untouched. When it lands, restore the design-foundation rule in `GEMINI-DELEGATION.md`.
-- Last active SPEC ticket: none (#247 touched no SPEC section; last slice work was Slice 17, #211, done).
+- Last active SPEC ticket: none (#246 touched no SPEC section; last slice work was Slice 17, #211, done).
 
 ## Next session, in order
 
-1. Ask Anthony about the owed live checks (#182, #193) when a push arrives.
-2. Confirm the batch 1 smoke test result.
-3. RLS hardening batch 2 (details private) when Anthony says.
-4. Security follow-up ticket (details private).
-5. #201 build, then #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #246, #248, #249, #250, #251 individually when he asks.
-6. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
+1. Confirm the batch 1 smoke test result.
+2. RLS hardening batch 2 (details private) when Anthony says.
+3. Security follow-up ticket (details private).
+4. #201 build, then #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251 individually when he asks.
+5. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
+6. #255 README accuracy sweep when budget allows.
 
 ## Where things live
 
