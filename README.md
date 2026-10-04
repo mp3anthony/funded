@@ -423,6 +423,6 @@ Private — all rights reserved.
 ## Credits
 
 ```
-Concept & Development: Anthony Paull
+© 2026 HazardousSchematics.com
 Built with Antigravity IDE
 ```
