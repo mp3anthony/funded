@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.61",
+    date: "October 2026",
+    highlights: [
+      "New: a Getting started guide. Find it in Settings, between What's new and Report a bug.",
+      "It walks through the basics in nine short missions. They're all optional, so try as many or as few as you like.",
+    ],
+  },
+  {
     version: "0.9.60",
     date: "October 2026",
     highlights: [
