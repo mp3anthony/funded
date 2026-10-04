@@ -11,7 +11,7 @@
 - #216 DONE and closed (2026-10-03): the Settings toggle now reads "Confirm Pending Pay Reminders" (only user-visible "Lodge" text; internal `lodge_payment` keys unchanged by design). iPhone checks passed.
 - #211 DONE and closed (2026-10-03): `bills.last_paid_for` (nullable date, migration applied to prod before the build shipped), "Paid for <Month>" line under Paid By (not shown on autopay), permanent one-level "Undo payment" button (manual, recurring, non-paused, non-Paid bills whose due date is last_paid_for + 1 cycle). Recorded when a Paid bill rolls (instant roll, cron, on-open catch-up); pay-early records at roll time; Mark as Unpaid never touches it. SPEC Slice 17 amendment merged. All 12 iPhone checks passed. Known cosmetic: Undo payment can shift a month-end invoice date by a few days (due date always exact). Seeded TEST bills deleted. 19 notifications mentioning "TEST-" still exist (A2: never delete; mark read if they show in the bell).
 - #156 DONE and closed (2026-10-01): Supabase Auth email sends via Mailjet from a `noreply@` address on the `funded.` subdomain. Details in `docs/environment.md`. Optional later: DMARC.
-- Security hardening (2026-10-04): #208 DONE and closed. Migration `20261004120000_declare_live_rls_policies.sql` declares the live RLS policies that had no repo migration (PR #242, applied to prod, two independent review rounds). Follow-up RLS hardening in progress: batch 1 (PR #243, "RLS hardening 1") applied to prod and merged. RLS hardening batch 2 and a security follow-up ticket are pending (details private; ask Anthony). Neither PR bumped the version (migrations only); app version unaffected by them. Owed: iPhone smoke test after batch 1 (details private).
+- Security hardening (2026-10-04): #208 DONE and closed. Migration `20261004120000_declare_live_rls_policies.sql` declares the live RLS policies that had no repo migration (PR #242, applied to prod, two independent review rounds). Follow-up RLS hardening: batch 1 (PR #243) and batch 2 (PR #258, "RLS hardening 2") both applied to prod and merged. Batch 1 iPhone smoke test passed. Batch 2 got a light iPhone check (notifications settings and push Active in the installed app); Anthony judged it fine. A security follow-up ticket is still pending (details private; ask Anthony; own session, needs app code and iPhone join tests). No PR bumped the version (migrations only). Note: push shows Inactive and no enable row in a Safari tab by design; only the installed home-screen app supports push.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and the bills/paydays/funds tables live only in `schema.sql`, so migrations alone can't rebuild a database from scratch.
 - #201 TRIAGED (2026-10-04, outcome commented on the issue): labels `ready-for-agent` + `needs-manual-test`. Decisions: paused bills get no server reminders at all; on resume a passed due date rolls to the next logical future date. Build in one PR: A (skip paused in generateReminders), B (roll on resume), C (editing a paused bill must not resume it). A later session builds it.
 - #247 DONE and closed (2026-10-04): public `/getting-started` page (copy in `src/lib/getting-started.ts`), Settings row, 9 optional missions, Good to know box, glossary entry, and the upkeep rule in `docs/conventions.md` (every user-visible PR states "Getting started guide: checked, no change" or updates it). Anthony approved the copy without running the iPhone checklist; reopen if anything looks off on the phone. Owed: delete each Good to know item when its ticket closes (#251, #250, #249). The website must link to `/getting-started` (website repo; URL is stable).
@@ -27,12 +27,10 @@
 
 ## Next session, in order
 
-1. Confirm the batch 1 smoke test result.
-2. RLS hardening batch 2 (details private) when Anthony says.
-3. Security follow-up ticket (details private).
-4. #201 build, then #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251 individually when he asks.
-5. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
-6. #255 README accuracy sweep when budget allows.
+1. Security follow-up ticket (details private), when Anthony says; own session.
+2. #201 build, then #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251 individually when he asks.
+3. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
+4. #255 README accuracy sweep when budget allows.
 
 ## Where things live
 
