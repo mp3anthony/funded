@@ -4,7 +4,7 @@
 
 ## Current state (2026-10-04)
 
-- `main` = v0.9.62 (PR #256 for #246, merged 2026-10-04; before it v0.9.61 PR #253 for #247, v0.9.60 PR #238 for #209, v0.9.59 PR #233 for #216, v0.9.58 PR #231 for #211, and docs PRs #214, #217, #219, #221, #223, #224, #226, #227, #229, #239). Production deploys of v0.9.58 to v0.9.61 all confirmed `success`. v0.9.62 deploy not yet confirmed at time of writing: confirm with `gh`/Vercel next session.
+- `main` = v0.9.62 (PR #256 for #246, merged 2026-10-04; before it v0.9.61 PR #253 for #247, v0.9.60 PR #238 for #209, v0.9.59 PR #233 for #216, v0.9.58 PR #231 for #211, and docs PRs #214, #217, #219, #221, #223, #224, #226, #227, #229, #239). Production deploys of v0.9.58 to v0.9.62 all confirmed `success`.
 - #246 DONE and closed (2026-10-04): Settings footer now reads `© 2026 HazardousSchematics.com`, plain text, no link, year hardcoded as the year made (2026); README credit matches. Review was code-only by a sub-agent: browser check could not reach Settings (login required, no test creds), and Anthony waived the iPhone check. Known unverified: whether iOS auto-underlines the domain; if it does, reopen and fix with a non-link wrapper.
 - #255 README accuracy sweep (one-off, ~30-60k tokens, `needs-triage`): run when budget allows. README upkeep rule added to `docs/conventions.md` (every PR touching structure, screens, setup, env vars or key logic updates README or states "README: checked, no change").
 - #209 DONE and closed (2026-10-04): pay-early/one-off/paused now marks the paid cycle's reminders read instead of deleting them; `deliver-scheduled` skips read rows. All 4 iPhone checks passed. Behaviour to know: a reminder read before its push time no longer pushes. `TEST-209*` bills deleted (notification rows kept, A2: mark read if they show in the bell). Not live-tested, offer if wanted: "paid before notify hour = no push" (prod only) and the "bill due today still rolls" regression.
@@ -27,13 +27,12 @@
 
 ## Next session, in order
 
-1. Confirm the v0.9.62 production deploy (`gh`/Vercel).
-2. Confirm the batch 1 smoke test result.
-3. RLS hardening batch 2 (details private) when Anthony says.
-4. Security follow-up ticket (details private).
-5. #201 build, then #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251 individually when he asks.
-6. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
-7. #255 README accuracy sweep when budget allows.
+1. Confirm the batch 1 smoke test result.
+2. RLS hardening batch 2 (details private) when Anthony says.
+3. Security follow-up ticket (details private).
+4. #201 build, then #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251 individually when he asks.
+5. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
+6. #255 README accuracy sweep when budget allows.
 
 ## Where things live
 
