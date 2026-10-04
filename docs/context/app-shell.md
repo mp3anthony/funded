@@ -41,7 +41,7 @@ Where pay schedules are set up, pay is logged, pending pay is confirmed and rece
 _Avoid_: Income page, pay page
 
 **Settings**:
-The page for account, notifications, appearance, household settings, members, What's new, bug reporting and leaving the household.
+The page for account, notifications, appearance, household settings, members, What's new, the Getting started guide, bug reporting and leaving the household.
 _Avoid_: Preferences, profile page, admin
 
 ### Keeping people informed
@@ -53,6 +53,10 @@ _Avoid_: Update dialog, changelog modal, release popup
 **Patch notes page**:
 The page listing what changed in each version, newest first, in plain user-facing language. It is reached from Settings as "What's new".
 _Avoid_: Changelog, release notes, version history
+
+**Getting started guide**:
+A short public page of optional missions covering the basics, reached from Settings as "Getting started" and linked from the Hazardous Schematics website. Anyone can open it, signed in or not.
+_Avoid_: Tutorial, onboarding (the first-run setup, a different thing), tester guide
 
 **Known Issues tab** (planned, #152):
 A tab on the patch notes page listing problems already known, so members do not track issues themselves.

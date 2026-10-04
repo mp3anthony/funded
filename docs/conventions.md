@@ -25,6 +25,12 @@ Every version bump gets a patch-notes entry (the user-facing "What's new" file, 
 
 The popup shows once per version, tracked by a last-seen version key in localStorage; write the key in the same pass that shows the popup. It is delayed about 1200ms so it does not cover the first taps. The hidden `/patch-notes` page is reached from Settings. Docs-only or tooling-only PRs carry no version bump and no patch note.
 
+## Getting started guide
+
+- The public `/getting-started` page (copy in `src/lib/getting-started.ts`) is linked from Settings and from the Hazardous Schematics website. Never rename or move the URL.
+- Every PR that changes user-visible behaviour states "Getting started guide: checked, no change" in its description, or includes the guide update. The independent reviewer checks that line. Docs-only and tooling-only PRs are exempt.
+- Each "Good to know" item records the ticket it works around (data only, never shown). Delete the item in the PR that closes that ticket.
+
 ## Build conventions
 
 - **TypeScript:** strict types, no `any` unless suppressed with a comment. One component per file, `PascalCase` filenames.

@@ -25,4 +25,5 @@ export const dashboardTips: string[] = [
   "Tip: Found a bug? Report it straight from Settings — add a title, description, and an optional screenshot.",
   "Tip: Not sure you paid a bill? Open it — it shows the month you last paid for, and Undo payment fixes a mis-tap.",
   "Tip: Check \"What's new\" in Settings any time to see what's changed in the latest update.",
+  "Tip: New to Funded? Settings > Getting started has a short guide to the basics.",
 ];

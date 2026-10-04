@@ -36,6 +36,7 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
   const isConfirmEmailPage = pathname === "/confirm-email";
   const isResetPasswordPage = pathname?.startsWith("/reset-password");
   const isAuthCallbackPage = pathname === "/auth/callback";
+  const isGettingStartedPage = pathname === "/getting-started";
 
   useVisualViewportVars();
 
@@ -85,6 +86,7 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
   // 3. Navigation/Auth Guard Redirects
   useEffect(() => {
     if (!isMounted || isAuthLoading) return;
+    if (isGettingStartedPage) return; // public guide (#247): no auth redirects
 
     if (!session) {
       if (!isLoginPage && !isConfirmEmailPage && !isResetPasswordPage) {
@@ -102,14 +104,17 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
         }
       }
     }
-  }, [isMounted, isAuthLoading, session, isLoginPage, isConfirmEmailPage, isResetPasswordPage, router]);
+  }, [isMounted, isAuthLoading, session, isLoginPage, isConfirmEmailPage, isResetPasswordPage, isGettingStartedPage, router]);
 
   // Let the login, email confirmation, reset password, or auth callback page render
   // fullscreen immediately — these must mount and run their own logic even if a
   // background session already resolves as "not onboarded", otherwise AppShell's
   // Onboarding gate below (which doesn't check pathname) hijacks the callback page
-  // before it ever gets a chance to run its redirect/signal logic.
-  if (isLoginPage || isConfirmEmailPage || isResetPasswordPage || isAuthCallbackPage) {
+  // before it ever gets a chance to run its redirect/signal logic. The same
+  // goes for the public Getting started guide (#247), which signed-out and
+  // not-onboarded visitors must be able to read without the shell, loading
+  // wheel or onboarding gate.
+  if (isLoginPage || isConfirmEmailPage || isResetPasswordPage || isAuthCallbackPage || isGettingStartedPage) {
     return <>{children}</>;
   }
 
