@@ -83,7 +83,7 @@ A day a member gets paid, and the page where pay is scheduled, logged and review
 _Avoid_: Salary day, income day
 
 **Pay schedule**:
-A member's recurring pay, with a next pay date, a frequency, and either a fixed amount or a variable one entered each time.
+A member's recurring pay, with a next pay date, a frequency, and either a fixed amount or a variable one entered each time. Any household member may view and edit any member's pay schedule (decided 2026-10-04).
 _Avoid_: Income source, pay plan, salary
 
 **Log Pay**:
