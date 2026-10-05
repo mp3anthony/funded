@@ -2,8 +2,10 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-04)
+## Current state (2026-10-05)
 
+- **#201 BUILT, PR #262 OPEN, NOT MERGED** (v0.9.63, branch `fix/201-paused-bills`, labelled `needs-manual-test`). A: paused bills get no reminders (client + cron; pausing marks the pauser's unread bill reminders read, cron marks others' within ~15 min); B: resume rolls a passed due date to first date >= today (household tz, missed cycles skipped, Paid manual bill records `last_paid_for`); C: edit no longer un-pauses. Independent review found nothing blocking; tests 29/29, tsc clean. No schema/A1 touch. Next: Anthony runs the iPhone checklist in the PR description. Part 1 (5 tests) on the preview before merge, Part 2 (4 tests, prod, can push to Hannah) after merge. Orchestrator seeds `TEST-201-` bills via SQL. Accepted: pause then resume before the due date does not re-send "due soon". Cleanup after: delete TEST-201* bills, keep notification rows.
+- Logged 2026-10-05, both `needs-triage`, each needs its own grill-with-docs session, no blockers: #260 (shrink the first-open patch-notes popup; overlaps #248 on first-open surfaces) and #261 (Report a bug becomes generic Report an issue; related to #152 filter for `from-app` issues, and Getting started / SPEC Slice 15 wording to update).
 - `main` = v0.9.62 (PR #256 for #246, merged 2026-10-04; before it v0.9.61 PR #253 for #247, v0.9.60 PR #238 for #209, v0.9.59 PR #233 for #216, v0.9.58 PR #231 for #211, and docs PRs #214, #217, #219, #221, #223, #224, #226, #227, #229, #239). Production deploys of v0.9.58 to v0.9.62 all confirmed `success`.
 - #246 DONE and closed (2026-10-04): Settings footer now reads `© 2026 HazardousSchematics.com`, plain text, no link, year hardcoded as the year made (2026); README credit matches. Review was code-only by a sub-agent: browser check could not reach Settings (login required, no test creds), and Anthony waived the iPhone check. Known unverified: whether iOS auto-underlines the domain; if it does, reopen and fix with a non-link wrapper.
 - #255 README accuracy sweep (one-off, ~30-60k tokens, `needs-triage`): run when budget allows. README upkeep rule added to `docs/conventions.md` (every PR touching structure, screens, setup, env vars or key logic updates README or states "README: checked, no change").
@@ -13,7 +15,6 @@
 - #156 DONE and closed (2026-10-01): Supabase Auth email sends via Mailjet from a `noreply@` address on the `funded.` subdomain. Details in `docs/environment.md`. Optional later: DMARC.
 - Security hardening (2026-10-04): #208 DONE and closed. Migration `20261004120000_declare_live_rls_policies.sql` declares the live RLS policies that had no repo migration (PR #242, applied to prod, two independent review rounds). Follow-up RLS hardening: batch 1 (PR #243) and batch 2 (PR #258, "RLS hardening 2") both applied to prod and merged. Batch 1 iPhone smoke test passed. Batch 2 got a light iPhone check (notifications settings and push Active in the installed app); Anthony judged it fine. A security follow-up ticket is still pending (details private; ask Anthony; own session, needs app code and iPhone join tests). No PR bumped the version (migrations only). Note: push shows Inactive and no enable row in a Safari tab by design; only the installed home-screen app supports push.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and the bills/paydays/funds tables live only in `schema.sql`, so migrations alone can't rebuild a database from scratch.
-- #201 TRIAGED (2026-10-04, outcome commented on the issue): labels `ready-for-agent` + `needs-manual-test`. Decisions: paused bills get no server reminders at all; on resume a passed due date rolls to the next logical future date. Build in one PR: A (skip paused in generateReminders), B (roll on resume), C (editing a paused bill must not resume it). A later session builds it.
 - #247 DONE and closed (2026-10-04): public `/getting-started` page (copy in `src/lib/getting-started.ts`), Settings row, 9 optional missions, Good to know box, glossary entry, and the upkeep rule in `docs/conventions.md` (every user-visible PR states "Getting started guide: checked, no change" or updates it). Anthony approved the copy without running the iPhone checklist; reopen if anything looks off on the phone. Owed: delete each Good to know item when its ticket closes (#251, #250, #249). The website must link to `/getting-started` (website repo; URL is stable).
 - Logged 2026-10-04, all `needs-triage`, not yet grilled: #248 (onboarding rework, starting with a "Skip for now" button; end of onboarding links to the guide), #249 (household timezone defaults to Australia/Sydney), #250 (bill saved with a blank due date, behaviour untraced), #251 (owner "Leave household" deletes the household for everyone). Hazardous Schematics website work happens in that site's repo, not here.
 - Pay schedule decision (2026-10-04): all household members can edit pay schedules, no change needed.
@@ -23,14 +24,15 @@
 - #145 (Hannah getting no pushes, ~2 weeks; #160 folded in): still parked, `needs-info`, root cause unconfirmed (2026-10-04 session, commented on the issue). Her PWA is installed and notification permission is on. Her Android/FCM subscription was refreshed 2 Oct, so it is alive (earlier "untouched since Sep 5" note was wrong). Reminders are generated fine, but `delivered_at` is stamped on every attempt so it proves nothing about receipt; Vercel keeps only ~24h of logs, so past push errors are gone. No test-push button exists. Anthony chose not to test with her yet. Options when ready: Android settings check (Chrome notification switches, Samsung background usage limits), wait for a real reminder, one-off push via `/api/push/send` (needs his go-ahead), or a small build logging non-404/410 push failures to a new DB table (migration, A1 escalation).
 - #152 (Known Issues tab on the patch-notes page): scoped, `ready-for-agent`, any session can build it when Anthony asks. If the repo ever goes private, the fetch needs a server-side GitHub token.
 - #183 (design reference doc): `needs-triage` / `ready-for-human`, untouched. When it lands, restore the design-foundation rule in `GEMINI-DELEGATION.md`.
-- Last active SPEC ticket: none (#246 touched no SPEC section; last slice work was Slice 17, #211, done).
+- Last active SPEC ticket: Slice 17 (#201 paused-bills amendment, in PR #262, not yet merged).
 
 ## Next session, in order
 
-1. Security follow-up ticket (details private), when Anthony says; own session.
-2. #201 build, then #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251 individually when he asks.
-3. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
-4. #255 README accuracy sweep when budget allows.
+1. #201: Anthony tests PR #262 (Part 1 on the preview), then merge on his go-ahead, then Part 2 on prod, confirm Vercel deploy `success`, close #201, clean up TEST-201* bills.
+2. Security follow-up ticket (details private), when Anthony says; own session.
+3. #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251, #260, #261 individually when he asks.
+4. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
+5. #255 README accuracy sweep when budget allows.
 
 ## Where things live
 
