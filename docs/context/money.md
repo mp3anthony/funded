@@ -53,7 +53,7 @@ A bill settled for the current cycle. A paid recurring bill returns to unpaid wh
 _Avoid_: Done, settled, cleared
 
 **Paused**:
-A bill put on hold until it is resumed, so it is not treated as overdue or counted in the health score.
+A bill put on hold until it is resumed. While paused it gets no reminders and is not treated as overdue or counted in the health score. On resume, if its due date has passed, it moves on to its next upcoming due date (missed cycles are skipped).
 _Avoid_: Archived, disabled, inactive
 
 **Mark as Paid**:

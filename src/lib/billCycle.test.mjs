@@ -10,6 +10,9 @@ import {
   canUndoPayment,
   computeUndoPayment,
   paidForLabel,
+  billSendsReminders,
+  pausedFieldForEdit,
+  computeResumeRoll,
   oldCycleNotificationKeyPrefix,
   paidRollToastMessage,
   sameDueDate,
@@ -246,4 +249,78 @@ test('paidForLabel adds the year only when it is not the current year', () => {
   assert.equal(paidForLabel(null, '2026-10-02'), null);
   assert.equal(paidForLabel(undefined, '2026-10-02'), null);
   assert.equal(paidForLabel('bad', '2026-10-02'), null);
+});
+
+/* ── Paused bills (#201) ── */
+
+test('billSendsReminders', () => {
+  assert.equal(billSendsReminders({ is_paused: true }), false);
+  assert.equal(billSendsReminders({ status: 'Paused' }), false);
+  assert.equal(billSendsReminders({ is_paused: false, status: 'Due Soon' }), true);
+  assert.equal(billSendsReminders({}), true);
+});
+
+test('pausedFieldForEdit only passes real booleans', () => {
+  assert.deepEqual(pausedFieldForEdit({}), {});
+  assert.deepEqual(pausedFieldForEdit({ is_paused: true }), { is_paused: true });
+  assert.deepEqual(pausedFieldForEdit({ is_paused: false }), { is_paused: false });
+  assert.deepEqual(pausedFieldForEdit({ is_paused: 'yes' }), {});
+  assert.deepEqual(pausedFieldForEdit({ is_paused: undefined }), {});
+});
+
+const RT = '2026-10-05';
+const pausedBill = {
+  status: 'Due Soon', is_recurring: true, is_paused: true, frequency: 'monthly',
+  payment_type: 'manual', due_date: '2026-08-03', invoice_date: '2026-07-20',
+};
+
+test('computeResumeRoll unpaid past due skips missed cycles', () => {
+  const p = computeResumeRoll(pausedBill, RT);
+  assert.equal(p.due_date, '2026-11-03');
+  assert.equal(p.invoice_date, '2026-10-20');
+  assert.equal(p.status, 'Due Soon');
+  assert.equal('last_paid_for' in p, false);
+});
+
+test('computeResumeRoll unpaid due today or future is null', () => {
+  assert.equal(computeResumeRoll({ ...pausedBill, due_date: RT }, RT), null);
+  assert.equal(computeResumeRoll({ ...pausedBill, due_date: '2026-10-20' }, RT), null);
+});
+
+test('computeResumeRoll Paid bills record last_paid_for', () => {
+  const paid = { ...pausedBill, status: 'Paid' };
+  const p = computeResumeRoll(paid, RT);
+  assert.equal(p.due_date, '2026-11-03');
+  assert.equal(p.last_paid_for, '2026-08-03');
+  assert.equal(canUndoPayment({ ...paid, ...p, is_paused: false }), false);
+
+  const p2 = computeResumeRoll({ ...paid, due_date: '2026-09-30', invoice_date: '2026-09-16' }, RT);
+  assert.equal(p2.due_date, '2026-10-30');
+  assert.equal(p2.last_paid_for, '2026-09-30');
+  assert.equal(
+    canUndoPayment({ ...paid, due_date: '2026-09-30', ...p2, is_paused: false }),
+    true,
+  );
+
+  assert.equal(computeResumeRoll({ ...paid, due_date: RT }, RT).due_date, '2026-11-05');
+  assert.equal(computeResumeRoll({ ...paid, due_date: '2026-10-20' }, RT), null);
+});
+
+test('computeResumeRoll counts from the base date', () => {
+  assert.equal(
+    computeResumeRoll({ ...pausedBill, due_date: '2026-01-31', invoice_date: null }, '2026-04-15').due_date,
+    '2026-04-30',
+  );
+  assert.equal(computeResumeRoll({ ...pausedBill, frequency: 'weekly', due_date: '2026-09-01' }, RT).due_date, '2026-10-06');
+  assert.equal(computeResumeRoll({ ...pausedBill, frequency: 'fortnightly', due_date: '2026-09-01' }, RT).due_date, '2026-10-13');
+});
+
+test('computeResumeRoll edge cases', () => {
+  assert.equal(computeResumeRoll({ ...pausedBill, is_recurring: false }, RT), null);
+  assert.equal(computeResumeRoll({ ...pausedBill, due_date: null }, RT), null);
+  assert.equal(computeResumeRoll({ ...pausedBill, due_date: 'bad' }, RT), null);
+  assert.deepEqual(computeResumeRoll({ ...pausedBill, payment_type: 'Auto', status: 'Paid' }, RT), { status: 'Due Soon' });
+  assert.equal(computeResumeRoll({ ...pausedBill, payment_type: 'Auto' }, RT), null);
+  const p = computeResumeRoll({ ...pausedBill, last_paid_for: '2026-07-03' }, RT);
+  assert.equal('last_paid_for' in p, false);
 });

@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.63",
+    date: "October 2026",
+    highlights: [
+      "Paused bills no longer send reminders, and any reminders already waiting for a bill are cleared when you pause it.",
+      "Resuming a bill whose due date passed while it was paused now moves it on to its next due date instead of showing it as Overdue.",
+      "Editing a paused bill no longer un-pauses it.",
+    ],
+  },
+  {
     version: "0.9.62",
     date: "October 2026",
     highlights: [

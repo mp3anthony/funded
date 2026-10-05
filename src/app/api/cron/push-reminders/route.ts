@@ -60,6 +60,11 @@ export const maxDuration = 60;
  * bill twice. Rolled rows are merged back into the fetched bills so the
  * reminders generated in the same run already see the bill as unpaid.
  *
+ * Paused bills (#201): `generateReminders` skips them, and this route also
+ * marks any unread bill reminders (`manual_bill` / `auto_pay`) for paused
+ * bills read each run, so other household members' rows clear within one
+ * cron run. Rows are only marked read, never deleted (A2).
+ *
  * Runs with no user session, so it uses a service_role Supabase client that
  * bypasses RLS. Per-user failures are logged and skipped so one bad row can
  * never abort the whole run.
@@ -200,6 +205,30 @@ export async function GET(request: Request) {
       } catch (rollErr) {
         console.error(`[push-reminders] rollover failed for bill ${b.id}:`, rollErr);
       }
+    }
+
+    // ── Sweep paused bills' unread reminders (#201) ──
+    // Paused bills generate no reminders; this marks any that already exist
+    // read (never deletes, A2). Idempotent: only unread rows are touched.
+    let pausedSwept = 0;
+    try {
+      const pausedIds = allBills.filter((b) => b.is_paused).map((b) => String(b.id));
+      if (pausedIds.length > 0) {
+        const { data: swept, error: sweepError } = await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .in('related_entity_id', pausedIds)
+          .in('type', ['manual_bill', 'auto_pay'])
+          .eq('is_read', false)
+          .select('id');
+        if (sweepError) {
+          console.error('[push-reminders] paused sweep failed:', sweepError);
+        } else {
+          pausedSwept = swept?.length ?? 0;
+        }
+      }
+    } catch (sweepErr) {
+      console.error('[push-reminders] paused sweep failed:', sweepErr);
     }
 
     // ── Group in memory ──────────────────────────
@@ -350,6 +379,7 @@ export async function GET(request: Request) {
       users: usersProcessed,
       inserted: insertedTotal,
       rolled: rolledTotal,
+      pausedSwept,
     });
   } catch (error) {
     console.error('[push-reminders] fatal error:', error);
