@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.64",
+    date: "October 2026",
+    highlights: [
+      "Behind-the-scenes tightening of who can change household and member details. Nothing looks different.",
+      "If joining a household with a code fails because of a connection problem, you now get a clear \"try again\" message.",
+    ],
+  },
+  {
     version: "0.9.63",
     date: "October 2026",
     highlights: [
