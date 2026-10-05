@@ -1,5 +1,6 @@
 import { diffDaysYmd } from './timezone';
 import { adjustAutopayBillDate } from '@/lib/utils';
+import { billSendsReminders } from '@/lib/billCycle';
 
 export type ReminderType =
   | 'manual_bill'
@@ -47,6 +48,8 @@ export interface ReminderBill {
    *  perpetually overdue even though the UI/health-score never shows it
    *  that way. */
   frequency?: string | null;
+  /** #201: paused bills generate no reminders. */
+  is_paused?: boolean | null;
 }
 
 /** Minimal pay-history shape needed to evaluate Confirm Pending Pay reminders. */
@@ -186,6 +189,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   if (settings.manual_bill_reminders) {
     const threshold = settings.manual_bill_reminder_days || 3;
     for (const bill of bills) {
+      if (!billSendsReminders(bill)) continue; // #201
       if (bill.payment_type?.toLowerCase() !== 'auto' && bill.status !== 'Paid') {
         const dueYmd = bill.due_date || bill.dueDate;
         if (!dueYmd) continue;
@@ -228,6 +232,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   if (settings.auto_pay_reminders) {
     const threshold = settings.auto_pay_reminder_days || 1;
     for (const bill of bills) {
+      if (!billSendsReminders(bill)) continue; // #201
       if (bill.payment_type?.toLowerCase() === 'auto' && bill.status !== 'Paid') {
         const dueYmd = bill.due_date || bill.dueDate;
         if (!dueYmd) continue;

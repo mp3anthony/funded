@@ -11,6 +11,8 @@ import {
   computePaidRoll,
   computeUndoPaidRoll,
   computeUndoPayment,
+  computeResumeRoll,
+  pausedFieldForEdit,
   type UndoPaidRollPatch,
   oldCycleNotificationKeyPrefix,
   paidRollToastMessage,
@@ -2137,7 +2139,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         frequency: billData.frequency || "Monthly",
         notes: billData.notes || null,
         is_recurring: true,
-        is_paused: billData.is_paused || false,
+        // #201: only write is_paused when the caller passes a real boolean —
+        // the edit form doesn't, and defaulting to false here un-paused any
+        // paused bill that was simply edited.
+        ...pausedFieldForEdit(billData),
       };
 
       console.log('updateBill - dbBillData payload:', dbBillData);
@@ -2384,6 +2389,30 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     );
   }
 
+  // #201 Pause: mark the pauser's unread bill reminders (all cycles) for this
+  // bill read. Never delete (SPEC A2). Other members' rows are swept by the cron.
+  async function markBillRemindersRead(billId: string | number) {
+    if (!session?.user) return;
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", session.user.id)
+      .eq("related_entity_id", billId.toString())
+      .in("type", ["manual_bill", "auto_pay"])
+      .eq("is_read", false);
+    if (error) {
+      console.error("Error marking paused-bill reminders read:", error);
+      return;
+    }
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.related_entity_id === billId.toString() && (n.type === "manual_bill" || n.type === "auto_pay")
+          ? { ...n, is_read: true }
+          : n
+      )
+    );
+  }
+
   // Re-reads one bill into state (used when a guarded update matched no row
   // because something else — cron, another device — changed it first).
   async function refreshBillFromDb(billId: string | number) {
@@ -2420,7 +2449,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   //   only. Autopay bills can't be marked Paid at all.
   // The roll patch also records last_paid_for = the old due date (#211), in the
   // same guarded update. Pay-early / one-off / paused write status only.
-  // Deliberately NOT routed through updateBill (it rewrites is_paused, #201).
+  // Deliberately NOT routed through updateBill (it rewrites dates, splits and category).
   async function markAsPaid(bill: Bill) {
     if (bill.payment_type?.toLowerCase() === "auto") return;
     try {
@@ -2672,24 +2701,82 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  // #201. Pause: paused bills get no reminders, so the pauser's unread bill
+  // reminders are marked read at once (other members' clear on the next cron
+  // run). Resume: fresh re-read; if the due date passed while paused, roll it
+  // to the first date on/after today (`computeResumeRoll`, missed cycles are
+  // skipped) in the same guarded write as the un-pause. Deliberately NOT
+  // routed through updateBill.
   async function togglePauseBill(id: string | number, isPaused: boolean) {
     try {
-      const { data, error } = await supabase
-        .from("bills")
-        .update({ is_paused: isPaused })
-        .eq("id", id)
-        .select()
-        .single();
+      if (isPaused) {
+        const { data, error } = await supabase
+          .from("bills")
+          .update({ is_paused: true })
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) {
-        console.error("Error toggling pause status:", error);
+        if (error) {
+          console.error("Error toggling pause status:", error);
+          return;
+        }
+
+        if (data) {
+          // Before the bills state changes (same ordering reason as markAsPaid).
+          await markBillRemindersRead(id);
+          setBills((prev) =>
+            prev.map((bill) => (bill.id === id ? mapBillFromDb(data) : bill))
+          );
+        }
         return;
       }
 
-      if (data) {
-        setBills((prev) =>
-          prev.map((bill) => (bill.id === id ? mapBillFromDb(data) : bill))
-        );
+      // Resume
+      const { data: current, error: readError } = await supabase
+        .from("bills")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (readError) {
+        console.error("Error reading bill before resume:", readError);
+        showToast({ message: "Couldn't resume — please try again." });
+        return;
+      }
+      if (!current || !current.is_paused) {
+        await refreshBillFromDb(id);
+        return;
+      }
+
+      const today = todayInZone(householdTimezone || "Australia/Sydney");
+      const patch = computeResumeRoll(current, today);
+
+      let query = supabase
+        .from("bills")
+        .update({ is_paused: false, ...(patch ?? {}) })
+        .eq("id", id)
+        .eq("is_paused", true);
+      query = current.due_date ? query.eq("due_date", current.due_date) : query.is("due_date", null);
+      const { data, error } = await query.select().maybeSingle();
+
+      if (error) {
+        console.error("Error resuming bill:", error);
+        return;
+      }
+      if (!data) {
+        await refreshBillFromDb(id);
+        showToast({ message: "This bill was already updated — check it and try again." });
+        return;
+      }
+
+      if (patch?.due_date) {
+        await markOldCycleNotificationsRead(id, String(current.due_date).slice(0, 10));
+        setBills((prev) => prev.map((b) => (b.id === id ? mapBillFromDb(data) : b)));
+        const dueYmd = patch.due_date;
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        showToast({ message: `Resumed — next due ${monthNames[Number(dueYmd.slice(5, 7)) - 1]} ${Number(dueYmd.slice(8, 10))}` });
+      } else {
+        setBills((prev) => prev.map((b) => (b.id === id ? mapBillFromDb(data) : b)));
       }
     } catch (err) {
       console.error("Failed to toggle pause status:", err);

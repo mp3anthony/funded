@@ -132,6 +132,63 @@ export function computeRollover(bill: RolloverBillRow, todayYmd: string): Rollov
   };
 }
 
+/* ── Paused bills (#201) ──────────────────────────────────────────────── */
+
+/** False for a paused bill: paused bills get no reminders at all (#201). */
+export function billSendsReminders(bill: { is_paused?: boolean | null; status?: string | null }): boolean {
+  return !(bill?.is_paused === true || bill?.status === 'Paused');
+}
+
+/**
+ * Columns to write when a paused bill is resumed, if its due date has passed
+ * while it was paused (#201); else null (just un-pause, dates untouched).
+ * `todayYmd` = today in the household's timezone.
+ *
+ * "Passed" means due < today for an unpaid bill (due today is still due) and
+ * due <= today for a Paid bill (a Paid bill rolls once its due date arrives).
+ * Missed cycles are skipped, not caught up: the new due date is the first
+ * date on or after today, counted from the BASE date (never step by step, so
+ * month-end days clamp the same way as `addCycles`). `invoice_date` moves in
+ * lockstep. A Paid bill's resume roll records the cycle it was paid for in
+ * `last_paid_for` (same rule as `computeRollover`, #211); an unpaid roll
+ * never touches it. Autopay bills reuse `computeRollover` (status reset only;
+ * their date rolls via `adjustAutopayBillDate`). One-off bills return null.
+ */
+export function computeResumeRoll(bill: RolloverBillRow, todayYmd: string): RolloverPatch | null {
+  if (!bill) return null;
+  if (bill.is_recurring === false) return null;
+
+  const due = bill.due_date ? bill.due_date.slice(0, 10) : '';
+  if (!YMD_RE.test(due)) return null;
+
+  if ((bill.payment_type ?? '').toLowerCase() === 'auto') {
+    return computeRollover({ ...bill, is_paused: false }, todayYmd);
+  }
+
+  const paid = bill.status === 'Paid';
+  if (paid && due > todayYmd) return null;
+  if (!paid && due >= todayYmd) return null;
+
+  let n = 1;
+  while (addCycles(due, bill.frequency, n) < todayYmd) {
+    n++;
+    if (n > 5000) return null;
+  }
+
+  const invoice = bill.invoice_date ? bill.invoice_date.slice(0, 10) : null;
+  return {
+    status: UNPAID_STATUS,
+    due_date: addCycles(due, bill.frequency, n),
+    invoice_date: invoice ? addCycles(invoice, bill.frequency, n) : null,
+    ...(paid ? { last_paid_for: due } : {}),
+  };
+}
+
+/** Edit payloads only carry `is_paused` when it is a real boolean; edits never flip it by accident. */
+export function pausedFieldForEdit(billData: { is_paused?: unknown }): { is_paused?: boolean } {
+  return typeof billData?.is_paused === 'boolean' ? { is_paused: billData.is_paused } : {};
+}
+
 /* ── Instant roll at Mark-as-Paid time (#205) ─────────────────────────── */
 
 /**

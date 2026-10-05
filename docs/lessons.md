@@ -53,6 +53,7 @@ One line each (or close). These were learned the hard way; do not relitigate the
 - The delivery job skips rows with `is_read` true; mark-read is the only way to stop a pending push (#209).
 - The delivery job writes `delivered_at` per user inside the loop, not in one batch at the end, to avoid a double send if the `maxDuration=60` function times out.
 - Rollover of recurring paid bills lives in the 15-minute reminders job, not the 5-minute delivery job, so "rolls within a few minutes" really means up to 15.
+- Paused bills generate no reminders (#201); pausing marks the pauser's rows read at once and other members' within one cron run (up to 15 minutes).
 - `public/sw.js` `notificationclick`: links with params always `client.navigate()` an open window (fallback `openWindow`); this also affects bill links.
 - **"Late" pushes:** the payload had no send-time timestamp, so the OS stamped render time. `push.ts` now stamps `timestamp: Date.now()` and the service worker passes it through. Web push has no delivery-time guarantee; lateness is a device-queue artifact.
 - A member who receives no pushes needs a `notification_settings` row (created lazily on first client load) and a `push_subscriptions` row (only when that person taps Enable push on her own device). A missing subscription is swallowed (marked delivered, nothing sent). Ask the member to check Settings before assuming a logic bug (#145).

@@ -720,6 +720,17 @@ problem/checklist on the issue.
   message, no write. Writes no notifications (A2).
 - Full issue: https://github.com/mp3anthony/funded/issues/211
 
+**Amendment — paused bills (Issue #201):**
+- Paused bills get no reminders (`generateReminders` skips them). The cron
+  marks their unread bill reminders (`manual_bill`, `auto_pay`) read each run,
+  never deleted (A2). Pausing also marks the pauser's rows read at once.
+- Resume: if the due date has passed, it rolls to the first date on or after
+  today (household timezone), counted from the base date, missed cycles
+  skipped, with `invoice_date` in lockstep. A Paid bill's resume roll records
+  `last_paid_for` (same rule as #211). Resume is a guarded write.
+- Edits never change `is_paused`; only pause/resume does.
+- Full issue: https://github.com/mp3anthony/funded/issues/201
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)
