@@ -1806,11 +1806,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // is new — a transient membership-query failure in loadData can route an
       // already-onboarded user to AppShell's Onboarding gate, and Onboarding
       // step 1 calls this function directly (src/components/Onboarding.tsx:54).
-      // Nothing else stops it: households INSERT is WITH CHECK true,
-      // household_members INSERT is WITH CHECK true, and there is no unique
-      // index on household_members.user_id (a constraint was deliberately
-      // deferred pending the multi-household question — see #75). The second
-      // membership row is what actually breaks the account: loadData's STEP 1 is
+      // Don't rely on the database to catch this: the second membership
+      // insert would fail only after a second household row already exists.
+      // The second membership row is what actually breaks the account: loadData's STEP 1 is
       // .maybeSingle(), which errors on more than one row, so every subsequent
       // load fails forever and the real data is unreachable. The sibling helper
       // ensureHousehold() runs its own equivalent membership check (:1072-1115),
