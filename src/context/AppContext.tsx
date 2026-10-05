@@ -3617,84 +3617,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
             throw error;
           }
         }
+      }
 
-        // Only run fallback client-side join logic if we haven't already resolved newHouseholdId!
-        if (!newHouseholdId) {
-          // Fallback: Perform validation queries directly on client database
-          console.warn("Edge function invocation failed or not deployed, running fallback database logic");
-
-          // 1.1 Fetch household by join code
-          const { data: household, error: hError } = await supabase
-            .from("households")
-            .select("id, code_expires_at")
-            .eq("join_code", sanitizedCode)
-            .single();
-
-          if (hError || !household) {
-            throw new Error("Invalid join code.");
-          }
-
-          // 1.2 Verify join code expiry
-          if (new Date(household.code_expires_at) < new Date()) {
-            throw new Error("Join code has expired.");
-          }
-
-          // 1.3 Authenticate current user email
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          const userObj = currentSession?.user || session?.user;
-          if (!userObj) {
-            throw new Error("Unauthorized.");
-          }
-
-          const userName = userObj.user_metadata?.full_name || userObj.email?.split("@")[0] || "Member";
-          const userEmail = userObj.email || "";
-
-          // 1.4 Ensure user is not already a member
-          const { data: existingMember } = await supabase
-            .from("household_members")
-            .select("id, user_id")
-            .eq("household_id", household.id)
-            .eq("email", userEmail)
-            .maybeSingle();
-
-          if (existingMember) {
-            if (existingMember.user_id === userObj.id) {
-              throw new Error("You are already a member of this household.");
-            } else if (!existingMember.user_id) {
-              // Claim the existing member record
-              const { error: updateErr } = await supabase
-                .from("household_members")
-                .update({
-                  user_id: userObj.id,
-                  invitation_status: "accepted"
-                })
-                .eq("id", existingMember.id);
-
-              if (updateErr) {
-                throw new Error("Failed to claim household membership: " + updateErr.message);
-              }
-            } else {
-              throw new Error("This email is already registered as a member with another user.");
-            }
-          } else {
-            // 1.5 Insert new member row
-            const { error: insertErr } = await supabase
-              .from("household_members")
-              .insert({
-                household_id: household.id,
-                user_id: userObj.id,
-                name: userName,
-                email: userEmail,
-                role: "member",
-                invitation_status: "accepted"
-              });
-
-            if (insertErr) {
-              throw new Error("Failed to join household: " + insertErr.message);
-            }
-          }
-          newHouseholdId = household.id;
-        }
+      if (!newHouseholdId) {
+        throw new Error("Couldn't join right now. Please check your connection and try again.");
       }
 
       // 2. WIPE CURRENT USER DATA IN DATABASE FIRST
@@ -3808,7 +3734,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   // #85. Non-owner self-leave: delete only the caller's own household_members
   // row, scoped to the current household (user_id + household_id). Existing
-  // RLS ("hm_delete_own" / "Users can delete household_members") already
+  // RLS ("Users can delete household_members") already
   // permits user_id = auth.uid() deletes, and every dependent row
   // (pay_schedules, pay_history, contribution_rules, household_contributions,
   // bill_splits — all keyed off member_id) cascades off that row automatically,
