@@ -30,16 +30,18 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 ## Features
 
 - **Payday transfers** — enter income per contributor and the app calculates exact weekly transfer amounts to cover household bills in full
-- **Bill tracking** — manage bills across any frequency (weekly, fortnightly, monthly, yearly) with paid/due-soon/overdue status tracking
+- **Bill tracking** — manage bills across any frequency (weekly, fortnightly, monthly, yearly) with paid/due-soon/overdue status tracking, plus pausing, auto-pay bills and a permanent "Undo payment" on the last paid cycle
+- **Expenses** — variable spending (groceries, fuel) that counts toward the household total as a weekly amount
 - **Frequency normalisation** — all bills convert to a common frequency for apples-to-apples comparison
 - **Savings goals** — sinking funds with targets, progress tracking, and manual top-ups
 - **Contribution rules** — define rules that auto-allocate surplus income above a threshold to goals or increased contributions
 - **Payment modes** — choose between Joint Fund (pooled pot) or Direct Pay (split bills between members)
 - **Multi-member households** — invite members via join code, manage roles (owner/member), and assign bill splits
 - **Health score** — weighted financial health score (0–100) based on bill status, goal progress, and budget coverage
-- **Notifications** — in-app notification centre with bill-due alerts, read/unread state, and per-type settings
-- **Light and dark mode** — automatic via `prefers-color-scheme` CSS media query, with a manual class-based override (`.dark` / `.light`) toggle in settings
-- **PWA** — installable as a home screen app on iOS Safari and Android Chrome with full offline fallback
+- **Notifications** — in-app notification centre plus web push reminders (bills, pending pay, payday, goals), read/unread state, per-type settings, a per-member notify hour and a household timezone
+- **Light and dark mode** — automatic via `prefers-color-scheme` CSS media query, with a manual Light / Dark / System choice under Appearance in Settings (applied as a `.dark` / `.light` class)
+- **PWA** — installable as a home screen app on iOS Safari and Android Chrome with an offline fallback page
+- **In-app help** — a public Getting started guide, a patch notes ("What's new") page and popup, and in-app bug reporting
 - **Authentication** — email/password auth via Supabase (implicit flow, session persisted in `localStorage`), email confirmation, and password reset
 
 ---
@@ -53,18 +55,18 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 | UI | React 19 |
 | Styling | [Tailwind CSS 4](https://tailwindcss.com/) with CSS custom properties |
 | Icons | [Lucide React](https://lucide.dev/) |
-| Backend / DB | [Supabase](https://supabase.com/) (PostgreSQL + Auth + Storage + Edge Functions) |
+| Backend / DB | [Supabase](https://supabase.com/) (PostgreSQL + Auth + Storage + Edge Functions + `pg_cron` scheduling) |
 | Auth | Supabase Auth (implicit flow, email confirmation) |
-| File storage | Supabase Storage (avatar uploads) |
-| Server-side Supabase | [@supabase/ssr](https://www.npmjs.com/package/@supabase/ssr) — Supabase clients inside API route handlers |
-| Web push | [web-push](https://www.npmjs.com/package/web-push) (VAPID) for bill-due notifications |
-| Utilities | clsx, tailwind-merge |
+| File storage | Supabase Storage (avatar uploads, bug-report screenshots) |
+| Server-side Supabase | [@supabase/supabase-js](https://www.npmjs.com/package/@supabase/supabase-js) with the service-role key, inside the cron route handlers only |
+| Web push | [web-push](https://www.npmjs.com/package/web-push) (VAPID) for reminder notifications |
+| Utilities | clsx, tailwind-merge, tailwindcss-animate |
 
 ---
 
 ## Prerequisites
 
-- **Node.js** ≥ 18.x
+- **Node.js** ≥ 20.9 (required by Next.js 16)
 - **npm** (ships with Node)
 - A **Supabase** project ([create one free](https://supabase.com/dashboard))
 
@@ -81,8 +83,7 @@ cd funded-nextjs
 npm install
 
 # 3. Create your environment file
-cp .env.local.example .env.local
-# Then fill in your Supabase credentials (see below)
+# Create .env.local in the project root and fill it in (see below)
 
 # 4. Run the database migrations (see Database setup)
 
@@ -97,9 +98,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start the development server |
-| `npm run build` | Create a production build |
+| `npm run build` | Create a production build (a `prebuild` step first stamps the service worker cache name via `scripts/stamp-sw.mjs`) |
 | `npm run start` | Serve the production build |
 | `npm run lint` | Run ESLint |
+| `npm test` | Run the bill-cycle unit tests (`node --test`) |
 
 ---
 
@@ -117,21 +119,31 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
 VAPID_PRIVATE_KEY=your-vapid-private-key
 VAPID_CONTACT_EMAIL=mailto:admin@example.com
 
-# ── Server-only: reminder cron (never prefix with NEXT_PUBLIC_) ──
-# Service-role key bypasses RLS; used only by the server cron. Keep secret.
+# ── Server-only: reminder crons (never prefix with NEXT_PUBLIC_) ──
+# Service-role key bypasses RLS; used only by the server cron routes. Keep secret.
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # Shared secret Vercel Cron sends as the Authorization bearer token.
 CRON_SECRET=a-long-random-string
+# Separate bearer secrets for the Supabase pg_cron jobs (one per route).
+GENERATION_CRON_SECRET=another-long-random-string
+DELIVER_CRON_SECRET=yet-another-long-random-string
+
+# ── Server-only, optional: in-app bug reports ──
+# Token that can create issues on the repo; production only.
+GITHUB_BUG_REPORT_TOKEN=your-github-token
 ```
 
 The Supabase URL and anon key are available in your Supabase project dashboard
 under **Settings → API**. The `SUPABASE_SERVICE_ROLE_KEY` is on the same page —
-treat it like a password and never expose it to the client. `CRON_SECRET` is any
-long random string; set the identical value in Vercel so the daily reminder cron
-(`/api/cron/push-reminders`) can authenticate.
+treat it like a password and never expose it to the client. `CRON_SECRET`,
+`GENERATION_CRON_SECRET` and `DELIVER_CRON_SECRET` are any long random strings,
+set to the same values in Vercel and in the matching scheduler.
+`/api/cron/push-reminders` accepts either `CRON_SECRET` or `GENERATION_CRON_SECRET`;
+`/api/cron/deliver-scheduled` uses `DELIVER_CRON_SECRET`. `GITHUB_BUG_REPORT_TOKEN`
+is only needed by the in-app bug report route (`/api/bug-report`); without it that
+route reports not configured.
 
 > **Note:** `.env*` files are git-ignored by default. Never commit real credentials.
-> A `.env.local.example` template (no real values) is provided as a starting point.
 
 ---
 
@@ -143,23 +155,28 @@ The Supabase schema is defined in the `supabase/` directory. Run these SQL files
 2. **`supabase/household_members_table.sql`** — the `household_members` table
 3. **`supabase/rls_policies.sql`** — row-level security policies
 4. **`supabase/secure_rls_policies.sql`** — additional hardened RLS rules
-5. **`supabase/migrations/`** — apply each migration file in order:
-   - `add_missing_schema_tables_and_columns.sql` — pay schedules, pay history, bill splits, household contributions, contribution rules, and additional columns
-   - `add_user_id_and_constraints.sql` — user ID foreign keys and constraints
-   - `add_join_code.sql` — household join codes
-   - `update_join_code_type.sql` — join code type update
-   - `fix_households_rls.sql` — RLS policy fixes
-   - `fix_households_rls_recursion.sql` — recursive RLS fix
-   - `fix_household_members_select.sql` — member select policy fix
-   - `20260707005200_update_frequency_data_to_fortnightly.sql` — normalises frequency data to fortnightly
+5. **`supabase/migrations/`** — apply each migration file in order. The un-dated files come first (pay schedules, pay history, bill splits, household contributions, contribution rules, user ID constraints, join codes, RLS fixes), then the date-prefixed files in filename order (timezone and notification columns, expenses, user preferences, storage buckets, RLS declarations and hardening, and so on).
+
+> **Note:** the migrations alone cannot rebuild a database from scratch. Some tables (for example notifications, notification settings and push subscriptions) have no `CREATE TABLE` in the repo.
 
 ### Edge Functions
 
 - **`supabase/functions/join-household/`** — serverless function that handles household join code validation and member addition
+- **`supabase/functions/delete-household/`** — serverless function that handles deleting a household
+
+Edge Functions are deployed separately from the app (`supabase functions deploy`).
 
 ### Storage
 
-Create an `avatars` bucket in Supabase Storage (Settings → Storage) with **public access** enabled for avatar image uploads.
+Two Storage buckets are used: `avatars` (public, for avatar image uploads) and `bug-report-screenshots` (screenshots attached to in-app bug reports). Both are configured by migrations in `supabase/migrations/`.
+
+### Auth email templates
+
+`supabase/email-templates/` holds the source HTML for the Confirm signup and Reset password emails. Supabase keeps its own copy, so changes are pasted by hand into the Supabase dashboard (Auth → Email Templates).
+
+### Scheduling
+
+Reminders are generated and delivered by two cron routes (see [Key logic](#key-logic)). In production a Supabase `pg_cron` job calls each of them every few minutes; `vercel.json` also carries a once-a-day Vercel Cron on `/api/cron/push-reminders` as a fallback.
 
 ---
 
@@ -168,67 +185,55 @@ Create an `avatars` bucket in Supabase Storage (Settings → Storage) with **pub
 ```
 funded-nextjs/
 ├── public/
-│   ├── icons/                # PWA icons (192×192, 512×512)
+│   ├── icons/                # PWA and app icons, logos
+│   ├── email/                # Images used by the auth email templates
 │   ├── manifest.json         # PWA manifest
-│   ├── sw.js                 # Service worker (offline support)
-│   └── logo-wordmark.svg     # Brand wordmark
+│   └── sw.js                 # Service worker (offline support)
+├── scripts/
+│   ├── stamp-sw.mjs          # Stamps the service worker cache name at build time
+│   └── agy-delegate.ps1      # Dev tooling (review delegation)
 ├── src/
 │   ├── app/                  # Next.js App Router pages
 │   │   ├── layout.tsx        # Root layout (fonts, metadata, providers)
 │   │   ├── globals.css       # Design tokens + Tailwind v4 theme
-│   │   ├── page.tsx          # Dashboard (home)
-│   │   ├── auth/             # Auth callback handler
-│   │   ├── bills/            # Bills management page
+│   │   ├── page.tsx          # Dashboard (home; UI in page-client.tsx)
+│   │   ├── api/              # Route handlers
+│   │   │   ├── bug-report/             # Files a GitHub issue from an in-app bug report
+│   │   │   ├── cron/push-reminders/    # Generates scheduled reminders
+│   │   │   ├── cron/deliver-scheduled/ # Pushes reminders that have come due
+│   │   │   └── push/                   # Push subscribe / send
+│   │   ├── auth/callback/    # Auth redirect handler
+│   │   ├── bills/            # Bills and expenses page
 │   │   ├── confirm-email/    # Email confirmation page
-│   │   ├── funds/            # Savings goals page
+│   │   ├── funds/            # Goals page (route is /funds)
+│   │   ├── getting-started/  # Public Getting started guide
 │   │   ├── login/            # Login / sign-up page
 │   │   ├── offline/          # Offline fallback page
-│   │   ├── payday/           # Payday income + schedules page
-│   │   └── settings/         # Household settings page
-│   ├── components/           # Reusable UI components (39 components)
+│   │   ├── patch-notes/      # Patch notes ("What's new") page
+│   │   ├── payday/           # Pay schedules, pay logging and history page
+│   │   ├── reset-password/update/  # Set a new password (reached from the reset email)
+│   │   └── settings/         # Account, app, household and member settings
+│   ├── components/           # Reusable UI components (about 55, plus ui/)
 │   │   ├── AppShell.tsx      # Auth guard, onboarding gate, bottom nav shell
 │   │   ├── Onboarding.tsx    # 5-step onboarding wizard
 │   │   ├── BottomNav.tsx     # Mobile bottom navigation bar
-│   │   ├── HealthScoreCard.tsx        # Dashboard health score widget
-│   │   ├── HealthScore.tsx            # Standalone health score display
-│   │   ├── HouseholdHealth.tsx        # Household health summary
-│   │   ├── UpcomingBillsCard.tsx      # Dashboard upcoming bills widget
-│   │   ├── ActiveGoalsCard.tsx        # Dashboard goals widget
-│   │   ├── RecentActivityCard.tsx     # Dashboard activity feed
-│   │   ├── NotificationCenter.tsx     # In-app notification centre (alerts, settings)
-│   │   ├── AddBillSheet.tsx           # Add/edit bill bottom sheet
-│   │   ├── BillDetailSheet.tsx        # Bill detail view bottom sheet
-│   │   ├── BillCard.tsx               # Individual bill card
-│   │   ├── EditCategoryOrderModal.tsx # Reorder bill categories
-│   │   ├── AddGoalSheet.tsx           # Add goal bottom sheet
-│   │   ├── EditGoalSheet.tsx          # Edit goal bottom sheet
-│   │   ├── GoalDetailSheet.tsx        # Goal detail view bottom sheet
-│   │   ├── AddAmountModal.tsx         # Manual goal top-up modal
-│   │   ├── AddPayScheduleSheet.tsx    # Add pay schedule bottom sheet
-│   │   ├── PayScheduleDetailSheet.tsx # Pay schedule detail sheet
-│   │   ├── EnterPayAmountModal.tsx    # Variable pay entry modal
-│   │   ├── SurplusSuggestionModal.tsx # Surplus allocation prompt post-payday
-│   │   ├── PayHistoryCard.tsx         # Pay history timeline
-│   │   ├── ContributionSettingsSheet.tsx # Contribution management
-│   │   ├── RulesSettingsSheet.tsx     # Surplus rules configuration
-│   │   ├── RuleCard.tsx               # Individual contribution rule card
-│   │   ├── ContributorSplits.tsx      # Bill split assignment (Direct Pay)
-│   │   ├── PaymentModeToggle.tsx      # Joint Fund / Direct Pay toggle
-│   │   ├── JoinHouseholdSheet.tsx     # Join via code sheet
-│   │   ├── EditMemberModal.tsx        # Edit household member
-│   │   ├── RemoveMemberModal.tsx      # Remove household member
-│   │   ├── UserProfileMenu.tsx        # User profile dropdown menu
-│   │   ├── AvatarUpload.tsx           # Avatar image upload
-│   │   ├── AvatarDropdown.tsx         # Avatar selection dropdown
-│   │   ├── Logo.tsx                   # Funded logo component
-│   │   ├── PageHeader.tsx             # Consistent page header
-│   │   └── FrequencyToggle.tsx        # Frequency selector toggle
+│   │   ├── NotificationCenter.tsx # In-app notification centre (alerts, settings)
+│   │   ├── *Sheet / *Modal / *Dialog.tsx  # Bottom sheets and dialogs (bills, goals, pay, members, bug report, push, timezone)
+│   │   ├── *Card.tsx         # Dashboard and list cards (health score, upcoming bills, goals, activity, bills, expenses)
+│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast)
 │   ├── context/
 │   │   └── AppContext.tsx    # Global state provider (auth, data, CRUD)
+│   ├── hooks/                # Small shared hooks
 │   ├── lib/
 │   │   ├── supabase.ts       # Supabase client initialisation
 │   │   ├── storage.ts        # Avatar upload/delete/get utilities
-│   │   └── utils.ts          # Shared helpers (health score, date, frequency conversion)
+│   │   ├── utils.ts          # Shared helpers (health score, date, frequency conversion)
+│   │   ├── billCycle.ts      # Bill rollover logic (tests in billCycle.test.mjs)
+│   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
+│   │   ├── notifications/    # Reminder generation, timezone, tap destinations
+│   │   ├── patch-notes.ts    # Patch notes content
+│   │   ├── getting-started.ts # Getting started guide content
+│   │   └── version.ts        # APP_VERSION
 │   └── types/
 │       └── index.ts          # Shared TypeScript interfaces
 ├── supabase/
@@ -237,12 +242,15 @@ funded-nextjs/
 │   ├── rls_policies.sql      # Row-level security
 │   ├── secure_rls_policies.sql
 │   ├── migrations/           # Incremental schema migrations
+│   ├── email-templates/      # Auth email HTML (pasted into Supabase by hand)
 │   └── functions/            # Supabase Edge Functions
-├── .env.local                # Environment variables (git-ignored)
+├── docs/                     # Conventions, environment notes, lessons, glossaries, ADRs
+├── vercel.json               # Vercel Cron fallback for reminder generation
 ├── next.config.ts            # Next.js configuration
 ├── tsconfig.json             # TypeScript configuration
 ├── postcss.config.mjs        # PostCSS (Tailwind v4)
 ├── eslint.config.mjs         # ESLint configuration
+├── .env.local                # Environment variables (git-ignored)
 └── package.json
 ```
 
@@ -253,25 +261,27 @@ funded-nextjs/
 | Route | Screen | Purpose |
 |-------|--------|---------|
 | `/` | **Dashboard** | Health score, upcoming bills, active goals, recent activity feed |
-| `/payday` | **Payday** | Pay schedules, income entry (fixed or variable), pay history, surplus rule triggers |
-| `/bills` | **Bills** | All household bills with status badges, category filters, search, and frequency normalisation toggle |
+| `/payday` | **Payday** | Pay schedules, income entry (fixed or variable), pending pay confirmation, pay history, surplus rule triggers |
+| `/bills` | **Bills** | All household bills and expenses with status badges, category filters, search, and frequency normalisation toggle |
 | `/funds` | **Goals** | Savings goals with progress bars, manual top-ups, and completion tracking |
-| `/settings` | **Settings** | Household name, payment mode (Joint Fund / Direct Pay), member management, contributions, surplus rules, theme toggle, join codes, notifications |
+| `/settings` | **Settings** | Profile, notifications (including notify hour and push status), appearance (Light / Dark / System), payment mode (Joint Fund / Direct Pay), contribution amounts and automation rules (Joint Fund), join code, household timezone, member management, What's new, Getting started, bug reporting |
 | `/login` | **Login** | Email/password authentication (sign in or sign up) |
 | `/confirm-email` | **Confirm Email** | Email verification landing page |
-| `/reset-password` | **Reset Password** | Password update page reached via Supabase reset email link |
-| `/auth` | **Auth Callback** | Supabase auth redirect handler |
+| `/reset-password/update` | **Reset Password** | Password update page reached via Supabase reset email link |
+| `/auth/callback` | **Auth Callback** | Supabase auth redirect handler |
+| `/getting-started` | **Getting Started** | Public guide of optional missions covering the basics (no sign-in needed) |
+| `/patch-notes` | **Patch Notes** | What changed in each version (reached from Settings as "What's new") |
 | `/offline` | **Offline** | PWA offline fallback page |
 
 ### User flow
 
-1. **Sign up** → email confirmation → **Onboarding** (5 steps: name household, choose payment mode, add first pay schedule, add first bill, review)
+1. **Sign up** → email confirmation → **Onboarding** (5 steps: create a household or join one, choose payment mode, add first pay schedule, add first bill, done)
 2. **Dashboard** shows household health at a glance
 3. **Payday** to log income when paid — surplus rules fire automatically; surplus suggestion modal prompts allocation
 4. **Bills** to manage household costs
 5. **Goals** to track savings targets
 6. **Settings** to invite members, configure contributions, rules, and notification preferences
-7. **Forgot password** → reset email → `/reset-password` to set a new password
+7. **Forgot password** → reset email → `/reset-password/update` to set a new password
 
 ---
 
@@ -321,7 +331,7 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 
 ### Frequency conversion
 
-`convertAmount(amount, fromFrequency, toFrequency)` normalises any amount between `weekly`, `fortnightly`, `monthly`, and `yearly` using standard budgeting coefficients (4.33 weeks/month, 2.16 bi-weeks/month).
+`convertAmount(amount, fromFrequency, toFrequency)` normalises any amount between `weekly`, `fortnightly`, `monthly`, and `yearly` using standard budgeting coefficients (4.33 weeks/month, 2.16 fortnights/month).
 
 ### Health score
 
@@ -329,9 +339,9 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 
 | Factor | Weight | Scoring |
 |--------|--------|---------|
-| Bills management | 40% | –20 points per overdue bill |
+| Bills management | 40% | –20 points per overdue bill (paused bills are ignored) |
 | Goals & contributions | 30% | 80 base + 20 if any goal has progress; 50 if nothing set up |
-| Budget coverage | 30% | Ratio of contributions (or splits) to total monthly expenses |
+| Budget coverage | 30% | Ratio of contributions (or splits) to total monthly obligations (bills, expenses and active fixed-dollar contribution rules) |
 
 ### Payment modes
 
@@ -344,6 +354,10 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 
 When a pay entry exceeds a contributor's threshold, a configurable percentage is automatically allocated to a goal or added as an increased contribution.
 
+### Reminders
+
+Reminders are a two-step pipeline. `/api/cron/push-reminders` generates due-bill, auto-pay, pending-pay, payday and goal reminders for each household member, stamped with a delivery time that follows the household timezone and the member's notify hour (duplicates are prevented by a dedupe key). `/api/cron/deliver-scheduled` then pushes every reminder whose time has arrived and that is still unread. Both routes require a bearer secret (see Environment variables).
+
 ---
 
 ## PWA support
@@ -353,7 +367,7 @@ Funded is a Progressive Web App. The following files enable installation and off
 | File | Purpose |
 |------|---------|
 | `public/manifest.json` | App name, theme colour (`#c8ff00`), icons, display mode (`standalone`) |
-| `public/sw.js` | Service worker with cache-first strategy and offline fallback |
+| `public/sw.js` | Service worker: pages are served stale-while-revalidate, with an offline fallback; the cache name is stamped per deploy by `scripts/stamp-sw.mjs` |
 | `public/icons/` | App icons at 192×192 and 512×512 |
 | `src/app/offline/` | Offline fallback page |
 
@@ -374,7 +388,7 @@ npm run build
 
 ### Environment variables
 
-Ensure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are configured in your deployment platform's environment settings.
+Ensure every variable listed under [Environment variables](#environment-variables) is configured in your deployment platform's environment settings (`GITHUB_BUG_REPORT_TOKEN` in production only). `vercel.json` registers a once-a-day cron on `/api/cron/push-reminders`; the more frequent schedules run from Supabase `pg_cron`.
 
 ---
 
