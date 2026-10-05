@@ -29,8 +29,9 @@
 
 ## Next session, in order
 
-1. #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks; #265 and #266 are small chores.
-2. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
+1. Ask Anthony two things first: (a) has he turned on leaked-password protection in the Supabase dashboard (Auth settings)? (b) confirm the v0.9.64 production deploy went `success` (was still pending at wrap-up) and ask whether join-by-code and a role change worked for him on the phone (not hand-tested); the stale comment in `AppContext.tsx` (~1809-1812) can be fixed in the next PR touching that file.
+2. #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks; #265 and #266 are small chores.
+3. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
 
 ## Where things live
 
