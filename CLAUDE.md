@@ -39,7 +39,7 @@ The orchestrator plans and delegates. It never writes or edits code itself, and 
 1. **Session start:** as in "Start here" above.
 2. **Scope check** (below).
 3. **Problem agreement:** the orchestrator scopes the problem with Anthony, agrees the outcome, and files the GitHub issue with a testing checklist. This is the approval gate before any planning.
-4. **Autonomous execution:** once the plan is approved, Investigator, Planner, Code Writer, Docs, without interrupting Anthony, except on an escalation trigger.
+4. **Autonomous execution:** once the plan is approved, Investigator, Planner, Code Writer, Docs, without interrupting Anthony, except on an escalation trigger. **Standing pause:** on any ticket with a Planner step, once the plan is written and independently reviewed, stop before the Code Writer, notify Anthony on PC and mobile (PushNotification; Remote Control carries the mobile push), and wait. Build in a fresh session from the issue; post the reviewed plan as an issue comment, and name that comment in `HANDOFF.md`, so it can be found.
 5. **Preview and labelling:** code goes to a preview branch, the checklist is generated, routing per Review and merge below.
 6. **Wrap-up:** when asked, summarize progress into a clean commit, update the PR description, and rewrite `HANDOFF.md` (including exactly which ticket/section of `SPEC.md` was last active). `HANDOFF.md` holds where-we-left-off only; there is no archive file (git history holds prior versions). Durable facts go to their home in the pointers above, never into `HANDOFF.md`. A wrap-up that changes only `HANDOFF.md` goes on its own `docs/handoff-*` PR that the orchestrator merges straight away, no sub-agent review, no approval ask, so `main` always holds the current handoff.
 
