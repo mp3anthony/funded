@@ -2,7 +2,10 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-05)
+## Current state (2026-10-07)
+
+- **#282 GRILLED, ready to build, not started** (2026-10-07, outcome in the issue body, labels `ready-for-agent` + `needs-manual-test`): invoice dates go stale. Autopay bills never move saved dates (the UI derives the due date only); manual rows are stale from pre-#187 rolls. Decisions: derive the shown invoice date for active recurring autopay bills (display only, nothing stored); manual roll unchanged; one-off migration realigns stale **manual** invoice dates (A1 escalation: confirm with Anthony, apply to prod before the build ships); paused and one-off bills show the saved date; no toggle, no schema change; hide the popup Invoice Date row when blank (card unchanged). Glossary updated (PR #283). SPEC Slice 17 amendment goes in the build PR. Planner is next.
+- Logged 2026-10-07: five `needs-triage` page-redesign audit parents, #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings (each a functionality plus design audit, each **blocked by #183**; the design reference will be an HTML file documenting the app's design requirements, so do #183 first and the page grills ask fewer questions). #276 "help!" (no labels, opened 2026-10-07) is unread; check it.
 
 - **#201 DONE and closed** (v0.9.63, PR #262, 2026-10-05): paused bills get no reminders (client + cron; pausing marks unread bill reminders read), resume rolls a passed due date to the first date >= today (household tz), edit no longer un-pauses. No schema/A1 touch. iPhone Part 1 (5 tests, preview) all passed. Part 2 (prod, 4 tests) all passed 2026-10-05, driven through the browser pane plus DB checks, not the installed app, so push suppression after a pause rests on DB rows only (Hannah got one push for `Clear`'s first reminder before it was paused, expected). Accepted: pause then resume before the due date does not re-send "due soon". `TEST-201*` bills deleted, notification rows kept and marked read (A2).
 - Logged 2026-10-05, all `needs-triage`, each needs its own grill-with-docs session, no blockers: #260 (shrink the first-open patch-notes popup; overlaps #248 on first-open surfaces), #261 (Report a bug becomes generic Report an issue; related to #152 filter for `from-app` issues, and Getting started / SPEC Slice 15 wording to update), #265 (remove unused `@supabase/ssr` dependency and stale `public/sw.js` header comment), #266 (track `.env.local.example`: add `!.env.local.example` to `.gitignore`, restore the README setup step) and #267 (from Anthony's #201 testing: paused bills show no visual cue in the Bills list; wants an orange pause icon by the amount, greyed or pause-coloured amount, and paused bills excluded from the Total Bar, which today still counts them, a known inconsistency vs health score; grill whether the household total should change).
@@ -25,13 +28,13 @@
 - #145 (Hannah getting no pushes, ~2 weeks; #160 folded in): still parked, `needs-info`, root cause unconfirmed (2026-10-04 session, commented on the issue). Her PWA is installed and notification permission is on. Her Android/FCM subscription was refreshed 2 Oct, so it is alive (earlier "untouched since Sep 5" note was wrong). Reminders are generated fine, but `delivered_at` is stamped on every attempt so it proves nothing about receipt; Vercel keeps only ~24h of logs, so past push errors are gone. No test-push button exists. Anthony chose not to test with her yet. Options when ready: Android settings check (Chrome notification switches, Samsung background usage limits), wait for a real reminder, one-off push via `/api/push/send` (needs his go-ahead), or a small build logging non-404/410 push failures to a new DB table (migration, A1 escalation).
 - #152 (Known Issues tab on the patch-notes page): scoped, `ready-for-agent`, any session can build it when Anthony asks. If the repo ever goes private, the fetch needs a server-side GitHub token.
 - #183 (design reference doc): `needs-triage` / `ready-for-human`, untouched. When it lands, restore the design-foundation rule in `GEMINI-DELEGATION.md`.
-- Last active SPEC ticket: Slice 17 (#201 paused-bills amendment, merged in PR #262; all testing done).
+- Last active SPEC ticket: Slice 17 (#282 invoice-date amendment to be added in its build PR; #201 paused-bills amendment merged in PR #262).
 
 ## Next session, in order
 
 1. Ask Anthony whether join-by-code and a role change worked for him on the phone (not hand-tested in v0.9.64). #273 (leaked-password toggle): walk him through it when he asks.
-2. #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks; #265 and #266 are small chores.
-3. Start #145 (pick an option above), #152 or #183 only when Anthony says so.
+2. #282 build (Planner, Code Writer, independent review), when Anthony says. #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks; #265 and #266 are small chores.
+3. #183 design reference (unblocks the #277 to #281 grills). Start #145 (pick an option above) or #152 only when Anthony says so.
 
 ## Where things live
 
