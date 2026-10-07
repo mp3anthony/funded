@@ -35,7 +35,7 @@ The day a bill must be paid, read in the household's timezone.
 _Avoid_: Deadline, payment date
 
 **Invoice date**:
-The date a bill was issued, kept when known and moved forward alongside the due date.
+The date a bill was issued, optional and kept when known. For recurring bills it stays in step with the due date: it moves forward alongside it, and for an active autopay bill it is worked out from the saved date to match the due date shown. Paused and one-off bills show it as saved. A bill with none shows no invoice date at all.
 _Avoid_: Bill date, issue date
 
 ### Bill status
