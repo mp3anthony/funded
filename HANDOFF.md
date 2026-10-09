@@ -4,7 +4,8 @@
 
 ## Current state (2026-10-10)
 
-- **Triage session (2026-10-10), outcomes commented on each issue.** #287 (autopay month-end drift) and #288 (paused/one-off autopay due date still rolls) are both defined, `ready-for-agent` + `needs-manual-test`, no A1 touch, no schema. They share code (`adjustAutopayBillDate` in `src/lib/utils.ts`, `mapBillFromDb` in `AppContext.tsx:537`), so plan together or build one after the other. Each still needs a Planner step, then the standing pause, then a build in a fresh session.
+- **#287 + #288 PLANNED together (2026-10-10), plan reviewed, Anthony approved the defaults. Standing pause: build NOT started.** One PR, v0.9.67, branch `fix/287-288-autopay-dates`, no schema, no A1. Full reviewed plan (with review amendments) is the comment on #287: https://github.com/mp3anthony/funded/issues/287#issuecomment-6090878257 (pointer on #288). Defaults chosen: labels "Paused" / "One-off"; `autopayRollForward` cap raised 100 -> 5000; bills showing a label are left out of health score, Household Health bills figure and contribution split (Total bar untouched, #267 decides). Before testing, run the read-only SQL in the plan's Risks to see which real bills change. New `needs-triage` #300: editing a one-off bill silently makes it recurring (`AppContext.tsx:2142`).
+- **Triage session (2026-10-10), outcomes commented on each issue.** #287 (autopay month-end drift) and #288 (paused/one-off autopay due date still rolls) are both defined, `ready-for-agent` + `needs-manual-test`, no A1 touch, no schema. They share code (`adjustAutopayBillDate` in `src/lib/utils.ts`, `mapBillFromDb` in `AppContext.tsx:537`).
   - **#287 decision:** clamp from base (Jan 31 -> Feb 28 -> Mar 31). Fix `autopayRollForward` (`billCycle.ts:129-130`) to use `addCycles`; flip the pinned legacy-overflow test at `billCycle.test.mjs:354`.
   - **#288 decisions:** paused autopay shows a neutral "Paused" instead of a date; one-off autopay with a past saved date also shows a neutral label (wording for the Planner, e.g. "One-off"); one-off reminders follow the saved date only and stop once it passes (orchestrator's call); health score and Upcoming Bills ordering follow the shown date, so the Planner must decide where undated bills sort and how they count, consistent with #267.
   - **#298 (new, `needs-triage`):** pay-schedule `setMonth` in `AppContext.tsx` (~4203, ~4332) probably has the same month-end overflow. Untraced.
@@ -39,7 +40,7 @@
 ## Next session, in order
 
 1. Ask Anthony how the #215 prod checks went (he is testing during the week). Also whether join-by-code and a role change worked on the phone (not hand-tested in v0.9.64). #273 (leaked-password toggle): walk him through it when he asks.
-2. Plan #287 and #288 (Planner subagent, likely together), review the plan, post it on the issues, then pause for Anthony. Triage #298. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks (#267 overlaps #288 on paused-bill display); #265 and #266 are small chores.
+2. Build #287 + #288 in a fresh session from the plan comment on #287 (Code Writer, independent reviewer, then iPhone checklist). Triage #298 and #300. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks (#267 overlaps #288 on paused-bill display); #265 and #266 are small chores.
 3. #183 design reference (unblocks the #277 to #281 grills). Start #145 (pick an option above) or #152 only when Anthony says so.
 
 ## Where things live
