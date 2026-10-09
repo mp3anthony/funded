@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, PiggyBank, Target, ArrowRight } from "lucide-react";
+import { TrendingUp, Target, ArrowRight } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 
@@ -10,7 +10,7 @@ interface SurplusSuggestionModalProps {
   memberId: string;
   newPayAmount: number;
   surplusAmount: number;
-  onAllocate: (target: string, amount: number) => void;
+  onAllocate: (goalId: string, amount: number) => void;
 }
 
 export default function SurplusSuggestionModal({
@@ -62,14 +62,14 @@ export default function SurplusSuggestionModal({
               {memberName} earned <span className="text-primary font-mono">${formattedSurplus}</span> over average!
             </h4>
             <p className="text-xs text-muted font-body">
-              Would you like to allocate this extra income to your savings goals or bills surplus pool?
+              Would you like to add this extra income to one of your goals?
             </p>
           </div>
 
           {/* Allocations Options list */}
           <div className="space-y-3">
             <span className="text-[10px] font-bold text-subtle uppercase tracking-wider block font-mono">
-              Allocate Surplus To:
+              Add Surplus To A Goal:
             </span>
 
             {/* Goals */}
@@ -100,30 +100,6 @@ export default function SurplusSuggestionModal({
                 </button>
               ))}
             </div>
-
-            {/* Bills Surplus Pool */}
-            <button
-              onClick={() => onAllocate("bills_surplus", surplusAmount)}
-              className="w-full bg-background border border-border rounded-[2px] p-3 flex items-center justify-between text-left hover:border-primary/30 transition-all active:scale-[0.99] group cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-[2px] bg-primary/10 text-primary shrink-0">
-                  <PiggyBank size={14} />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-foreground block">
-                    Bills Surplus Pool
-                  </span>
-                  <span className="text-[10px] text-muted block font-body">
-                    Keep in household balance pool
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 font-mono text-xs font-bold text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-[2px] group-hover:bg-primary group-hover:text-primary-fg transition-all">
-                <span>+${formattedSurplus}</span>
-                <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </button>
           </div>
       </div>
     </Dialog>

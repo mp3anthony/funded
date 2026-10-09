@@ -162,7 +162,8 @@ export default function PaydayClient() {
         }
       }
 
-      if (avg !== null && amount > avg * 1.10) {
+      // Skip the surplus popup when the household has no goals to add it to (#215).
+      if (avg !== null && amount > avg * 1.10 && funds.length > 0) {
         const surplus = amount - avg;
         setSurplusInfo({
           memberId,
@@ -175,17 +176,12 @@ export default function PaydayClient() {
     }
   };
 
-  const handleAllocateSurplus = async (target: string, amount: number) => {
-    if (target === "bills_surplus") {
-      console.log(`Allocated surplus of $${amount} to Bills Surplus Pool.`);
-      alert(`Successfully allocated $${amount.toFixed(2)} to Bills Surplus Pool!`);
-    } else {
-      try {
-        await addToGoal(target, amount);
-        alert(`Successfully allocated $${amount.toFixed(2)} to your savings goal!`);
-      } catch (err) {
-        console.error("Failed to allocate surplus to goal:", err);
-      }
+  const handleAllocateSurplus = async (goalId: string, amount: number) => {
+    try {
+      await addToGoal(goalId, amount);
+      alert(`Successfully allocated $${amount.toFixed(2)} to your savings goal!`);
+    } catch (err) {
+      console.error("Failed to allocate surplus to goal:", err);
     }
     setSurplusInfo(null);
   };

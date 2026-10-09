@@ -112,9 +112,6 @@ _Avoid_: Auto-save rule, transfer rule
 The recurring amount the household commits to across bills, expenses and active fixed-dollar contribution rules, shown at whichever frequency is selected on the Bills page. Percentage rules are left out because the next pay's surplus is unknown. Shown as the Total bar on the Bills page.
 _Avoid_: Weekly draw, Bills total, Budget, Allowance
 
-**Surplus Pool** (planned, #215):
-Where extra pay above a member's usual pay can be held to cover bills. Today the Payday surplus popup offers it but it is a stub that records nothing. Definition still to be settled in #215.
-
 ### Household health
 
 **Health score**:
