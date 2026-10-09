@@ -10,6 +10,12 @@
  * already arrived rolls at the moment it is marked Paid (`computePaidRoll`),
  * with an Undo (`computeUndoPaidRoll`).
  *
+ * Autopay bills never persist a date roll: the UI derives the shown due date
+ * (`adjustAutopayBillDate`, which delegates to `autopayRollForward` here) and,
+ * since #282, the shown invoice date too (`displayedInvoiceDate`). The
+ * invoice derivation is display-only; nothing derived is ever stored except
+ * when the user saves an edit, which stores both dates together.
+ *
  * Deliberately has ZERO imports: `src/lib/billCycle.test.mjs` runs it under
  * plain `node --test` (Node's built-in TypeScript type stripping), so it must
  * not pull in path aliases, React, or anything else. Keep it that way — and
@@ -91,6 +97,64 @@ export function addCycles(ymd: string, frequency: string | null | undefined, n: 
   return toYmd(ty, tm0, td);
 }
 
+/* ── Autopay display derivation (#282) ────────────────────────────────── */
+
+/**
+ * Steps a saved autopay due date forward one cycle at a time until it is on
+ * or after `todayYmd`, returning the shown due date and how many cycles it
+ * moved. This is the exact legacy `adjustAutopayBillDate` loop (step-by-step,
+ * so month-end days drift: Jan 31 +1 gives Mar 3, not Feb 28), moved here so
+ * the due date and the derived invoice date share one cycle count. Capped at
+ * 100 steps. Pure UTC maths, no timezone or DST involvement.
+ *
+ * Input that isn't a 'YYYY-MM-DD' date, or is already today or later,
+ * returns the input string unchanged with 0 cycles.
+ */
+export function autopayRollForward(
+  dueYmd: string,
+  frequency: string | null | undefined,
+  todayYmd: string,
+): { dueYmd: string; cycles: number } {
+  const match = YMD_RE.exec(dueYmd ?? '');
+  if (!match) return { dueYmd, cycles: 0 };
+  const t = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  const freq = (frequency || 'monthly').toLowerCase();
+  const cur = () => toYmd(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate());
+
+  let cycles = 0;
+  while (cur() < todayYmd && cycles < 100) {
+    cycles++;
+    if (freq === 'weekly') t.setUTCDate(t.getUTCDate() + 7);
+    else if (freq === 'fortnightly') t.setUTCDate(t.getUTCDate() + 14);
+    else if (freq === 'yearly') t.setUTCFullYear(t.getUTCFullYear() + 1);
+    else t.setUTCMonth(t.getUTCMonth() + 1);
+  }
+  if (cycles === 0) return { dueYmd, cycles: 0 };
+  return { dueYmd: cur(), cycles };
+}
+
+/**
+ * The invoice date to SHOW for a bill (#282); display only, nothing stored.
+ *
+ * Active recurring autopay bills never persist a roll, so their saved invoice
+ * date goes stale. Here it moves forward by the same number of cycles the
+ * shown due date moved (`autopayRollForward`), counted from the base date with
+ * the `addCycles` clamp (Jan 31 +1 gives Feb 28, +2 gives Mar 31). Everything
+ * else shows the saved date: manual bills (their roll persists both dates),
+ * paused and one-off bills, and bills with an invalid due date. Null when blank.
+ */
+export function displayedInvoiceDate(bill: RolloverBillRow, todayYmd: string): string | null {
+  const inv = bill?.invoice_date ? bill.invoice_date.slice(0, 10) : null;
+  if (!inv) return null;
+  if ((bill.payment_type ?? '').toLowerCase() !== 'auto') return inv;
+  if (bill.is_recurring === false) return inv;
+  if (bill.is_paused) return inv;
+  const due = bill.due_date ? bill.due_date.slice(0, 10) : '';
+  if (!YMD_RE.test(due)) return inv;
+  const { cycles } = autopayRollForward(due, bill.frequency, todayYmd);
+  return cycles > 0 ? addCycles(inv, bill.frequency, cycles) : inv;
+}
+
 /**
  * Returns the columns to write if `bill` should roll over today, else null.
  *
@@ -100,7 +164,8 @@ export function addCycles(ymd: string, frequency: string | null | undefined, n: 
  * several cycles in the past — only one cycle was paid.
  *
  * Autopay bills (payment_type 'auto', any case) only get their status reset:
- * their displayed date already rolls via `adjustAutopayBillDate`. They never
+ * their displayed due AND invoice dates are derived for display
+ * (`adjustAutopayBillDate`, `displayedInvoiceDate`), never stored. They never
  * get `last_paid_for`.
  *
  * A manual roll records the cycle just paid: `last_paid_for` = the old due

@@ -182,13 +182,15 @@ export default function BillDetailSheet({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <span className="text-subtle uppercase font-semibold">Invoice Date</span>
-              <div className="flex items-center space-x-1.5 text-foreground">
-                <Calendar size={14} className="text-muted" />
-                <span>{bill.invoice_date ? new Date(bill.invoice_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" }) : "N/A"}</span>
+            {bill.invoice_date && (
+              <div className="space-y-1">
+                <span className="text-subtle uppercase font-semibold">Invoice Date</span>
+                <div className="flex items-center space-x-1.5 text-foreground">
+                  <Calendar size={14} className="text-muted" />
+                  <span>{new Date(bill.invoice_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" })}</span>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="col-span-2 space-y-1">
               <span className="text-subtle uppercase font-semibold">Assignee (Payer)</span>

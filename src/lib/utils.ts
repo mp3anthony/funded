@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { type Bill, type Fund, type PayHistory, type PaySchedule, type BillSplit, type Expense, type ExpenseSplit } from "@/context/AppContext";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
+import { autopayRollForward } from "@/lib/billCycle";
 
 /**
  * className combiner for the editorial UI primitives — clsx for conditional
@@ -58,6 +59,24 @@ export function adjustAutopayBillDate(dueDateStr: string, frequency: string, pay
   if (!dueDateStr) return dueDateStr;
   const isAutoPay = paymentType?.toLowerCase() === "auto";
   if (!isAutoPay) return dueDateStr;
+
+  // Plain YYYY-MM-DD input: delegate to the shared pure loop (#282) so the
+  // shown due date and the derived invoice date use one cycle count.
+  // Anything else (formatted strings, a malformed todayYmd) keeps the legacy loop.
+  const isYmd = (s: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const [y, m, d] = s.split("-").map(Number);
+    const t = new Date(Date.UTC(y, m - 1, d));
+    return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
+  };
+  if (isYmd(dueDateStr) && (!todayYmd || isYmd(todayYmd))) {
+    const now = new Date();
+    const todayLocal =
+      todayYmd ||
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const rolled = autopayRollForward(dueDateStr, frequency, todayLocal);
+    return rolled.cycles > 0 ? rolled.dueYmd : dueDateStr;
+  }
 
   const today = todayYmd ? new Date(todayYmd + "T00:00:00") : new Date();
   today.setHours(0, 0, 0, 0);
