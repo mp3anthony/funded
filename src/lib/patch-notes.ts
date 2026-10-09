@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.65",
+    date: "October 2026",
+    highlights: [
+      "Auto-pay bills now show an Invoice Date that keeps up with the Due Date, instead of getting stuck on an old month.",
+      "Invoice dates on older manual bills that had fallen behind have been corrected.",
+      "A bill with no invoice date no longer shows \"N/A\" in its popup; the row is simply left out.",
+    ],
+  },
+  {
     version: "0.9.64",
     date: "October 2026",
     highlights: [

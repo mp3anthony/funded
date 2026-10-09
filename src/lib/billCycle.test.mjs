@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   addCycles,
+  autopayRollForward,
+  displayedInvoiceDate,
   computeRollover,
   computePaidRoll,
   computeUndoPaidRoll,
@@ -323,4 +325,114 @@ test('computeResumeRoll edge cases', () => {
   assert.equal(computeResumeRoll({ ...pausedBill, payment_type: 'Auto' }, RT), null);
   const p = computeResumeRoll({ ...pausedBill, last_paid_for: '2026-07-03' }, RT);
   assert.equal('last_paid_for' in p, false);
+});
+
+/* ── Autopay display derivation (#282) ────────────────────────────────── */
+
+test('autopayRollForward: due today or future moves nothing, input unchanged', () => {
+  assert.deepEqual(autopayRollForward('2026-10-09', 'monthly', '2026-10-09'), { dueYmd: '2026-10-09', cycles: 0 });
+  assert.deepEqual(autopayRollForward('2026-11-01', 'monthly', '2026-10-09'), { dueYmd: '2026-11-01', cycles: 0 });
+  assert.deepEqual(autopayRollForward('2026-10-09T00:00:00', 'monthly', '2026-10-09'), { dueYmd: '2026-10-09T00:00:00', cycles: 0 });
+});
+
+test('autopayRollForward: monthly', () => {
+  assert.deepEqual(autopayRollForward('2026-08-15', 'monthly', '2026-10-09'), { dueYmd: '2026-10-15', cycles: 2 });
+});
+
+test('autopayRollForward: weekly and fortnightly, incl. Sydney DST weekends', () => {
+  assert.deepEqual(autopayRollForward('2026-09-01', 'weekly', '2026-10-09'), { dueYmd: '2026-10-13', cycles: 6 });
+  assert.deepEqual(autopayRollForward('2026-09-01', 'fortnightly', '2026-10-09'), { dueYmd: '2026-10-13', cycles: 3 });
+  // Crosses Sydney DST start (Sun 4 Oct 2026) and end (Sun 5 Apr 2026): no day drift.
+  assert.deepEqual(autopayRollForward('2026-03-30', 'weekly', '2026-04-14'), { dueYmd: '2026-04-20', cycles: 3 });
+  assert.deepEqual(autopayRollForward('2026-09-28', 'fortnightly', '2026-10-10'), { dueYmd: '2026-10-12', cycles: 1 });
+});
+
+test('autopayRollForward: yearly', () => {
+  assert.deepEqual(autopayRollForward('2025-03-10', 'yearly', '2026-10-09'), { dueYmd: '2027-03-10', cycles: 2 });
+});
+
+test('autopayRollForward: pins the legacy step-by-step month-end overflow', () => {
+  assert.deepEqual(autopayRollForward('2026-01-31', 'monthly', '2026-02-15'), { dueYmd: '2026-03-03', cycles: 1 });
+  assert.deepEqual(autopayRollForward('2028-02-29', 'yearly', '2028-12-01'), { dueYmd: '2029-03-01', cycles: 1 });
+});
+
+test('autopayRollForward: null / unknown / mixed-case frequency', () => {
+  assert.equal(autopayRollForward('2026-08-15', null, '2026-10-09').dueYmd, '2026-10-15');
+  assert.equal(autopayRollForward('2026-08-15', undefined, '2026-10-09').dueYmd, '2026-10-15');
+  assert.equal(autopayRollForward('2026-08-15', 'quarterly', '2026-10-09').dueYmd, '2026-10-15');
+  assert.equal(autopayRollForward('2026-09-01', 'Weekly', '2026-10-09').dueYmd, '2026-10-13');
+  assert.equal(autopayRollForward('2025-03-10', 'YEARLY', '2026-10-09').dueYmd, '2027-03-10');
+});
+
+test('autopayRollForward: invalid input unchanged', () => {
+  assert.deepEqual(autopayRollForward('bad', 'monthly', '2026-10-09'), { dueYmd: 'bad', cycles: 0 });
+  assert.deepEqual(autopayRollForward('', 'monthly', '2026-10-09'), { dueYmd: '', cycles: 0 });
+});
+
+test('autopayRollForward: capped at 100 cycles', () => {
+  // Weekly, 3 years back is ~156 cycles; stops at 100 (still before today).
+  const r = autopayRollForward('2023-10-09', 'weekly', '2026-10-09');
+  assert.equal(r.cycles, 100);
+  assert.equal(r.dueYmd, '2025-09-08');
+});
+
+const autoBill = {
+  payment_type: 'auto',
+  frequency: 'monthly',
+  is_recurring: true,
+  is_paused: false,
+  due_date: '2026-08-15',
+  invoice_date: '2026-08-01',
+};
+const T = '2026-10-09';
+
+test('displayedInvoiceDate: active autopay monthly follows the due date', () => {
+  assert.equal(displayedInvoiceDate(autoBill, T), '2026-10-01');
+});
+
+test('displayedInvoiceDate: month-end clamp counted from the base date', () => {
+  const b = { ...autoBill, due_date: '2026-02-14', invoice_date: '2026-01-31' };
+  assert.equal(displayedInvoiceDate(b, '2026-04-01'), '2026-03-31');
+  assert.equal(displayedInvoiceDate(b, '2026-03-01'), '2026-02-28');
+});
+
+test('displayedInvoiceDate: weekly, fortnightly, yearly', () => {
+  assert.equal(displayedInvoiceDate({ ...autoBill, frequency: 'weekly', due_date: '2026-09-01', invoice_date: '2026-08-25' }, T), '2026-10-06');
+  assert.equal(displayedInvoiceDate({ ...autoBill, frequency: 'fortnightly', due_date: '2026-09-01', invoice_date: '2026-08-25' }, T), '2026-10-06');
+  assert.equal(displayedInvoiceDate({ ...autoBill, frequency: 'yearly', due_date: '2025-03-10', invoice_date: '2025-03-01' }, T), '2027-03-01');
+});
+
+test('displayedInvoiceDate: saved date when nothing moved or not derived', () => {
+  assert.equal(displayedInvoiceDate({ ...autoBill, due_date: '2026-10-09' }, T), '2026-08-01');
+  assert.equal(displayedInvoiceDate({ ...autoBill, due_date: '2026-11-15' }, T), '2026-08-01');
+  assert.equal(displayedInvoiceDate({ ...autoBill, is_paused: true }, T), '2026-08-01');
+  assert.equal(displayedInvoiceDate({ ...autoBill, is_recurring: false }, T), '2026-08-01');
+  assert.equal(displayedInvoiceDate({ ...autoBill, payment_type: 'manual' }, T), '2026-08-01');
+  assert.equal(displayedInvoiceDate({ ...autoBill, due_date: 'bad' }, T), '2026-08-01');
+});
+
+test('displayedInvoiceDate: is_recurring undefined counts as recurring; Auto is case-insensitive', () => {
+  const rest = { ...autoBill };
+  delete rest.is_recurring;
+  assert.equal(displayedInvoiceDate(rest, T), '2026-10-01');
+  assert.equal(displayedInvoiceDate({ ...autoBill, payment_type: 'Auto' }, T), '2026-10-01');
+});
+
+test('displayedInvoiceDate: blank invoice date is null; time suffix is sliced', () => {
+  assert.equal(displayedInvoiceDate({ ...autoBill, invoice_date: null }, T), null);
+  assert.equal(displayedInvoiceDate({ ...autoBill, invoice_date: '' }, T), null);
+  assert.equal(displayedInvoiceDate({ ...autoBill, invoice_date: undefined }, T), null);
+  assert.equal(displayedInvoiceDate({ ...autoBill, invoice_date: '2026-08-01T00:00:00' }, T), '2026-10-01');
+  assert.equal(displayedInvoiceDate({ ...autoBill, payment_type: 'manual', invoice_date: '2026-08-01T00:00:00' }, T), '2026-08-01');
+});
+
+test('displayedInvoiceDate: due date more than 100 cycles past uses the capped count', () => {
+  const b = { ...autoBill, frequency: 'weekly', due_date: '2023-10-09', invoice_date: '2023-10-02' };
+  // 100 cycles of 7 days after the saved invoice date.
+  assert.equal(displayedInvoiceDate(b, T), addCycles('2023-10-02', 'weekly', 100));
+});
+
+test('displayedInvoiceDate: invoice on or after due still shifts by the due-date cycle count', () => {
+  const b = { ...autoBill, due_date: '2026-08-15', invoice_date: '2026-08-20' };
+  assert.equal(displayedInvoiceDate(b, T), '2026-10-20');
 });

@@ -12,6 +12,7 @@ import {
   computeUndoPaidRoll,
   computeUndoPayment,
   computeResumeRoll,
+  displayedInvoiceDate,
   pausedFieldForEdit,
   type UndoPaidRollPatch,
   oldCycleNotificationKeyPrefix,
@@ -532,10 +533,12 @@ function isNetworkFailure(err: unknown): boolean {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapBillFromDb(dbBill: any): Bill {
+  const todayLocal = toLocalYmd(new Date());
   const adjustedDueDate = adjustAutopayBillDate(
     dbBill.due_date,
     dbBill.frequency,
-    dbBill.payment_type
+    dbBill.payment_type,
+    todayLocal
   );
 
   let mappedStatus = dbBill.status;
@@ -570,7 +573,7 @@ function mapBillFromDb(dbBill: any): Bill {
     categoryColor,
     assignee_id: dbBill.assignee_id,
     payment_type: dbBill.payment_type ? (dbBill.payment_type.toLowerCase() as "auto" | "manual") : undefined,
-    invoice_date: dbBill.invoice_date,
+    invoice_date: displayedInvoiceDate(dbBill, todayLocal),
     due_date: adjustedDueDate,
     is_recurring: dbBill.is_recurring !== undefined ? dbBill.is_recurring : true,
     is_paused: dbBill.is_paused || false,

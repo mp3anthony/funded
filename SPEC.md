@@ -731,6 +731,20 @@ problem/checklist on the issue.
 - Edits never change `is_paused`; only pause/resume does.
 - Full issue: https://github.com/mp3anthony/funded/issues/201
 
+**Amendment — invoice dates stay in step with the due date (Issue #282):**
+- Active recurring autopay bills show a derived invoice date: the saved one
+  moved forward by the same number of cycles as the shown due date
+  (`displayedInvoiceDate`, counted from the base date with the `addCycles`
+  clamp). Display only; nothing derived is stored. Saving an edit stores both
+  shown dates together.
+- The manual-bill roll is unchanged (both dates move in lockstep, #187).
+  Paused and one-off bills show their saved invoice date.
+- The bill popup hides the Invoice Date row when it is blank (the card is unchanged).
+- A one-off data migration realigned stale manual invoice dates
+  (`20261009120000_realign_stale_manual_invoice_dates.sql`).
+- No schema change, no toggle, no notification change.
+- Full issue: https://github.com/mp3anthony/funded/issues/282
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)
