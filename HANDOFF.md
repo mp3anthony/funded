@@ -2,8 +2,9 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-07)
+## Current state (2026-10-10)
 
+- **#215 PLAN READY, awaiting build (standing pause).** Plan written and independently reviewed (APPROVED), posted as [issue comment](https://github.com/mp3anthony/funded/issues/215#issuecomment-6089275296). No schema, no escalation. Zero-goals decision: skip the popup when the household has no goals. Next: build in a fresh session from the issue (Code Writer, then independent review; version 0.9.66; labels `ready-for-agent` + `needs-manual-test`).
 - **#282 DONE and closed (v0.9.65, PR #291, 2026-10-09).** Active recurring autopay bills now show an invoice date derived from the rolled due date (display only, nothing stored); manual roll unchanged; paused and one-off show the saved date; popup hides the Invoice Date row when blank. A1 data migration `20261009120000_realign_stale_manual_invoice_dates` applied to prod before the build (5 stale manual rows realigned). All 9 iPhone checks passed; prod deploy `success`. SPEC Slice 17 amendment merged in the PR. `TEST-282*` bills deleted. Open follow-ups, both `needs-triage`: #287 (autopay month-end drift), #288 (paused/one-off autopay due date still rolls).
 - Logged 2026-10-07: five `needs-triage` page-redesign audit parents, #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings (each a functionality plus design audit, each **blocked by #183**; the design reference will be an HTML file documenting the app's design requirements, so do #183 first and the page grills ask fewer questions). #276 "help!" (no labels, opened 2026-10-07) is unread; check it.
 
@@ -33,7 +34,7 @@
 ## Next session, in order
 
 1. Ask Anthony whether join-by-code and a role change worked for him on the phone (not hand-tested in v0.9.64). #273 (leaked-password toggle): walk him through it when he asks.
-2. Triage #287 and #288. #215 build (Planner, Code Writer, independent review), when Anthony says. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks; #265 and #266 are small chores.
+2. Triage #287 and #288. #215 build (plan done; Code Writer in a fresh session, then independent review), when Anthony says. Grill #248, #249, #250, #251, #260, #261, #267 individually when he asks; #265 and #266 are small chores.
 3. #183 design reference (unblocks the #277 to #281 grills). Start #145 (pick an option above) or #152 only when Anthony says so.
 
 ## Where things live
