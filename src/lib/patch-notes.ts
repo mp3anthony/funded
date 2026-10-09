@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.66",
+    date: "October 2026",
+    highlights: [
+      "The extra-income popup on the Payday page now only offers your goals. The unused \"Bills Surplus Pool\" option has been removed.",
+      "If your household has no goals yet, the extra-income popup no longer appears.",
+    ],
+  },
+  {
     version: "0.9.65",
     date: "October 2026",
     highlights: [
