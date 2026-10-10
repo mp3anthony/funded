@@ -2142,7 +2142,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         ...(billData.status ? { status: billData.status } : {}),
         frequency: billData.frequency || "Monthly",
         notes: billData.notes || null,
-        is_recurring: true,
+        // #300: is_recurring is deliberately not written on edit. Hard-coding
+        // true here silently turned any edited one-off bill into a recurring
+        // one; the stored flag is preserved instead (addBill still sets it).
         // #201: only write is_paused when the caller passes a real boolean —
         // the edit form doesn't, and defaulting to false here un-paused any
         // paused bill that was simply edited.

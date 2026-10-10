@@ -10,4 +10,4 @@
  * Anthony before merge (docs/conventions.md, Versioning). Do not bump as a side effect of an
  * unrelated change.
  */
-export const APP_VERSION = "0.9.68";
+export const APP_VERSION = "0.9.69";

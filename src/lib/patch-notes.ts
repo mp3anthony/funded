@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.69",
+    date: "October 2026",
+    highlights: [
+      "Fixed: editing a one-off bill no longer turns it into a repeating bill. It stays one-off after you save.",
+    ],
+  },
+  {
     version: "0.9.68",
     date: "October 2026",
     highlights: [
