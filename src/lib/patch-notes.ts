@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.68",
+    date: "October 2026",
+    highlights: [
+      "New Known Issues tab on the What's new page. It lists problems we already know about and are working on, so you don't need to report them again.",
+    ],
+  },
+  {
     version: "0.9.67",
     date: "October 2026",
     highlights: [

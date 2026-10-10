@@ -41,7 +41,7 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 - **Notifications** — in-app notification centre plus web push reminders (bills, pending pay, payday, goals), read/unread state, per-type settings, a per-member notify hour and a household timezone
 - **Light and dark mode** — automatic via `prefers-color-scheme` CSS media query, with a manual Light / Dark / System choice under Appearance in Settings (applied as a `.dark` / `.light` class)
 - **PWA** — installable as a home screen app on iOS Safari and Android Chrome with an offline fallback page
-- **In-app help** — a public Getting started guide, a patch notes ("What's new") page and popup, and in-app bug reporting
+- **In-app help** — a public Getting started guide, a patch notes ("What's new") page with a Known Issues tab, a first-open popup, and in-app bug reporting
 - **Authentication** — email/password auth via Supabase (implicit flow, session persisted in `localStorage`), email confirmation, and password reset
 
 ---
@@ -199,6 +199,7 @@ funded-nextjs/
 │   │   ├── page.tsx          # Dashboard (home; UI in page-client.tsx)
 │   │   ├── api/              # Route handlers
 │   │   │   ├── bug-report/             # Files a GitHub issue from an in-app bug report
+│   │   │   ├── known-issues/           # Cached feed of GitHub issues labelled known-issue (Known Issues tab)
 │   │   │   ├── cron/push-reminders/    # Generates scheduled reminders
 │   │   │   ├── cron/deliver-scheduled/ # Pushes reminders that have come due
 │   │   │   └── push/                   # Push subscribe / send
@@ -232,6 +233,7 @@ funded-nextjs/
 │   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
 │   │   ├── notifications/    # Reminder generation, timezone, tap destinations
 │   │   ├── patch-notes.ts    # Patch notes content
+│   │   ├── knownIssues.ts / knownIssuesFetch.ts  # Known Issues blurb parsing (tests in knownIssues.test.mjs) and cached GitHub fetch
 │   │   ├── getting-started.ts # Getting started guide content
 │   │   └── version.ts        # APP_VERSION
 │   └── types/
@@ -270,7 +272,7 @@ funded-nextjs/
 | `/reset-password/update` | **Reset Password** | Password update page reached via Supabase reset email link |
 | `/auth/callback` | **Auth Callback** | Supabase auth redirect handler |
 | `/getting-started` | **Getting Started** | Public guide of optional missions covering the basics (no sign-in needed) |
-| `/patch-notes` | **Patch Notes** | What changed in each version (reached from Settings as "What's new") |
+| `/patch-notes` | **Patch Notes** | What changed in each version, plus a Known Issues tab (reached from Settings as "What's new") |
 | `/offline` | **Offline** | PWA offline fallback page |
 
 ### User flow
@@ -354,6 +356,10 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 
 When a pay entry exceeds a contributor's threshold, a configurable percentage is automatically allocated to a goal or added as an increased contribution.
 
+### Known Issues
+
+The Known Issues tab on the patch notes page lists open GitHub issues carrying the `known-issue` label. It shows only each issue's "User-facing blurb" section (the last section of the issue body), never the title or number, parsed by `src/lib/knownIssues.ts`. The client fetches `/api/known-issues`, which calls the public GitHub API without a token and caches the result for about 15 minutes (5 after a failure); the service worker skips `/api/` so the data stays live. If GitHub cannot be reached the tab shows a friendly message instead of an error.
+
 ### Reminders
 
 Reminders are a two-step pipeline. `/api/cron/push-reminders` generates due-bill, auto-pay, pending-pay, payday and goal reminders for each household member, stamped with a delivery time that follows the household timezone and the member's notify hour (duplicates are prevented by a dedupe key). `/api/cron/deliver-scheduled` then pushes every reminder whose time has arrived and that is still unread. Both routes require a bearer secret (see Environment variables).
@@ -367,7 +373,7 @@ Funded is a Progressive Web App. The following files enable installation and off
 | File | Purpose |
 |------|---------|
 | `public/manifest.json` | App name, theme colour (`#c8ff00`), icons, display mode (`standalone`) |
-| `public/sw.js` | Service worker: pages are served stale-while-revalidate, with an offline fallback; the cache name is stamped per deploy by `scripts/stamp-sw.mjs` |
+| `public/sw.js` | Service worker: pages are served stale-while-revalidate, with an offline fallback (`/api/` requests are never cached); the cache name is stamped per deploy by `scripts/stamp-sw.mjs` |
 | `public/icons/` | App icons at 192×192 and 512×512 |
 | `src/app/offline/` | Offline fallback page |
 

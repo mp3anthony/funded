@@ -585,6 +585,28 @@ detection — mixed surface, but no schema/backend risk. Label
 once per version bump, not on every load), `needs-merge-approval` acceptable
 for the static page itself if separated out.
 
+**Amendment (#152, Known Issues tab):**
+- The page has two tabs, "Patch Notes" (default, unchanged) and "Known Issues".
+  The page title stays "What's New".
+- Known Issues lists open GitHub issues carrying the `known-issue` label
+  (label only; no other filter). Claude applies the label. Only a "User-facing
+  blurb" section (`##` or `###` heading) of the issue body is shown, as plain
+  text. The issue title and number are never shown. An issue with the label but
+  no blurb is hidden.
+- The blurb must be the LAST section of the issue body. The extractor stops at
+  the next heading or horizontal rule (the `---` before the "Submitted from the
+  app by user ID ... (email)" footer of `from-app` issues is what keeps that
+  footer out), uses the last matching heading, strips markup and bare `#123` /
+  `@user` references, and caps the text at 600 characters. Blurbs must not
+  contain issue references or private details.
+- Data comes from the unauthenticated GitHub API through a cached route,
+  `/api/known-issues` (about 15 minutes; 5 minutes after a failure). The service
+  worker bypasses `/api/` so the data is never frozen per build. If GitHub is
+  unreachable (including offline) the tab shows a friendly "couldn't load"
+  message; when nothing is labelled it shows "Nothing known right now". Never an
+  error page. If the repo goes private the fetch needs a server-side token.
+- Link back: issue #152.
+
 ---
 
 ### Slice 15: In-app bug reporting (Issue #114)
