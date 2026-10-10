@@ -50,6 +50,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Never cache our own API routes. Everything else same-origin is served
+  // cache-first for the life of a build, which would freeze live data such as
+  // /api/known-issues (#152) until the next deploy. Existing /api calls are POSTs.
+  if (new URL(url).pathname.startsWith('/api/')) {
+    return;
+  }
+
   // Handle page navigation requests: stale-while-revalidate.
   // Serve the cached app shell immediately when we have one (instant nav,
   // works offline off the last-good build), while a network fetch runs in

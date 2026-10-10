@@ -51,16 +51,20 @@ The popup shown once, the first time someone opens the app on a new version, poi
 _Avoid_: Update dialog, changelog modal, release popup
 
 **Patch notes page**:
-The page listing what changed in each version, newest first, in plain user-facing language. It is reached from Settings as "What's new".
+The page with two tabs: Patch Notes, listing what changed in each version newest first in plain user-facing language, and Known Issues. It is reached from Settings as "What's new".
 _Avoid_: Changelog, release notes, version history
 
 **Getting started guide**:
 A short public page of optional missions covering the basics, reached from Settings as "Getting started" and linked from the Hazardous Schematics website. Anyone can open it, signed in or not.
 _Avoid_: Tutorial, onboarding (the first-run setup, a different thing), tester guide
 
-**Known Issues tab** (planned, #152):
-A tab on the patch notes page listing problems already known, so members do not track issues themselves.
+**Known Issues tab**:
+A tab on the patch notes page listing problems already known, so members do not track issues themselves. Each item shows only a short plain-language note, never a title or number.
 _Avoid_: Issue tracker, bug list, status page
+
+**Known issue**:
+A problem we already know about, flagged with the `known-issue` label on GitHub and given a short "User-facing blurb" for members to read. In anything members read, call it a "known issue" or "problem we know about", never "bug", "open issue" or "ticket".
+_Avoid_: Bug (in member-facing text), open issue, ticket
 
 **Bug report**:
 A problem a member submits from Settings with a title and description, which reaches Anthony as a filed issue.

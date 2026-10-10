@@ -17,7 +17,7 @@ Funded is a household bills and goals budgeting app, installed on a phone, where
 - **Notifications → App shell**: a notification's tap destination is a page or popup in the app, and the inbox is opened from the shell's bell.
 - **Money → App shell**: Household Health, Upcoming Bills and Savings Goals appear on the Dashboard, and the Goals page is where goals live, never "Funds".
 
-Glossary convention: a planned term (agreed but not built) stays in its glossary tagged "(planned, #ticket)" while a GitHub issue exists for it. Remove the tag when it ships; delete the entry if the ticket is dropped. The Known Issues tab (#152) stays.
+Glossary convention: a planned term (agreed but not built) stays in its glossary tagged "(planned, #ticket)" while a GitHub issue exists for it. Remove the tag when it ships; delete the entry if the ticket is dropped.
 
 Workflow and process terms (orchestrator, subagents, labels, tickets, wrap-up) live in `CLAUDE.md`. Architectural decisions live in `docs/adr/`.
 

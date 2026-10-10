@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test src/lib/billCycle.test.mjs"
+    "test": "node --test src/lib/billCycle.test.mjs src/lib/knownIssues.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
