@@ -745,6 +745,21 @@ problem/checklist on the issue.
 - No schema change, no toggle, no notification change.
 - Full issue: https://github.com/mp3anthony/funded/issues/282
 
+**Amendment — autopay shown due date (Issues #287, #288):**
+- The shown due date of an active recurring autopay bill is counted from the
+  saved date with the `addCycles` clamp (Jan 31 gives Feb 28, then Mar 31), not
+  stepped month by month (#287). The roll-forward cap is 5000 cycles.
+- `displayedDueDate(bill, todayYmd)` decides what to show (#288). A paused autopay
+  bill shows the label "Paused"; a one-off autopay bill whose saved date has passed
+  shows "One-off". The saved date stays in `due_date` for the edit form.
+- One-off autopay reminders follow the saved date only and stop once it passes;
+  paused bills get none. The cron and the UI share `displayedDueDate`.
+- Bills showing a label are left out of the health score, the Household Health
+  weekly bills figure (the real behaviour change) and the contribution split, and
+  appear on the Bills page only under All. The Total bar is unchanged (#267 decides).
+- No schema change. `adjustAutopayBillDate` is removed.
+- Full issues: https://github.com/mp3anthony/funded/issues/287 and https://github.com/mp3anthony/funded/issues/288
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)

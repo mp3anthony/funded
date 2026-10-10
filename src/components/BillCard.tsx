@@ -58,7 +58,7 @@ export default function BillCard({
   const today = new Date();
   const timeDiff = due.getTime() - today.getTime();
   const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-  const isUrgent = daysDiff <= 3; // True if due in 3 days, today, or overdue
+  const isUrgent = !bill.dueLabel && daysDiff <= 3; // #288: labelled bills have no date to be urgent about. True if due in 3 days, today, or overdue
 
   // Numeric due date (DD/MM/YYYY) from the raw due_date; fall back to the display string.
   // String-split rather than new Date() to avoid any timezone shift on the day.
@@ -133,7 +133,7 @@ export default function BillCard({
               isUrgent ? "text-[#ff4500]" : "text-muted"
             }`}
           >
-            DUE {dueDateDisplay}
+            {bill.dueLabel ?? `DUE ${dueDateDisplay}`}
           </span>
         </span>
       </div>

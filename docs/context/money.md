@@ -31,8 +31,12 @@ An amount converted to a common frequency before it is compared or added to any 
 _Avoid_: Converted amount, equivalent amount
 
 **Due date**:
-The day a bill must be paid, read in the household's timezone.
+The day a bill must be paid, read in the household's timezone. An active recurring autopay bill shows its saved date moved forward to the next one on or after today, counted from the saved date so month-end days clamp (a 31st bill shows Feb 28, then Mar 31). A paused autopay bill shows the label "Paused" instead of a date, and a one-off autopay bill whose saved date has passed shows "One-off"; the saved date is still kept for editing. Bills showing a label appear only under the All filter on the Bills page.
 _Avoid_: Deadline, payment date
+
+**One-off bill**:
+A bill that happens once rather than repeating. The app cannot create one today (every saved bill is recurring); they exist only as older or seeded rows. An autopay one-off is reminded for its saved date only and stops once that date has passed.
+_Avoid_: Single bill
 
 **Invoice date**:
 The date a bill was issued, optional and kept when known. For recurring bills it stays in step with the due date: it moves forward alongside it, and for an active autopay bill it is worked out from the saved date to match the due date shown. Paused and one-off bills show it as saved. A bill with none shows no invoice date at all.
@@ -53,7 +57,7 @@ A bill settled for the current cycle. A paid recurring bill returns to unpaid wh
 _Avoid_: Done, settled, cleared
 
 **Paused**:
-A bill put on hold until it is resumed. While paused it gets no reminders and is not treated as overdue or counted in the health score. On resume, if its due date has passed, it moves on to its next upcoming due date (missed cycles are skipped).
+A bill put on hold until it is resumed. While paused it gets no reminders and is not treated as overdue or counted in the health score (an autopay bill shows "Paused" in place of its due date). On resume, if its due date has passed, it moves on to its next upcoming due date (missed cycles are skipped).
 _Avoid_: Archived, disabled, inactive
 
 **Mark as Paid**:
@@ -115,7 +119,7 @@ _Avoid_: Weekly draw, Bills total, Budget, Allowance
 ### Household health
 
 **Health score**:
-A single 0-to-100 reading of how well the household is keeping up, based on overdue bills, goal progress and whether income covers obligations.
+A single 0-to-100 reading of how well the household is keeping up, based on overdue bills, goal progress and whether income covers obligations. Paused bills, and one-off autopay bills whose date has passed, are left out of the bills part, the Household Health weekly bills figure and the contribution split.
 _Avoid_: Credit score, rating, grade
 
 **Household Health**:

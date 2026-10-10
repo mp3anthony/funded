@@ -1,6 +1,5 @@
 import { diffDaysYmd } from './timezone';
-import { adjustAutopayBillDate } from '@/lib/utils';
-import { billSendsReminders } from '@/lib/billCycle';
+import { billSendsReminders, displayedDueDate } from '@/lib/billCycle';
 
 export type ReminderType =
   | 'manual_bill'
@@ -43,11 +42,14 @@ export interface ReminderBill {
   dueDate?: string | null;
   /** Issue #143: recurrence cadence (weekly/fortnightly/monthly/yearly) for
    *  auto-pay bills, needed to compute the same rolled-forward "real" due
-   *  date the UI uses (see adjustAutopayBillDate in src/lib/utils.ts) —
+   *  date the UI uses (see displayedDueDate in src/lib/billCycle.ts) —
    *  without it, a recurring auto-pay bill's stale raw due_date reads as
    *  perpetually overdue even though the UI/health-score never shows it
    *  that way. */
   frequency?: string | null;
+  /** #288: false = one-off bill (reminded for its saved date only, nothing
+   *  once that date has passed). Missing/null counts as recurring. */
+  is_recurring?: boolean | null;
   /** #201: paused bills generate no reminders. */
   is_paused?: boolean | null;
 }
@@ -183,7 +185,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   // function. A literal `=== 'auto'` / `!== 'auto'` check therefore always
   // routed every real-world Auto bill into THIS manual branch on the cron
   // path (since 'Auto' !== 'auto'), using the raw un-rolled-forward due_date
-  // instead of the Auto-Pay branch's adjustAutopayBillDate — reintroducing
+  // instead of the Auto-Pay branch's displayedDueDate — reintroducing
   // the exact false-overdue symptom #143 fixed, just one branch-selection
   // step earlier than #143 touched.
   if (settings.manual_bill_reminders) {
@@ -240,11 +242,15 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
         // for recurring auto-pay bills, so a stale-but-still-recurring
         // due_date sitting in the past is normal/expected — not actually
         // overdue. Mirror the UI's own mapBillFromDb (src/context/
-        // AppContext.tsx), which calls this same adjustAutopayBillDate
+        // AppContext.tsx), which calls this same displayedDueDate
         // before ever computing an overdue/due-soon status, so the cron
         // agrees with what the UI/health-score shows instead of inventing
         // a separate "auto-pay overdue" rule off the raw date.
-        const adjustedDueYmd = adjustAutopayBillDate(dueYmd, bill.frequency || 'monthly', bill.payment_type, todayYmd);
+        // #288: a bill with a label (paused, or a one-off whose saved date
+        // has passed) has no shown date, so it gets no reminder at all.
+        const shown = displayedDueDate({ ...bill, due_date: dueYmd }, todayYmd);
+        if (shown.label || !shown.dueYmd) continue;
+        const adjustedDueYmd = shown.dueYmd;
         const diffDays = diffDaysYmd(todayYmd, adjustedDueYmd);
         if (diffDays <= threshold) {
           const id = bill.id?.toString();

@@ -145,6 +145,9 @@ export default function BillsClient() {
         return false;
       }
 
+      // #288: bills showing a label (Paused / One-off) have no date, so they only appear under All.
+      if (b.dueLabel) return filter === "all";
+
       const d = b.due_date ? new Date(b.due_date + "T00:00:00") : new Date(b.dueDate);
       if (isNaN(d.getTime())) return false;
       d.setHours(0, 0, 0, 0);
