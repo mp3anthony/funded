@@ -178,7 +178,7 @@ export default function BillDetailSheet({
               <span className="text-subtle uppercase font-semibold">Due Date</span>
               <div className="flex items-center space-x-1.5 text-foreground">
                 <Calendar size={14} className="text-muted animate-pulse" />
-                <span>{bill.dueDate}</span>
+                <span className={bill.dueLabel ? "text-muted" : undefined}>{bill.dueLabel ?? bill.dueDate}</span>
               </div>
             </div>
 

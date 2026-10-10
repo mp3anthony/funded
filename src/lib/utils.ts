@@ -2,7 +2,6 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { type Bill, type Fund, type PayHistory, type PaySchedule, type BillSplit, type Expense, type ExpenseSplit } from "@/context/AppContext";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
-import { autopayRollForward } from "@/lib/billCycle";
 
 /**
  * className combiner for the editorial UI primitives — clsx for conditional
@@ -36,80 +35,6 @@ export function parseBillDate(dateStr: string): Date {
   return parsed;
 }
 
-/**
- * Dynamic due date adjustment for auto-pay bills.
- * If a bill is auto-pay and its due date is in the past, advance it iteratively
- * by its frequency until it is today or in the future.
- * Returns the date in YYYY-MM-DD local format to avoid timezone offset bugs.
- *
- * `todayYmd` (optional, 'YYYY-MM-DD') lets a caller supply its own notion of
- * "today" instead of relying on the calling process's wall clock. The
- * browser-side caller (AppContext.tsx's mapBillFromDb) omits it and keeps
- * using `new Date()` — the browser's own clock is what the rest of that UI
- * already agrees with. The server-side caller (generateReminders.ts, run by
- * the push-reminders cron) passes its household-timezone-aware `todayYmd`
- * instead, because the Vercel Node runtime's raw UTC "today" can disagree
- * with a household's local calendar date — especially right around the
- * cron's fixed UTC run hour for timezones ahead of UTC (e.g.
- * Australia/Sydney, this app's own default timezone fallback). Using the
- * server process's clock there could roll a due date forward a day late,
- * reintroducing the #143 false-overdue symptom through a different door.
- */
-export function adjustAutopayBillDate(dueDateStr: string, frequency: string, paymentType?: string, todayYmd?: string): string {
-  if (!dueDateStr) return dueDateStr;
-  const isAutoPay = paymentType?.toLowerCase() === "auto";
-  if (!isAutoPay) return dueDateStr;
-
-  // Plain YYYY-MM-DD input: delegate to the shared pure loop (#282) so the
-  // shown due date and the derived invoice date use one cycle count.
-  // Anything else (formatted strings, a malformed todayYmd) keeps the legacy loop.
-  const isYmd = (s: string) => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-    const [y, m, d] = s.split("-").map(Number);
-    const t = new Date(Date.UTC(y, m - 1, d));
-    return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
-  };
-  if (isYmd(dueDateStr) && (!todayYmd || isYmd(todayYmd))) {
-    const now = new Date();
-    const todayLocal =
-      todayYmd ||
-      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const rolled = autopayRollForward(dueDateStr, frequency, todayLocal);
-    return rolled.cycles > 0 ? rolled.dueYmd : dueDateStr;
-  }
-
-  const today = todayYmd ? new Date(todayYmd + "T00:00:00") : new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const tempDate = parseBillDate(dueDateStr);
-  tempDate.setHours(0, 0, 0, 0);
-
-  if (tempDate.getTime() < today.getTime()) {
-    const freq = (frequency || "monthly").toLowerCase();
-    let limit = 0;
-    while (tempDate.getTime() < today.getTime() && limit < 100) {
-      limit++;
-      if (freq === "weekly") {
-        tempDate.setDate(tempDate.getDate() + 7);
-      } else if (freq === "fortnightly" || freq === "fortnightly" || freq === "fortnightly" || freq === "fortnightly") {
-        tempDate.setDate(tempDate.getDate() + 14);
-      } else if (freq === "monthly") {
-        tempDate.setMonth(tempDate.getMonth() + 1);
-      } else if (freq === "yearly") {
-        tempDate.setFullYear(tempDate.getFullYear() + 1);
-      } else {
-        tempDate.setMonth(tempDate.getMonth() + 1);
-      }
-    }
-    const year = tempDate.getFullYear();
-    const month = String(tempDate.getMonth() + 1).padStart(2, "0");
-    const day = String(tempDate.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  return dueDateStr;
-}
-
 
 /**
  * Calculates a financial health score (0-100) based on:
@@ -138,7 +63,7 @@ export function calculateHealthScore(
   expenseSplits: ExpenseSplit[],
   contributionRules: ContributionRule[]
 ): number {
-  const activeBills = bills.filter(b => !b.is_paused);
+  const activeBills = bills.filter(b => !b.is_paused && !b.dueLabel);
 
   // 1. Bills Management (40% weight)
   // - If no bills are overdue: 100%

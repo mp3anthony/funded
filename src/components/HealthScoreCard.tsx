@@ -149,7 +149,7 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
 
   const weeklyBills = useMemo(() => {
     return bills.reduce((sum, bill) => {
-      if (bill.is_paused) return sum;
+      if (bill.is_paused || bill.dueLabel) return sum;
       return sum + convertAmount(bill.amount || 0, bill.frequency || "monthly", "weekly");
     }, 0);
   }, [bills]);
@@ -331,7 +331,7 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
                 } else if (memberBillSplits.length > 0) {
                   weeklyAmount = memberBillSplits.reduce((sum, split) => {
                     const bill = bills.find(b => b.id === split.bill_id);
-                    if (!bill || bill.is_paused) return sum;
+                    if (!bill || bill.is_paused || bill.dueLabel) return sum;
                     return sum + convertAmount(split.amount, bill.frequency || "monthly", "weekly");
                   }, 0);
                 }

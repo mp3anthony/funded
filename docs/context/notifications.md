@@ -15,7 +15,7 @@ A notification the app generates on its own about a bill, payday, pending pay or
 _Avoid_: Task, to-do, nudge
 
 **Reminder types**:
-Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid.
+Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid. A one-off autopay bill is reminded for its saved date only and gets nothing once that date has passed; a paused bill gets none.
 _Avoid_: Categories, alert kinds
 
 **Confirm Pending Pay reminder**:

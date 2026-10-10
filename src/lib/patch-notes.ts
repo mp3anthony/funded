@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.67",
+    date: "October 2026",
+    highlights: [
+      "Auto-pay bills due at the end of the month (the 29th, 30th or 31st) no longer slip into the next month. A bill due on the 31st now shows the 28th in February, then goes back to the 31st.",
+      "A paused auto-pay bill now says \"Paused\" instead of showing a due date that no longer applies.",
+      "A one-off auto-pay bill whose date has passed now says \"One-off\" and stops sending reminders. Paused and one-off auto-pay bills are no longer counted in the Household Health bills figure or the contribution split.",
+    ],
+  },
+  {
     version: "0.9.66",
     date: "October 2026",
     highlights: [

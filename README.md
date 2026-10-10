@@ -339,7 +339,7 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 
 | Factor | Weight | Scoring |
 |--------|--------|---------|
-| Bills management | 40% | –20 points per overdue bill (paused bills are ignored) |
+| Bills management | 40% | –20 points per overdue bill (paused bills and one-off auto-pay bills whose date has passed are ignored) |
 | Goals & contributions | 30% | 80 base + 20 if any goal has progress; 50 if nothing set up |
 | Budget coverage | 30% | Ratio of contributions (or splits) to total monthly obligations (bills, expenses and active fixed-dollar contribution rules) |
 

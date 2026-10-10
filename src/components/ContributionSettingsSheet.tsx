@@ -427,7 +427,7 @@ function SuggestSplitPanel({
   // payday's surplus in advance).
   const totalMonthlyBills = useMemo(() => {
     const billsTotal = bills
-      .filter((b) => !b.is_paused)
+      .filter((b) => !b.is_paused && !b.dueLabel)
       .reduce((sum, bill) => sum + convertAmount(bill.amount || 0, bill.frequency || "monthly", "monthly"), 0);
     const expensesTotal = expenses.reduce((sum, e) => sum + convertAmount(e.amount, "weekly", "monthly"), 0);
     const rulesTotal = sumActiveFixedContributionRules(contributionRules, paySchedules, "monthly");

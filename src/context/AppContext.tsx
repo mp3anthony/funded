@@ -5,14 +5,15 @@ import { CheckCircle, Clock, AlertCircle, Plane, Shield, Car, PiggyBank, Home, B
 import { supabase } from "@/lib/supabase";
 import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
-import { adjustAutopayBillDate } from "@/lib/utils";
 import {
   computeRollover,
   computePaidRoll,
   computeUndoPaidRoll,
   computeUndoPayment,
   computeResumeRoll,
+  displayedDueDate,
   displayedInvoiceDate,
+  type DueLabel,
   pausedFieldForEdit,
   type UndoPaidRollPatch,
   oldCycleNotificationKeyPrefix,
@@ -51,6 +52,11 @@ export interface Bill {
   is_paused?: boolean;
   /** Due date of the most recently paid cycle (#211); null = no record. */
   last_paid_for?: string | null;
+  /**
+   * #288: when set, the bill has no shown date; show the label, skip date maths.
+   * `due_date` then holds the SAVED date (used by the edit form only).
+   */
+  dueLabel?: DueLabel | null;
 }
 
 /** App-wide transient message (#205). One at a time; a new one replaces the old. */
@@ -534,12 +540,8 @@ function isNetworkFailure(err: unknown): boolean {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapBillFromDb(dbBill: any): Bill {
   const todayLocal = toLocalYmd(new Date());
-  const adjustedDueDate = adjustAutopayBillDate(
-    dbBill.due_date,
-    dbBill.frequency,
-    dbBill.payment_type,
-    todayLocal
-  );
+  const shownDue = displayedDueDate(dbBill, todayLocal);
+  const adjustedDueDate = shownDue.dueYmd;
 
   let mappedStatus = dbBill.status;
   if (dbBill.is_paused) {
@@ -564,7 +566,7 @@ function mapBillFromDb(dbBill: any): Bill {
     id: dbBill.id,
     name: dbBill.name,
     category: dbBill.category,
-    dueDate: formatDateForUi(adjustedDueDate),
+    dueDate: formatDateForUi(adjustedDueDate ?? ""),
     amount: parseFloat(dbBill.amount),
     status: mappedStatus,
     frequency: dbBill.frequency,
@@ -575,6 +577,7 @@ function mapBillFromDb(dbBill: any): Bill {
     payment_type: dbBill.payment_type ? (dbBill.payment_type.toLowerCase() as "auto" | "manual") : undefined,
     invoice_date: displayedInvoiceDate(dbBill, todayLocal),
     due_date: adjustedDueDate,
+    dueLabel: shownDue.label,
     is_recurring: dbBill.is_recurring !== undefined ? dbBill.is_recurring : true,
     is_paused: dbBill.is_paused || false,
     last_paid_for: dbBill.last_paid_for ? String(dbBill.last_paid_for).slice(0, 10) : null,

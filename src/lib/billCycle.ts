@@ -11,7 +11,7 @@
  * with an Undo (`computeUndoPaidRoll`).
  *
  * Autopay bills never persist a date roll: the UI derives the shown due date
- * (`adjustAutopayBillDate`, which delegates to `autopayRollForward` here) and,
+ * (`displayedDueDate`, which uses `autopayRollForward` here) and,
  * since #282, the shown invoice date too (`displayedInvoiceDate`). The
  * invoice derivation is display-only; nothing derived is ever stored except
  * when the user saves an edit, which stores both dates together.
@@ -100,12 +100,13 @@ export function addCycles(ymd: string, frequency: string | null | undefined, n: 
 /* ── Autopay display derivation (#282) ────────────────────────────────── */
 
 /**
- * Steps a saved autopay due date forward one cycle at a time until it is on
- * or after `todayYmd`, returning the shown due date and how many cycles it
- * moved. This is the exact legacy `adjustAutopayBillDate` loop (step-by-step,
- * so month-end days drift: Jan 31 +1 gives Mar 3, not Feb 28), moved here so
- * the due date and the derived invoice date share one cycle count. Capped at
- * 100 steps. Pure UTC maths, no timezone or DST involvement.
+ * Moves a saved autopay due date forward, whole cycles at a time, to the first
+ * date on or after `todayYmd`, returning the shown due date and how many
+ * cycles it moved. Counted from the BASE date with the `addCycles` clamp (#287),
+ * never step by step, so month-end days don't drift: Jan 31 gives Feb 28, then
+ * Mar 31. The due date and the derived invoice date share one cycle count.
+ * Capped at 5000 cycles (same as `computeResumeRoll`). Pure UTC maths, no
+ * timezone or DST involvement.
  *
  * Input that isn't a 'YYYY-MM-DD' date, or is already today or later,
  * returns the input string unchanged with 0 cycles.
@@ -115,22 +116,13 @@ export function autopayRollForward(
   frequency: string | null | undefined,
   todayYmd: string,
 ): { dueYmd: string; cycles: number } {
-  const match = YMD_RE.exec(dueYmd ?? '');
-  if (!match) return { dueYmd, cycles: 0 };
-  const t = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-  const freq = (frequency || 'monthly').toLowerCase();
-  const cur = () => toYmd(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate());
-
-  let cycles = 0;
-  while (cur() < todayYmd && cycles < 100) {
-    cycles++;
-    if (freq === 'weekly') t.setUTCDate(t.getUTCDate() + 7);
-    else if (freq === 'fortnightly') t.setUTCDate(t.getUTCDate() + 14);
-    else if (freq === 'yearly') t.setUTCFullYear(t.getUTCFullYear() + 1);
-    else t.setUTCMonth(t.getUTCMonth() + 1);
-  }
-  if (cycles === 0) return { dueYmd, cycles: 0 };
-  return { dueYmd: cur(), cycles };
+  if (!YMD_RE.test(dueYmd ?? '')) return { dueYmd, cycles: 0 };
+  const base = dueYmd.slice(0, 10);
+  if (base >= todayYmd) return { dueYmd, cycles: 0 };
+  const freq = frequency || 'monthly';
+  let n = 1;
+  while (addCycles(base, freq, n) < todayYmd && n < 5000) n++;
+  return { dueYmd: addCycles(base, freq, n), cycles: n };
 }
 
 /**
@@ -155,6 +147,42 @@ export function displayedInvoiceDate(bill: RolloverBillRow, todayYmd: string): s
   return cycles > 0 ? addCycles(inv, bill.frequency, cycles) : inv;
 }
 
+/* ── Autopay shown due date and labels (#288) ─────────────────────────── */
+
+/** Neutral text shown instead of a date when an autopay bill has no meaningful due date. */
+export type DueLabel = 'Paused' | 'One-off';
+
+export interface DisplayedDue {
+  /** The due date to show ('YYYY-MM-DD'), or the raw saved value / null when there is none. */
+  dueYmd: string | null;
+  /** When set, show this text instead of a date and skip date maths. */
+  label: DueLabel | null;
+}
+
+/**
+ * The due date (or neutral label) to SHOW for a bill (#288); display only,
+ * nothing stored. The cycle count matches `displayedInvoiceDate`.
+ *
+ * - Manual bills: the saved date, no label.
+ * - Paused autopay: label 'Paused' (beats one-off); `dueYmd` keeps the saved value.
+ * - One-off autopay (`is_recurring === false`): the saved date while it is today
+ *   or later; once it has passed, label 'One-off'.
+ * - Active recurring autopay: the saved date rolled forward (`autopayRollForward`).
+ * - Missing or invalid saved date: returned as is, no label.
+ */
+export function displayedDueDate(bill: RolloverBillRow, todayYmd: string): DisplayedDue {
+  const raw = bill?.due_date ?? null;
+  if ((bill?.payment_type ?? '').toLowerCase() !== 'auto') return { dueYmd: raw, label: null };
+  if (bill.is_paused === true) return { dueYmd: raw, label: 'Paused' };
+  if (!raw || !YMD_RE.test(raw)) return { dueYmd: raw, label: null };
+  const due = raw.slice(0, 10);
+  if (bill.is_recurring === false) {
+    return due < todayYmd ? { dueYmd: due, label: 'One-off' } : { dueYmd: due, label: null };
+  }
+  const r = autopayRollForward(due, bill.frequency, todayYmd);
+  return { dueYmd: r.cycles > 0 ? r.dueYmd : due, label: null };
+}
+
 /**
  * Returns the columns to write if `bill` should roll over today, else null.
  *
@@ -165,7 +193,7 @@ export function displayedInvoiceDate(bill: RolloverBillRow, todayYmd: string): s
  *
  * Autopay bills (payment_type 'auto', any case) only get their status reset:
  * their displayed due AND invoice dates are derived for display
- * (`adjustAutopayBillDate`, `displayedInvoiceDate`), never stored. They never
+ * (`displayedDueDate`, `displayedInvoiceDate`), never stored. They never
  * get `last_paid_for`.
  *
  * A manual roll records the cycle just paid: `last_paid_for` = the old due
@@ -217,7 +245,7 @@ export function billSendsReminders(bill: { is_paused?: boolean | null; status?: 
  * lockstep. A Paid bill's resume roll records the cycle it was paid for in
  * `last_paid_for` (same rule as `computeRollover`, #211); an unpaid roll
  * never touches it. Autopay bills reuse `computeRollover` (status reset only;
- * their date rolls via `adjustAutopayBillDate`). One-off bills return null.
+ * their date rolls via `displayedDueDate`). One-off bills return null.
  */
 export function computeResumeRoll(bill: RolloverBillRow, todayYmd: string): RolloverPatch | null {
   if (!bill) return null;
