@@ -50,6 +50,10 @@ _Avoid_: Preferences, profile page, admin
 Replaced the old What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. While it shows, the dashboard tips ticker is hidden; Toasts still overlay it. Its title and link text use the page's new name (#311).
 _Avoid_: Popup, modal, banner, update dialog, What's new popup
 
+**Finish setting up card** (planned, #333):
+A Dashboard card listing what the household is still missing (payday, bill, goal). Each row taps through to that page's add sheet. It vanishes once all three exist, and its X hides it permanently for that user.
+_Avoid_: Checklist, setup wizard, onboarding (the first-run flow)
+
 **Updates page**:
 The page with two tabs: Patch Notes, listing what changed in each version newest first (showing only the newest month's entries) in plain user-facing language, and Known Issues. Named Updates (formerly the Patch notes page / What's new) because it also lists known issues, which are not "new". Reached from Settings as "Updates". Its tabs keep their names. The route stays `/patch-notes`. Old patch-note entries that say "What's new" stay as history.
 _Avoid_: What's new, Patch notes page, changelog, release notes, version history
