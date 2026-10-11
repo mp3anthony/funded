@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.72",
+    date: "October 2026",
+    highlights: [
+      "The What's new page now shows only the latest month of updates.",
+    ],
+  },
+  {
     version: "0.9.71",
     date: "October 2026",
     highlights: [

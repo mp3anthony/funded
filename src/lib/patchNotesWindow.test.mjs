@@ -28,9 +28,14 @@ test('parse: invalid input returns null', () => {
   }
 });
 
-test('normal case: newest month plus the one before', () => {
+test('months=2: newest month plus the one before', () => {
   const list = [e('4', 'October 2026'), e('3', 'October 2026'), e('2', 'September 2026'), e('1', 'August 2026')];
-  assert.deepEqual(versions(recentPatchNotes(list)), ['4', '3', '2']);
+  assert.deepEqual(versions(recentPatchNotes(list, 2)), ['4', '3', '2']);
+});
+
+test('default window keeps only the newest month', () => {
+  const list = [e('4', 'October 2026'), e('3', 'October 2026'), e('2', 'September 2026')];
+  assert.deepEqual(versions(recentPatchNotes(list)), ['4', '3']);
 });
 
 test('single month', () => {
@@ -40,12 +45,13 @@ test('single month', () => {
 
 test('year boundary', () => {
   const list = [e('3', 'January 2027'), e('2', 'December 2026'), e('1', 'November 2026')];
-  assert.deepEqual(versions(recentPatchNotes(list)), ['3', '2']);
+  assert.deepEqual(versions(recentPatchNotes(list, 2)), ['3', '2']);
+  assert.deepEqual(versions(recentPatchNotes(list)), ['3']);
 });
 
 test('out of order input still uses the max month', () => {
   const list = [e('1', 'August 2026'), e('3', 'October 2026'), e('2', 'September 2026')];
-  assert.deepEqual(versions(recentPatchNotes(list)), ['3', '2']);
+  assert.deepEqual(versions(recentPatchNotes(list)), ['3']);
 });
 
 test('unparseable date is kept', () => {

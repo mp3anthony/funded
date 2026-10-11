@@ -10,7 +10,7 @@ import type { KnownIssuesResult } from "@/lib/knownIssues";
 
 type Tab = "notes" | "known";
 
-// Only the newest entry's month and the month before are shown (#309).
+// Only the newest entry's month is shown (#309).
 const visibleNotes = recentPatchNotes(patchNotes);
 
 /**
@@ -23,7 +23,7 @@ const visibleNotes = recentPatchNotes(patchNotes);
  * worker bypasses `/api/`, so it stays live). Blurbs render as plain React text
  * only, never as HTML. Any failure shows a friendly message, never an error.
  *
- * The Patch Notes tab shows only the newest entry's month and the month before
+ * The Patch Notes tab shows only the newest entry's month
  * (#309, `recentPatchNotes`); older entries stay in patch-notes.ts.
  *
  * Degrades gracefully when `patchNotes` is empty: no error, just an empty

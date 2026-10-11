@@ -232,7 +232,7 @@ funded-nextjs/
 │   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
 │   │   ├── notifications/    # Reminder generation, timezone, tap destinations
 │   │   ├── patch-notes.ts    # Patch notes content
-│   │   ├── patchNotesWindow.ts # Which patch notes the page shows (last two months; tests in patchNotesWindow.test.mjs)
+│   │   ├── patchNotesWindow.ts # Which patch notes the page shows (newest month only; tests in patchNotesWindow.test.mjs)
 │   │   ├── knownIssues.ts / knownIssuesFetch.ts  # Known Issues blurb parsing (tests in knownIssues.test.mjs) and cached GitHub fetch
 │   │   ├── getting-started.ts # Getting started guide content
 │   │   └── version.ts        # APP_VERSION
