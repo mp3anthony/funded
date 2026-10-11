@@ -2,7 +2,7 @@
  * Patch notes — hand-written, user-facing blurbs per release (Slice 14,
  * #113). Kept deliberately separate from HANDOFF.md: HANDOFF is written for
  * the Orchestrator (internal, technical, ticket-tracking); this file is
- * written for the end user reading "What's new" inside the app.
+ * written for the end user reading the Updates page inside the app.
  *
  * Every version bump gets an entry here as part of the same PR — including
  * backend-only or under-the-hood changes with no visible UI difference.
@@ -15,7 +15,7 @@
  *
  * List newest first. `version` must match `APP_VERSION` in
  * `src/lib/version.ts` for the entry to be treated as "new" by the
- * first-open popup.
+ * Updates card.
  */
 
 export interface PatchNoteEntry {
@@ -28,6 +28,14 @@ export interface PatchNoteEntry {
 }
 
 export const patchNotes: PatchNoteEntry[] = [
+  {
+    version: "0.9.73",
+    date: "October 2026",
+    highlights: [
+      "New updates now appear in a small card above the bottom bar instead of a pop-up, so you can keep using the app. Tap X to close it, or See updates to read more.",
+      "The What's new page is now called Updates. It's in the same place in Settings.",
+    ],
+  },
   {
     version: "0.9.72",
     date: "October 2026",

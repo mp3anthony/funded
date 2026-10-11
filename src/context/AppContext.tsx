@@ -766,6 +766,9 @@ interface AppContextValue {
   toast: AppToast | null;
   showToast: (toast: Omit<AppToast, "id">) => void;
   dismissToast: (id?: number) => void;
+  /* Updates card (#260) visibility, so the dashboard tips ticker can step aside */
+  isUpdatesCardVisible: boolean;
+  setUpdatesCardVisible: (visible: boolean) => void;
 
   /* Expenses (Issue #98, Slice 2 of 6; split logic added Slice 3 of 6) */
   expenses: Expense[];
@@ -1182,6 +1185,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [contributionRules, setContributionRules] = useState<ContributionRule[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toast, setToast] = useState<AppToast | null>(null);
+  // True while the Updates card (#260) is on screen; the dashboard tips ticker hides then.
+  const [isUpdatesCardVisible, setUpdatesCardVisible] = useState(false);
   const toastSeqRef = useRef(0);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   /* Slice 13 (#99): this device's push subscription health, centralized here
@@ -4982,6 +4987,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     toast,
     showToast,
     dismissToast,
+    isUpdatesCardVisible,
+    setUpdatesCardVisible,
     expenses,
     addExpense,
     updateExpense,

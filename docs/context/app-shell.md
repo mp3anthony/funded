@@ -41,26 +41,18 @@ Where pay schedules are set up, pay is logged, pending pay is confirmed and rece
 _Avoid_: Income page, pay page
 
 **Settings**:
-The page for account, notifications, appearance, household settings, members, What's new, the Getting started guide, bug reporting and leaving the household.
+The page for account, notifications, appearance, household settings, members, Updates, the Getting started guide, bug reporting and leaving the household.
 _Avoid_: Preferences, profile page, admin
 
 ### Keeping people informed
 
-**What's new popup**:
-The popup shown once, the first time someone opens the app on a new version, pointing to the latest changes.
-_Avoid_: Update dialog, changelog modal, release popup
+**Updates card**:
+Replaced the old What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. While it shows, the dashboard tips ticker is hidden; Toasts still overlay it. Its title and link text use the page's new name (#311).
+_Avoid_: Popup, modal, banner, update dialog, What's new popup
 
-**Updates card** (planned, #260):
-Replaces the What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. While it shows, the dashboard tips ticker is hidden; Toasts still overlay it. Its title and link text use the page's new name (#311).
-_Avoid_: Popup, modal, banner, update dialog
-
-**Patch notes page**:
-The page with two tabs: Patch Notes, listing what changed in each version newest first (showing only the newest month's entries) in plain user-facing language, and Known Issues. It is reached from Settings as "What's new".
-_Avoid_: Changelog, release notes, version history
-
-**Updates page** (planned, #311):
-New name for the Patch notes page, because the page also lists known issues, which are not "new". Reached from Settings as "Updates". Its tabs keep their names (Patch Notes, Known Issues). The route stays `/patch-notes`. Old patch-note entries that say "What's new" stay as history.
-_Avoid_: What's new (once shipped), release notes
+**Updates page**:
+The page with two tabs: Patch Notes, listing what changed in each version newest first (showing only the newest month's entries) in plain user-facing language, and Known Issues. Named Updates (formerly the Patch notes page / What's new) because it also lists known issues, which are not "new". Reached from Settings as "Updates". Its tabs keep their names. The route stays `/patch-notes`. Old patch-note entries that say "What's new" stay as history.
+_Avoid_: What's new, Patch notes page, changelog, release notes, version history
 
 **Getting started guide**:
 A short public page of optional missions covering the basics, reached from Settings as "Getting started" and linked from the Hazardous Schematics website. Anyone can open it, signed in or not.
