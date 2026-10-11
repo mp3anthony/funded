@@ -190,8 +190,7 @@ funded-nextjs/
 │   ├── manifest.json         # PWA manifest
 │   └── sw.js                 # Service worker (offline support)
 ├── scripts/
-│   ├── stamp-sw.mjs          # Stamps the service worker cache name at build time
-│   └── agy-delegate.ps1      # Dev tooling (review delegation)
+│   └── stamp-sw.mjs          # Stamps the service worker cache name at build time
 ├── src/
 │   ├── app/                  # Next.js App Router pages
 │   │   ├── layout.tsx        # Root layout (fonts, metadata, providers)
