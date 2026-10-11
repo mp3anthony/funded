@@ -215,7 +215,7 @@ funded-nextjs/
 │   │   └── settings/         # Account, app, household and member settings
 │   ├── components/           # Reusable UI components (about 55, plus ui/)
 │   │   ├── AppShell.tsx      # Auth guard, onboarding gate, bottom nav shell
-│   │   ├── Onboarding.tsx    # 5-step onboarding wizard
+│   │   ├── Onboarding.tsx    # 6-step onboarding wizard
 │   │   ├── BottomNav.tsx     # Mobile bottom navigation bar
 │   │   ├── NotificationCenter.tsx # In-app notification centre (alerts, settings)
 │   │   ├── *Sheet / *Modal / *Dialog.tsx  # Bottom sheets and dialogs (bills, goals, pay, members, bug report, push, timezone)
@@ -277,7 +277,7 @@ funded-nextjs/
 
 ### User flow
 
-1. **Sign up** → email confirmation → **Onboarding** (5 steps: create a household or join one, choose payment mode, add first pay schedule, add first bill, done)
+1. **Sign up** → email confirmation → **Onboarding** (6 steps: create a household or join one, choose payment mode, add first pay schedule, add first bill, add first goal, done; payday, bill and goal can be skipped)
 2. **Dashboard** shows household health at a glance
 3. **Payday** to log income when paid — surplus rules fire automatically; surplus suggestion modal prompts allocation
 4. **Bills** to manage household costs

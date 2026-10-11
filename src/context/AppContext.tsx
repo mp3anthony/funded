@@ -790,7 +790,7 @@ interface AppContextValue {
 
   /* Funds */
   funds: Fund[];
-  addFund: (fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) => void;
+  addFund: (fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) => Promise<void>;
   updateGoal: (id: string | number, goalData: any) => Promise<void>;
   deleteGoal: (id: string | number) => Promise<void>;
   updateFund: (id: string | number, fundData: any) => Promise<void>;
@@ -2021,7 +2021,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // must not clear isOnboarded and send them back here (#75 item 3).
       resolvedHouseholdUserIdRef.current = activeUser.id;
       // Do NOT setIsOnboarded(true) here — that would unmount the onboarding
-      // wizard mid-flow (#78). completeOnboarding() on step 5's "Enter App" is
+      // wizard mid-flow (#78). completeOnboarding() on step 6's "Enter App" is
       // the only thing that should flip this.
 
       return household.id;
@@ -3119,7 +3119,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error inserting fund:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -3127,6 +3127,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to add fund:", err);
+      throw err; // callers (AddGoalSheet, Onboarding) keep their UI open on failure
     }
   }
 

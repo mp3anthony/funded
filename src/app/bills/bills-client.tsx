@@ -107,8 +107,8 @@ export default function BillsClient() {
   };
 
   // Issue #98, Slice 4 of 6: this Total Bar is the actual user-facing
-  // "weekly draw" figure households pull into the joint account / split via
-  // Direct Pay each period — it now covers bills + expenses + active fixed-$
+  // figure for the selected display frequency (households use it for the joint
+  // account / Direct Pay splits) — it now covers bills + expenses + active fixed-$
   // goal-contribution rules, not just bills, per the issue's core scope
   // decision. Expenses have no `frequency` column by design (schema decision:
   // "no recurring-frequency semantics") — an expense's flat `amount` is
@@ -482,7 +482,14 @@ export default function BillsClient() {
         </div>
         {!hasItems ? (
           <div className="py-10 text-center">
-            <p className="text-muted font-mono text-sm">{emptyStateMessage}</p>
+            {bills.length === 0 && expenses.length === 0 ? (
+              <>
+                <p className="text-muted font-mono text-sm">No bills yet.</p>
+                <p className="text-subtle text-xs mt-1 font-body">Tap + beside the page title to add your first bill.</p>
+              </>
+            ) : (
+              <p className="text-muted font-mono text-sm">{emptyStateMessage}</p>
+            )}
           </div>
         ) : (
           <div className="space-y-6">

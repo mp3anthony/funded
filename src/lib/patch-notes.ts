@@ -29,6 +29,16 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.74",
+    date: "October 2026",
+    highlights: [
+      "Setting up a new household is easier: you can now skip the payday, first bill and first goal steps and add them later with the + buttons.",
+      "Setup now has a goal step, a shorter bill step, short explanations on the first two steps, and a link to the Getting started guide at the end.",
+      "The Payday, Bills and Goals pages now tell you to tap + to add your first item when they are empty.",
+      "If saving a new goal fails, the Create Goal window now stays open so you can try again.",
+    ],
+  },
+  {
     version: "0.9.73",
     date: "October 2026",
     highlights: [
