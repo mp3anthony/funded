@@ -56,7 +56,7 @@ After plan approval, subagents work autonomously **except** when (a) the change 
 
 ### Review and merge approval
 
-- **No preview testing.** The app is live but only open to invited or stumbled-on testers, so Anthony checks changes in production after merge rather than on previews. `needs-manual-test` is retired (no longer applied).
+- **No preview testing.** The app is live but only open to invited or stumbled-on testers, so Anthony checks changes in production after merge rather than on previews. `needs-manual-test` is no longer the default: apply it only when Anthony asks for a hands-on review before merge, e.g. one PR and one version bump covering a set (multi-stage) of issues that he wants to review together on the preview.
 - **`needs-merge-approval`:** the default label for every code PR once review is done. Anthony still approves every merge; the orchestrator never merges code PRs on its own.
 - **Merge advice (orchestrator, on every code PR):** after the independent review, tell Anthony in one short message whether the PR is **clean** (review approved, tsc/tests/build pass, no A1 touch, version and patch note present) or **not clean** (list the open findings). If clean, say so plainly and add 1-3 lines on what to glance at in the live app. Then wait for his explicit go-ahead; only then does the orchestrator run the merge. Anything needing prod set-up first (migration, env var) is done before the merge, as today.
 - **HANDOFF-only PRs** (`docs/handoff-*`): merge straight away, no review.
@@ -68,7 +68,7 @@ After plan approval, subagents work autonomously **except** when (a) the change 
 - `needs-triage`: applied on filing, removed after review.
 - `needs-info`: manual input required from Anthony; always paired with a direct message to him, never left silent.
 - `ready-for-agent` / `ready-for-human`: whether the agent team can do the whole ticket, or part needs Anthony directly (third-party dashboard config, account setup).
-- `needs-merge-approval`: as in Review and merge approval. (`needs-manual-test` is retired.)
+- `needs-merge-approval`: as in Review and merge approval. `needs-manual-test` is used only on request, see above.
 - `out-of-spec`: outside the current spec; logged to `CHANGE-LOG.md`, not actioned until Anthony triages it.
 
 ### Branching
@@ -82,5 +82,5 @@ Aim for roughly 150k-180k context tokens per session/ticket. Not a mechanical cu
 ## Agent skills
 
 - **Issue tracker:** GitHub (`mp3anthony/funded`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-- **Triage labels:** default 5-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), all already on GitHub verbatim, plus 2 project-specific labels (`needs-merge-approval`, `out-of-spec`; `needs-manual-test` is retired). See `docs/agents/triage-labels.md`.
+- **Triage labels:** default 5-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), all already on GitHub verbatim, plus 3 project-specific labels (`needs-manual-test` on request only, `needs-merge-approval`, `out-of-spec`). See `docs/agents/triage-labels.md`.
 - **Domain docs:** multi-context, `CONTEXT-MAP.md` points at the glossaries in `docs/context/`. See `docs/agents/domain.md`.
