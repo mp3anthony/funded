@@ -19,6 +19,8 @@ import {
   oldCycleNotificationKeyPrefix,
   paidRollToastMessage,
   sameDueDate,
+  nextPayDateAfterLog,
+  missedPayCatchUp,
   UNPAID_STATUS,
 } from "@/lib/billCycle";
 import { generateReminders } from "@/lib/notifications/generateReminders";
@@ -4198,19 +4200,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return null;
       }
 
-      // Advance pay date by frequency
-      const currentDate = new Date(schedule.next_pay_date + "T00:00:00");
-      if (schedule.frequency === "weekly") {
-        currentDate.setDate(currentDate.getDate() + 7);
-      } else if (schedule.frequency === "fortnightly" || schedule.frequency === "fortnightly" as any) {
-        currentDate.setDate(currentDate.getDate() + 14);
-      } else if (schedule.frequency === "monthly") {
-        currentDate.setMonth(currentDate.getMonth() + 1);
-      } else {
-        currentDate.setDate(currentDate.getDate() + 7); // Default fallback to avoid non-advanced date
-      }
-
-      const newNextPayDate = toLocalYmd(currentDate);
+      // Advance pay date by frequency (clamped month maths, #298)
+      const newNextPayDate = nextPayDateAfterLog(schedule.next_pay_date, schedule.frequency);
 
       const { data: updatedSchedule, error: scheduleErr } = await supabase
         .from("pay_schedules")
@@ -4296,69 +4287,44 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function autoLogMissedPays() {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const todayYmd = toLocalYmd(new Date());
 
       const hId = await ensureHousehold();
 
       for (const schedule of paySchedules) {
         if (!schedule.next_pay_date) continue;
 
-        const nextPayDateObj = new Date(schedule.next_pay_date + "T00:00:00");
-        nextPayDateObj.setHours(0, 0, 0, 0);
+        const { missed, next } = missedPayCatchUp(schedule.next_pay_date, schedule.frequency, todayYmd);
+        if (missed.length === 0) continue; // Not missed
 
-        if (nextPayDateObj.getTime() >= today.getTime()) {
-          continue; // Not missed
+        const missedRecords: any[] = missed.map((payDateStr) => ({
+          household_id: hId,
+          member_id: schedule.member_id,
+          pay_schedule_id: schedule.id,
+          amount: schedule.is_fixed_amount ? (schedule.amount || 0) : 0,
+          pay_date: payDateStr,
+          notes: schedule.is_fixed_amount
+            ? "Automatically logged missed pay"
+            : "Automatically logged missed pay — amount needs review",
+          status: "pending",
+        }));
+
+        const { error: insertErr } = await supabase
+          .from("pay_history")
+          .insert(missedRecords);
+
+        if (insertErr) {
+          console.error(`Failed to insert missed pay history for schedule ${schedule.id}:`, insertErr);
+          continue;
         }
 
-        const missedRecords: any[] = [];
-        let tempDate = new Date(nextPayDateObj);
+        const { error: updateErr } = await supabase
+          .from("pay_schedules")
+          .update({ next_pay_date: next })
+          .eq("id", schedule.id);
 
-        while (tempDate.getTime() < today.getTime()) {
-          const payDateStr = toLocalYmd(tempDate);
-          missedRecords.push({
-            household_id: hId,
-            member_id: schedule.member_id,
-            pay_schedule_id: schedule.id,
-            amount: schedule.is_fixed_amount ? (schedule.amount || 0) : 0,
-            pay_date: payDateStr,
-            notes: schedule.is_fixed_amount
-              ? "Automatically logged missed pay"
-              : "Automatically logged missed pay — amount needs review",
-            status: "pending",
-          });
-
-          // Advance tempDate
-          if (schedule.frequency === "weekly") {
-            tempDate.setDate(tempDate.getDate() + 7);
-          } else if (schedule.frequency === "fortnightly" || schedule.frequency === "fortnightly" as any) {
-            tempDate.setDate(tempDate.getDate() + 14);
-          } else if (schedule.frequency === "monthly") {
-            tempDate.setMonth(tempDate.getMonth() + 1);
-          } else {
-            tempDate.setDate(tempDate.getDate() + 7); // Fallback to avoid infinite loop
-          }
-        }
-
-        if (missedRecords.length > 0) {
-          const { error: insertErr } = await supabase
-            .from("pay_history")
-            .insert(missedRecords);
-
-          if (insertErr) {
-            console.error(`Failed to insert missed pay history for schedule ${schedule.id}:`, insertErr);
-            continue;
-          }
-
-          const nextValidDateStr = toLocalYmd(tempDate);
-          const { error: updateErr } = await supabase
-            .from("pay_schedules")
-            .update({ next_pay_date: nextValidDateStr })
-            .eq("id", schedule.id);
-
-          if (updateErr) {
-            console.error(`Failed to update next_pay_date for schedule ${schedule.id}:`, updateErr);
-          }
+        if (updateErr) {
+          console.error(`Failed to update next_pay_date for schedule ${schedule.id}:`, updateErr);
         }
       }
 

@@ -20,6 +20,8 @@ import {
   paidRollToastMessage,
   sameDueDate,
   UNPAID_STATUS,
+  nextPayDateAfterLog,
+  missedPayCatchUp,
 } from './billCycle.ts';
 
 test('weekly/fortnightly across month and year end', () => {
@@ -498,4 +500,85 @@ test('displayedDueDate: invalid or missing saved date, time suffix', () => {
 test('displayedInvoiceDate: invoice on or after due still shifts by the due-date cycle count', () => {
   const b = { ...autoBill, due_date: '2026-08-15', invoice_date: '2026-08-20' };
   assert.equal(displayedInvoiceDate(b, T), '2026-10-20');
+});
+
+/* ── Pay schedules (#298) ── */
+
+test('nextPayDateAfterLog: monthly clamps to month end', () => {
+  assert.equal(nextPayDateAfterLog('2026-01-31', 'monthly'), '2026-02-28');
+  assert.equal(nextPayDateAfterLog('2028-01-31', 'monthly'), '2028-02-29');
+  assert.equal(nextPayDateAfterLog('2026-03-31', 'monthly'), '2026-04-30');
+  assert.equal(nextPayDateAfterLog('2026-12-31', 'monthly'), '2027-01-31');
+  assert.equal(nextPayDateAfterLog('2026-01-29', 'monthly'), '2026-02-28');
+  assert.equal(nextPayDateAfterLog('2026-01-30', 'monthly'), '2026-02-28');
+  assert.equal(nextPayDateAfterLog('2026-12-15', 'monthly'), '2027-01-15');
+});
+
+test('nextPayDateAfterLog: weekly and fortnightly unchanged', () => {
+  assert.equal(nextPayDateAfterLog('2026-12-29', 'weekly'), '2027-01-05');
+  assert.equal(nextPayDateAfterLog('2026-10-08', 'fortnightly'), '2026-10-22');
+  assert.equal(nextPayDateAfterLog('2026-09-20', 'fortnightly'), '2026-10-04');
+});
+
+test('nextPayDateAfterLog: unknown frequency falls back to weekly, case-insensitive, invalid unchanged', () => {
+  assert.equal(nextPayDateAfterLog('2026-01-01', 'quarterly'), '2026-01-08');
+  assert.equal(nextPayDateAfterLog('2026-01-01', undefined), '2026-01-08');
+  assert.equal(nextPayDateAfterLog('2026-01-01', ''), '2026-01-08');
+  assert.equal(nextPayDateAfterLog('2026-01-31', 'Monthly'), '2026-02-28');
+  assert.equal(nextPayDateAfterLog('', 'monthly'), '');
+});
+
+test('nextPayDateAfterLog: accepted Fix A limit, a short month becomes the new saved day (#298)', () => {
+  const feb = nextPayDateAfterLog('2026-01-31', 'monthly');
+  assert.equal(feb, '2026-02-28');
+  assert.equal(nextPayDateAfterLog(feb, 'monthly'), '2026-03-28');
+});
+
+test('missedPayCatchUp: monthly counts from the saved date, no drift', () => {
+  assert.deepEqual(missedPayCatchUp('2026-01-31', 'monthly', '2026-05-15'), {
+    missed: ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30'],
+    next: '2026-05-31',
+  });
+  assert.deepEqual(missedPayCatchUp('2026-01-30', 'monthly', '2026-03-15'), {
+    missed: ['2026-01-30', '2026-02-28'],
+    next: '2026-03-30',
+  });
+  assert.deepEqual(missedPayCatchUp('2027-01-29', 'monthly', '2027-03-10'), {
+    missed: ['2027-01-29', '2027-02-28'],
+    next: '2027-03-29',
+  });
+  assert.deepEqual(missedPayCatchUp('2028-01-29', 'monthly', '2028-03-10'), {
+    missed: ['2028-01-29', '2028-02-29'],
+    next: '2028-03-29',
+  });
+  assert.deepEqual(missedPayCatchUp('2028-01-31', 'monthly', '2028-03-01'), {
+    missed: ['2028-01-31', '2028-02-29'],
+    next: '2028-03-31',
+  });
+});
+
+test('missedPayCatchUp: weekly and fortnightly', () => {
+  assert.deepEqual(missedPayCatchUp('2026-01-01', 'weekly', '2026-01-20'), {
+    missed: ['2026-01-01', '2026-01-08', '2026-01-15'],
+    next: '2026-01-22',
+  });
+  assert.deepEqual(missedPayCatchUp('2026-09-24', 'fortnightly', '2026-10-11'), {
+    missed: ['2026-09-24', '2026-10-08'],
+    next: '2026-10-22',
+  });
+});
+
+test('missedPayCatchUp: boundaries', () => {
+  assert.deepEqual(missedPayCatchUp('2026-10-11', 'monthly', '2026-10-11'), { missed: [], next: '2026-10-11' });
+  assert.deepEqual(missedPayCatchUp('2026-10-20', 'weekly', '2026-10-11'), { missed: [], next: '2026-10-20' });
+  assert.deepEqual(missedPayCatchUp('2026-10-10', 'weekly', '2026-10-11'), { missed: ['2026-10-10'], next: '2026-10-17' });
+  assert.deepEqual(missedPayCatchUp('2026-11-30', 'monthly', '2027-01-05'), {
+    missed: ['2026-11-30', '2026-12-30'],
+    next: '2027-01-30',
+  });
+  assert.deepEqual(missedPayCatchUp('', 'monthly', '2026-10-11'), { missed: [], next: '' });
+  assert.deepEqual(missedPayCatchUp('2026-01-01', 'quarterly', '2026-01-10'), {
+    missed: ['2026-01-01', '2026-01-08'],
+    next: '2026-01-15',
+  });
 });

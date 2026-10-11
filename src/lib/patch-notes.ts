@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.70",
+    date: "October 2026",
+    highlights: [
+      "Fixed: a monthly pay schedule on the 29th, 30th or 31st no longer slips into the next month after a short month. It now lands on the last day of the shorter month instead.",
+    ],
+  },
+  {
     version: "0.9.69",
     date: "October 2026",
     highlights: [
