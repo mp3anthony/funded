@@ -239,7 +239,7 @@ export default function FundsClient() {
             ) : (
               <>
                 <p className="text-muted font-mono text-sm">No goals configured yet.</p>
-                <p className="text-subtle text-xs mt-1 font-body">Create your first savings goal to get started.</p>
+                <p className="text-subtle text-xs mt-1 font-body">Tap + beside the page title to add your first goal.</p>
               </>
             )}
           </div>

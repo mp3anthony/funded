@@ -798,6 +798,22 @@ problem/checklist on the issue.
 - No schema change. `adjustAutopayBillDate` is removed.
 - Full issues: https://github.com/mp3anthony/funded/issues/287 and https://github.com/mp3anthony/funded/issues/288
 
+### Slice 18: Onboarding rework (Issue #248)
+
+**Problem:** the old wizard forced payday and a full bill on day one, could write duplicates on Back then Next, lost its place on small screens and had no goal step.
+
+**Decisions (grilled 2026-10-11, slice 1 of 2; slice 2 is #333):**
+- 6 steps: household, payment mode, payday, first bill, first goal, Setup Complete. Household and payment mode are required; payday, bill and goal have "Skip for now" (writes nothing).
+- First bill step is name, amount, frequency (default monthly) and due date only; saved as category Other, Manual, assigned to the current user, no splits. Goal step is name and target only (category Savings, status not started, no deadline).
+- Plain-language "why" boxes on steps 1 and 2. Shared step layout (`OnboardingStep`); pure rules in `src/lib/onboarding.ts`.
+- Back never writes twice: `createHousehold` runs once (guarded), a saved payday/bill/goal step goes read-only when revisited, and the Setup Complete summary reads what was actually saved ("Skipped" for skipped items).
+- Setup Complete ends with a "You can find the Getting started guide here" link; it calls `completeOnboarding()` before navigating to `/getting-started`.
+- `addFund` now throws on a failed insert (like `addBill`), so the goal step and Create Goal window can show the failure.
+- Empty Payday, Bills and Goals pages say "Tap + beside the page title to add your first ...".
+- Join path unchanged. No schema change. A reload mid-onboarding lands in the app with Direct Pay and the optional steps unset; the Dashboard card in #333 covers that.
+- Full issue: https://github.com/mp3anthony/funded/issues/248
+
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)

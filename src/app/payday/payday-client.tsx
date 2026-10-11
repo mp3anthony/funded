@@ -264,7 +264,7 @@ export default function PaydayClient() {
           <div className="py-10 text-center">
             <p className="text-muted font-mono text-sm">No pay schedules active.</p>
             <p className="text-subtle text-xs mt-1 font-body">
-              Create a schedule to automate or log household income.
+              Tap + beside the page title to add your next payday.
             </p>
           </div>
         ) : (
