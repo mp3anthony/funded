@@ -2,14 +2,14 @@
  * Patch notes display window (#309). Pure and import-free so `node --test`
  * can load it with type stripping (see patchNotesWindow.test.mjs).
  *
- * The /patch-notes page shows only entries from the newest entry's month and
- * the month before (measured from the newest entry, not today's date). Older
+ * The /patch-notes page shows only entries from the newest entry's month
+ * (measured from the newest entry, not today's date). Older
  * entries stay in patch-notes.ts. An entry whose `date` does not parse as
  * "Month YYYY" is always kept, so a typo never hides a note. See
  * docs/conventions.md (Patch notes).
  */
 
-export const PATCH_NOTES_WINDOW_MONTHS = 2;
+export const PATCH_NOTES_WINDOW_MONTHS = 1;
 
 const MONTH_NAMES = [
   "january",

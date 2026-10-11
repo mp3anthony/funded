@@ -608,9 +608,9 @@ for the static page itself if separated out.
 - Link back: issue #152.
 
 **Amendment (#309, display window):**
-- The Patch Notes tab shows only entries from the newest entry's month and the
-  month before (measured from the newest entry, not today). Older entries stay
-  in `patch-notes.ts`. An entry whose date is not "Month YYYY" is always shown.
+- The Patch Notes tab shows only entries from the newest entry's month
+  only (measured from the newest entry, not today); this supersedes the initial
+  two-month window. Older entries stay in `patch-notes.ts`. An entry whose date is not "Month YYYY" is always shown.
   The first-open popup and the Known Issues tab are unchanged. Link back: issue #309.
 
 ---
