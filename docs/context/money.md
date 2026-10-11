@@ -31,7 +31,7 @@ An amount converted to a common frequency before it is compared or added to any 
 _Avoid_: Converted amount, equivalent amount
 
 **Due date**:
-The day a bill must be paid, read in the household's timezone. An active recurring autopay bill shows its saved date moved forward to the next one on or after today, counted from the saved date so month-end days clamp (a 31st bill shows Feb 28, then Mar 31). A paused bill shows the label "Paused" instead of a date, and a one-off autopay bill whose saved date has passed shows "One-off"; the saved date is still kept for editing. A bill saved without a date shows "No due date" (see Dateless bill). Bills showing a neutral label appear only under the All filter on the Bills page.
+The day a bill must be paid, read in the household's timezone. An active recurring autopay bill shows its saved date moved forward to the next one on or after today, counted from the saved date so month-end days clamp (a 31st bill shows Feb 28, then Mar 31). A paused bill shows the label "Paused" instead of a date, and a one-off autopay bill whose saved date has passed shows "One-off"; the saved date is still kept for editing. A bill saved without a date shows "No due date" (see Dateless bill); that is not a neutral label in this sense. Bills showing a neutral label ("Paused" or "One-off") appear only under the All filter on the Bills page.
 _Avoid_: Deadline, payment date
 
 **Dateless bill**:
@@ -49,7 +49,7 @@ _Avoid_: Bill date, issue date
 ### Bill status
 
 **Due Soon**:
-A bill that is unpaid and not yet past its due date.
+A bill that is unpaid, has a due date, and is not yet past it.
 _Avoid_: Pending, upcoming (as a status), open
 
 **Overdue**:
@@ -61,11 +61,11 @@ A bill settled for the current cycle. A paid recurring bill returns to unpaid wh
 _Avoid_: Done, settled, cleared
 
 **Paused**:
-A bill put on hold until it is resumed. While paused it gets no reminders, is not treated as overdue, and does not count toward totals (see Counts toward totals). Its row shows an orange pause icon beside a greyed amount, with "Paused" in the date slot, and, like other neutral-label rows, shows only under the All filter, in its usual sort order (not moved to a separate section). On resume, if its due date has passed, it moves on to its next upcoming due date (missed cycles are skipped).
+A bill put on hold until it is resumed. While paused it gets no reminders, is not treated as overdue, and does not count toward totals (see Counts toward totals). Its row shows an orange pause icon beside a greyed amount, with "Paused" in the date slot, and, like other neutral-label ("Paused" or "One-off") rows, shows only under the All filter, in its usual sort order (not moved to a separate section). On resume, if its due date has passed, it moves on to its next upcoming due date (missed cycles are skipped).
 _Avoid_: Archived, disabled, inactive
 
 **Mark as Paid**:
-Recording that a manual bill has been paid. If the bill is already due or past due it rolls straight away; if it is paid early, only its status changes.
+Recording that a manual bill has been paid. If the bill is already due or past due it rolls straight away; if it is paid early, only its status changes. For a bill with no due date, see Dateless bill.
 _Avoid_: Pay, complete, tick off
 
 **Roll**:
@@ -121,7 +121,7 @@ The recurring amount the household commits to across bills, expenses and active 
 _Avoid_: Weekly draw, Bills total, Budget, Allowance
 
 **Counts toward totals**:
-The one rule for whether a bill is included in the Total bar, Surplus and bill splits, the health score and contributions: a bill counts unless it is paused or a finished one-off (the bills showing a neutral label instead of a date). Dateless bills do count.
+The one rule for whether a bill is included in the Total bar, weekly surplus and bill splits, the health score and contributions. The rule excludes only paused bills and finished one-offs (a one-off whose saved date has passed), the bills showing a neutral label ("Paused" or "One-off") instead of a date, so dateless bills count.
 _Avoid_: Active bill, included bill
 
 ### Household health

@@ -59,7 +59,7 @@ The hour of day a member prefers their notifications to arrive, set per member a
 _Avoid_: Quiet hours, delivery time, reminder time
 
 **Household timezone**:
-The timezone all of a household's dates and notification times are read in. Only the owner can change it.
+The timezone all of a household's dates and notification times are read in. Only an owner can change it.
 _Avoid_: Device timezone, local time, region
 
 **Scheduled delivery**:
