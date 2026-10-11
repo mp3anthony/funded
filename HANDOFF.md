@@ -4,9 +4,9 @@
 
 ## Current state (2026-10-11)
 
-- `main` = v0.9.72 (PR #326 and #327, #309). Closed work is not tracked here: git history, closed issues and `docs/lessons.md` hold it. Live-check results are not recorded; a failed check is raised again and Intake reopens the closed issue.
+- `main` = v0.9.73 (PR #331: #311 Updates rename + #260 Updates card, built and merged; iPhone live check pending). Closed work is not tracked here: git history, closed issues and `docs/lessons.md` hold it. Live-check results are not recorded; a failed check is raised again and Intake reopens the closed issue.
 - **Workflow (PR #318, in `CLAUDE.md`):** live-app testing after merge, no preview testing; `needs-manual-test` on request only; Intake sub-agent on every new issue; plain-terms "What's changing" on every issue; orchestrator gives merge advice, Anthony approves each merge.
-- **#311 + #260 grilled (2026-10-11), ready for a Planner in a fresh session:** decisions are in the issue bodies and as "planned" glossary entries (Updates page, Updates card; PR #329). Rename the What's new page to **Updates** (visible text and docs only, route `/patch-notes` stays). Replace the first-open modal with a compact non-blocking **Updates card** above the bottom nav (2 bullets, "+N more", stays until X or link, hides the tips ticker). Build #311 together with or before #260. Both need a version bump and patch note.
+- **Updates card (#260) notes:** shown once per version and marked seen when shown, so closing the app without tapping X means it does not return. Anthony accepted this, and the long first patch-note bullet that clips at two lines, as is. Tiny known race: tapping into Updates within 1.2s of opening can still show the card there.
 - **#145 (Hannah gets no pushes, ~2 weeks; #160 folded in): parked, `needs-info`,** root cause unconfirmed. Her PWA is installed, permission on, Android/FCM subscription alive (refreshed 2 Oct). Reminders are generated, but `delivered_at` is stamped on every attempt so it proves nothing about receipt; Vercel keeps ~24h of logs. No test-push button. Anthony chose not to test with her yet. Options: Android settings check (Chrome notification switches, Samsung background usage limits), wait for a real reminder, one-off push via `/api/push/send` (needs his go-ahead), or a small build logging non-404/410 push failures to a new DB table (migration, A1 escalation).
 - **#273** (turn on leaked-password protection in Supabase Auth): `ready-for-human`; Anthony wants a guided walk-through in its own session; check the setting is available on our plan first.
 - **Repo interaction limit** set to collaborators only until 2027-04-09 (spam, #276); renew then (Settings > Moderation options > Interaction limits).
@@ -15,11 +15,11 @@
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
 - **Owed:** fix the stale "not wired up" comment in `NotifyHourDialog.tsx` and the "weekly draw" comment in `bills-client.tsx` in the next PR touching those files. Delete each Getting started "Good to know" item when #251, #250, #249 close. The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
-- Last active SPEC ticket: Slice 14 (#311 rename and #260 card will amend it).
+- Last active SPEC ticket: Slice 14 (amended by #311, #260).
 
 ## Next session, in order
 
-1. Plan #311 and #260 (Planner agent, then standing pause for Anthony; post the reviewed plan as an issue comment).
+1. Anthony live-checks v0.9.73 on iPhone (card above bottom bar, Settings says Updates, ticker waits for card). A failed check reopens #311/#260.
 2. Grill #248, #249, #250, #251, #261, #267 individually when Anthony asks; #265 and #266 are small chores.
 3. #183 design reference (unblocks #277 to #281). #145 and #273 only when Anthony says so.
 
