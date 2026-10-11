@@ -607,6 +607,12 @@ for the static page itself if separated out.
   error page. If the repo goes private the fetch needs a server-side token.
 - Link back: issue #152.
 
+**Amendment (#309, display window):**
+- The Patch Notes tab shows only entries from the newest entry's month and the
+  month before (measured from the newest entry, not today). Older entries stay
+  in `patch-notes.ts`. An entry whose date is not "Month YYYY" is always shown.
+  The first-open popup and the Known Issues tab are unchanged. Link back: issue #309.
+
 ---
 
 ### Slice 15: In-app bug reporting (Issue #114)

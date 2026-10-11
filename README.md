@@ -101,7 +101,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | `npm run build` | Create a production build (a `prebuild` step first stamps the service worker cache name via `scripts/stamp-sw.mjs`) |
 | `npm run start` | Serve the production build |
 | `npm run lint` | Run ESLint |
-| `npm test` | Run the bill-cycle unit tests (`node --test`) |
+| `npm test` | Run the unit tests (`node --test`) |
 
 ---
 
@@ -232,6 +232,7 @@ funded-nextjs/
 │   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
 │   │   ├── notifications/    # Reminder generation, timezone, tap destinations
 │   │   ├── patch-notes.ts    # Patch notes content
+│   │   ├── patchNotesWindow.ts # Which patch notes the page shows (last two months; tests in patchNotesWindow.test.mjs)
 │   │   ├── knownIssues.ts / knownIssuesFetch.ts  # Known Issues blurb parsing (tests in knownIssues.test.mjs) and cached GitHub fetch
 │   │   ├── getting-started.ts # Getting started guide content
 │   │   └── version.ts        # APP_VERSION
