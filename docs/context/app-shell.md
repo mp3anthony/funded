@@ -51,7 +51,7 @@ The popup shown once, the first time someone opens the app on a new version, poi
 _Avoid_: Update dialog, changelog modal, release popup
 
 **Patch notes page**:
-The page with two tabs: Patch Notes, listing what changed in each version newest first in plain user-facing language, and Known Issues. It is reached from Settings as "What's new".
+The page with two tabs: Patch Notes, listing what changed in each version newest first (showing only the newest month's entries and the month before) in plain user-facing language, and Known Issues. It is reached from Settings as "What's new".
 _Avoid_: Changelog, release notes, version history
 
 **Getting started guide**:

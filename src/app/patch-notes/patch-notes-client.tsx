@@ -5,9 +5,13 @@ import { CheckCircle2, CloudOff, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { patchNotes } from "@/lib/patch-notes";
+import { recentPatchNotes } from "@/lib/patchNotesWindow";
 import type { KnownIssuesResult } from "@/lib/knownIssues";
 
 type Tab = "notes" | "known";
+
+// Only the newest entry's month and the month before are shown (#309).
+const visibleNotes = recentPatchNotes(patchNotes);
 
 /**
  * Hidden in-app "What's new" page (Slice 14, #113). Not in BottomNav —
@@ -18,6 +22,9 @@ type Tab = "notes" | "known";
  * fetched on mount from the cached `/api/known-issues` route (the service
  * worker bypasses `/api/`, so it stays live). Blurbs render as plain React text
  * only, never as HTML. Any failure shows a friendly message, never an error.
+ *
+ * The Patch Notes tab shows only the newest entry's month and the month before
+ * (#309, `recentPatchNotes`); older entries stay in patch-notes.ts.
  *
  * Degrades gracefully when `patchNotes` is empty: no error, just an empty
  * state message.
@@ -87,7 +94,7 @@ export default function PatchNotesClient() {
       </div>
 
       {tab === "notes" ? (
-        patchNotes.length === 0 ? (
+        visibleNotes.length === 0 ? (
           <div className="flex flex-col items-center text-center gap-3 py-16">
             <Sparkles className="h-8 w-8 text-subtle" />
             <p className="text-sm text-muted font-body max-w-xs">
@@ -96,7 +103,7 @@ export default function PatchNotesClient() {
           </div>
         ) : (
           <div className="flex flex-col gap-8 pt-2">
-            {patchNotes.map((entry) => (
+            {visibleNotes.map((entry) => (
               <section key={entry.version}>
                 <SectionHeader
                   title={`v${entry.version}`}
