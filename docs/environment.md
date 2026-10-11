@@ -39,7 +39,6 @@ Names only. Client-safe: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_
 
 ## Tooling
 
-- **agy** (Antigravity) delegation: see `GEMINI-DELEGATION.md` and `scripts/agy-delegate.ps1`. The kit lives in `agy-delegation-kit` under the `hazardous-schematics` folder on Anthony's machine. Re-syncs keep the script byte-identical and keep this repo's adapted rules 5 and 6. Gotchas: `docs/lessons.md`, Tooling. Loose end: when #183 (a design reference document) lands, restore the kit's design-foundation rule in `GEMINI-DELEGATION.md` (rule 5 currently points at `SPEC.md` Part A).
 - **Gemini CLI is dead;** never use the `gemini-cli` MCP.
 - `markitdown` (installed globally with pipx) converts PDF, DOCX, PPTX, XLSX, images, audio and HTML to Markdown: `markitdown path-to-file.ext -o output.md`. `ffmpeg` was installed alongside it (winget) for audio and video transcription.
 - **/brag launch video:** output goes outside the repo, under `brag-output/funded/<timestamp>` in the `hazardous-schematics` folder on Anthony's machine (first run 2026-09-24). Check the music licence (the brag skill's `assets/music/README.md`) before posting publicly.
