@@ -440,3 +440,62 @@ export function paidForLabel(ymd: string | null | undefined, todayYmd: string): 
   const showYear = !t || t[1] !== m[1];
   return `Paid for ${month}${showYear ? ` ${m[1]}` : ''}`;
 }
+
+/* ── Pay schedules (#298) ─────────────────────────────────────────────── */
+
+/**
+ * Narrows a stored pay-schedule frequency to one `addCycles` understands.
+ * Anything unknown falls back to weekly (the old "+7 days" fallback), because
+ * `addCycles` would treat an unknown value as monthly.
+ */
+function payFrequency(frequency: string | null | undefined): 'weekly' | 'fortnightly' | 'monthly' {
+  const f = (frequency ?? '').toLowerCase();
+  if (f === 'weekly' || f === 'fortnightly' || f === 'monthly') return f;
+  return 'weekly';
+}
+
+/**
+ * Next pay date after a pay is logged: the saved date plus one cycle.
+ * Monthly clamps to the target month's length (Jan 31 -> Feb 28).
+ *
+ * Accepted Fix A limit (#298): the result becomes the new saved date, so a
+ * day 29-31 monthly schedule that lands on a short month stays on that day
+ * (Jan 31 -> Feb 28 -> Mar 28) until the user edits it. No stored anchor day.
+ *
+ * Input that isn't a 'YYYY-MM-DD' date is returned unchanged.
+ */
+export function nextPayDateAfterLog(nextPayYmd: string, frequency: string | null | undefined): string {
+  if (!YMD_RE.test(nextPayYmd ?? '')) return nextPayYmd;
+  return addCycles(nextPayYmd.slice(0, 10), payFrequency(frequency), 1);
+}
+
+/**
+ * Catch-up for pays missed while the app was closed. Returns every scheduled
+ * pay date strictly before `todayYmd` (today itself is loggable, not missed)
+ * and the first date on or after today. Each step is counted from the saved
+ * date, never from the previous step, so month-end days don't drift
+ * (Jan 31 -> Feb 28 -> Mar 31). Capped at 5000 cycles. Same accepted limit as
+ * `nextPayDateAfterLog` for the written-back `next`.
+ *
+ * Invalid input, or a saved date today or later, gives no missed dates and
+ * the input unchanged.
+ */
+export function missedPayCatchUp(
+  nextPayYmd: string,
+  frequency: string | null | undefined,
+  todayYmd: string,
+): { missed: string[]; next: string } {
+  if (!YMD_RE.test(nextPayYmd ?? '') || !YMD_RE.test(todayYmd ?? '')) {
+    return { missed: [], next: nextPayYmd };
+  }
+  const base = nextPayYmd.slice(0, 10);
+  if (base >= todayYmd) return { missed: [], next: nextPayYmd };
+  const f = payFrequency(frequency);
+  const missed: string[] = [];
+  let i = 0;
+  while (addCycles(base, f, i) < todayYmd && i < 5000) {
+    missed.push(addCycles(base, f, i));
+    i++;
+  }
+  return { missed, next: addCycles(base, f, i) };
+}
