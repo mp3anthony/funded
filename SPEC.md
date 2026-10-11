@@ -344,6 +344,7 @@ ownership-gated pattern used for leave/delete-household.
 - Only valid IANA zone values are accepted (must be valid input to
   `Intl.DateTimeFormat`).
 - Fallback stays `Australia/Sydney` if unset, matching #34's existing default.
+  - Amended by #249: a new household is created with the creating phone's timezone when it is a valid IANA zone, else `Australia/Sydney`. Existing households are untouched; the fallback and column default stay.
 - No changes required to the cron/notification code path itself.
 
 **Testing:** The timezone picker is UI-heavy (searchable dropdown, likely

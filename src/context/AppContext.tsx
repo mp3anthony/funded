@@ -26,6 +26,7 @@ import {
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
+import { resolveNewHouseholdTimezone, isValidTimezone } from "@/lib/householdTimezone";
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
 
 
@@ -1739,7 +1740,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
     const nameToUse = householdName.trim() || "My Household";
 
-    const insertData: any = { name: nameToUse, is_joint_fund: false };
+    const insertData: any = { name: nameToUse, is_joint_fund: false, timezone: resolveNewHouseholdTimezone() };
     if (userIdToUse) {
       insertData.user_id = userIdToUse;
     }
@@ -1758,6 +1759,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
     setDbHouseholdId(newHousehold.id);
     setHouseholdNameState(newHousehold.name);
+    setHouseholdTimezone(newHousehold.timezone || "Australia/Sydney");
 
     if (currentSession?.user) {
       const userName = currentSession.user.user_metadata?.full_name || currentSession.user.email?.split("@")[0] || "Owner";
@@ -1960,7 +1962,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       const joinCodeValue = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      console.log('[createHousehold] Attempting insert:', { name, joinCode: joinCodeValue, userId: activeUser.id });
+      const timezone = resolveNewHouseholdTimezone();
+
+      console.log('[createHousehold] Attempting insert:', { name, joinCode: joinCodeValue, userId: activeUser.id, timezone });
 
       const { data: household, error: hhError } = await supabase
         .from('households')
@@ -1968,7 +1972,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           name,
           user_id: activeUser.id,
           join_code: joinCodeValue,
-          code_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          code_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          timezone
         })
         .select()
         .single();
@@ -2314,9 +2319,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       // Must be a valid IANA zone string Intl.DateTimeFormat accepts, same
       // validation todayInZone() relies on to not silently fall back.
-      try {
-        Intl.DateTimeFormat(undefined, { timeZone: timezone });
-      } catch {
+      if (!isValidTimezone(timezone)) {
         throw new Error("That doesn't look like a valid timezone.");
       }
 
