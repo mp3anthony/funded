@@ -33,7 +33,7 @@ Names only. Client-safe: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_
 
 ## Devices
 
-- Anthony tests on his iPhone (installed home-screen app, iOS Safari). Hannah uses Android (Samsung Internet) in real life, but checklists never target Android; Android is exercised post-merge on `main` by real users, and code must still work on both.
+- Anthony tests on his iPhone (installed home-screen app, iOS Safari). Hannah uses Android (Samsung Internet) in real life, but live-check notes never target Android; Android is exercised post-merge on `main` by real users, and code must still work on both.
 - Funded is a mobile app: never lead with, test or ask about desktop behaviour.
 - Fully close and reopen the installed app before a live check so the new service worker is active.
 

@@ -407,7 +407,7 @@ This is a solo project developed under a structured **Lead Developer Liaison Pro
 - **Once a plan is approved, the agent team works autonomously**, only interrupting for database migrations/RLS changes or locked architecture decisions.
 - **Every change goes on a branch and PR**; an independent review runs and the orchestrator advises whether it is clean.
 - **Changes are checked by Anthony in the live app after merge**, not on previews (the app is open only to invited testers). Code must work on both iOS and Android; live-check notes target iPhone only. Every code PR is labelled `needs-merge-approval`; Anthony approves each merge.
-- **Closing the linked GitHub issue is the go-ahead to merge** into `main`. The version number is confirmed with Anthony at merge time (see Versioning).
+- **Anthony's explicit go-ahead is the trigger to merge** into `main`; the issue closes after the merge. The version number is confirmed with Anthony at merge time (see Versioning).
 
 ### Code conventions
 

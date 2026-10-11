@@ -13,7 +13,7 @@ Binding build and process rules. Vocabulary lives in `docs/context/`; this file 
 ## Versioning
 
 - `src/lib/version.ts` (`APP_VERSION`) is the single source of truth for the display version. The `version` field in `package.json` is unused npm metadata and is not the source.
-- Bump `+0.0.1` per preview build (`v0.9.x` while pre-testing; `v0.9.0` was deliberately skipped). Do not bump as a side effect of an unrelated change. A rework commit on the same open PR does not re-bump; a new build cycle does.
+- Bump `+0.0.1` per build (`v0.9.x` while pre-testing; `v0.9.0` was deliberately skipped). Do not bump as a side effect of an unrelated change. A rework commit on the same open PR does not re-bump; a new build cycle does.
 - Confirm the exact resulting version with Anthony immediately before merging to `main`. He can waive a bump. When parallel PRs collide on the version, renumber and confirm again.
 - Milestones: `v0.10.0` when the app is ready for wider testers, `v1.0.0` for public beta. This is a loose guideline; the version applied at each merge is decided with Anthony at merge time.
 - The version shows at the bottom of Settings and in the "What's new" popup, both read from `APP_VERSION`; never restate the current version in a doc.
@@ -50,7 +50,7 @@ The popup shows once per version, tracked by a last-seen version key in localSto
 - **Dashboard tips** live in `dashboard-tips.ts` (plain string array). Update the tips whenever a shipped feature changes user-facing behaviour. The ticker sits above the mobile BottomNav using AppShell's clearance value.
 - **Icons (#174):** the tab favicon and the home-screen icon (apple-touch-icon and manifest icons) are the light icon with a `?v=3` cache-bust; leave the manifest `theme_color`, `background_color` and the viewport `themeColor` alone. Trade-offs are in `docs/lessons.md`.
 - **Live-check notes (replaces the manual-test checklist, 2026-10-11):** Anthony checks changes in production after merge, not on previews. Merge advice carries 1-3 plain-language lines on what to glance at (iPhone only); no checklist on the issue. Every issue has a "What's changing" section in plain terms.
-- **Checklists target iPhone (iOS Safari) only,** never Android. Code must still work on iOS and Android.
+- **Live-check notes target iPhone (iOS Safari) only,** never Android. Code must still work on iOS and Android.
 
 ## Standing constraints
 
