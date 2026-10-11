@@ -11,11 +11,11 @@ The shared space a group of people manage bills, goals and pay together in. A pe
 _Avoid_: Group, family account, team, workspace
 
 **Member**:
-A person in a household, either its owner or a regular member. A member can be shown as pending until they accept. Also called a Contributor when shown by what they pay or earn.
+A person in a household, either an owner or a regular member. A pending member has been added but has not accepted yet, so is not yet in the household. Also called a Contributor when shown by what they pay or earn.
 _Avoid_: User (for a person in a household), roommate, partner
 
 **Owner**:
-The member who created the household. Owners manage other members, choose the household timezone, and are the only ones who can delete the household.
+A member with owner rights. The person who created the household starts as the owner, and owners can make other accepted members owners, or demote them, so a household can have several owners. Owners manage other members, choose the household timezone, and are the only ones who can delete the household.
 _Avoid_: Admin, host, creator
 
 **Join code**:
@@ -27,8 +27,12 @@ The first-run setup that either creates a new household or joins one by join cod
 _Avoid_: Sign-up wizard, tutorial, welcome flow
 
 **Leave household**:
-Removing yourself from your household. For a regular member the household carries on; for the owner it deletes the household and everything in it for every member.
+Removing yourself from your household. A regular member, or an owner while another owner remains, leaves and the household carries on. An owner who is the only owner while other accepted members remain must either make an accepted member the new owner and then leave, or delete the household. A sole member can only delete. Pending members are not in the household yet, so they cannot be given ownership.
 _Avoid_: Delete account, quit, unsubscribe
+
+**Delete household**:
+The owner-only action that permanently removes the household and everything in it for every member. Only available to an owner with no other owner, and it needs DELETE typed to confirm. Other members get no notice; they land on the create-or-join screen the next time they open the app.
+_Avoid_: Delete account
 
 ### Settling bills
 
