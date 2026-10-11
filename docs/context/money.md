@@ -31,11 +31,11 @@ An amount converted to a common frequency before it is compared or added to any 
 _Avoid_: Converted amount, equivalent amount
 
 **Due date**:
-The day a bill must be paid, read in the household's timezone. An active recurring autopay bill shows its saved date moved forward to the next one on or after today, counted from the saved date so month-end days clamp (a 31st bill shows Feb 28, then Mar 31). A paused bill shows the label "Paused" instead of a date, and a one-off autopay bill whose saved date has passed shows "One-off"; the saved date is still kept for editing. A bill saved without a date shows "No due date" (see Dateless bill); that is not a neutral label in this sense. Bills showing a neutral label ("Paused" or "One-off") appear only under the All filter on the Bills page.
+The day a bill must be paid, read in the household's timezone. An active recurring autopay bill shows its saved date moved forward to the next one on or after today, counted from the saved date so month-end days clamp (a 31st bill shows Feb 28, then Mar 31). A paused bill shows the label "Paused" instead of a date, and a one-off autopay bill whose saved date has passed shows "One-off"; the saved date is still kept for editing. A bill saved without a date shows "No due date" (see Dateless bill); that is not a neutral label in this sense, but like them it appears only under the All filter. Bills showing a neutral label ("Paused" or "One-off") appear only under the All filter on the Bills page.
 _Avoid_: Deadline, payment date
 
 **Dateless bill**:
-A bill saved without a due date. It shows "No due date", sorts last in lists, still counts toward totals, never shows Due Soon or Overdue, and sends no reminders. Marking it Paid asks "When is it next due?"; the user can Skip for now (the bill stays Paid, shown as "Paid · no due date", until a date is added) or choose Don't ask again for this bill. 30 days after it was added, the "No due date" label becomes an orange "Add due date" prompt, unless muted.
+A bill saved without a due date. It shows "No due date", sorts last in lists, still counts toward totals, never shows Due Soon or Overdue, appears only under the All filter, and sends no reminders. Marking it Paid asks "When is it next due?"; the user can Skip for now (the bill stays Paid, shown as "Paid · no due date", until a date is added) or choose Don't ask again for this bill. 30 days after it was added, the "No due date" label becomes an orange "Add due date" prompt, unless muted.
 _Avoid_: Undated bill, open-ended bill
 
 **One-off bill**:
