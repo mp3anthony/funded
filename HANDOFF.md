@@ -15,16 +15,20 @@
 - **#273** (turn on leaked-password protection in Supabase Auth): `ready-for-human`; Anthony wants a guided walk-through in its own session; check the setting is available on our plan first.
 - **Repo interaction limit** set to collaborators only until 2027-04-09 (spam, #276); renew then (Settings > Moderation options > Interaction limits).
 - **Security** details live in the private notes file; no GitHub issue by design.
-- **Backlog, all `needs-triage`, each needs its own grill session:** #250 (bill saved with blank due date), #251 (owner "Leave household" deletes household for everyone), #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #267 (paused bills: no visual cue, still counted in Total Bar; overlaps #288 display), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
+- **Grilled 2026-10-11, decisions in each issue body, glossary merged (PR #336); each needs a Planner step, then the standing pause:**
+  - **#251 Leave/Delete household (`ready-for-agent`):** owner with another owner = plain leave; only owner + other accepted members = pick an accepted member as owner then leave, or Delete (in-app dialog, type DELETE); sole member = Delete only. Regular Leave also moves to an in-app dialog. Transfer reuses the existing Edit Member promote. Planner must check whether the creator leaving breaks RLS / `delete-household` (`households.user_id`); if so, A1 escalation. **Undecided (comment on issue):** only-owner with only pending members; can the last owner demote themselves.
+  - **#250 blank due date (`needs-info`):** due date stays optional; "No due date" label, sorts last, counts in totals; Mark as Paid asks "When is it next due?" with Skip for now / Don't ask again; 30 days after adding, an orange "Add due date" prompt. Needs a per-bill mute column (migration, A1): Anthony's go-ahead before build. **Undecided:** which due-date filters show a dateless bill (suggest All only).
+  - **#267 paused bills (`ready-for-agent`, `needs-manual-test`):** orange pause icon, greyed amount, "Paused" in the date slot; one shared "counts toward totals" rule (excludes paused and finished one-offs) for Total Bar, weekly surplus and splits, health score, contributions; muted "N paused or finished, not counted" line under the Total Bar. Overlaps #288 (neutral date labels); Planner settles build order with #287/#288.
+- **Backlog, all `needs-triage`, each needs its own grill session:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
-- **Owed:** fix the stale "not wired up" comment in `NotifyHourDialog.tsx` and the "weekly draw" comment in `bills-client.tsx` in the next PR touching those files. Delete each Getting started "Good to know" item when #251, #250 close (the #249 one is reworded in its build instead). The website (separate repo) must link to `/getting-started`.
+- **Owed:** fix the stale "not wired up" comment in `NotifyHourDialog.tsx` and the "weekly draw" comment in `bills-client.tsx` in the next PR touching those files. Delete each Getting started "Good to know" item when #251, #250 are built (the #249 one is reworded in its build instead). The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
-- Last active SPEC ticket: Slice 14 (amended by #311, #260). Grilled since, not yet in SPEC.md (fold durable parts in when built): #248, #249, #333.
+- Last active SPEC ticket: Slice 14 (amended by #311, #260). Grilled since, not yet in SPEC.md (fold durable parts in when built): #248, #249, #333, #251, #250, #267.
 
 ## Next session, in order
 
 1. Build #248 and #249, each in a fresh session from the issue (Planner, review, standing pause). Build #333 only after #248 ships and Anthony approves the migration.
-2. Grill #250, #251, #261, #267 individually when Anthony asks; #265 and #266 are small chores.
+2. Plan and build #251, #267 and #250 (#250 only after Anthony approves the migration), each in a fresh session from the issue. Grill #261, #315, #316 individually when Anthony asks; #265 and #266 are small chores.
 3. #183 design reference (unblocks #277 to #281). #145 and #273 only when Anthony says so.
 
 ## Where things live
