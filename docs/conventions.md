@@ -49,7 +49,7 @@ The popup shows once per version, tracked by a last-seen version key in localSto
 - **Safari and backdrop-filter:** Safari does not animate opacity on an element that also carries `backdrop-filter`; put the dim and blur on an inner element.
 - **Dashboard tips** live in `dashboard-tips.ts` (plain string array). Update the tips whenever a shipped feature changes user-facing behaviour. The ticker sits above the mobile BottomNav using AppShell's clearance value.
 - **Icons (#174):** the tab favicon and the home-screen icon (apple-touch-icon and manifest icons) are the light icon with a `?v=3` cache-bust; leave the manifest `theme_color`, `background_color` and the viewport `themeColor` alone. Trade-offs are in `docs/lessons.md`.
-- **Live-check notes (replaces the manual-test checklist, 2026-10-11):** Anthony checks changes in production after merge, not on previews. Merge advice carries 1-3 plain-language lines on what to glance at (iPhone only); no checklist on the issue. Every issue has a "What's changing" section in plain terms.
+- **Live-check notes (replaces the manual-test checklist, 2026-10-11):** Anthony checks changes in production after merge, not on previews, unless he asks for a preview review (`needs-manual-test`, which then carries the checklist format in CLAUDE.md). Merge advice carries 1-3 plain-language lines on what to glance at (iPhone only); no checklist on the issue. Every issue has a "What's changing" section in plain terms.
 - **Live-check notes target iPhone (iOS Safari) only,** never Android. Code must still work on iOS and Android.
 
 ## Standing constraints

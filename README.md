@@ -406,7 +406,7 @@ This is a solo project developed under a structured **Lead Developer Liaison Pro
 - **Problem Agreement** — the problem is scoped and the issue filed (with a plain-terms "What's changing" section) after an Intake sub-agent checks the context map and existing issues — is reached before any work starts.
 - **Once a plan is approved, the agent team works autonomously**, only interrupting for database migrations/RLS changes or locked architecture decisions.
 - **Every change goes on a branch and PR**; an independent review runs and the orchestrator advises whether it is clean.
-- **Changes are checked by Anthony in the live app after merge**, not on previews (the app is open only to invited testers). Code must work on both iOS and Android; live-check notes target iPhone only. Every code PR is labelled `needs-merge-approval`; Anthony approves each merge.
+- **Changes are checked by Anthony in the live app after merge**, not on previews unless he asks for a preview review (`needs-manual-test`) (the app is open only to invited testers). Code must work on both iOS and Android; live-check notes target iPhone only. Code PRs are labelled `needs-merge-approval` by default (`needs-manual-test` when he asks for a preview review); Anthony approves each merge.
 - **Anthony's explicit go-ahead is the trigger to merge** into `main`; the issue closes after the merge. The version number is confirmed with Anthony at merge time (see Versioning).
 
 ### Code conventions

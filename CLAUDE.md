@@ -56,12 +56,13 @@ After plan approval, subagents work autonomously **except** when (a) the change 
 
 ### Review and merge approval
 
-- **No preview testing.** The app is live but only open to invited or stumbled-on testers, so Anthony checks changes in production after merge rather than on previews. `needs-manual-test` is no longer the default: apply it only when Anthony asks for a hands-on review before merge, e.g. one PR and one version bump covering a set (multi-stage) of issues that he wants to review together on the preview.
-- **`needs-merge-approval`:** the default label for every code PR once review is done. Anthony still approves every merge; the orchestrator never merges code PRs on its own.
+- **Default: live-app testing after merge, no preview testing.** The app is live but only open to invited or stumbled-on testers, so Anthony checks changes in production after merge rather than on previews. `needs-manual-test` is no longer the default: apply it only when Anthony asks for a hands-on review before merge, e.g. one PR and one version bump covering a set (multi-stage) of issues that he wants to review together on the preview.
+- **`needs-merge-approval`:** the default label for every code PR once review is done; a PR Anthony asks to review on a preview carries `needs-manual-test` instead. Anthony still approves every merge; the orchestrator never merges code PRs on its own.
 - **Merge advice (orchestrator, on every code PR):** after the independent review, tell Anthony in one short message whether the PR is **clean** (review approved, tsc/tests/build pass, no A1 touch, version and patch note present) or **not clean** (list the open findings). If clean, say so plainly and add 1-3 lines on what to glance at in the live app. Then wait for his explicit go-ahead; only then does the orchestrator run the merge. Anything needing prod set-up first (migration, env var) is done before the merge, as today.
 - **HANDOFF-only PRs** (`docs/handoff-*`): merge straight away, no review.
 - **Any other docs-only or tooling-only PR** (no site code, no behaviour): a sub-agent (never the author) reviews it, the orchestrator fixes anything found, then merges. No version bump, no patch note. Escalate only if the review finds a locked-invariant touch.
 - **Live-check notes:** short, plain language, iPhone only; they live in the merge advice, not on the issue. Anything needing a seeded `TEST-` row is offered by the orchestrator, not left to Anthony.
+- **`needs-manual-test` PRs (on request only):** replace `needs-merge-approval` on that PR. The PR description (and a comment on the issues it covers) carries a manual-test checklist: numbered scenarios, each with (1) a short bold title, (2) exact setup steps, (3) one ✅ pass line, (4) an optional ❌ line for a specific wrong-looking failure; iPhone only, plain language; call out steps needing no reload or a single tab. Anthony still approves the merge. Orchestrator relabels to `needs-merge-approval` once he has reviewed.
 
 ### Labels
 
