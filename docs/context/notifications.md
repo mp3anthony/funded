@@ -15,7 +15,7 @@ A notification the app generates on its own about a bill, payday, pending pay or
 _Avoid_: Task, to-do, nudge
 
 **Reminder types**:
-Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid. A one-off autopay bill is reminded for its saved date only and gets nothing once that date has passed; a paused bill gets none.
+Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid. A one-off autopay bill is reminded for its saved date only and gets nothing once that date has passed; a paused bill gets none, and neither does a dateless bill (no date to remind about).
 _Avoid_: Categories, alert kinds
 
 **Confirm Pending Pay reminder**:
@@ -59,7 +59,7 @@ The hour of day a member prefers their notifications to arrive, set per member a
 _Avoid_: Quiet hours, delivery time, reminder time
 
 **Household timezone**:
-The timezone all of a household's dates and notification times are read in. Only the owner can change it.
+The timezone all of a household's dates and notification times are read in. Only an owner can change it.
 _Avoid_: Device timezone, local time, region
 
 **Scheduled delivery**:
