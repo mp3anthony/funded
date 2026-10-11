@@ -14,9 +14,9 @@ type Tab = "notes" | "known";
 const visibleNotes = recentPatchNotes(patchNotes);
 
 /**
- * Hidden in-app "What's new" page (Slice 14, #113). Not in BottomNav —
+ * Hidden in-app "Updates" page (Slice 14, #113; renamed from "What's new" in #311). Not in BottomNav —
  * reachable via the link at the bottom of Settings, and via the first-open
- * popup's "See what's new" link (PatchNotesPopup.tsx).
+ * Updates card's "See updates" link (UpdatesCard.tsx).
  *
  * Two tabs (#152): "Patch Notes" (default) and "Known Issues". Known Issues is
  * fetched on mount from the cached `/api/known-issues` route (the service
@@ -58,7 +58,7 @@ export default function PatchNotesClient() {
   return (
     <div className="flex-1 w-full max-w-2xl mx-auto px-6 pt-4 pb-10 md:pt-6">
       <PageHeader
-        title="What's New"
+        title="Updates"
         subtitle={
           tab === "notes"
             ? "Patch notes for the funded. app, newest first."

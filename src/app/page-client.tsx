@@ -24,6 +24,7 @@ export default function HomeClient() {
     members: householdMembers,
     deleteBill,
     deleteGoal,
+    isUpdatesCardVisible,
   } = useApp();
   const currentUser = useCurrentUser();
 
@@ -112,7 +113,7 @@ export default function HomeClient() {
           above are minimised. Rendered outside the scrolling content div
           (like BottomNav in AppShell) so its fixed positioning is against
           the viewport, not this page's own layout box. */}
-      <DashboardTipsTicker active={bothCardsMinimised} />
+      <DashboardTipsTicker active={bothCardsMinimised && !isUpdatesCardVisible} />
 
       {/* Bill Detail Sheet */}
       <BillDetailSheet

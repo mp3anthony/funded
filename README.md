@@ -41,7 +41,7 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 - **Notifications** — in-app notification centre plus web push reminders (bills, pending pay, payday, goals), read/unread state, per-type settings, a per-member notify hour and a household timezone
 - **Light and dark mode** — automatic via `prefers-color-scheme` CSS media query, with a manual Light / Dark / System choice under Appearance in Settings (applied as a `.dark` / `.light` class)
 - **PWA** — installable as a home screen app on iOS Safari and Android Chrome with an offline fallback page
-- **In-app help** — a public Getting started guide, a patch notes ("What's new") page with a Known Issues tab, a first-open popup, and in-app bug reporting
+- **In-app help** — a public Getting started guide, an Updates page (patch notes) with a Known Issues tab, a first-open Updates card, and in-app bug reporting
 - **Authentication** — email/password auth via Supabase (implicit flow, session persisted in `localStorage`), email confirmation, and password reset
 
 ---
@@ -209,7 +209,7 @@ funded-nextjs/
 │   │   ├── getting-started/  # Public Getting started guide
 │   │   ├── login/            # Login / sign-up page
 │   │   ├── offline/          # Offline fallback page
-│   │   ├── patch-notes/      # Patch notes ("What's new") page
+│   │   ├── patch-notes/      # Updates page (patch notes + known issues)
 │   │   ├── payday/           # Pay schedules, pay logging and history page
 │   │   ├── reset-password/update/  # Set a new password (reached from the reset email)
 │   │   └── settings/         # Account, app, household and member settings
@@ -266,13 +266,13 @@ funded-nextjs/
 | `/payday` | **Payday** | Pay schedules, income entry (fixed or variable), pending pay confirmation, pay history, surplus rule triggers |
 | `/bills` | **Bills** | All household bills and expenses with status badges, category filters, search, and frequency normalisation toggle |
 | `/funds` | **Goals** | Savings goals with progress bars, manual top-ups, and completion tracking |
-| `/settings` | **Settings** | Profile, notifications (including notify hour and push status), appearance (Light / Dark / System), payment mode (Joint Fund / Direct Pay), contribution amounts and automation rules (Joint Fund), join code, household timezone, member management, What's new, Getting started, bug reporting |
+| `/settings` | **Settings** | Profile, notifications (including notify hour and push status), appearance (Light / Dark / System), payment mode (Joint Fund / Direct Pay), contribution amounts and automation rules (Joint Fund), join code, household timezone, member management, Updates, Getting started, bug reporting |
 | `/login` | **Login** | Email/password authentication (sign in or sign up) |
 | `/confirm-email` | **Confirm Email** | Email verification landing page |
 | `/reset-password/update` | **Reset Password** | Password update page reached via Supabase reset email link |
 | `/auth/callback` | **Auth Callback** | Supabase auth redirect handler |
 | `/getting-started` | **Getting Started** | Public guide of optional missions covering the basics (no sign-in needed) |
-| `/patch-notes` | **Patch Notes** | What changed in each version, plus a Known Issues tab (reached from Settings as "What's new") |
+| `/patch-notes` | **Updates** | What changed in each version, plus a Known Issues tab (reached from Settings as "Updates") |
 | `/offline` | **Offline** | PWA offline fallback page |
 
 ### User flow

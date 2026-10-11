@@ -387,13 +387,13 @@ export default function SettingsClient() {
         </button>
       </section>
 
-      {/* ── What's new + Getting started + Report a bug + Leave household + version ── */}
+      {/* ── Updates + Getting started + Report a bug + Leave household + version ── */}
       <section className="pt-8">
         <Link
           href="/patch-notes"
           className="block w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
         >
-          What&apos;s new
+          Updates
         </Link>
         <Link
           href="/getting-started"

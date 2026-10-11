@@ -587,7 +587,7 @@ for the static page itself if separated out.
 
 **Amendment (#152, Known Issues tab):**
 - The page has two tabs, "Patch Notes" (default, unchanged) and "Known Issues".
-  The page title stays "What's New".
+  The page title is "Updates" (renamed from "What's New" in #311).
 - Known Issues lists open GitHub issues carrying the `known-issue` label
   (label only; no other filter). Claude applies the label. Only a "User-facing
   blurb" section (`##` or `###` heading) of the issue body is shown, as plain
@@ -612,6 +612,16 @@ for the static page itself if separated out.
   only (measured from the newest entry, not today); this supersedes the initial
   two-month window. Older entries stay in `patch-notes.ts`. An entry whose date is not "Month YYYY" is always shown.
   The first-open popup and the Known Issues tab are unchanged. Link back: issue #309.
+
+**Amendment (#311, #260, Updates page and Updates card):**
+- The page is renamed "Updates" (visible text and docs only; the route stays
+  `/patch-notes`). The Settings row reads "Updates".
+- The first-open popup is replaced by the Updates card: a compact, non-blocking
+  card above the bottom nav, shown once per version, with the newest entry's
+  first 2 bullets, "+N more" and a "See updates" link. It stays until the
+  person taps X or the link, and hides the dashboard tips ticker while shown.
+  This supersedes the popup wording above, which is left as history.
+  Link back: issues #311, #260.
 
 ---
 
