@@ -1,11 +1,11 @@
 ---
 name: pr-browser-triage
-description: LEGACY (retired workflow 2026-10-11: PRs no longer carry manual-test checklists; use only on an older PR that still has one). Triage an open GitHub PR's manual-testing checklist to work out which items can be genuinely validated via the local Claude Browser tool (Chromium, against the localhost dev server) versus which need a real device. Use this whenever the user asks to "browser-test" a PR, wants to know what's testable via the browser/localhost before a real-device pass, references a specific PR number alongside testing, or wants to streamline manual QA before spending time on their own phone. Also trigger when the user asks to run or check the testing checklist for the current branch's PR. Do not use this for actually deciding whether to merge (that's a separate, explicitly-confirmed step) or for touching GitHub state (ticking checklist items, commenting) — this skill only classifies and executes browser-safe checks, then reports back in chat.
+description: Use only on a PR that carries a manual-test checklist (now only when `needs-manual-test` is requested). Triage an open GitHub PR's manual-testing checklist to work out which items can be genuinely validated via the local Claude Browser tool (Chromium, against the localhost dev server) versus which need a real device. Use this whenever the user asks to "browser-test" a PR, wants to know what's testable via the browser/localhost before a real-device pass, references a specific PR number alongside testing, or wants to streamline manual QA before spending time on their own phone. Also trigger when the user asks to run or check the testing checklist for the current branch's PR. Do not use this for actually deciding whether to merge (that's a separate, explicitly-confirmed step) or for touching GitHub state (ticking checklist items, commenting) — this skill only classifies and executes browser-safe checks, then reports back in chat.
 ---
 
 # PR Browser Triage
 
-This repo's PRs carry a manual-testing checklist (see `CLAUDE.md`, Workflow Protocol, manual-test checklist format, and
+PRs labelled `needs-manual-test` carry a manual-testing checklist (see `CLAUDE.md`, Workflow Protocol, `needs-manual-test` PRs bullet, and
 `docs/lessons.md` for worked examples). Not every item on it can be meaningfully checked through a
 Chromium browser hitting `localhost` — some need real iOS Safari, an installed PWA, a native
 gesture, or a network condition the browser tool can't simulate. Running those anyway doesn't
@@ -29,7 +29,7 @@ gh pr view <number> --json body,comments
 ```
 
 If a comment exists in the "canonical format" (numbered items, ✅ pass line, optional ❌ named
-failure mode — see `CLAUDE.md`, Workflow Protocol, manual-test checklist format) and its text says it supersedes the PR body's checklist
+failure mode — see `CLAUDE.md`, Workflow Protocol, `needs-manual-test` PRs bullet) and its text says it supersedes the PR body's checklist
 (look for language like "this comment is the one to work from" or "supersedes the ... section
 above"), use that comment as the source of truth. Otherwise fall back to the PR body's checklist
 section. Note which source you used when you report back — it matters if the two ever drift.
