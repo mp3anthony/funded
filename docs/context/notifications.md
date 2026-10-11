@@ -59,7 +59,7 @@ The hour of day a member prefers their notifications to arrive, set per member a
 _Avoid_: Quiet hours, delivery time, reminder time
 
 **Household timezone**:
-The timezone all of a household's dates and notification times are read in. Only an owner can change it.
+The timezone all of a household's dates and notification times are read in. Only an owner can change it. A new household starts in the timezone of the phone that created it (Australia/Sydney if that can't be read); existing households are untouched.
 _Avoid_: Device timezone, local time, region
 
 **Scheduled delivery**:

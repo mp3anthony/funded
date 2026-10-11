@@ -168,7 +168,7 @@ export const goodToKnow: GoodToKnowItem[] = [
   },
   { text: "Always give a bill a due date.", ticket: 250 },
   {
-    text: "Household owner: check Settings > Timezone. It starts as Australia/Sydney, so change it if you live somewhere else.",
+    text: "The household timezone is set from the owner's phone when the household is created. Owners should still check it in Settings.",
     ticket: 249,
   },
   {

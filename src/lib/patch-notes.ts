@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.75",
+    date: "October 2026",
+    highlights: [
+      "New households now start in the timezone of the phone that created them, so due dates and reminders match your local day.",
+      "Households that already exist keep their timezone. The owner can change it in Settings > Timezone.",
+    ],
+  },
+  {
     version: "0.9.74",
     date: "October 2026",
     highlights: [
