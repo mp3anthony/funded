@@ -17,7 +17,7 @@ Produce:
 
 - A step-by-step plan, naming every file to create or change.
 - Risks and unknowns, with how to check each.
-- A test plan and manual-test checklist (numbered; bold title, exact steps, one pass line, optional fail line; iPhone (iOS Safari) only, never Android, and call out any step that must happen without a reload or in a single tab).
+- A short plain-language list (1-3 lines) of what Anthony should glance at in the live app after merge (iPhone only, never Android). No numbered manual-test checklist. Include a unit-test plan.
 - Any docs to update (glossary, ADR, environment notes).
 - An explicit **escalation flag** if any step touches a locked invariant (schema or migration changes, RLS or security policy, stack changes, anything `SPEC.md` Part A1 marks locked). Stop at the flag; the orchestrator takes it to Anthony.
 

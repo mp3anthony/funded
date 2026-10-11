@@ -37,8 +37,8 @@ Run `gh issue view <number> --comments`.
 
 This repo's own liaison protocol (`CLAUDE.md`) uses three additional labels the generic skill vocabulary doesn't have roles for — apply them per `CLAUDE.md`'s own rules, not via the `triage` skill:
 
-- `needs-manual-test` — preview needs hands-on device/platform verification before merge
-- `needs-merge-approval` — change complete, checklist pre-ticked, awaiting go-ahead to merge
+- `needs-manual-test` — RETIRED 2026-10-11 (Anthony checks in production after merge; no preview testing). Do not apply.
+- `needs-merge-approval` — default for every code PR once review is done; orchestrator gives clean/not-clean advice, Anthony approves the merge
 - `out-of-spec` — falls outside current `SPEC.md`; logged to `CHANGE-LOG.md`, not scoped until triaged
 
 (The repo also has a `ready-for-testing` label on GitHub that isn't referenced anywhere in `CLAUDE.md` — left alone; not part of this workflow.)
@@ -53,3 +53,7 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
 - **Claim**: `gh issue edit <n> --add-assignee @me` — the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+
+## Issue body rule
+
+Every issue, however it is filed (orchestrator, QA skill, `from-app`), has a **"What's changing"** section in plain, non-technical terms: what the user will see or what behaviour differs. Intake findings (related context, related or duplicate issues) go in the body too. No testing checklist on the issue.

@@ -402,12 +402,12 @@ Ensure every variable listed under [Environment variables](#environment-variable
 
 This is a solo project developed under a structured **Lead Developer Liaison Protocol**: a single orchestrator session is the sole point of contact and delegates to a sub-agent team, but never merges or approves its own code. The full protocol lives in [`CLAUDE.md`](CLAUDE.md) — the short version:
 
-- **Issues & PRDs** are tracked as GitHub issues on `mp3anthony/funded` via the `gh` CLI, triaged with canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `needs-manual-test`, `needs-merge-approval`).
-- **Problem Agreement** — the problem must be fully scoped and the issue filed with a testing checklist — is reached before any work starts.
+- **Issues & PRDs** are tracked as GitHub issues on `mp3anthony/funded` via the `gh` CLI, triaged with canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `needs-merge-approval`).
+- **Problem Agreement** — the problem is scoped and the issue filed (with a plain-terms "What's changing" section) after an Intake sub-agent checks the context map and existing issues — is reached before any work starts.
 - **Once a plan is approved, the agent team works autonomously**, only interrupting for database migrations/RLS changes or locked architecture decisions.
-- **Every change goes on a branch**, which triggers an automatic Vercel preview deployment.
-- **Changes touching mobile layout, styling, or native browser behaviour** are labelled `needs-manual-test` for verification on the installed home-screen app on an iPhone; code must still be written to work correctly on **both** iOS and Android, but manual-test checklists never target Android. **Backend/platform-agnostic changes** are labelled `needs-merge-approval` — checklist pre-ticked, just needs your go-ahead.
-- **Closing the linked GitHub issue is the go-ahead to merge** into `main`. The version number is confirmed with Anthony at merge time (see Versioning).
+- **Every change goes on a branch and PR**; an independent review runs and the orchestrator advises whether it is clean.
+- **Changes are checked by Anthony in the live app after merge**, not on previews (the app is open only to invited testers). Code must work on both iOS and Android; live-check notes target iPhone only. Every code PR is labelled `needs-merge-approval`; Anthony approves each merge.
+- **Anthony's explicit go-ahead is the trigger to merge** into `main`; the issue closes after the merge. The version number is confirmed with Anthony at merge time (see Versioning).
 
 ### Code conventions
 
