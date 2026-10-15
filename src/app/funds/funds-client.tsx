@@ -13,6 +13,7 @@ import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
 import GoalRow from "@/components/GoalRow";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
+import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { useCountUp } from "@/hooks/useCountUp";
 
 const GOAL_CATEGORIES = [
@@ -103,6 +104,25 @@ export default function FundsClient() {
     const rest = params.toString();
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [isDataLoading, searchParams, funds, pathname, router]);
+
+  // Finish setting up card (#333): /funds?add=1 opens the Add Goal sheet once.
+  // Not gated on isDataLoading (the sheet needs no data). Waits while a goalId
+  // link is pending so the two router.replace strips (each built from the
+  // current params) can't resurrect each other's param.
+  const handledAddRef = useRef(false);
+  useEffect(() => {
+    if (!searchParams) return;
+    if (!hasAddSheetParam(searchParams)) {
+      handledAddRef.current = false;
+      return;
+    }
+    if (handledAddRef.current || searchParams.get("goalId")) return;
+    handledAddRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsAddOpen(true);
+    const rest = stripAddSheetParam(searchParams);
+    router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
+  }, [searchParams, pathname, router]);
 
   // ── Derived summary values ────────────────────────────────────────
   const totalSaved = funds.reduce((sum, f) => sum + f.currentAmount, 0);

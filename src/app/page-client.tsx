@@ -9,6 +9,7 @@ import EditGoalSheet from "@/components/EditGoalSheet";
 import PageHeader from "@/components/PageHeader";
 
 // New premium components
+import FinishSetupCard from "@/components/FinishSetupCard";
 import HealthScoreCard from "@/components/HealthScoreCard";
 import UpcomingBillsCard from "@/components/UpcomingBillsCard";
 import ActiveGoalsCard from "@/components/ActiveGoalsCard";
@@ -79,6 +80,8 @@ export default function HomeClient() {
 
       {/* Editorial sections */}
       <div className="space-y-9 pt-2">
+        <FinishSetupCard />
+
         {/* Health Score — page anchor */}
         <HealthScoreCard />
 

@@ -767,6 +767,9 @@ interface AppContextValue {
   toast: AppToast | null;
   showToast: (toast: Omit<AppToast, "id">) => void;
   dismissToast: (id?: number) => void;
+  /* Finish setting up card (#333): null = not loaded yet / load failed, so the card stays hidden */
+  isFinishSetupDismissed: boolean | null;
+  dismissFinishSetup: () => Promise<void>;
   /* Updates card (#260) visibility, so the dashboard tips ticker can step aside */
   isUpdatesCardVisible: boolean;
   setUpdatesCardVisible: (visible: boolean) => void;
@@ -1189,6 +1192,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // True while the Updates card (#260) is on screen; the dashboard tips ticker hides then.
   const [isUpdatesCardVisible, setUpdatesCardVisible] = useState(false);
   const toastSeqRef = useRef(0);
+  // Finish setting up card dismissal (#333), keyed by user id so a same-tab
+  // account switch can't show the previous user's flag.
+  const [finishSetup, setFinishSetup] = useState<{ userId: string; dismissed: boolean } | null>(null);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   /* Slice 13 (#99): this device's push subscription health, centralized here
    * (review finding 2) so every NotificationCenter mount point (AppShell's
@@ -1647,8 +1653,47 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       fetchPayData(householdId),
       fetchHouseholdContributions(householdId),
       fetchContributionRules(householdId),
-      fetchNotifications(userId, householdId)
+      fetchNotifications(userId, householdId),
+      loadFinishSetupDismissed(userId)
     ]);
+  }
+
+  /* ── Finish setting up card flag (#333) ─────── */
+  // Never throws. On error (or before the migration is applied) state is left
+  // alone, so the card stays hidden. One-way commit: a warm-reload empty read
+  // can't bring back a card the user already dismissed.
+  async function loadFinishSetupDismissed(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from("user_preferences")
+        .select("finish_setup_dismissed_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) {
+        console.error("Error loading finish-setup flag:", error);
+        return;
+      }
+      const dismissed = !!data?.finish_setup_dismissed_at;
+      setFinishSetup((prev) => (prev?.userId === userId && prev.dismissed ? prev : { userId, dismissed }));
+    } catch (err) {
+      console.error("Error loading finish-setup flag:", err);
+    }
+  }
+
+  async function dismissFinishSetup() {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    setFinishSetup({ userId, dismissed: true });
+    const now = new Date().toISOString();
+    try {
+      const { error } = await supabase
+        .from("user_preferences")
+        .upsert({ user_id: userId, finish_setup_dismissed_at: now, updated_at: now }, { onConflict: "user_id" });
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error saving finish-setup dismissal:", err);
+      showToast({ message: "Couldn't save that, so the card may come back next time." });
+    }
   }
 
   /* ── Fetch Pay Data ─────────────────────────── */
@@ -1793,6 +1838,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // A membership row now exists for this user, so a later query failure must
       // not clear isOnboarded and route them to "create or join" (#75 item 3).
       resolvedHouseholdUserIdRef.current = currentSession.user.id;
+      // Same as createHousehold: this path skips loadHouseholdRelatedData (#333).
+      await loadFinishSetupDismissed(currentSession.user.id);
     }
 
     return newHousehold.id;
@@ -2028,6 +2075,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // Do NOT setIsOnboarded(true) here — that would unmount the onboarding
       // wizard mid-flow (#78). completeOnboarding() on step 6's "Enter App" is
       // the only thing that should flip this.
+
+      // This path never calls loadHouseholdRelatedData, so load the card flag here (#333).
+      await loadFinishSetupDismissed(activeUser.id);
 
       return household.id;
 
@@ -4991,6 +5041,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     toast,
     showToast,
     dismissToast,
+    isFinishSetupDismissed: finishSetup && finishSetup.userId === session?.user?.id ? finishSetup.dismissed : null,
+    dismissFinishSetup,
     isUpdatesCardVisible,
     setUpdatesCardVisible,
     expenses,

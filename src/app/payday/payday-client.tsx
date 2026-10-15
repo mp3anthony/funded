@@ -12,6 +12,7 @@ import PayScheduleDetailSheet from "@/components/PayScheduleDetailSheet";
 import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { hasPaydayLinkParams, resolvePaydayLink, stripPaydayLinkParams } from "@/lib/notifications/paydayLink";
+import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 
 export default function PaydayClient() {
   const { paySchedules, payHistory, householdMembers, deletePaySchedule, logPay, calculateAveragePay, addToGoal, isJointFund, householdContributions, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay } = useApp();
@@ -102,6 +103,24 @@ export default function PaydayClient() {
     // stable once mounted, so it's deliberately left out of the deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLinkReady, searchParams, paySchedules, payHistory, pathname, router]);
+
+  // Finish setting up card (#333): /payday?add=1 opens the Add Schedule sheet
+  // once (no data wait needed), then the param is stripped. "add" is not one of
+  // the notification link params, so the effect above leaves it alone.
+  const handledAddRef = useRef(false);
+  useEffect(() => {
+    if (!searchParams) return;
+    if (!hasAddSheetParam(searchParams)) {
+      handledAddRef.current = false;
+      return;
+    }
+    if (handledAddRef.current) return;
+    handledAddRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsAddScheduleOpen(true);
+    const rest = stripAddSheetParam(searchParams);
+    router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
+  }, [searchParams, pathname, router]);
 
   // Helper for countdown
   const getCountdown = (schedule: PaySchedule) => {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect, type CSSProperties } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useMemo, useEffect, useRef, type CSSProperties } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
 import AddBillSheet from "@/components/AddBillSheet";
@@ -13,6 +13,7 @@ import PageHeader from "@/components/PageHeader";
 import FrequencyToggle from "@/components/FrequencyToggle";
 import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
+import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 
 type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
 
@@ -51,6 +52,8 @@ export default function BillsClient() {
   } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [isAddBillSheetOpen, setIsAddBillSheetOpen] = useState(false);
   const [isAddExpenseSheetOpen, setIsAddExpenseSheetOpen] = useState(false);
@@ -85,6 +88,25 @@ export default function BillsClient() {
       .then(setCategoryOrder)
       .catch(() => {});
   }, [session?.user?.id]);
+
+  // Finish setting up card (#333): /bills?add=1 opens the Add Bill sheet once,
+  // then the param is stripped so refresh/back never re-opens it.
+  const handledAddRef = useRef(false);
+  useEffect(() => {
+    if (!searchParams) return;
+    if (!hasAddSheetParam(searchParams)) {
+      handledAddRef.current = false;
+      return;
+    }
+    if (handledAddRef.current) return;
+    handledAddRef.current = true;
+    // One-shot sync with an external input (the tapped link), guarded by
+    // handledAddRef — not a render cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsAddBillSheetOpen(true);
+    const rest = stripAddSheetParam(searchParams);
+    router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
+  }, [searchParams, pathname, router]);
 
   useEffect(() => {
     const billId = searchParams?.get("billId");
