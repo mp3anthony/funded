@@ -23,7 +23,7 @@ The temporary six-digit code an existing member shares so someone else can join 
 _Avoid_: Invite link, invite code, PIN, password
 
 **Onboarding**:
-The first-run setup that either creates a new household or joins one by join code. Creating walks through household, payment mode, a first payday, a first bill and a first goal, then a Setup Complete screen. The payday, bill and goal steps can each be skipped with "Skip for now"; household and payment mode cannot. Joining by code goes straight into the app.
+The first-run setup that either creates a new household or joins one by join code. Creating walks through household, payment mode, a first payday, a first bill and a first goal, then a Setup Complete screen. The payday, bill and goal steps can each be skipped with "Skip for now"; household and payment mode cannot. Anything skipped shows on the owner's Finish setting up card. Joining by code goes straight into the app.
 _Avoid_: Sign-up wizard, tutorial, welcome flow
 
 **Leave household**:

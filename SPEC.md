@@ -814,6 +814,16 @@ problem/checklist on the issue.
 - Join path unchanged. No schema change. A reload mid-onboarding lands in the app with Direct Pay and the optional steps unset; the Dashboard card in #333 covers that.
 - Full issue: https://github.com/mp3anthony/funded/issues/248
 
+### Slice 19: Finish setting up card (Issue #333)
+
+**Decisions (grilled 2026-10-11, planned 2026-10-12):**
+- Dashboard card, first in the page flow above Household Health. Owners only (joiners share the household's setup); a joiner later promoted sees it if something is missing.
+- Household-wide "missing": payday = no pay schedule, bill = no bills (expenses don't count, paused bills do), goal = no goals. A deleted item brings its row back unless the card was dismissed.
+- Rows open the add form on the target page via `?add=1` on Payday, Bills and Goals (param stripped once used).
+- X hides it for good: `user_preferences.finish_setup_dismissed_at` (nullable timestamptz, one-way, never cleared; covered by the existing own-row policy, no RLS change). Per person, so a new household stays dismissed. Unknown or failed load keeps the card hidden.
+- Pure rules in `src/lib/finishSetup.ts`; card in `FinishSetupCard.tsx`.
+- Full issue: https://github.com/mp3anthony/funded/issues/333
+
 
 ---
 

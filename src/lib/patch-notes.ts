@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.76",
+    date: "October 2026",
+    highlights: [
+      "Household owners now see a Finish setting up card on the Dashboard listing a missing payday, bill or goal. Tap one to open its add form.",
+      "The card goes away by itself once all three are added. Tap X to hide it for good, on all your devices.",
+    ],
+  },
+  {
     version: "0.9.75",
     date: "October 2026",
     highlights: [

@@ -25,7 +25,7 @@ _Avoid_: Mode (payment mode is a different thing), skin, colour scheme
 ### The pages
 
 **Dashboard**:
-The home page, showing Household Health, Upcoming Bills, Savings Goals and Recent Activity.
+The home page, showing the Finish setting up card (owners, while something is missing), Household Health, Upcoming Bills, Savings Goals and Recent Activity.
 _Avoid_: Home screen, overview, summary
 
 **Bills page**:
@@ -50,8 +50,8 @@ _Avoid_: Preferences, profile page, admin
 Replaced the old What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. While it shows, the dashboard tips ticker is hidden; Toasts still overlay it. Its title and link text use the page's new name (#311).
 _Avoid_: Popup, modal, banner, update dialog, What's new popup
 
-**Finish setting up card** (planned, #333):
-A Dashboard card listing what the household is still missing (payday, bill, goal). Each row taps through to that page's add sheet. It vanishes once all three exist, and its X hides it permanently for that user.
+**Finish setting up card**:
+A Dashboard card, shown to household owners only, listing what the household has none of yet (payday, bill, goal). Each row taps through to that page's add form. It leaves by itself once all three exist and returns if one goes missing again, unless that person tapped X, which hides it for good on every device. Sits at the top of the Dashboard.
 _Avoid_: Checklist, setup wizard, onboarding (the first-run flow)
 
 **Updates page**:

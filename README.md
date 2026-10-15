@@ -229,6 +229,7 @@ funded-nextjs/
 │   │   ├── storage.ts        # Avatar upload/delete/get utilities
 │   │   ├── utils.ts          # Shared helpers (health score, date, frequency conversion)
 │   │   ├── billCycle.ts      # Bill rollover logic (tests in billCycle.test.mjs)
+│   │   ├── finishSetup.ts    # Finish setting up card rules and the `?add=1` link param that opens a page's add sheet (tests in finishSetup.test.mjs)
 │   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
 │   │   ├── notifications/    # Reminder generation, timezone, tap destinations
 │   │   ├── patch-notes.ts    # Patch notes content
@@ -262,7 +263,7 @@ funded-nextjs/
 
 | Route | Screen | Purpose |
 |-------|--------|---------|
-| `/` | **Dashboard** | Health score, upcoming bills, active goals, recent activity feed |
+| `/` | **Dashboard** | Finish setting up card (owners), health score, upcoming bills, active goals, recent activity feed |
 | `/payday` | **Payday** | Pay schedules, income entry (fixed or variable), pending pay confirmation, pay history, surplus rule triggers |
 | `/bills` | **Bills** | All household bills and expenses with status badges, category filters, search, and frequency normalisation toggle |
 | `/funds` | **Goals** | Savings goals with progress bars, manual top-ups, and completion tracking |
