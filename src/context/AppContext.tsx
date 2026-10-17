@@ -25,6 +25,7 @@ import {
 } from "@/lib/billCycle";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
+import { isAcceptedMember } from "@/lib/householdLeave";
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
 import { resolveNewHouseholdTimezone, isValidTimezone } from "@/lib/householdTimezone";
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
@@ -3886,6 +3887,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   async function removeMember(id: string | number, reassignBillsTo?: string, reassignGoalsTo?: string) {
+    // #251: the DB blocks deleting an accepted owner's row, so refuse BEFORE any
+    // data is wiped below. Demote them to Member first (Edit Member).
+    const target = members.find((m) => String(m.id) === String(id));
+    if (target && target.role === "owner" && isAcceptedMember(target)) {
+      throw new Error("Make them a Member first, then remove them.");
+    }
     try {
       // 1. Handle Bill Splits
       if (reassignBillsTo) {

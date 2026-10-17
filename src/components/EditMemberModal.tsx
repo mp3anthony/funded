@@ -193,6 +193,11 @@ export default function EditMemberModal({
             </div>
 
             {/* Remove Action Button */}
+            {member.role === 'owner' && (
+              <p className="pt-4 border-t border-border-strong text-[10px] text-subtle leading-normal">
+                Make them a Member first to remove them.
+              </p>
+            )}
             {member.role !== 'owner' && (
               <div className="pt-4 border-t border-border-strong flex justify-between items-center">
                 <div>

@@ -138,6 +138,7 @@ export default function SettingsClient() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -163,6 +164,7 @@ export default function SettingsClient() {
 
   /* ── Handlers ──────────────────────────────── */
   async function handleProfileSave() {
+    setProfileError(null);
     try {
       if (currentMember) {
         await updateMember(currentMember.id, { name: fullName, email: email });
@@ -173,6 +175,7 @@ export default function SettingsClient() {
     } catch (err) {
       // updateMember rethrows (#251); it already logged, so just don't claim success.
       console.error("Profile save failed:", err);
+      setProfileError((err as Error)?.message || "Couldn't save your profile. Please try again.");
     }
   }
 
@@ -481,6 +484,7 @@ export default function SettingsClient() {
         }
       >
         <div className="flex flex-col gap-5">
+          {profileError && <LeaveError message={profileError} />}
           <div className="flex justify-center">
             {currentMember && (
               <AvatarUpload
