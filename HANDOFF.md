@@ -2,7 +2,7 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-15)
+## Current state (2026-10-17)
 
 - `main` = v0.9.76 (PR #347: #333 Finish setting up card; migration `20261012120000` applied to prod). Live check pending on iPhone: new test account, skip payday/bill/goal, Dashboard shows the card with 3 rows; "Add your first bill" opens the Bills add form, save and the row goes; tap X, reopen, stays gone; a joiner sees no card. Earlier pending checks: #249 (v0.9.75: new household, Settings > Timezone shows Pacific/Auckland; existing households unchanged; guide timezone bullet reworded) and #248 (v0.9.74): fresh account, skip payday/bill/goal, Setup Complete shows Skipped, guide link opens, empty Payday/Bills/Goals say tap +. Closed work is not tracked here: git history, closed issues and `docs/lessons.md` hold it. Live-check results are not recorded; a failed check is raised again and Intake reopens the closed issue.
 - **Workflow (PR #318, in `CLAUDE.md`):** live-app testing after merge, no preview testing; `needs-manual-test` on request only; Intake sub-agent on every new issue; plain-terms "What's changing" on every issue; orchestrator gives merge advice, Anthony approves each merge.
@@ -15,8 +15,8 @@
 - **Repo interaction limit** set to collaborators only until 2027-04-09 (spam, #276); renew then (Settings > Moderation options > Interaction limits).
 - **Security** details live in the private notes file; no GitHub issue by design.
 - **Grilled 2026-10-11, decisions in each issue body, glossary merged (PR #336); each needs a Planner step, then the standing pause:**
-  - **#251 Leave/Delete household (`ready-for-agent`):** owner with another owner = plain leave; only owner + other accepted members = pick an accepted member as owner then leave, or Delete (in-app dialog, type DELETE); sole member = Delete only. Regular Leave also moves to an in-app dialog. Transfer reuses the existing Edit Member promote. Planner must check whether the creator leaving breaks RLS / `delete-household` (`households.user_id`); if so, A1 escalation. Decided 2026-10-11: only owner with only pending members = Delete only; the last owner cannot demote themselves.
-  - **#250 blank due date (`needs-info`):** due date stays optional; "No due date" label, sorts last, counts in totals; Mark as Paid asks "When is it next due?" with Skip for now / Don't ask again; 30 days after adding, an orange "Add due date" prompt. Needs a per-bill mute column (migration, A1): Anthony's go-ahead before build. Decided 2026-10-11: a dateless bill shows under All only.
+  - **#251 Leave/Delete household (`ready-for-agent`): PLANNED and independently reviewed, standing pause; build next in a fresh session.** Plan and review changes: https://github.com/mp3anthony/funded/issues/251#issuecomment-6230891763 (build from it, no re-plan). Rules: owner with another owner = plain leave; only owner + accepted members = pick an accepted member as owner then leave, or Delete (in-app dialog, type DELETE); sole member or only pending members = Delete only; last owner can't demote themselves. Anthony approved A1 option A + E1 on 2026-10-17: new `leave-household` edge function (service role, moves `households.user_id` to a remaining owner) plus triggers-only migration `20261017120000_household_last_owner_guards.sql`. Deploy order: apply migration, deploy `leave-household` and `delete-household` (verify deployed versions), merge. Prod pre-check and SQL ROLLBACK cascade test required. Follow-ups #350, #351, #352 (`needs-triage`, Intake not run).
+  - **#250 blank due date (`ready-for-agent`, mute-column migration approved 2026-10-17; needs a Planner step, then the standing pause):** due date stays optional; "No due date" label, sorts last, counts in totals; Mark as Paid asks "When is it next due?" with Skip for now / Don't ask again; 30 days after adding, an orange "Add due date" prompt. Decided 2026-10-11: a dateless bill shows under All only.
   - **#267 paused bills (`ready-for-agent`, `needs-manual-test`):** orange pause icon, greyed amount, "Paused" in the date slot; one shared "counts toward totals" rule (excludes paused and finished one-offs) for Total Bar, weekly surplus and splits, health score, contributions; muted "N paused or finished, not counted" line under the Total Bar. Overlaps #288 (neutral date labels); Planner settles build order with #287/#288.
 - **Backlog, all `needs-triage`, each needs its own grill session:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
@@ -26,8 +26,8 @@
 
 ## Next session, in order
 
-1. Plan and build #251 (Leave/Delete household), then #267 (paused bills), each in a fresh session from the issue (Planner step, then the standing pause). #251's Planner must check the `households.user_id` RLS / `delete-household` risk (A1 escalation if hit).
-2. #250 (blank due date) only after Anthony approves the per-bill mute column migration. Run Intake on #348; small chores #265, #266. Grill #261, #315, #316 individually when Anthony asks.
+1. Build #251 in a fresh session from the reviewed plan comment. Then plan #267 (paused bills) and #250 (blank due date, migration approved), each via Planner then the standing pause.
+2. Run Intake on #348, #350, #351, #352; small chores #265, #266. Grill #261, #315, #316 individually when Anthony asks.
 3. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
 
 ## Where things live
