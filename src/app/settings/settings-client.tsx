@@ -31,6 +31,16 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 import { type Member } from "@/types";
+import { leaveModeFor, eligibleNewOwners, isAcceptedMember, isDeleteConfirmed } from "@/lib/householdLeave";
+
+/* Error box shown inside the leave / delete household dialogs (#251). */
+function LeaveError({ message }: { message: string }) {
+  return (
+    <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+      {message}
+    </div>
+  );
+}
 
 /* ── Page Component ──────────────────────────── */
 export default function SettingsClient() {
@@ -83,8 +93,11 @@ export default function SettingsClient() {
   const [memberToEdit, setMemberToEdit] = useState<Member | null>(null);
 
   /* Leave household */
+  const [leaveDialog, setLeaveDialog] = useState<"leave" | "transfer" | "delete" | null>(null);
   const [isLeavingHousehold, setIsLeavingHousehold] = useState(false);
   const [leaveHouseholdError, setLeaveHouseholdError] = useState<string | null>(null);
+  const [newOwnerId, setNewOwnerId] = useState<string | number | null>(null);
+  const [deleteText, setDeleteText] = useState("");
 
   /* Deep-link: open the Profile dialog when arriving via /settings?modal=profile
      (e.g. from the avatar-dropdown name button). Reactive to the query param so
@@ -150,12 +163,17 @@ export default function SettingsClient() {
 
   /* ── Handlers ──────────────────────────────── */
   async function handleProfileSave() {
-    if (currentMember) {
-      await updateMember(currentMember.id, { name: fullName, email: email });
+    try {
+      if (currentMember) {
+        await updateMember(currentMember.id, { name: fullName, email: email });
+      }
+      setProfileSaved(true);
+      setIsDirty(false);
+      setTimeout(() => setProfileSaved(false), 2000);
+    } catch (err) {
+      // updateMember rethrows (#251); it already logged, so just don't claim success.
+      console.error("Profile save failed:", err);
     }
-    setProfileSaved(true);
-    setIsDirty(false);
-    setTimeout(() => setProfileSaved(false), 2000);
   }
 
   function handleModeChangeClick(newMode: boolean) {
@@ -203,31 +221,37 @@ export default function SettingsClient() {
     }
   }
 
-  /* #85: owner leaving tears down the whole household (matches the warning
-     text below); a plain member leaving only removes their own membership.
-     Both redirect to "/" on success (same pattern as
-     JoinHouseholdSheet.tsx:71) so the full reload lets AppShell's existing
-     onboarding gate show the create-or-join screen — no manual state
-     surgery here. */
-  async function handleLeaveHousehold() {
-    const warningText = isCurrentUserOwner
-      ? "WARNING: You're the owner. This will permanently delete this household and everything in it — bills, funds, paydays, and every member's access. You cannot undo this. Are you sure you want to continue?"
-      : "This will remove your membership from this household. The household and other members are unaffected, but you'll need to create or join a household again. You cannot undo this. Are you sure you want to continue?";
+  /* #251: Leave / Delete household. The mode comes from who is in the
+     household (see src/lib/householdLeave.ts); the leave-household and
+     delete-household functions re-check it server-side, so a stale screen just
+     gets a plain-English error shown in the dialog. Success redirects to "/"
+     (same pattern as JoinHouseholdSheet.tsx:71) so the full reload lets
+     AppShell's onboarding gate show the create-or-join screen. */
+  const leaveMode = currentMember ? leaveModeFor(members, currentMember) : "leave";
+  const eligibleOwners = currentMember ? eligibleNewOwners(members, currentMember.id) : [];
+  const acceptedCount = members.filter(isAcceptedMember).length;
 
-    if (!confirm(warningText)) return;
+  function openLeaveDialog() {
+    setLeaveHouseholdError(null);
+    setNewOwnerId(null);
+    setDeleteText("");
+    setLeaveDialog(leaveMode === "leave" ? "leave" : leaveMode === "transfer-or-delete" ? "transfer" : "delete");
+  }
 
+  function closeLeaveDialog() {
+    if (isLeavingHousehold) return;
+    setLeaveDialog(null);
+  }
+
+  async function runLeaveAction(action: () => Promise<void>) {
     setLeaveHouseholdError(null);
     setIsLeavingHousehold(true);
     try {
-      if (isCurrentUserOwner) {
-        await deleteHousehold();
-      } else {
-        await leaveHousehold();
-      }
+      await action();
       window.location.href = "/";
     } catch (err) {
       console.error("Failed to leave household:", err);
-      setLeaveHouseholdError((err as Error)?.message || "Failed to leave household. Please check your connection and try again.");
+      setLeaveHouseholdError((err as Error)?.message || "That didn't work. Please check your connection and try again.");
       setIsLeavingHousehold(false);
     }
   }
@@ -348,6 +372,8 @@ export default function SettingsClient() {
           const isCurrentUser =
             String(member.email).toLowerCase() === String(session?.user?.email).toLowerCase();
           const isOwner = member.role === "owner";
+          // #251: owners open other members' settings (role, remove). There is no
+          // self-demote UI; the last owner can't be demoted (EditMemberModal + DB trigger).
           const canManage = isCurrentUserOwner && !isCurrentUser;
           return (
             <Row
@@ -410,18 +436,11 @@ export default function SettingsClient() {
         </button>
         <button
           type="button"
-          onClick={handleLeaveHousehold}
-          disabled={isLeavingHousehold}
-          className="w-full text-left py-3 border-t border-primary/20 text-sm font-medium text-destructive disabled:opacity-50"
+          onClick={openLeaveDialog}
+          className="w-full text-left py-3 min-h-[44px] border-t border-primary/20 text-sm font-medium text-destructive"
         >
-          {isLeavingHousehold ? "Leaving household…" : "Leave household"}
+          {leaveMode === "delete-only" ? "Delete household" : "Leave household"}
         </button>
-        {leaveHouseholdError && (
-          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
-            <span className="font-bold">Failed to leave household:</span><br/>
-            {leaveHouseholdError}
-          </div>
-        )}
         <div className="text-center pt-8 pb-2">
           <span className="font-mono text-[10px] tracking-wider text-subtle/70">
             funded. v{APP_VERSION}
@@ -650,6 +669,153 @@ export default function SettingsClient() {
           <p className="font-mono text-xs leading-relaxed text-muted">
             You&apos;ll need to reconfigure who pays what. This can&apos;t be undone.
           </p>
+        </div>
+      </Dialog>
+
+      {/* Leave household (#251): regular member, or owner while another owner remains */}
+      <Dialog
+        open={leaveDialog === "leave"}
+        onClose={closeLeaveDialog}
+        title="Leave household?"
+        footer={
+          <>
+            <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
+              Cancel
+            </DialogButton>
+            <DialogButton
+              variant="destructive"
+              className="min-h-[44px]"
+              disabled={isLeavingHousehold}
+              onClick={() => runLeaveAction(() => leaveHousehold())}
+            >
+              {isLeavingHousehold ? "Leaving…" : "Leave"}
+            </DialogButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-[15px] leading-relaxed text-foreground">
+            You&apos;ll be removed from {householdName ? <span className="font-semibold">{householdName}</span> : "this household"}. Everyone else carries on.
+          </p>
+          <p className="text-sm leading-relaxed text-muted">
+            Your pay schedule, pay history, bill splits and contributions are deleted. Bills, expenses and goals you were assigned stay, but unassigned. You&apos;ll need to create or join a household again.
+          </p>
+          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
+        </div>
+      </Dialog>
+
+      {/* Hand over ownership, then leave (only owner, other accepted members remain) */}
+      <Dialog
+        open={leaveDialog === "transfer"}
+        onClose={closeLeaveDialog}
+        title="Pick a new owner"
+        footer={
+          <>
+            <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
+              Cancel
+            </DialogButton>
+            <DialogButton
+              variant="destructive"
+              className="min-h-[44px]"
+              disabled={isLeavingHousehold || newOwnerId === null}
+              onClick={() => runLeaveAction(() => leaveHousehold(newOwnerId ?? undefined))}
+            >
+              {isLeavingHousehold ? "Leaving…" : "Make owner and leave"}
+            </DialogButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-[15px] leading-relaxed text-foreground">
+            You&apos;re the only owner. Choose who takes over before you leave.
+          </p>
+          <div className="flex flex-col gap-2" role="radiogroup" aria-label="New owner">
+            {eligibleOwners.map((m) => {
+              const selected = String(newOwnerId) === String(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={isLeavingHousehold}
+                  onClick={() => setNewOwnerId(m.id)}
+                  className={`flex items-center justify-between gap-3 min-h-[44px] px-4 py-2 rounded-[2px] border text-left text-sm font-semibold transition-colors disabled:opacity-60 ${
+                    selected
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "bg-transparent border-border-strong text-foreground"
+                  }`}
+                >
+                  <span className="truncate">{m.name}</span>
+                  {selected && <Check className="h-4 w-4 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-sm leading-relaxed text-muted">
+            Your pay schedule, pay history, bill splits and contributions are deleted when you leave. Bills, expenses and goals you were assigned stay, but unassigned.
+          </p>
+          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
+          <button
+            type="button"
+            disabled={isLeavingHousehold}
+            onClick={() => {
+              setLeaveHouseholdError(null);
+              setDeleteText("");
+              setLeaveDialog("delete");
+            }}
+            className="self-start min-h-[44px] text-sm font-semibold text-destructive disabled:opacity-50"
+          >
+            Delete household instead
+          </button>
+        </div>
+      </Dialog>
+
+      {/* Delete household: needs DELETE typed. Only reachable while no other owner remains. */}
+      <Dialog
+        open={leaveDialog === "delete"}
+        onClose={closeLeaveDialog}
+        title="Delete household?"
+        footer={
+          <>
+            <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
+              Cancel
+            </DialogButton>
+            <DialogButton
+              variant="destructive"
+              className="min-h-[44px]"
+              disabled={isLeavingHousehold || !isDeleteConfirmed(deleteText)}
+              onClick={() => runLeaveAction(() => deleteHousehold())}
+            >
+              {isLeavingHousehold ? "Deleting…" : "Delete household"}
+            </DialogButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-[15px] leading-relaxed text-foreground">
+            This permanently deletes {householdName ? <span className="font-semibold">{householdName}</span> : "this household"} for{" "}
+            {acceptedCount > 1 ? `all ${acceptedCount} members` : "you"}.
+          </p>
+          <p className="text-sm leading-relaxed text-muted">
+            Every bill, expense, goal, payday, pay history, split and contribution is lost. Other members get no notice; they land on the create-or-join screen the next time they open the app. This can&apos;t be undone.
+          </p>
+          <label htmlFor="delete-household-confirm" className="font-mono text-[11px] uppercase tracking-wider text-subtle">
+            Type DELETE to confirm
+          </label>
+          <input
+            id="delete-household-confirm"
+            type="text"
+            value={deleteText}
+            onChange={(e) => setDeleteText(e.target.value)}
+            disabled={isLeavingHousehold}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            className="w-full px-4 py-3 min-h-[44px] rounded-[2px] bg-surface border border-border text-foreground text-base font-medium focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none disabled:opacity-60"
+          />
+          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
         </div>
       </Dialog>
 

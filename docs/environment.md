@@ -18,7 +18,7 @@ Names only; never put secret values. Repo is public: no emails, full ids or toke
 - **Classifier-block fallback:** the auto-mode classifier has blocked `apply_migration` for a data-fix migration. Do not retry or edit `settings.json`: hand Anthony the SQL-editor steps.
 - **pg_cron jobs (production):** `generate-scheduled-reminders` runs every 15 minutes and calls `/api/cron/push-reminders`; the delivery job runs every 5 minutes through pg_net and calls `/api/cron/deliver-scheduled` on the production URL. The schedule secrets live in Supabase Vault (created with `vault.create_secret`, read through `vault.decrypted_secrets`); Anthony pastes the same value into the matching Vercel env var (Production scope), because the Vercel MCP cannot write env vars. Pattern and rationale: `docs/adr/0004-pg-cron-for-scheduling-not-vercel-cron.md`.
 - The generation route accepts two independent bearer secrets (`CRON_SECRET` or `GENERATION_CRON_SECRET`) and returns 500 only if both are unset.
-- Edge functions in `supabase/functions` (`join-household`, `delete-household`, and others) are deployed separately from the app: `supabase functions deploy`, then check the deployed version through the MCP. Using the service-role key in a new place is a stop-and-ask item (SPEC A1).
+- Edge functions in `supabase/functions` (`join-household`, `delete-household`, `leave-household`, and others) are deployed separately from the app: `supabase functions deploy`, then check the deployed version through the MCP. Using the service-role key in a new place is a stop-and-ask item (SPEC A1).
 - Storage: the `bug-report-screenshots` bucket (see Hosting).
 
 ## Env var names

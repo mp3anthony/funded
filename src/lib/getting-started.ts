@@ -162,10 +162,6 @@ export const pageGuide: GuidePage[] = [
 
 export const goodToKnowHeading = "Good to know";
 export const goodToKnow: GoodToKnowItem[] = [
-  {
-    text: "If you created the household, Leave household deletes it and everything in it for every member. Other members can leave safely.",
-    ticket: 251,
-  },
   { text: "Always give a bill a due date.", ticket: 250 },
   {
     text: "The household timezone is set from the owner's phone when the household is created. Owners should still check it in Settings.",

@@ -5,6 +5,7 @@ import { User, Shield, Trash2, Loader2, Check } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { type Member } from "@/types";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import { canDemote } from "@/lib/householdLeave";
 
 interface EditMemberModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ export default function EditMemberModal({
   member,
   onRemoveTrigger,
 }: EditMemberModalProps) {
-  const { updateMember } = useApp();
+  const { updateMember, members } = useApp();
   const [name, setName] = useState("");
   const [role, setRole] = useState<'owner' | 'member'>('member');
   const [loading, setLoading] = useState(false);
@@ -41,6 +42,9 @@ export default function EditMemberModal({
   // (editable if they haven't set their own custom name in their profile yet, i.e., user_id is null or name is email prefix)
   const emailPrefix = member.email ? member.email.split("@")[0] : "";
   const isNameEditable = !member.user_id || member.name === emailPrefix;
+
+  // #251: the last owner can't be demoted (the DB trigger enforces it too).
+  const demoteBlocked = member.role === 'owner' && !canDemote(members, member.id);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -154,7 +158,8 @@ export default function EditMemberModal({
                 <button
                   type="button"
                   onClick={() => setRole('member')}
-                  className={`py-3 rounded-[2px] text-xs font-bold uppercase tracking-wider transition-all border ${
+                  disabled={demoteBlocked}
+                  className={`py-3 min-h-[44px] disabled:opacity-40 disabled:pointer-events-none rounded-[2px] text-xs font-bold uppercase tracking-wider transition-all border ${
                     role === 'member'
                       ? 'bg-white/5 border-white/20 text-foreground'
                       : 'bg-transparent border-border-strong text-subtle hover:text-foreground'
@@ -175,6 +180,11 @@ export default function EditMemberModal({
                   Owner
                 </button>
               </div>
+              {demoteBlocked && (
+                <p className="text-[10px] text-subtle leading-normal font-body">
+                  Make someone else an owner first.
+                </p>
+              )}
               {role === 'owner' && member.role !== 'owner' && (
                 <p className="text-[10px] text-primary leading-normal font-body">
                   Promoting this member to Owner grants them full administrative control, including the ability to manage other members and edit household configurations.

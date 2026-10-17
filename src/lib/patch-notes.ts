@@ -29,6 +29,15 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.77",
+    date: "October 2026",
+    highlights: [
+      "If you created the household, leaving no longer deletes it. When you are the only owner, pick who takes over, then leave. The household carries on for everyone else.",
+      "Deleting a household now shows what will be lost and asks you to type DELETE first. It is only offered when no other owner is left.",
+      "Leaving or deleting now asks in the app instead of a browser pop-up.",
+    ],
+  },
+  {
     version: "0.9.76",
     date: "October 2026",
     highlights: [
