@@ -16,18 +16,18 @@
 - **Security** details live in the private notes file; no GitHub issue by design.
 - **Grilled 2026-10-11, decisions in each issue body, glossary merged (PR #336); each needs a Planner step, then the standing pause:**
   - **#251 shipped (v0.9.77).** Follow-ups #350, #351, #352 (`needs-triage`, Intake not run).
-  - **#250 blank due date (`ready-for-agent`, mute-column migration approved 2026-10-17; needs a Planner step, then the standing pause):** due date stays optional; "No due date" label, sorts last, counts in totals; Mark as Paid asks "When is it next due?" with Skip for now / Don't ask again; 30 days after adding, an orange "Add due date" prompt. Decided 2026-10-11: a dateless bill shows under All only.
+  - **#250 blank due date (`needs-info`; plan written, independently reviewed and posted 2026-10-18, standing pause, nothing built):** plan comment https://github.com/mp3anthony/funded/issues/250#issuecomment-6240858737 (carries the review amendments, which override the steps). Anthony accepted the plan's Q1-Q3 defaults (30-day orange prompt also replaces "Paid · no due date"; dateless sorts last within each category; paused/one-off dateless bills skip the next-due question). **Blocked on one A1 decision:** prod `bills.due_date` is `NOT NULL` (checked 2026-10-18, 0 dateless rows, so blank-date saves fail today), so the migration also needs `ALTER COLUMN due_date DROP NOT NULL` on top of the approved mute column. Review found nothing depending on NOT NULL. On Anthony's yes: relabel `ready-for-agent`, build in a fresh session from the issue, apply both migration statements to prod BEFORE merge. Version 0.9.78.
   - **#267 paused bills (`ready-for-agent`, `needs-manual-test`):** orange pause icon, greyed amount, "Paused" in the date slot; one shared "counts toward totals" rule (excludes paused and finished one-offs) for Total Bar, weekly surplus and splits, health score, contributions; muted "N paused or finished, not counted" line under the Total Bar. Overlaps #288 (neutral date labels); Planner settles build order with #287/#288.
 - **Backlog, all `needs-triage`, each needs its own grill session:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
 - **Owed:** fix the stale "not wired up" comment in `NotifyHourDialog.tsx` in the next PR touching those files. Delete each Getting started "Good to know" item when #250 is built (the #249 one is reworded in its build instead). The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
-- Last active SPEC ticket: Slice 20 (#251 Leave/Delete household, built). Grilled, not yet in SPEC.md (fold durable parts in when built): #250, #267.
+- Last active SPEC ticket: Slice 20 (#251 Leave/Delete household, built). Grilled, not yet in SPEC.md (fold durable parts in when built): #250 (plan calls it Slice 21), #267.
 
 ## Next session, in order
 
-1. Plan #267 (paused bills) and #250 (blank due date, migration approved), each via Planner then the standing pause.
-2. Close #346 as a duplicate of #348 (same title). Run Intake on #348, #350, #351, #352; small chores #265, #266. Grill #261, #315, #316 individually when Anthony asks.
+1. Get Anthony's yes/no on the #250 `DROP NOT NULL`, then build #250 in a fresh session. Plan #267 (paused bills) via Planner then the standing pause.
+2. Run Intake on #348, #350, #351, #352, #357 (editing a bill blanks its notes; #346 closed as duplicate of #348); small chores #265, #266. Grill #261, #315, #316 individually when Anthony asks.
 3. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
 
 ## Where things live
