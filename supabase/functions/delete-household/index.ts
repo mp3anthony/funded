@@ -64,6 +64,31 @@ serve(async (req) => {
       });
     }
 
+    // 4b. Another accepted owner means this household is not the caller's to
+    // delete: they should leave and let the other owner carry on. Accepted =
+    // signed up and not pending (same as leave-household).
+    const { data: ownerRows, error: ownersError } = await supabaseClient
+      .from("household_members")
+      .select("id, user_id, invitation_status")
+      .eq("household_id", householdId)
+      .eq("role", "owner")
+      .neq("user_id", user.id)
+      .not("user_id", "is", null);
+
+    if (ownersError) {
+      return new Response(JSON.stringify({ error: "Failed to check household owners: " + ownersError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if ((ownerRows ?? []).some((m: { invitation_status: string | null }) => (m.invitation_status ?? "accepted") !== "pending")) {
+      return new Response(JSON.stringify({ error: "Another owner is still in this household. Use Leave household instead." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 5. Delete every notification row for this household, across all members —
     // notifications.household_id has no cascade and its RLS only allows a user
     // to delete their own rows, so this would otherwise foreign-key-violate the

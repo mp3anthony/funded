@@ -33,8 +33,10 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   (Largely subsumed by the migration escalation trigger — a new table implies a
   migration — but stated explicitly because the consequence is data exposure.)
 * **Service-role key is server-only.** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS
-  entirely. Its only current use is the cron route
-  (`src/app/api/cron/push-reminders/route.ts:37`). Any new use, or any code path
+  entirely. Its current uses are the cron route
+  (`src/app/api/cron/push-reminders/route.ts:37`) and the household edge functions
+  (`join-household`, `delete-household`, `leave-household`; the last moves
+  `households.user_id` to a remaining owner, ADR 0005). Any new use, or any code path
   that reads it outside a server-side route, requires approval first. If it
   reaches client code, every user gets full read/write on the database. Highest
   consequence rule in this spec.
@@ -824,6 +826,18 @@ problem/checklist on the issue.
 - Pure rules in `src/lib/finishSetup.ts`; card in `FinishSetupCard.tsx`.
 - Full issue: https://github.com/mp3anthony/funded/issues/333
 
+
+### Slice 20: Leave / Delete household (Issue #251)
+
+**Decisions (grilled 2026-10-11, planned 2026-10-17; A1 option A + E1 approved by Anthony 2026-10-17):**
+- Regular member, or an owner while another accepted owner remains: plain leave (in-app dialog, no browser pop-up). Only owner with accepted members: pick an accepted member as the new owner, then leave, or Delete household instead. Sole member, or only pending members: Delete only (button reads "Delete household").
+- Delete household shows member count and what is lost, and needs DELETE typed (case-sensitive, trimmed). `delete-household` refuses (403) while another accepted owner exists.
+- Accepted = has a user id and not pending; owner = role owner and accepted. Pending rows never count as owners or candidates. Same definitions in `src/lib/householdLeave.ts`, the `leave-household` function and the migration.
+- New `leave-household` edge function (service role): validates the caller is an accepted member, recomputes the rules, promotes the named owner, moves `households.user_id` to the new or oldest remaining accepted owner when the creator leaves (never null), clears the leaver's notifications, deletes the member row by id.
+- Migration `20261017120000_household_last_owner_guards` (triggers only): the last accepted owner cannot be demoted; an owner's member row cannot be deleted through the API (skipped when the household is gone or for service role).
+- `updateMember` now throws on failure; Settings profile save only shows success after it works.
+- ADR: `docs/adr/0005-households-user-id-follows-an-owner.md`.
+- Full issue: https://github.com/mp3anthony/funded/issues/251
 
 ---
 

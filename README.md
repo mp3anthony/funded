@@ -163,6 +163,7 @@ The Supabase schema is defined in the `supabase/` directory. Run these SQL files
 
 - **`supabase/functions/join-household/`** — serverless function that handles household join code validation and member addition
 - **`supabase/functions/delete-household/`** — serverless function that handles deleting a household
+- **`supabase/functions/leave-household/`** — serverless function that lets a member leave; an only owner must hand ownership to an accepted member first (moves `households.user_id` to a remaining owner)
 
 Edge Functions are deployed separately from the app (`supabase functions deploy`).
 
