@@ -72,7 +72,7 @@ export const missions: GuideMission[] = [
     steps: [
       "Go to Bills and tap the + button beside the page title.",
       "Fill in the name, amount and how often it's paid.",
-      "Give it a due date. Funded needs it to know when the bill is due.",
+      "Add a due date if you know it, so Funded can tell you when it's due. Don't know it yet? Leave it blank and add it later. After 30 days the bill shows an orange Add due date to remind you.",
       "Leave Payment Type on Manual so you can mark it paid yourself. Auto-Pay bills pay themselves.",
       "Tap Save Bill.",
     ],
@@ -99,6 +99,7 @@ export const missions: GuideMission[] = [
       "On Bills, tap a bill to open it, then tap Mark as Paid.",
       "If it's a repeating bill that was due today or overdue, it moves straight on to its next due date, and a message pops up with an Undo button for a few seconds.",
       "Paying early? It just shows as Paid until its due date. Tap Mark as Unpaid if you didn't mean it.",
+      "No due date on a repeating bill? Mark as Paid asks when it's next due. Pick a date and it moves on to it. Skip for now marks it Paid, and it stays Paid until you add a date. Don't ask again for this bill stops the question for good.",
     ],
     note: "Only Manual bills have this button. Auto-Pay bills pay themselves.",
   },
@@ -162,7 +163,6 @@ export const pageGuide: GuidePage[] = [
 
 export const goodToKnowHeading = "Good to know";
 export const goodToKnow: GoodToKnowItem[] = [
-  { text: "Always give a bill a due date.", ticket: 250 },
   {
     text: "The household timezone is set from the owner's phone when the household is created. Owners should still check it in Settings.",
     ticket: 249,

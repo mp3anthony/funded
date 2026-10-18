@@ -29,6 +29,16 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.79",
+    date: "October 2026",
+    highlights: [
+      "Saving a bill with the due date left blank now works. The bill shows \"No due date\" and sits at the end of its group, and at the end of Upcoming Bills until it's paid.",
+      "Marking a repeating Manual bill with no due date as paid now asks when it's next due. Pick a date and it moves on to that date. Skip for now just marks it Paid, and it stays Paid until you add a date. Or tap Don't ask again for this bill.",
+      "A bill that has gone 30 days without a due date shows an orange Add due date. Tap it to jump straight to the due date in the edit form.",
+      "Adding a date to a Paid bill that had none makes it unpaid on that date. If the date has already passed, it shows as Overdue straight away.",
+    ],
+  },
+  {
     version: "0.9.78",
     date: "October 2026",
     highlights: [

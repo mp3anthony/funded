@@ -22,6 +22,8 @@ import {
   nextPayDateAfterLog,
   missedPayCatchUp,
   UNPAID_STATUS,
+  nextDueDatePatch,
+  nextDueToastMessage,
 } from "@/lib/billCycle";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
@@ -61,6 +63,10 @@ export interface Bill {
    * `due_date` then holds the SAVED date (used by the edit form only).
    */
   dueLabel?: DueLabel | null;
+  /** When the row was created (#250: drives the 30-day "Add due date" prompt). */
+  created_at?: string | null;
+  /** #250: "Don't ask again for this bill" (no next-due question, no Add due date prompt). */
+  due_date_prompt_muted?: boolean;
 }
 
 /** App-wide transient message (#205). One at a time; a new one replaces the old. */
@@ -585,6 +591,8 @@ function mapBillFromDb(dbBill: any): Bill {
     is_recurring: dbBill.is_recurring !== undefined ? dbBill.is_recurring : true,
     is_paused: dbBill.is_paused || false,
     last_paid_for: dbBill.last_paid_for ? String(dbBill.last_paid_for).slice(0, 10) : null,
+    created_at: dbBill.created_at ?? null,
+    due_date_prompt_muted: dbBill.due_date_prompt_muted === true,
   };
 }
 
@@ -759,6 +767,8 @@ interface AppContextValue {
   updateBill: (billId: string | number, billData: any, splitsData: any[]) => Promise<void>;
   togglePaid: (id: string | number) => void;
   markAsPaid: (bill: Bill) => Promise<void>;
+  /** #250: Mark as Paid for a bill with no due date, answering the next-due question. */
+  markDatelessBillPaid: (bill: Bill, choice: { nextDue: string } | { mute: true }) => Promise<boolean>;
   markAsUnpaid: (bill: Bill) => Promise<void>;
   undoPayment: (bill: Bill) => Promise<void>;
   togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
@@ -2114,7 +2124,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         household_id: hId,
         name: billData.name,
         amount: billData.amount,
-        due_date: parseDateForDb(billData.dueDate || billData.due_date),
+        // #250: a blank due date is stored as null (parseDateForDb("") returns "").
+        due_date: billData.dueDate || billData.due_date ? parseDateForDb(billData.dueDate || billData.due_date) : null,
         invoice_date: billData.invoiceDate || billData.invoice_date ? parseDateForDb(billData.invoiceDate || billData.invoice_date) : null,
         payment_type: billData.paymentType || billData.payment_type || "manual",
         assignee_id: billData.assignee || billData.assignee_id || null,
@@ -2194,7 +2205,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       const dbBillData = {
         name: billData.name,
         amount: billData.amount,
-        due_date: parseDateForDb(billData.dueDate || billData.due_date),
+        // #250: a blank due date is stored as null (parseDateForDb("") returns "").
+        due_date: billData.dueDate || billData.due_date ? parseDateForDb(billData.dueDate || billData.due_date) : null,
         invoice_date: billData.invoiceDate || billData.invoice_date ? parseDateForDb(billData.invoiceDate || billData.invoice_date) : null,
         payment_type: billData.paymentType || billData.payment_type || "manual",
         assignee_id: billData.assignee || billData.assignee_id || null,
@@ -2592,6 +2604,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .update({ status: "Paid" })
         .eq("id", bill.id);
       if (bill.due_date) paidQuery = paidQuery.eq("due_date", bill.due_date);
+      // #250: a dateless bill is guarded on still having no date.
+      else paidQuery = paidQuery.is("due_date", null);
       const { data, error } = await paidQuery.select().maybeSingle();
 
       if (error) {
@@ -2613,6 +2627,81 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       );
     } catch (err) {
       console.error("Failed to mark as paid:", err);
+    }
+  }
+
+  // #250: Mark as Paid on a manual recurring bill with no due date, after the
+  // "When is it next due?" question. `nextDue`: the paid cycle is done, so the
+  // bill goes straight to unpaid on the picked date (no last_paid_for, no Undo).
+  // `mute`: Paid, and never ask again for this bill. ("Skip for now" uses the
+  // plain markAsPaid.) Fresh read first: if the row has since gained a date,
+  // become autopay, paused or one-off, nothing is written (re-read + toast).
+  // Writes are guarded on due_date still null and not paused. Resolves true on success. invoice_date is
+  // left as saved: it is user-entered, and the next roll moves it in lockstep.
+  async function markDatelessBillPaid(bill: Bill, choice: { nextDue: string } | { mute: true }): Promise<boolean> {
+    try {
+      const { data: current, error: readError } = await supabase
+        .from("bills")
+        .select("*")
+        .eq("id", bill.id)
+        .maybeSingle();
+      if (readError || !current) {
+        console.error("Error reading bill before dateless mark-as-paid:", readError);
+        showToast({ message: "Couldn't save that — please try again." });
+        return false;
+      }
+      if (
+        current.due_date ||
+        (current.payment_type ?? "").toLowerCase() === "auto" ||
+        current.is_paused === true ||
+        current.is_recurring === false
+      ) {
+        await refreshBillFromDb(bill.id);
+        showToast({ message: "This bill was already updated — check it and try again." });
+        return false;
+      }
+
+      let patch: Record<string, unknown>;
+      let message: string;
+      if ("nextDue" in choice) {
+        const today = todayInZone(householdTimezone || "Australia/Sydney");
+        const next = nextDueDatePatch(choice.nextDue, today);
+        if (!next) {
+          showToast({ message: "Pick today or a later date." });
+          return false;
+        }
+        patch = next;
+        message = nextDueToastMessage(next.due_date, today);
+      } else {
+        patch = { status: "Paid", due_date_prompt_muted: true };
+        message = "Marked as paid. We won't ask about a due date for this bill again.";
+      }
+
+      const { data, error } = await supabase
+        .from("bills")
+        .update(patch)
+        .eq("id", bill.id)
+        .is("due_date", null)
+        .eq("is_paused", false)
+        .select()
+        .maybeSingle();
+      if (error) {
+        console.error("Error saving dateless mark-as-paid:", error);
+        showToast({ message: "Couldn't save that — please try again." });
+        return false;
+      }
+      if (!data) {
+        await refreshBillFromDb(bill.id);
+        showToast({ message: "This bill was already updated — check it and try again." });
+        return false;
+      }
+      setBills((prev) => prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b)));
+      showToast({ message });
+      return true;
+    } catch (err) {
+      console.error("Failed to mark dateless bill as paid:", err);
+      showToast({ message: "Couldn't save that — please try again." });
+      return false;
     }
   }
 
@@ -5034,6 +5123,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     updateBill,
     togglePaid,
     markAsPaid,
+    markDatelessBillPaid,
     markAsUnpaid,
     undoPayment,
     togglePauseBill,

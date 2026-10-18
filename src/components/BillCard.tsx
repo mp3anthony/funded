@@ -7,6 +7,7 @@ import { convertAmount } from "@/lib/utils";
 import BillDetailSheet from "./BillDetailSheet";
 import AddBillSheet from "./AddBillSheet";
 import RowPill from "./RowPill";
+import { isDateless, dueDateHint } from "@/lib/billCycle";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export interface BillCardProps {
@@ -25,6 +26,8 @@ export default function BillCard({
   const { deleteBill } = useApp();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  // #250: open the edit form scrolled to the due date (from "Add due date").
+  const [editFocusDueDate, setEditFocusDueDate] = useState(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -57,12 +60,18 @@ export default function BillCard({
   // #267: paused bills look paused (orange pause icon, greyed amount, "Paused" in the date slot).
   const isPaused = bill.is_paused === true;
 
-  // Determine urgency
-  const due = new Date(bill.dueDate);
+  // #250: a bill with no due date (and no label) skips all date maths.
+  const dateless = !bill.dueLabel && isDateless(bill);
   const today = new Date();
-  const timeDiff = due.getTime() - today.getTime();
-  const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-  const isUrgent = !bill.dueLabel && daysDiff <= 3; // #288: labelled bills have no date to be urgent about. True if due in 3 days, today, or overdue
+  const hint = dateless ? dueDateHint(bill, today.getTime()) : "none";
+
+  // Determine urgency
+  let isUrgent = false; // #288 / #250: labelled and dateless bills have no date to be urgent about.
+  if (!bill.dueLabel && !dateless) {
+    const due = new Date(bill.dueDate);
+    const daysDiff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    isUrgent = daysDiff <= 3; // True if due in 3 days, today, or overdue
+  }
 
   // Numeric due date (DD/MM/YYYY) from the raw due_date; fall back to the display string.
   // String-split rather than new Date() to avoid any timezone shift on the day.
@@ -101,12 +110,37 @@ export default function BillCard({
     }
   };
 
-  return (
+  const openEdit = (focusDueDate: boolean) => {
+    setEditFocusDueDate(focusDueDate);
+    setIsEditOpen(true);
+  };
+
+  const dateText = bill.dueLabel
+    ?? (dateless
+      ? hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"
+      : `DUE ${dueDateDisplay}`);
+
+  const dateSlotClass = "font-mono text-[10px] uppercase font-medium tracking-wider transition-colors";
+  const showAddDueDate = hint === "add-due-date";
+
+  // #250: the row's tap target is a full-cover button BEHIND the content
+  // (content is pointer-events-none), so the orange "Add due date" can be its own
+  // sibling button on top (z-10) without nesting a button in a button.
+  const dateSlot = showAddDueDate ? (
+    <button
+      type="button"
+      onClick={() => openEdit(true)}
+      aria-label={`Add due date for ${bill.name}`}
+      className={`${dateSlotClass} relative z-10 pointer-events-auto font-bold text-accent pt-[17px] -mt-[17px] pb-3 -mb-3 pr-3 cursor-pointer`}
+    >
+      Add due date
+    </button>
+  ) : (
+    <span className={`${dateSlotClass} ${isUrgent ? "text-[#ff4500]" : "text-muted"}`}>{dateText}</span>
+  );
+
+  const rowContent = (
     <>
-      <button
-        onClick={() => setIsDetailOpen(true)}
-        className="w-full text-left border-t border-border flex items-center gap-3 py-3 group hover:bg-surface/40 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
-      >
       {/* Leading assignee chip — small identity cue at hairline-row scale */}
       {assignee && (
         <div
@@ -132,13 +166,7 @@ export default function BillCard({
         </span>
         <span className="flex items-center gap-1.5 mt-0.5">
           <RowPill label={paymentTypeStr} variant={isAutoPay ? "primary" : "success"} />
-          <span
-            className={`font-mono text-[10px] uppercase font-medium tracking-wider transition-colors ${
-              isUrgent ? "text-[#ff4500]" : "text-muted"
-            }`}
-          >
-            {bill.dueLabel ?? `DUE ${dueDateDisplay}`}
-          </span>
+          {dateSlot}
         </span>
       </div>
 
@@ -157,7 +185,23 @@ export default function BillCard({
           <span aria-hidden="true">›</span>
         </span>
       </div>
-      </button>
+    </>
+  );
+
+  return (
+    <>
+      {/* overflow-hidden keeps the Add due date tap area inside this row */}
+      <div className="relative overflow-hidden border-t border-border group hover:bg-surface/40 transition-colors rounded-sm">
+        <button
+          type="button"
+          onClick={() => setIsDetailOpen(true)}
+          aria-label={`${bill.name}, $${formattedAmount}, ${dateText}`}
+          className="absolute inset-0 w-full rounded-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
+        />
+        <div className="relative pointer-events-none flex items-center gap-3 py-3 text-left">
+          {rowContent}
+        </div>
+      </div>
 
       <BillDetailSheet
         isOpen={isDetailOpen}
@@ -165,18 +209,22 @@ export default function BillCard({
         bill={bill}
         splits={splits}
         householdMembers={householdMembers}
-        onEdit={() => {
+        onEdit={(opts) => {
           setIsDetailOpen(false);
-          setIsEditOpen(true);
+          openEdit(opts?.focusDueDate === true);
         }}
         onDelete={handleDelete}
       />
 
       <AddBillSheet
         isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditFocusDueDate(false);
+        }}
         existingBill={bill}
         existingSplits={splits}
+        focusDueDate={editFocusDueDate}
       />
     </>
   );

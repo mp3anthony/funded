@@ -14,7 +14,7 @@ import FrequencyToggle from "@/components/FrequencyToggle";
 import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
-import { countsTowardTotals } from "@/lib/billCycle";
+import { countsTowardTotals, isDateless } from "@/lib/billCycle";
 
 type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
 
@@ -178,7 +178,8 @@ export default function BillsClient() {
       }
 
       // #288: bills showing a label (Paused / One-off) have no date, so they only appear under All.
-      if (b.dueLabel) return filter === "all";
+      // #250: same for bills with no due date.
+      if (b.dueLabel || isDateless(b)) return filter === "all";
 
       const d = b.due_date ? new Date(b.due_date + "T00:00:00") : new Date(b.dueDate);
       if (isNaN(d.getTime())) return false;
@@ -275,8 +276,11 @@ export default function BillsClient() {
         ? convertAmount(row.item.amount, row.item.frequency || "monthly", displayFrequency)
         : row.item.amount;
 
+    // #250: bills with no due date sort last within their category, then by amount.
+    const rank = (row: ListRow) => (row.kind === "bill" && !row.item.dueLabel && isDateless(row.item) ? 1 : 0);
+
     Object.keys(groups).forEach((cat) => {
-      groups[cat].sort((a, b) => amountOf(b) - amountOf(a));
+      groups[cat].sort((a, b) => rank(a) - rank(b) || amountOf(b) - amountOf(a));
     });
 
     return groups;

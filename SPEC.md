@@ -848,6 +848,15 @@ problem/checklist on the issue.
 - No schema, migration or RLS change.
 - Full issue: https://github.com/mp3anthony/funded/issues/267
 
+### Slice 22: Bills with no due date (Issue #250)
+
+**Decisions (grilled 2026-10-11, planned and reviewed 2026-10-18, A1 approved 2026-10-18):**
+- Schema: `bills.due_date` is nullable (`DROP NOT NULL`) and new `bills.due_date_prompt_muted BOOLEAN NOT NULL DEFAULT false` (migration `20261018120000_add_bills_due_date_prompt_muted.sql`, applied to prod before merge). A blank due date is stored as null.
+- Mark as Paid asks "When is it next due?" only for a manual, recurring, not paused, not muted bill with no due date. Save date: unpaid on the picked date (today or later, no `last_paid_for`, no Undo). Skip for now: plain Paid (stays Paid until a date is added). Don't ask again: Paid and muted. Paused and one-off dateless bills skip the question. Writes are guarded on `due_date IS NULL` and not paused.
+- 30 days after `created_at` (elapsed time), an unmuted dateless bill shows an orange "Add due date" in the date slot (also replaces "Paid · no due date"); it opens the edit form at the due date. A `dueLabel` ('Paused' / 'One-off') always wins in the date slot.
+- Dateless bills sort last within each category on Bills and last on Upcoming Bills, appear only under the All filter, and still count toward totals.
+- Full issue: https://github.com/mp3anthony/funded/issues/250
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)

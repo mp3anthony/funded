@@ -33,6 +33,8 @@ export default function HomeClient() {
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  // #250: open the edit form at the due date (from "Add due date").
+  const [editFocusDueDate, setEditFocusDueDate] = useState(false);
 
   const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
   const [isGoalDetailOpen, setIsGoalDetailOpen] = useState(false);
@@ -132,8 +134,9 @@ export default function HomeClient() {
             : []
         }
         householdMembers={householdMembers}
-        onEdit={() => {
+        onEdit={(opts) => {
           setIsDetailOpen(false);
+          setEditFocusDueDate(opts?.focusDueDate === true);
           setIsEditOpen(true);
         }}
         onDelete={handleDeleteBill}
@@ -144,8 +147,10 @@ export default function HomeClient() {
         isOpen={isEditOpen}
         onClose={() => {
           setIsEditOpen(false);
+          setEditFocusDueDate(false);
           setSelectedBill(null);
         }}
+        focusDueDate={editFocusDueDate}
         existingBill={selectedBill || undefined}
         existingSplits={
           selectedBill

@@ -1,10 +1,12 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { Calendar, AlertTriangle } from "lucide-react";
 import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
 import Dialog, { DialogSection } from "@/components/ui/Dialog";
+import NextDueDateDialog from "@/components/NextDueDateDialog";
 import { todayInZone } from "@/lib/notifications/timezone";
-import { canUndoPayment, paidForLabel } from "@/lib/billCycle";
+import { canUndoPayment, paidForLabel, isDateless, dueDateHint, shouldAskNextDueDate } from "@/lib/billCycle";
 
 interface BillDetailSheetProps {
   isOpen: boolean;
@@ -12,7 +14,8 @@ interface BillDetailSheetProps {
   bill: Bill | null;
   splits: BillSplit[];
   householdMembers: Member[];
-  onEdit: () => void;
+  /** `focusDueDate` (#250): open the edit form scrolled to the due date. */
+  onEdit: (opts?: { focusDueDate?: boolean }) => void;
   onDelete: () => void;
 }
 
@@ -25,7 +28,17 @@ export default function BillDetailSheet({
   onEdit,
   onDelete,
 }: BillDetailSheetProps) {
-  const { isJointFund, markAsPaid, markAsUnpaid, undoPayment, togglePauseBill, householdTimezone } = useApp();
+  const { isJointFund, markAsPaid, markDatelessBillPaid, markAsUnpaid, undoPayment, togglePauseBill, householdTimezone } = useApp();
+  // #250: the "When is it next due?" question, shown instead of the sheet. Above the early return (hook order).
+  const [askingNextDue, setAskingNextDue] = useState(false);
+  const [nextDueBusy, setNextDueBusy] = useState(false);
+  // Blocks a fast double tap before the busy state has re-rendered the buttons disabled.
+  const nextDueInFlightRef = useRef(false);
+  // Reset whenever the sheet is closed from outside, so it never reopens on the question.
+  if (!isOpen && (askingNextDue || nextDueBusy)) {
+    setAskingNextDue(false);
+    setNextDueBusy(false);
+  }
 
   if (!isOpen || !bill) return null;
 
@@ -62,6 +75,47 @@ export default function BillDetailSheet({
       invoice_date: bill.invoice_date,
     });
 
+  // #250: what the Due Date cell shows for a bill with no due date (a dueLabel still wins).
+  const dateless = !bill.dueLabel && isDateless(bill);
+  const hint = dateless ? dueDateHint(bill, new Date().getTime()) : "none";
+
+  // #250: each answer saves. On success the sheet closes; if the save failed (the
+  // toast says why) it goes back to the bill instead. Cancel just goes back to the bill.
+  async function answerNextDue(run: () => Promise<boolean>) {
+    if (nextDueInFlightRef.current) return;
+    nextDueInFlightRef.current = true;
+    setNextDueBusy(true);
+    let ok = false;
+    try {
+      ok = await run();
+    } finally {
+      nextDueInFlightRef.current = false;
+      setNextDueBusy(false);
+      setAskingNextDue(false);
+      if (ok) onClose();
+    }
+  }
+
+  if (askingNextDue) {
+    const datelessBill = bill;
+    return (
+      <NextDueDateDialog
+        open
+        billName={bill.name}
+        todayYmd={todayYmd}
+        busy={nextDueBusy}
+        onCancel={() => setAskingNextDue(false)}
+        onSave={(ymd) => void answerNextDue(() => markDatelessBillPaid(datelessBill, { nextDue: ymd }))}
+        onSkip={() => void answerNextDue(async () => {
+          // Skip is the plain Mark as Paid, which has no success signal (same as today).
+          await markAsPaid(datelessBill);
+          return true;
+        })}
+        onMute={() => void answerNextDue(() => markDatelessBillPaid(datelessBill, { mute: true }))}
+      />
+    );
+  }
+
   function handleUndoPayment() {
     if (!bill || !bill.last_paid_for) return;
     const paidMonth = new Date(bill.last_paid_for + "T00:00:00").toLocaleDateString("en-US", { month: "long" });
@@ -96,6 +150,10 @@ export default function BillDetailSheet({
           ) : (
             <button
               onClick={() => {
+                if (shouldAskNextDueDate(bill)) {
+                  setAskingNextDue(true);
+                  return;
+                }
                 markAsPaid(bill);
                 onClose();
               }}
@@ -113,7 +171,7 @@ export default function BillDetailSheet({
               Delete
             </button>
             <button
-              onClick={onEdit}
+              onClick={() => onEdit()}
               className="flex-1 rounded-[2px] py-3 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-[10px] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
             >
               Edit
@@ -177,8 +235,23 @@ export default function BillDetailSheet({
             <div className="space-y-1">
               <span className="text-subtle uppercase font-semibold">Due Date</span>
               <div className="flex items-center space-x-1.5 text-foreground">
-                <Calendar size={14} className="text-muted animate-pulse" />
-                <span className={bill.dueLabel ? "text-muted" : undefined}>{bill.dueLabel ?? bill.dueDate}</span>
+                {hint === "add-due-date" ? (
+                  <button
+                    type="button"
+                    onClick={() => onEdit({ focusDueDate: true })}
+                    aria-label={`Add due date for ${bill.name}`}
+                    className="min-h-[44px] -my-3 font-mono text-xs font-bold uppercase tracking-wider text-accent hover:underline cursor-pointer"
+                  >
+                    Add due date
+                  </button>
+                ) : dateless ? (
+                  <span className="text-muted">{hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"}</span>
+                ) : (
+                  <>
+                    <Calendar size={14} className="text-muted animate-pulse" />
+                    <span className={bill.dueLabel ? "text-muted" : undefined}>{bill.dueLabel ?? bill.dueDate}</span>
+                  </>
+                )}
               </div>
             </div>
 
