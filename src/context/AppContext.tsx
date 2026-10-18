@@ -1484,7 +1484,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // empty-but-error-free result is only trusted outright when the slice's
     // previous in-memory state was already empty. Otherwise it's confirmed
     // with one re-fetch before it's allowed to overwrite real data. See
-    // resolveWarmReloadRace above for the full rationale. bills/funds/paydays/
+    // resolveWarmReloadRace in src/lib/warmReloadRace.ts for the full rationale. bills/funds/paydays/
     // members/expenseSplits are independent of one another, so they're
     // reconciled concurrently rather than compounding re-fetch latency
     // sequentially.
