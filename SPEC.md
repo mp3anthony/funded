@@ -839,6 +839,15 @@ problem/checklist on the issue.
 - ADR: `docs/adr/0005-households-user-id-follows-an-owner.md`.
 - Full issue: https://github.com/mp3anthony/funded/issues/251
 
+### Slice 21: Paused bills and Counts toward totals (Issue #267)
+
+**Decisions (grilled 2026-10-11, planned and reviewed 2026-10-18):**
+- One rule for every bill total: `countsTowardTotals` in `src/lib/billCycle.ts` (false for paused bills and bills showing a neutral `dueLabel`; dateless bills count). Used by the Bills Total Bar, `calculateHealthScore`, Household Health (weekly bills, surplus, contributors split) and Suggest Split. Never inline `is_paused`/`dueLabel` checks in a total.
+- Paused bills of any payment type carry `dueLabel: 'Paused'` (`displayedDueDate` checks paused before payment type), so a paused manual bill shows "Paused" and appears only under the All filter.
+- Row look: orange pause icon, greyed amount, "Paused" in the date slot. Muted line under the Total Bar: "N paused or finished, not counted" (only when N > 0; ignores search/category/type/due filters).
+- No schema, migration or RLS change.
+- Full issue: https://github.com/mp3anthony/funded/issues/267
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)

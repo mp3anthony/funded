@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { calculateHealthScore, convertAmount } from "@/lib/utils";
+import { countsTowardTotals } from "@/lib/billCycle";
 
 /* ── Slice 13 (#99, Part 5): count-up on the 4 stat tiles ──────────
    Animates a displayed number from its previous value to a new target over
@@ -149,7 +150,7 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
 
   const weeklyBills = useMemo(() => {
     return bills.reduce((sum, bill) => {
-      if (bill.is_paused || bill.dueLabel) return sum;
+      if (!countsTowardTotals(bill)) return sum;
       return sum + convertAmount(bill.amount || 0, bill.frequency || "monthly", "weekly");
     }, 0);
   }, [bills]);
@@ -331,7 +332,7 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
                 } else if (memberBillSplits.length > 0) {
                   weeklyAmount = memberBillSplits.reduce((sum, split) => {
                     const bill = bills.find(b => b.id === split.bill_id);
-                    if (!bill || bill.is_paused || bill.dueLabel) return sum;
+                    if (!bill || !countsTowardTotals(bill)) return sum;
                     return sum + convertAmount(split.amount, bill.frequency || "monthly", "weekly");
                   }, 0);
                 }

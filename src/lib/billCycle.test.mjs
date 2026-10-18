@@ -14,6 +14,7 @@ import {
   computeUndoPayment,
   paidForLabel,
   billSendsReminders,
+  countsTowardTotals,
   pausedFieldForEdit,
   computeResumeRoll,
   oldCycleNotificationKeyPrefix,
@@ -485,10 +486,30 @@ test('displayedDueDate: missing is_recurring counts as recurring; Auto is case-i
   assert.deepEqual(displayedDueDate({ ...autoBill, payment_type: 'Auto' }, T), { dueYmd: '2026-10-15', label: null });
 });
 
-test('displayedDueDate: manual bills show the saved date, paused or not', () => {
+test('displayedDueDate: manual bills show the saved date; paused manual shows Paused (#267)', () => {
   assert.deepEqual(displayedDueDate({ ...autoBill, payment_type: 'manual' }, T), { dueYmd: '2026-08-15', label: null });
-  assert.deepEqual(displayedDueDate({ ...autoBill, payment_type: 'manual', is_paused: true }, T), { dueYmd: '2026-08-15', label: null });
+  assert.deepEqual(displayedDueDate({ ...autoBill, payment_type: 'manual', is_paused: true }, T), { dueYmd: '2026-08-15', label: 'Paused' });
+  assert.deepEqual(displayedDueDate({ ...autoBill, payment_type: 'manual', is_paused: true, due_date: null }, T), { dueYmd: null, label: 'Paused' });
   assert.deepEqual(displayedDueDate({ ...autoBill, payment_type: 'manual', due_date: null }, T), { dueYmd: null, label: null });
+});
+
+test('countsTowardTotals: paused and labelled bills are left out (#267)', () => {
+  assert.equal(countsTowardTotals({ is_paused: false, dueLabel: null }), true);
+  assert.equal(countsTowardTotals({ is_paused: true }), false);
+  assert.equal(countsTowardTotals({ dueLabel: 'Paused' }), false);
+  assert.equal(countsTowardTotals({ dueLabel: 'One-off' }), false);
+  assert.equal(countsTowardTotals({ dueLabel: null }), true);
+  assert.equal(countsTowardTotals({ is_paused: null }), true);
+  assert.equal(countsTowardTotals({}), true);
+  assert.equal(countsTowardTotals({ is_paused: 'yes' }), true);
+});
+
+test('countsTowardTotals: through displayedDueDate (#267)', () => {
+  const withLabel = (b) => ({ ...b, dueLabel: displayedDueDate(b, T).label });
+  assert.equal(countsTowardTotals(withLabel(autoBill)), true);
+  assert.equal(countsTowardTotals(withLabel({ ...autoBill, is_recurring: false })), false);
+  assert.equal(countsTowardTotals(withLabel({ ...autoBill, payment_type: 'manual', is_paused: true })), false);
+  assert.equal(countsTowardTotals(withLabel({ ...autoBill, payment_type: 'manual', due_date: null })), true);
 });
 
 test('displayedDueDate: invalid or missing saved date, time suffix', () => {

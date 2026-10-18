@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.78",
+    date: "October 2026",
+    highlights: [
+      "Paused bills now look paused on the Bills page: an orange pause icon, a greyed-out amount, and \"Paused\" where the due date was.",
+      "The total at the top of the Bills page now leaves out paused bills and one-off bills that have already finished, matching Household Health and the suggested split. A small line under the total says how many are left out.",
+    ],
+  },
+  {
     version: "0.9.77",
     date: "October 2026",
     highlights: [

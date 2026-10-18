@@ -142,7 +142,7 @@ export const pageGuide: GuidePage[] = [
   {
     name: "Bills",
     description:
-      "Every bill and expense in one list, with the household total at the top. Tap one to open it.",
+      "Every bill and expense in one list, with the household total at the top. Tap one to open it. Paused bills show greyed out and are left out of the total.",
   },
   {
     name: "Goals",
