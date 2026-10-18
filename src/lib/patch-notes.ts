@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.81",
+    date: "October 2026",
+    highlights: [
+      "Notes on a bill now show in the bill's details, and editing a bill no longer erases them.",
+    ],
+  },
+  {
     version: "0.9.80",
     date: "October 2026",
     highlights: [
