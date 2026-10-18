@@ -4,7 +4,8 @@
 
 ## Current state (2026-10-18)
 
-- **`main` = v0.9.79. No open PRs.** Shipped today, live checks by Anthony as he uses the app (he raises any problem; no follow-up needed from us):
+- **`main` = v0.9.80. No open PRs.** Shipped today, live checks by Anthony as he uses the app (he raises any problem; no follow-up needed from us):
+  - **#348 pay info no longer flashes empty on warm reload (v0.9.80, PR #365).** `pay_schedules` and `pay_history` now go through `resolveWarmReloadRace`; the helper moved to `src/lib/warmReloadRace.ts` with 6 unit tests; `docs/lessons.md` corrected (`paydays` is the unused legacy table). Live check: fully close and reopen, and background then return; the Dashboard must not flash "Add your payday".
   - **#250 bills with no due date (v0.9.79, PR #362, SPEC Slice 22).** Prod migration `20261018120000` applied before merge: `bills.due_date` is now nullable, new `bills.due_date_prompt_muted` boolean (default false). Dateless bills show "No due date" and sort last in their group; paying a manual repeating dateless bill asks "When is it next due?" (pick, skip, or "Don't ask again"); after 30 days an orange "Add due date" button shows. The Getting started "Always give a bill a due date" item is removed. Follow-up #363 (Add due date tap area overlaps the name line; VoiceOver reads the row twice, `needs-triage`).
   - **#267 paused bills (v0.9.78, PR #360, SPEC Slice 21).** Paused manual bills show "Paused" (no red date, only under the All filter); one shared "counts toward totals" rule. Follow-up #359.
 - Earlier live checks still pending on iPhone: #251 (v0.9.77 leave/delete household), #333 (v0.9.76), #249 (v0.9.75), #248 (v0.9.74). Live-check results are not recorded; a failed check is raised again and Intake reopens the closed issue.
@@ -16,18 +17,20 @@
 - **#273** closed 2026-10-15 as blocked by plan: leaked-password protection needs Supabase Pro (we are on Free). Fallback on Free: raise minimum password length in Auth > Sign In / Providers > Email (Anthony's call). Reopen if we move to Pro.
 - **Repo interaction limit** set to collaborators only until 2027-04-09 (spam, #276); renew then (Settings > Moderation options > Interaction limits).
 - **Security** details live in the private notes file; no GitHub issue by design.
-- **Backlog needing Intake (all `needs-triage`, Intake not yet run):** #341 (Create Goal window shows no error on failed save), #348 (route `pay_schedules` through `resolveWarmReloadRace`), #350, #351, #352 (#251 household follow-ups), #357 (editing a bill blanks its notes), #359 (Dashboard Upcoming Bills lists paused manual bills by saved date), #363 (#250 row tap area / VoiceOver).
+- **#357 (editing a bill wipes its notes): Intake done, `ready-for-agent`, build next.** Root cause confirmed: `mapBillFromDb` (`AppContext.tsx` ~552-597) never maps `notes`, so the edit form opens empty and saving nulls the notes; `BillDetailSheet.tsx:356` never shows them either. Fix is one mapper line (`notes: dbBill.notes ?? null`) + optional mapper test + v0.9.81 bump and patch note. No Planner needed, no A1 touch. Plan and findings are in the issue body. Notes already wiped can't be recovered.
+- **Backlog needing Intake (all `needs-triage`, Intake not yet run):** #341 (Create Goal window shows no error on failed save), #350, #351, #352 (#251 household follow-ups), #359 (Dashboard Upcoming Bills lists paused manual bills by saved date), #363 (#250 row tap area / VoiceOver).
 - **Backlog needing a grill session each:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
 - **Owed:** fix the stale "not wired up" comment in `src/components/NotifyHourDialog.tsx` (line 15) in the next PR touching that file. The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
-- Last active SPEC ticket: Slice 22 (#250 bills with no due date, shipped in PR #362).
+- Last active SPEC ticket: Slice 22 (#250); this session's #348 was a bug fix outside any slice, and #357 is next (also a bug fix).
 
 ## Next session, in order
 
-1. Run Intake on #341, #348, #350, #351, #352, #357, #359, #363; small chores #265, #266. #357 (notes wiped on edit) looks like a clear bug fix once Intake confirms.
-2. Grill #261, #315, #316 individually when Anthony asks.
-3. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
+1. Build #357 (one-line fix, plan in the issue) from a fresh session.
+2. Run Intake on #341, #350, #351, #352, #359, #363; small chores #265, #266.
+3. Grill #261, #315, #316 individually when Anthony asks.
+4. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
 
 ## Where things live
 
