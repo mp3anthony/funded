@@ -4,7 +4,8 @@
 
 ## Current state (2026-10-18)
 
-- **`main` = v0.9.81. No open PRs.** Shipped today, live checks by Anthony as he uses the app (he raises any problem; no follow-up needed from us):
+- **`main` = v0.9.82. No open PRs.** Shipped today, live checks by Anthony as he uses the app (he raises any problem; no follow-up needed from us):
+  - **#350 household access follows membership, not the creator column (v0.9.82, PR #373, A1).** Prod migration `20261018180000` applied before merge: 19 RLS policies now use `check_household_access` / `is_household_owner`; new `household_has_members()` helper; `households.user_id` FK is ON DELETE SET NULL (column was already nullable); `household_members` INSERT lets owners add (closes #351's policy gap). `leave-household` redeployed (v2): no more 400 when no next creator, sets `user_id` to next owner or null. 17 SQL proofs passed and rolled back. ADR 0006 added, 0005 partly superseded. Live check: bills, goals, pay still load; a fresh signup can create a household; Leave household works.
   - **#357 editing a bill no longer erases its notes (v0.9.81, PR #367).** `mapBillFromDb` now maps `notes`, so bill notes show in the bill details and survive edits. No unit test (mapper not exported from `AppContext.tsx`). Notes already wiped can't be recovered. Live check: open a bill with notes, see them, edit and save, they stay.
   - **#348 pay info no longer flashes empty on warm reload (v0.9.80, PR #365).** `pay_schedules` and `pay_history` now go through `resolveWarmReloadRace`; the helper moved to `src/lib/warmReloadRace.ts` with 6 unit tests; `docs/lessons.md` corrected (`paydays` is the unused legacy table). Live check: fully close and reopen, and background then return; the Dashboard must not flash "Add your payday".
   - **#250 bills with no due date (v0.9.79, PR #362, SPEC Slice 22).** Prod migration `20261018120000` applied before merge: `bills.due_date` is now nullable, new `bills.due_date_prompt_muted` boolean (default false). Dateless bills show "No due date" and sort last in their group; paying a manual repeating dateless bill asks "When is it next due?" (pick, skip, or "Don't ask again"); after 30 days an orange "Add due date" button shows. The Getting started "Always give a bill a due date" item is removed. Follow-up #363 (see Intake below).
@@ -19,21 +20,19 @@
 - **Repo interaction limit** set to collaborators only until 2027-04-09 (spam, #276); renew then (Settings > Moderation options > Interaction limits).
 - **Security** details live in the private notes file; no GitHub issue by design.
 - **Intake done 2026-10-18 (findings are comments on each issue); all now `ready-for-agent`:**
-  - No Planner, no A1 touch: **#341** (Create/Edit Goal save failure: inline error in `AddGoalSheet`, make `updateGoal` throw), **#352** (remove client-side step-2 household wipe in `joinHousehold`; optional edge-function `.maybeSingle()` hardening is security-adjacent, flag to Anthony), **#363** (`BillCard.tsx` tap-zone padding + `aria-hidden` on duplicate elements), **#359** (decision: hide paused bills from Dashboard Upcoming Bills; today they show as overdue), **#351** (decision: delete dead `addMember`; its policy gap is handled in #350).
-  - **#350 (A1, RLS migration):** approach approved by Anthony (membership/role-based policies only, `households.user_id` nullable / ON DELETE SET NULL, includes the `household_members` INSERT policy). **Plan written and independently reviewed 2026-10-18 (comment on #350, review findings folded in). Standing pause:** build in a fresh session from the issue as v0.9.82; step 0 live `pg_policies` check is a hard gate (drop any legacy creator policies found); orchestrator applies the migration after code review and before merge; redeploy and confirm `leave-household`.
+  - No Planner, no A1 touch: **#341** (Create/Edit Goal save failure: inline error in `AddGoalSheet`, make `updateGoal` throw), **#352** (remove client-side step-2 household wipe in `joinHousehold`; optional edge-function `.maybeSingle()` hardening is security-adjacent, flag to Anthony), **#363** (`BillCard.tsx` tap-zone padding + `aria-hidden` on duplicate elements), **#359** (decision: hide paused bills from Dashboard Upcoming Bills; today they show as overdue), **#351** (decision: delete dead `addMember`; its policy gap was closed by #350).
 - **#370** (join recovery path reads `households` by `join_code` as a non-member, likely blocked by RLS; found in the #350 review): `needs-triage`, needs Intake.
 - **Backlog needing a grill session each:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
 - **Owed:** fix the stale "not wired up" comment in `src/components/NotifyHourDialog.tsx` (line 15) in the next PR touching that file. The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
-- Last active SPEC ticket: Slice 22 (#250); #348 and #357 were bug fixes outside any slice.
+- Last active SPEC ticket: Slice 22 (#250); #348, #357 and #350 were fixes outside any slice.
 
 ## Next session, in order
 
-1. Build #350 from a fresh session (plan comment on the issue; step 0 live policy check first).
-2. Build the `ready-for-agent` fixes (#341, #352, #363, #359, #351), one PR each or grouped if he wants one version bump; small chores #265, #266 still need Intake.
-3. Grill #261, #315, #316 individually when Anthony asks.
-4. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
+1. Build the `ready-for-agent` fixes (#341, #352, #363, #359, #351), one PR each or grouped if he wants one version bump; small chores #265, #266 still need Intake.
+2. Grill #261, #315, #316 individually when Anthony asks.
+3. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
 
 ## Where things live
 
