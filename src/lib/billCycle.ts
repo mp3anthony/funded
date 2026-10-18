@@ -505,3 +505,100 @@ export function missedPayCatchUp(
   }
   return { missed, next: addCycles(base, f, i) };
 }
+
+/* ── Bills with no due date (#250) ────────────────────────────────────── */
+
+/** Minimal bill shape the dateless helpers read (a DB row or a mapped `Bill`). */
+export interface DatelessBillLike {
+  due_date?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  due_date_prompt_muted?: boolean | null;
+  payment_type?: string | null;
+  is_recurring?: boolean | null;
+  is_paused?: boolean | null;
+}
+
+/** True when the bill has no saved due date (null, missing or blank). */
+export function isDateless(bill: { due_date?: string | null } | null | undefined): boolean {
+  const raw = bill?.due_date;
+  return !(raw && String(raw).trim());
+}
+
+/** Days after creation before a dateless bill shows the orange "Add due date" prompt (#250). */
+export const DUE_DATE_HINT_AFTER_DAYS = 30;
+
+export type DueDateHint = 'none' | 'no-due-date' | 'paid-no-due-date' | 'add-due-date';
+
+/**
+ * What the date slot shows for a bill with no due date (#250). Callers check
+ * `dueLabel` ('Paused' / 'One-off') first: a label always wins.
+ *
+ * - Has a due date: 'none' (show the date as usual).
+ * - Not muted, a valid `created_at`, and at least 30 days old (elapsed time):
+ *   'add-due-date' (the orange prompt; beats Paid).
+ * - Paid: 'paid-no-due-date'.
+ * - Otherwise (incl. missing / invalid `created_at`): 'no-due-date'.
+ */
+export function dueDateHint(bill: DatelessBillLike, nowMs: number): DueDateHint {
+  if (!isDateless(bill)) return 'none';
+  if (bill?.due_date_prompt_muted !== true && bill?.created_at) {
+    const createdMs = new Date(bill.created_at).getTime();
+    if (!isNaN(createdMs) && nowMs - createdMs >= DUE_DATE_HINT_AFTER_DAYS * 86_400_000) {
+      return 'add-due-date';
+    }
+  }
+  return bill?.status === 'Paid' ? 'paid-no-due-date' : 'no-due-date';
+}
+
+/**
+ * True when Mark as Paid should first ask "When is it next due?" (#250):
+ * a manual, recurring, not paused bill with no due date, not muted.
+ */
+export function shouldAskNextDueDate(bill: DatelessBillLike): boolean {
+  if (!bill) return false;
+  if ((bill.payment_type ?? '').toLowerCase() === 'auto') return false;
+  if (!isDateless(bill)) return false;
+  if (bill.due_date_prompt_muted === true) return false;
+  if (bill.is_recurring === false) return false;
+  if (bill.is_paused === true) return false;
+  return true;
+}
+
+/**
+ * Columns to write when the user answers the next-due question with a date:
+ * the paid (dateless) cycle is done, so the bill goes straight to unpaid on
+ * the picked date. Null when the pick isn't a 'YYYY-MM-DD' date or is before
+ * `todayYmd`. Never sets `last_paid_for` (there was no dated cycle to record).
+ */
+export function nextDueDatePatch(
+  pickedYmd: string | null | undefined,
+  todayYmd: string,
+): { due_date: string; status: string } | null {
+  const picked = (pickedYmd ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(picked)) return null;
+  if (picked < todayYmd) return null;
+  return { due_date: picked, status: UNPAID_STATUS };
+}
+
+/**
+ * Toast after the next-due date is saved: "Marked as paid — next due <Month D>".
+ * The year is added when it differs from `todayYmd`'s year. Pure string maths.
+ */
+export function nextDueToastMessage(ymd: string, todayYmd?: string): string {
+  const m = YMD_RE.exec(ymd ?? '');
+  if (!m) return 'Marked as paid';
+  const month = MONTH_NAMES[Number(m[2]) - 1];
+  if (!month) return 'Marked as paid';
+  const t = YMD_RE.exec(todayYmd ?? '');
+  const yearSuffix = t && t[1] !== m[1] ? `, ${m[1]}` : '';
+  return `Marked as paid — next due ${month} ${Number(m[3])}${yearSuffix}`;
+}
+
+/** Sort comparator: bills with no due date go last; otherwise equal (0), so a stable sort keeps the existing order. */
+export function compareDatelessLast(
+  a: { due_date?: string | null },
+  b: { due_date?: string | null },
+): number {
+  return (isDateless(a) ? 1 : 0) - (isDateless(b) ? 1 : 0);
+}

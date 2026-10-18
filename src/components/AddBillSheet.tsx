@@ -6,6 +6,7 @@ import { useApp, useCurrentUser, type Bill, type BillSplit } from "@/context/App
 import ContributorSplits, { type SplitResult } from "./ContributorSplits";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 import ItemTypeToggle from "./ItemTypeToggle";
+import { isDateless, UNPAID_STATUS } from "@/lib/billCycle";
 
 interface AddBillSheetProps {
   isOpen: boolean;
@@ -16,9 +17,11 @@ interface AddBillSheetProps {
    * form without closing/reopening the dialog by hand. Omitted entirely
    * while editing, since an existing item's type is fixed. */
   onSwitchToExpense?: () => void;
+  /** #250: scroll to and focus the Due Date field on open (from "Add due date"). */
+  focusDueDate?: boolean;
 }
 
-export default function AddBillSheet({ isOpen, onClose, existingBill, existingSplits, onSwitchToExpense }: AddBillSheetProps) {
+export default function AddBillSheet({ isOpen, onClose, existingBill, existingSplits, onSwitchToExpense, focusDueDate }: AddBillSheetProps) {
   const { householdMembers, addBill, updateBill, session, isJointFund } = useApp();
   const currentUser = useCurrentUser();
 
@@ -35,6 +38,20 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
   const [paidByMode, setPaidByMode] = useState<"joint" | "individual">("individual");
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const dueDateRef = React.useRef<HTMLInputElement>(null);
+
+  // #250: "Add due date" opens the form at the Due Date field. Best effort on
+  // iOS: focus() may not open the date picker without a direct tap.
+  React.useEffect(() => {
+    if (!isOpen || !focusDueDate) return;
+    const t = window.setTimeout(() => {
+      const el = dueDateRef.current;
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.focus();
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [isOpen, focusDueDate]);
 
   // Pre-fill fields if in edit mode
   React.useEffect(() => {
@@ -97,6 +114,11 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
         assignee,
         notes,
         frequency,
+        // #250: adding a date to a Paid bill that had none makes it unpaid on that date
+        // (Overdue at once if the date has passed). Otherwise status is left alone.
+        ...(existingBill && isDateless(existingBill) && existingBill.status === "Paid" && dueDate
+          ? { status: UNPAID_STATUS }
+          : {}),
       };
 
       const finalSplits = paidByMode === "joint" ? [] : splits;
@@ -274,6 +296,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
                 Due Date
               </label>
               <input 
+                ref={dueDateRef}
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}

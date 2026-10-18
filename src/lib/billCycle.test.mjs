@@ -23,6 +23,13 @@ import {
   UNPAID_STATUS,
   nextPayDateAfterLog,
   missedPayCatchUp,
+  isDateless,
+  DUE_DATE_HINT_AFTER_DAYS,
+  dueDateHint,
+  shouldAskNextDueDate,
+  nextDueDatePatch,
+  nextDueToastMessage,
+  compareDatelessLast,
 } from './billCycle.ts';
 
 test('weekly/fortnightly across month and year end', () => {
@@ -602,4 +609,104 @@ test('missedPayCatchUp: boundaries', () => {
     missed: ['2026-01-01', '2026-01-08'],
     next: '2026-01-15',
   });
+});
+
+/* ── Bills with no due date (#250) ────────────────────────────────────── */
+
+const DAY_MS = 86_400_000;
+const CREATED = '2026-09-01T10:00:00.000Z';
+const createdMs = new Date(CREATED).getTime();
+
+test('isDateless: null, missing, empty and blank are dateless; a date is not', () => {
+  assert.equal(isDateless({ due_date: null }), true);
+  assert.equal(isDateless({}), true);
+  assert.equal(isDateless({ due_date: '' }), true);
+  assert.equal(isDateless({ due_date: '  ' }), true);
+  assert.equal(isDateless(null), true);
+  assert.equal(isDateless({ due_date: '2026-10-18' }), false);
+});
+
+test('dueDateHint: dated bill is none', () => {
+  assert.equal(dueDateHint({ due_date: '2026-10-18', created_at: CREATED }, createdMs + 90 * DAY_MS), 'none');
+});
+
+test('dueDateHint: 29 days is no-due-date, 30 days is add-due-date (elapsed time)', () => {
+  assert.equal(DUE_DATE_HINT_AFTER_DAYS, 30);
+  const bill = { due_date: null, status: 'Due Soon', created_at: CREATED };
+  assert.equal(dueDateHint(bill, createdMs + 29 * DAY_MS), 'no-due-date');
+  assert.equal(dueDateHint(bill, createdMs + 30 * DAY_MS - 1), 'no-due-date');
+  assert.equal(dueDateHint(bill, createdMs + 30 * DAY_MS), 'add-due-date');
+});
+
+test('dueDateHint: Paid at 10 days is paid-no-due-date; at 31 days add-due-date wins', () => {
+  const bill = { due_date: null, status: 'Paid', created_at: CREATED };
+  assert.equal(dueDateHint(bill, createdMs + 10 * DAY_MS), 'paid-no-due-date');
+  assert.equal(dueDateHint(bill, createdMs + 31 * DAY_MS), 'add-due-date');
+});
+
+test('dueDateHint: muted never shows add-due-date', () => {
+  assert.equal(dueDateHint({ due_date: null, status: 'Due Soon', created_at: CREATED, due_date_prompt_muted: true }, createdMs + 90 * DAY_MS), 'no-due-date');
+  assert.equal(dueDateHint({ due_date: null, status: 'Paid', created_at: CREATED, due_date_prompt_muted: true }, createdMs + 90 * DAY_MS), 'paid-no-due-date');
+});
+
+test('dueDateHint: missing or invalid created_at never shows add-due-date', () => {
+  assert.equal(dueDateHint({ due_date: null, status: 'Due Soon' }, createdMs + 90 * DAY_MS), 'no-due-date');
+  assert.equal(dueDateHint({ due_date: null, status: 'Due Soon', created_at: null }, createdMs + 90 * DAY_MS), 'no-due-date');
+  assert.equal(dueDateHint({ due_date: null, status: 'Paid', created_at: 'not a date' }, createdMs + 90 * DAY_MS), 'paid-no-due-date');
+});
+
+test('shouldAskNextDueDate: manual recurring dateless bill asks', () => {
+  assert.equal(shouldAskNextDueDate({ due_date: null, payment_type: 'manual', is_recurring: true, is_paused: false }), true);
+  // is_recurring missing counts as recurring (mapBillFromDb default)
+  assert.equal(shouldAskNextDueDate({ due_date: null, payment_type: 'manual' }), true);
+});
+
+test('shouldAskNextDueDate: autopay (any case), dated, muted, one-off and paused do not ask', () => {
+  assert.equal(shouldAskNextDueDate({ due_date: null, payment_type: 'Auto' }), false);
+  assert.equal(shouldAskNextDueDate({ due_date: null, payment_type: 'auto' }), false);
+  assert.equal(shouldAskNextDueDate({ due_date: '2026-10-18', payment_type: 'manual' }), false);
+  assert.equal(shouldAskNextDueDate({ due_date: null, payment_type: 'manual', due_date_prompt_muted: true }), false);
+  assert.equal(shouldAskNextDueDate({ due_date: null, payment_type: 'manual', is_recurring: false }), false);
+  assert.equal(shouldAskNextDueDate({ due_date: null, payment_type: 'manual', is_paused: true }), false);
+  assert.equal(shouldAskNextDueDate(null), false);
+});
+
+test('nextDueDatePatch: today or later gives unpaid on that date, never last_paid_for', () => {
+  assert.deepEqual(nextDueDatePatch('2026-10-18', '2026-10-18'), { due_date: '2026-10-18', status: UNPAID_STATUS });
+  const p = nextDueDatePatch('2026-11-03', '2026-10-18');
+  assert.deepEqual(p, { due_date: '2026-11-03', status: UNPAID_STATUS });
+  assert.equal('last_paid_for' in p, false);
+});
+
+test('nextDueDatePatch: past, empty or invalid gives null', () => {
+  assert.equal(nextDueDatePatch('2026-10-17', '2026-10-18'), null);
+  assert.equal(nextDueDatePatch('', '2026-10-18'), null);
+  assert.equal(nextDueDatePatch(null, '2026-10-18'), null);
+  assert.equal(nextDueDatePatch('18/10/2026', '2026-10-18'), null);
+});
+
+test('nextDueToastMessage: month and day, year only when it changes', () => {
+  assert.equal(nextDueToastMessage('2026-11-03', '2026-10-18'), 'Marked as paid — next due November 3');
+  assert.equal(nextDueToastMessage('2027-01-05', '2026-12-20'), 'Marked as paid — next due January 5, 2027');
+  assert.equal(nextDueToastMessage('2026-11-03'), 'Marked as paid — next due November 3');
+  assert.equal(nextDueToastMessage('nope', '2026-10-18'), 'Marked as paid');
+});
+
+test('compareDatelessLast: dateless sorts after dated, stable otherwise', () => {
+  const rows = [
+    { id: 1, due_date: null },
+    { id: 2, due_date: '2026-10-20' },
+    { id: 3, due_date: '' },
+    { id: 4, due_date: '2026-10-01' },
+  ];
+  assert.deepEqual([...rows].sort(compareDatelessLast).map((r) => r.id), [2, 4, 1, 3]);
+  assert.equal(compareDatelessLast({ due_date: null }, { due_date: null }), 0);
+});
+
+test('regression: rollover, paid roll and resume roll do nothing for a null due date', () => {
+  const row = { status: 'Paid', is_recurring: true, is_paused: false, due_date: null, frequency: 'monthly', payment_type: 'manual' };
+  assert.equal(computeRollover(row, '2026-10-18'), null);
+  assert.equal(computePaidRoll({ ...row, status: 'Due Soon' }, '2026-10-18'), null);
+  assert.equal(computeResumeRoll({ ...row, is_paused: true }, '2026-10-18'), null);
+  assert.equal(computeResumeRoll({ ...row, status: 'Due Soon', is_paused: true }, '2026-10-18'), null);
 });

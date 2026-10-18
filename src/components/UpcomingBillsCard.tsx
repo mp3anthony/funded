@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, Calendar, AlertCircle, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { type Bill } from "@/context/AppContext";
 import { parseBillDate } from "@/lib/utils";
+import { isDateless, compareDatelessLast } from "@/lib/billCycle";
 
 interface UpcomingBillsCardProps {
   bills: Bill[];
@@ -51,6 +52,10 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
         // Only show manual payment bills
         if (b.payment_type?.toLowerCase() === "auto") return false;
 
+        // #250: never parse a missing date (parseBillDate("") returns now).
+        // Paid with no due date: nothing upcoming. Unpaid with no due date: still listed.
+        if (isDateless(b)) return b.status !== "Paid";
+
         // Show all unpaid bills (even if overdue)
         if (b.status !== "Paid") return true;
         // Show paid bills only if they are due today or in the future
@@ -59,6 +64,8 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
         return dueDate.getTime() >= today.getTime();
       })
       .sort((a, b) => {
+        // #250: bills with no due date go last.
+        if (isDateless(a) || isDateless(b)) return compareDatelessLast(a, b);
         const dateA = parseBillDate(a.due_date || a.dueDate);
         const dateB = parseBillDate(b.due_date || b.dueDate);
         return dateA.getTime() - dateB.getTime();
@@ -120,20 +127,24 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
           ) : (
             <div className="flex flex-col">
               {upcomingBillsList.map((bill) => {
-                // Calculate countdown
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const dueDate = parseBillDate(bill.due_date || bill.dueDate);
-                dueDate.setHours(0, 0, 0, 0);
-
-                const diffTime = dueDate.getTime() - today.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                // Calculate countdown (#250: none for a bill with no due date)
+                const dateless = isDateless(bill);
+                let diffDays = 0;
+                if (!dateless) {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const dueDate = parseBillDate(bill.due_date || bill.dueDate);
+                  dueDate.setHours(0, 0, 0, 0);
+                  diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                }
 
                 let countdownText = "";
                 let isOverdue = false;
                 const isPaid = bill.status === "Paid";
 
-                if (isPaid) {
+                if (dateless) {
+                  countdownText = isPaid ? "Paid" : "No due date";
+                } else if (isPaid) {
                   countdownText = "Paid";
                 } else if (diffDays < 0) {
                   const absDays = Math.abs(diffDays);
