@@ -594,6 +594,7 @@ function mapBillFromDb(dbBill: any): Bill {
     last_paid_for: dbBill.last_paid_for ? String(dbBill.last_paid_for).slice(0, 10) : null,
     created_at: dbBill.created_at ?? null,
     due_date_prompt_muted: dbBill.due_date_prompt_muted === true,
+    notes: dbBill.notes ?? null,
   };
 }
 
