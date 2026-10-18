@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.80",
+    date: "October 2026",
+    highlights: [
+      "Reopening or switching back to the app no longer briefly shows \"Add your payday\" or a wrong Household Health score when your payday is already set up. Your pay info stays on screen while the app refreshes.",
+    ],
+  },
+  {
     version: "0.9.79",
     date: "October 2026",
     highlights: [
