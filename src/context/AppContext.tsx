@@ -28,6 +28,7 @@ import {
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { isAcceptedMember } from "@/lib/householdLeave";
+import { resolveWarmReloadRace, type SupabaseArrayResult } from "@/lib/warmReloadRace";
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
 import { resolveNewHouseholdTimezone, isValidTimezone } from "@/lib/householdTimezone";
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
@@ -678,70 +679,9 @@ function mapMemberFromDb(dbMember: any): Member {
   };
 }
 
-/* ═══════════════════════════════════════════════
-   Warm-Reload Empty-Result Race Guard (#74)
-   ═══════════════════════════════════════════════ */
-// A Supabase query that succeeds with zero rows and a genuine "this
-// household/user has no rows" are indistinguishable at the call site. On a
-// warm reload (token refresh / tab refocus) RLS can evaluate the request
-// before the refreshed auth token has been attached to it, and hand back an
-// empty-but-error-free result even though the real row set is non-empty.
-// `[]` is truthy, so writing that straight into state overwrites real,
-// already-loaded data — this is what made the Household Health rank flap to
-// "Fully Funded" and back on a warm reload with no real data change.
-//
-// Agreed fix (Option 4): trust an empty result immediately UNLESS the
-// previous in-memory state for that same slice was non-empty.
-//   - Previous state was already empty (including the very first load ever)
-//     → trust the empty result immediately, no re-fetch. This keeps the
-//     overwhelmingly common case fast.
-//   - Previous state was non-empty and the fresh result is empty → the
-//     result is suspect. Re-fetch that one query exactly once to confirm:
-//       - re-fetch also empty → commit the empty result. This correctly
-//         reflects a genuine deletion made on another device.
-//       - re-fetch comes back with rows → use those instead. The first
-//         empty result was the race, not reality.
-// A failed query (error, or `data: null`) is left alone — that is a
-// different evidence class than "successful but empty", and each call site
-// already has its own null-guard for it.
-//
-// Shared by every loadData slice (bills/funds/paydays/members/bill_splits)
-// so the logic lives in exactly one place; #89 reuses it as-is.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseArrayResult<T = any> = { data: T[] | null; error: unknown };
-
-export async function resolveWarmReloadRace<T>(
-  previousState: T[],
-  result: SupabaseArrayResult<T>,
-  refetch: () => Promise<SupabaseArrayResult<T>>
-): Promise<T[] | null> {
-  // A failed query is not "empty" — bail out and let the caller's existing
-  // null-guard decide what to do (typically: leave state untouched).
-  if (result.error || !result.data) return null;
-
-  const isEmpty = result.data.length === 0;
-  const previousStateWasNonEmpty = previousState.length > 0;
-
-  if (!isEmpty || !previousStateWasNonEmpty) {
-    // Either there are rows, or there was nothing at risk of being clobbered
-    // (first-ever load, or a household that was already empty). Trust it.
-    return result.data;
-  }
-
-  // Suspect: state held rows a moment ago and the fresh query says none.
-  // Confirm with exactly one re-fetch before committing the overwrite.
-  const confirmation = await refetch();
-  if (confirmation.error || !confirmation.data) {
-    // Inconclusive — do not compound one bad signal with another. Leave the
-    // slice untouched rather than guessing.
-    return null;
-  }
-
-  // Non-empty re-fetch => the original empty result was the race.
-  // Still-empty re-fetch => the emptiness is real (genuine deletion).
-  // Either way, the re-fetch's result is what gets committed.
-  return confirmation.data;
-}
+/* Warm-reload empty-result race guard (#74): resolveWarmReloadRace lives in
+   src/lib/warmReloadRace.ts so it can be unit-tested; see there for the full
+   rationale. */
 
 /* ═══════════════════════════════════════════════
    Context Shape
@@ -1544,7 +1484,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // empty-but-error-free result is only trusted outright when the slice's
     // previous in-memory state was already empty. Otherwise it's confirmed
     // with one re-fetch before it's allowed to overwrite real data. See
-    // resolveWarmReloadRace above for the full rationale. bills/funds/paydays/
+    // resolveWarmReloadRace in src/lib/warmReloadRace.ts for the full rationale. bills/funds/paydays/
     // members/expenseSplits are independent of one another, so they're
     // reconciled concurrently rather than compounding re-fetch latency
     // sequentially.
@@ -1661,7 +1601,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
     // Fetch payday schedule, history, contributions, and rules
     await Promise.all([
-      fetchPayData(householdId),
+      fetchPayData(householdId, { assumeEmptyPreviousState }),
       fetchHouseholdContributions(householdId),
       fetchContributionRules(householdId),
       fetchNotifications(userId, householdId),
@@ -1708,21 +1648,36 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Fetch Pay Data ─────────────────────────── */
-  async function fetchPayData(householdId?: string) {
+  // Both slices go through resolveWarmReloadRace (#348), same as the
+  // loadData slices: an empty-but-successful read only replaces loaded pay
+  // data after one confirming re-fetch, so a warm reload can't briefly wipe
+  // it (Dashboard "Add your payday", wrong Household Health). A genuine
+  // delete-to-empty still lands: the re-fetch is also empty and is committed.
+  // `assumeEmptyPreviousState` is passed through from loadHouseholdRelatedData
+  // for the household-switch case (see the comment there).
+  async function fetchPayData(householdId?: string, options?: { assumeEmptyPreviousState?: boolean }) {
     const hId = householdId || dbHouseholdId;
     if (!hId) return;
+    const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
 
     try {
-      const [schedulesRes, historyRes] = await Promise.all([
-        supabase.from("pay_schedules").select("*").eq("household_id", hId),
-        supabase.from("pay_history").select("*").eq("household_id", hId).order("pay_date", { ascending: false }),
+      const fetchSchedules = async () =>
+        await supabase.from("pay_schedules").select("*").eq("household_id", hId);
+      const fetchHistory = async () =>
+        await supabase.from("pay_history").select("*").eq("household_id", hId).order("pay_date", { ascending: false });
+
+      const [schedulesRes, historyRes] = await Promise.all([fetchSchedules(), fetchHistory()]);
+
+      const [resolvedSchedules, resolvedHistory] = await Promise.all([
+        resolveWarmReloadRace(assumeEmptyPreviousState ? [] : paySchedules, schedulesRes, fetchSchedules),
+        resolveWarmReloadRace(assumeEmptyPreviousState ? [] : payHistory, historyRes, fetchHistory),
       ]);
 
-      if (schedulesRes.data) {
-        setPaySchedules(schedulesRes.data);
+      if (resolvedSchedules) {
+        setPaySchedules(resolvedSchedules);
       }
-      if (historyRes.data) {
-        setPayHistory(historyRes.data);
+      if (resolvedHistory) {
+        setPayHistory(resolvedHistory);
       }
     } catch (err) {
       console.error("Failed to fetch payday schedules and history:", err);
