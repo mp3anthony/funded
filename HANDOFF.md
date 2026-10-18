@@ -2,7 +2,11 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-18)
+## Current state (2026-10-19)
+
+- **DIRECTION CHANGE: full-app redesign driven by an HTML design doc (agreed 2026-10-19, logged on #183).** Anthony is unhappy with how the app looks and the design doc will differ a lot from the current UI, so we design the target first instead of fixing issue by issue then redesigning. Order: (1) outline and finalise the **HTML design doc** (#183; includes light HTML work re-drawing existing elements as they will look after the redesign; next session, interview style, do not start the grill until he says); (2) `grilling` + `domain-modeling` session on a new **parent issue "full app redesign"** (not yet filed); (3) sub-issues: one per page (Dashboard, Payday, Bills, Goals, Settings), one for all pop-ups/dialogs/sheets, one for onboarding; everything gets a UI and UX review, UX need not always change, some things may be added or removed; (4) slice currently open issues into the redesign where it fixes them as a side effect. #277 to #281 are folded into that parent (commented). Hold the open `ready-for-agent` fixes below until the grill decides which the redesign absorbs; ask Anthony before building any that touch UI (#341, #363, #359).
+
+## State before that (2026-10-18)
 
 - **`main` = v0.9.82. No open PRs.** Shipped today, live checks by Anthony as he uses the app (he raises any problem; no follow-up needed from us):
   - **#350 household access follows membership, not the creator column (v0.9.82, PR #373, A1).** Prod migration `20261018180000` applied before merge: 19 RLS policies now use `check_household_access` / `is_household_owner`; new `household_has_members()` helper; `households.user_id` FK is ON DELETE SET NULL (column was already nullable); `household_members` INSERT lets owners add (closes #351's policy gap). `leave-household` redeployed (v2): no more 400 when no next creator, sets `user_id` to next owner or null. 17 SQL proofs passed and rolled back. ADR 0006 added, 0005 partly superseded. Live check: bills, goals, pay still load; a fresh signup can create a household; Leave household works.
@@ -23,16 +27,16 @@
   - No Planner, no A1 touch: **#341** (Create/Edit Goal save failure: inline error in `AddGoalSheet`, make `updateGoal` throw), **#352** (remove client-side step-2 household wipe in `joinHousehold`; optional edge-function `.maybeSingle()` hardening is security-adjacent, flag to Anthony), **#363** (`BillCard.tsx` tap-zone padding + `aria-hidden` on duplicate elements), **#359** (decision: hide paused bills from Dashboard Upcoming Bills; today they show as overdue), **#351** (decision: delete dead `addMember`; its policy gap was closed by #350).
 - **#370** (join recovery path reads `households` by `join_code` as a non-member, likely blocked by RLS; found in the #350 review): `needs-triage`, needs Intake.
 - **Backlog needing a grill session each:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
-- **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
+- **Page-redesign audits** #277 to #281: folded into the redesign parent (see top); blocked by #183.
 - **Owed:** fix the stale "not wired up" comment in `src/components/NotifyHourDialog.tsx` (line 15) in the next PR touching that file. The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
 - Last active SPEC ticket: Slice 22 (#250); #348, #357 and #350 were fixes outside any slice.
 
 ## Next session, in order
 
-1. Build the `ready-for-agent` fixes (#341, #352, #363, #359, #351), one PR each or grouped if he wants one version bump; small chores #265, #266 still need Intake.
-2. Grill #261, #315, #316 individually when Anthony asks.
-3. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
+1. **#183 HTML design doc** (outline, then finalise). Then file the redesign parent and grill it.
+2. Non-UI fixes can still go ahead if Anthony wants: #352, #351 (check with him). UI ones (#341, #363, #359) wait for the redesign grill.
+3. #261 (touches UI copy), #315, #316 grilled when Anthony asks, or folded into the redesign. Chores #265, #266 need Intake. #145 only when Anthony says so.
 
 ## Where things live
 
