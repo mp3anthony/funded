@@ -87,6 +87,9 @@ export default function NextDueDateDialog({
             disabled={busy}
             className="w-full min-w-0 min-h-[44px] rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
           />
+          {picked && !isValid && (
+            <p className="text-xs text-muted font-mono">Pick today or a later date.</p>
+          )}
         </div>
       </div>
     </Dialog>

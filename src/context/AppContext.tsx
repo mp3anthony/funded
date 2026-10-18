@@ -768,7 +768,7 @@ interface AppContextValue {
   togglePaid: (id: string | number) => void;
   markAsPaid: (bill: Bill) => Promise<void>;
   /** #250: Mark as Paid for a bill with no due date, answering the next-due question. */
-  markDatelessBillPaid: (bill: Bill, choice: { nextDue: string } | { mute: true }) => Promise<void>;
+  markDatelessBillPaid: (bill: Bill, choice: { nextDue: string } | { mute: true }) => Promise<boolean>;
   markAsUnpaid: (bill: Bill) => Promise<void>;
   undoPayment: (bill: Bill) => Promise<void>;
   togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
@@ -2636,9 +2636,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // `mute`: Paid, and never ask again for this bill. ("Skip for now" uses the
   // plain markAsPaid.) Fresh read first: if the row has since gained a date,
   // become autopay, paused or one-off, nothing is written (re-read + toast).
-  // Writes are guarded on due_date still null and not paused. invoice_date is
+  // Writes are guarded on due_date still null and not paused. Resolves true on success. invoice_date is
   // left as saved: it is user-entered, and the next roll moves it in lockstep.
-  async function markDatelessBillPaid(bill: Bill, choice: { nextDue: string } | { mute: true }) {
+  async function markDatelessBillPaid(bill: Bill, choice: { nextDue: string } | { mute: true }): Promise<boolean> {
     try {
       const { data: current, error: readError } = await supabase
         .from("bills")
@@ -2648,7 +2648,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (readError || !current) {
         console.error("Error reading bill before dateless mark-as-paid:", readError);
         showToast({ message: "Couldn't save that — please try again." });
-        return;
+        return false;
       }
       if (
         current.due_date ||
@@ -2658,7 +2658,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       ) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       let patch: Record<string, unknown>;
@@ -2668,7 +2668,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         const next = nextDueDatePatch(choice.nextDue, today);
         if (!next) {
           showToast({ message: "Pick today or a later date." });
-          return;
+          return false;
         }
         patch = next;
         message = nextDueToastMessage(next.due_date, today);
@@ -2688,18 +2688,20 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (error) {
         console.error("Error saving dateless mark-as-paid:", error);
         showToast({ message: "Couldn't save that — please try again." });
-        return;
+        return false;
       }
       if (!data) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
       setBills((prev) => prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b)));
       showToast({ message });
+      return true;
     } catch (err) {
       console.error("Failed to mark dateless bill as paid:", err);
       showToast({ message: "Couldn't save that — please try again." });
+      return false;
     }
   }
 

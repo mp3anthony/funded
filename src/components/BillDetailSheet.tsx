@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Calendar, AlertTriangle } from "lucide-react";
 import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
 import Dialog, { DialogSection } from "@/components/ui/Dialog";
@@ -32,6 +32,8 @@ export default function BillDetailSheet({
   // #250: the "When is it next due?" question, shown instead of the sheet. Above the early return (hook order).
   const [askingNextDue, setAskingNextDue] = useState(false);
   const [nextDueBusy, setNextDueBusy] = useState(false);
+  // Blocks a fast double tap before the busy state has re-rendered the buttons disabled.
+  const nextDueInFlightRef = useRef(false);
   // Reset whenever the sheet is closed from outside, so it never reopens on the question.
   if (!isOpen && (askingNextDue || nextDueBusy)) {
     setAskingNextDue(false);
@@ -77,15 +79,20 @@ export default function BillDetailSheet({
   const dateless = !bill.dueLabel && isDateless(bill);
   const hint = dateless ? dueDateHint(bill, new Date().getTime()) : "none";
 
-  // #250: each answer saves, then closes the sheet. Cancel just goes back to the sheet.
-  async function answerNextDue(run: () => Promise<void>) {
+  // #250: each answer saves. On success the sheet closes; if the save failed (the
+  // toast says why) it goes back to the bill instead. Cancel just goes back to the bill.
+  async function answerNextDue(run: () => Promise<boolean>) {
+    if (nextDueInFlightRef.current) return;
+    nextDueInFlightRef.current = true;
     setNextDueBusy(true);
+    let ok = false;
     try {
-      await run();
+      ok = await run();
     } finally {
+      nextDueInFlightRef.current = false;
       setNextDueBusy(false);
       setAskingNextDue(false);
-      onClose();
+      if (ok) onClose();
     }
   }
 
@@ -99,7 +106,11 @@ export default function BillDetailSheet({
         busy={nextDueBusy}
         onCancel={() => setAskingNextDue(false)}
         onSave={(ymd) => void answerNextDue(() => markDatelessBillPaid(datelessBill, { nextDue: ymd }))}
-        onSkip={() => void answerNextDue(() => markAsPaid(datelessBill))}
+        onSkip={() => void answerNextDue(async () => {
+          // Skip is the plain Mark as Paid, which has no success signal (same as today).
+          await markAsPaid(datelessBill);
+          return true;
+        })}
         onMute={() => void answerNextDue(() => markDatelessBillPaid(datelessBill, { mute: true }))}
       />
     );
@@ -228,6 +239,7 @@ export default function BillDetailSheet({
                   <button
                     type="button"
                     onClick={() => onEdit({ focusDueDate: true })}
+                    aria-label={`Add due date for ${bill.name}`}
                     className="min-h-[44px] -my-3 font-mono text-xs font-bold uppercase tracking-wider text-accent hover:underline cursor-pointer"
                   >
                     Add due date

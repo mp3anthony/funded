@@ -48,7 +48,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
       const el = dueDateRef.current;
       if (!el) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
-      el.focus();
+      el.focus({ preventScroll: true });
     }, 150);
     return () => window.clearTimeout(t);
   }, [isOpen, focusDueDate]);

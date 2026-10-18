@@ -120,11 +120,26 @@ export default function BillCard({
       ? hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"
       : `DUE ${dueDateDisplay}`);
 
-  // Row content, rendered twice when the orange "Add due date" shows (#250): once
-  // inside the row button (with an invisible placeholder in the date slot), and once
-  // as an invisible overlay whose only visible part is the real "Add due date"
-  // button, sitting exactly over the placeholder. A button can't nest in a button.
-  const renderRowContent = (dateSlot: React.ReactNode) => (
+  const dateSlotClass = "font-mono text-[10px] uppercase font-medium tracking-wider transition-colors";
+  const showAddDueDate = hint === "add-due-date";
+
+  // #250: the row's tap target is a full-cover button BEHIND the content
+  // (content is pointer-events-none), so the orange "Add due date" can be its own
+  // sibling button on top (z-10) without nesting a button in a button.
+  const dateSlot = showAddDueDate ? (
+    <button
+      type="button"
+      onClick={() => openEdit(true)}
+      aria-label={`Add due date for ${bill.name}`}
+      className={`${dateSlotClass} relative z-10 pointer-events-auto font-bold text-accent pt-[17px] -mt-[17px] pb-3 -mb-3 pr-3 cursor-pointer`}
+    >
+      Add due date
+    </button>
+  ) : (
+    <span className={`${dateSlotClass} ${isUrgent ? "text-[#ff4500]" : "text-muted"}`}>{dateText}</span>
+  );
+
+  const rowContent = (
     <>
       {/* Leading assignee chip — small identity cue at hairline-row scale */}
       {assignee && (
@@ -173,37 +188,19 @@ export default function BillCard({
     </>
   );
 
-  const dateSlotClass = "font-mono text-[10px] uppercase font-medium tracking-wider transition-colors";
-  const showAddDueDate = hint === "add-due-date";
-
   return (
     <>
-      <div className="relative">
+      {/* overflow-hidden keeps the Add due date tap area inside this row */}
+      <div className="relative overflow-hidden border-t border-border group hover:bg-surface/40 transition-colors rounded-sm">
         <button
+          type="button"
           onClick={() => setIsDetailOpen(true)}
-          className="w-full text-left border-t border-border flex items-center gap-3 py-3 group hover:bg-surface/40 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
-        >
-          {renderRowContent(
-            showAddDueDate ? (
-              <span className={`${dateSlotClass} font-bold invisible`} aria-hidden="true">Add due date</span>
-            ) : (
-              <span className={`${dateSlotClass} ${isUrgent ? "text-[#ff4500]" : "text-muted"}`}>{dateText}</span>
-            )
-          )}
-        </button>
-        {showAddDueDate && (
-          <div className="absolute inset-0 invisible pointer-events-none border-t border-transparent flex items-center gap-3 py-3">
-            {renderRowContent(
-              <button
-                type="button"
-                onClick={() => openEdit(true)}
-                className={`${dateSlotClass} font-bold text-accent visible pointer-events-auto py-[14px] -my-[14px] pr-3 cursor-pointer`}
-              >
-                Add due date
-              </button>
-            )}
-          </div>
-        )}
+          aria-label={`${bill.name}, $${formattedAmount}, ${dateText}`}
+          className="absolute inset-0 w-full rounded-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
+        />
+        <div className="relative pointer-events-none flex items-center gap-3 py-3 text-left">
+          {rowContent}
+        </div>
       </div>
 
       <BillDetailSheet
