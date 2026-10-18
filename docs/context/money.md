@@ -127,8 +127,8 @@ _Avoid_: Active bill, included bill
 
 ### Household health
 
-**Health score**:
-A single 0-to-100 reading of how well the household is keeping up, based on overdue bills, goal progress and whether income covers obligations. Bills that do not count toward totals (paused, and finished one-offs) are left out of the bills part, the Household Health weekly bills figure and the contribution split.
+**Health score** (retiring, #377):
+A single 0-to-100 reading of how well the household is keeping up, based on overdue bills, goal progress and whether income covers obligations. Replaced by the Dashboard verdict (planned, #377). Bills that do not count toward totals (paused, and finished one-offs) are left out of the bills part, the Household Health weekly bills figure and the contribution split.
 _Avoid_: Credit score, rating, grade
 
 **Household Health**:
@@ -138,3 +138,7 @@ _Avoid_: Health page, finance score, dashboard score
 **Fully Funded**:
 The best Household Health status, shown when the health score is high. The lower statuses are On Track and Needs Attention; Not Set Up Yet appears when the household has no bills, goals or contributions.
 _Avoid_: Funded, all paid, healthy
+
+**Verdict** (planned, #377):
+The Dashboard header's plain-language answer to two questions: does household income cover bills, and are contributions (Joint Fund) or splits (Direct Pay) covering them. The worse answer wins ("Bills covered", "Short $40 a week"); missing data shows a neutral "Set up your pay". Replaces the health score, Fully Funded and the other status labels. Detail in `project/pages/dashboard.md` of the design doc.
+_Avoid_: Score, grade, health
