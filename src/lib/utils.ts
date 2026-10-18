@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { type Bill, type Fund, type PayHistory, type PaySchedule, type BillSplit, type Expense, type ExpenseSplit } from "@/context/AppContext";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
+import { countsTowardTotals } from "@/lib/billCycle";
 
 /**
  * className combiner for the editorial UI primitives — clsx for conditional
@@ -45,7 +46,8 @@ export function parseBillDate(dateStr: string): Date {
  *   bills (Issue #98, Slice 5 of 6, Decision #5: expenses fold into the
  *   existing budget-coverage half rather than becoming a separate scored
  *   component). `expenses`/`expenseSplits` mirror bills-client.tsx's
- *   `totalBills` treatment (implicitly-weekly amounts); `contributionRules`
+ *   `totalBills` treatment (implicitly-weekly amounts; bills count only per
+ *   `countsTowardTotals`, #267); `contributionRules`
  *   feeds `sumActiveFixedContributionRules` (see that function's own doc
  *   comment for why percentage-of-surplus rules are excluded). Bills
  *   Management (40%) and Goals/Contributions (30%) below are untouched by
@@ -63,7 +65,7 @@ export function calculateHealthScore(
   expenseSplits: ExpenseSplit[],
   contributionRules: ContributionRule[]
 ): number {
-  const activeBills = bills.filter(b => !b.is_paused && !b.dueLabel);
+  const activeBills = bills.filter(countsTowardTotals);
 
   // 1. Bills Management (40% weight)
   // - If no bills are overdue: 100%
@@ -118,7 +120,8 @@ export function calculateHealthScore(
   }, 0)
     // Issue #98, Slice 5 of 6: this "obligations" denominator now covers
     // bills + expenses + active fixed-$ goal-contribution rules, mirroring
-    // bills-client.tsx's `totalBills` (Slice 4). Expenses have no
+    // bills-client.tsx's `totalBills` (Slice 4; both filter bills with
+    // `countsTowardTotals`, #267). Expenses have no
     // `frequency` column by design (schema decision: "no recurring-frequency
     // semantics") — an expense's flat `amount` is implicitly a WEEKLY
     // figure, the same convention the sub-slice 1 migration preserved as-is

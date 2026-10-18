@@ -14,6 +14,7 @@ import FrequencyToggle from "@/components/FrequencyToggle";
 import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
+import { countsTowardTotals } from "@/lib/billCycle";
 
 type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
 
@@ -140,8 +141,11 @@ export default function BillsClient() {
   // were carried over unchanged). Percentage-of-surplus contribution rules
   // are deliberately excluded — see sumActiveFixedContributionRules' own
   // comment for why (can't know a future payday's surplus in advance).
+  // Bills are filtered by `countsTowardTotals` (billCycle.ts), the one rule for every bill total.
   const totalBills = useMemo(() => {
+    // #267: only bills that count toward totals (not paused, not a finished one-off).
     const billsTotal = bills.reduce((sum, b) => {
+      if (!countsTowardTotals(b)) return sum;
       return sum + convertAmount(b.amount, b.frequency || "monthly", displayFrequency);
     }, 0);
     const expensesTotal = expenses.reduce((sum, e) => {
@@ -150,6 +154,12 @@ export default function BillsClient() {
     const rulesTotal = sumActiveFixedContributionRules(contributionRules, paySchedules, displayFrequency);
     return billsTotal + expensesTotal + rulesTotal;
   }, [bills, expenses, contributionRules, paySchedules, displayFrequency]);
+
+  // #267: how many bills the Total Bar leaves out. Ignores search/category/type/due filters, like the Total Bar.
+  const notCountedCount = useMemo(
+    () => bills.filter((b) => !countsTowardTotals(b)).length,
+    [bills],
+  );
 
   const filteredBills = useMemo(() => {
     const today = isMounted ? new Date() : new Date("2026-07-05");
@@ -343,6 +353,11 @@ export default function BillsClient() {
         <div className="text-xs font-bold uppercase tracking-wider text-subtle mt-1">
           {getFrequencyLabel(displayFrequency)} Total
         </div>
+        {notCountedCount > 0 && (
+          <p className="text-[11px] text-muted font-body mt-0.5">
+            {notCountedCount} paused or finished, not counted
+          </p>
+        )}
       </div>
 
       {/* 4. Filters & Search */}

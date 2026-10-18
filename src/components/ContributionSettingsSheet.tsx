@@ -6,6 +6,7 @@ import { useApp, type Member, type Bill, type Expense, type PaySchedule } from "
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import Dialog from "@/components/ui/Dialog";
 import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
+import { countsTowardTotals } from "@/lib/billCycle";
 
 interface ContributionSettingsSheetProps {
   isOpen: boolean;
@@ -427,7 +428,7 @@ function SuggestSplitPanel({
   // payday's surplus in advance).
   const totalMonthlyBills = useMemo(() => {
     const billsTotal = bills
-      .filter((b) => !b.is_paused && !b.dueLabel)
+      .filter(countsTowardTotals)
       .reduce((sum, bill) => sum + convertAmount(bill.amount || 0, bill.frequency || "monthly", "monthly"), 0);
     const expensesTotal = expenses.reduce((sum, e) => sum + convertAmount(e.amount, "weekly", "monthly"), 0);
     const rulesTotal = sumActiveFixedContributionRules(contributionRules, paySchedules, "monthly");

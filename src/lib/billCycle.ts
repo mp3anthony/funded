@@ -163,8 +163,8 @@ export interface DisplayedDue {
  * The due date (or neutral label) to SHOW for a bill (#288); display only,
  * nothing stored. The cycle count matches `displayedInvoiceDate`.
  *
+ * - Paused bills (any payment type, #267): label 'Paused' (beats one-off); `dueYmd` keeps the saved value.
  * - Manual bills: the saved date, no label.
- * - Paused autopay: label 'Paused' (beats one-off); `dueYmd` keeps the saved value.
  * - One-off autopay (`is_recurring === false`): the saved date while it is today
  *   or later; once it has passed, label 'One-off'.
  * - Active recurring autopay: the saved date rolled forward (`autopayRollForward`).
@@ -172,8 +172,8 @@ export interface DisplayedDue {
  */
 export function displayedDueDate(bill: RolloverBillRow, todayYmd: string): DisplayedDue {
   const raw = bill?.due_date ?? null;
+  if (bill?.is_paused === true) return { dueYmd: raw, label: 'Paused' };
   if ((bill?.payment_type ?? '').toLowerCase() !== 'auto') return { dueYmd: raw, label: null };
-  if (bill.is_paused === true) return { dueYmd: raw, label: 'Paused' };
   if (!raw || !YMD_RE.test(raw)) return { dueYmd: raw, label: null };
   const due = raw.slice(0, 10);
   if (bill.is_recurring === false) {
@@ -230,6 +230,12 @@ export function computeRollover(bill: RolloverBillRow, todayYmd: string): Rollov
 /** False for a paused bill: paused bills get no reminders at all (#201). */
 export function billSendsReminders(bill: { is_paused?: boolean | null; status?: string | null }): boolean {
   return !(bill?.is_paused === true || bill?.status === 'Paused');
+}
+
+/** Counts toward totals (#267): false for paused bills and bills showing a neutral
+ *  label (finished one-offs). Dateless bills count. The ONE rule for every bill total. */
+export function countsTowardTotals(bill: { is_paused?: boolean | null; dueLabel?: string | null }): boolean {
+  return bill?.is_paused !== true && !bill?.dueLabel;
 }
 
 /**

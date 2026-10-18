@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Pause } from "lucide-react";
 import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
 import { convertAmount } from "@/lib/utils";
 import BillDetailSheet from "./BillDetailSheet";
@@ -52,6 +53,9 @@ export default function BillCard({
   const assigneeSplit = splits.find((s) => s.is_assignee);
   const assigneeId = bill.assignee_id || (assigneeSplit?.member_id);
   const assignee = householdMembers.find((m) => String(m.id) === String(assigneeId));
+
+  // #267: paused bills look paused (orange pause icon, greyed amount, "Paused" in the date slot).
+  const isPaused = bill.is_paused === true;
 
   // Determine urgency
   const due = new Date(bill.dueDate);
@@ -140,7 +144,12 @@ export default function BillCard({
 
       {/* Right: amount over tap-for-more hint */}
       <div className="flex flex-col items-end shrink-0">
-        <span className="font-mono font-extrabold text-primary tracking-tight text-lg">
+        <span
+          className={`inline-flex items-center gap-1 font-mono font-extrabold tracking-tight text-lg ${
+            isPaused ? "text-muted" : "text-primary"
+          }`}
+        >
+          {isPaused && <Pause size={14} className="text-accent shrink-0" aria-hidden="true" />}
           ${formattedAmount}
         </span>
         <span className="flex items-center gap-1 text-[9px] font-semibold text-muted/60 uppercase tracking-widest group-hover:text-primary transition-colors mt-0.5">
