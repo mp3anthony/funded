@@ -28,8 +28,8 @@
 
 ## Next session, in order
 
-1. Ask Anthony for decisions on #359, #350 and #351.
-2. Build the `ready-for-agent` fixes (#341, #352, #363), one PR each or grouped if he wants one version bump; small chores #265, #266 still need Intake.
+1. Plan #350 (Planner, A1; standing pause after reviewed plan).
+2. Build the `ready-for-agent` fixes (#341, #352, #363, #359, #351), one PR each or grouped if he wants one version bump; small chores #265, #266 still need Intake.
 3. Grill #261, #315, #316 individually when Anthony asks.
 4. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
 
