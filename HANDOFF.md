@@ -20,6 +20,7 @@
 - **Security** details live in the private notes file; no GitHub issue by design.
 - **#357 (editing a bill wipes its notes): Intake done, `ready-for-agent`, build next.** Root cause confirmed: `mapBillFromDb` (`AppContext.tsx` ~552-597) never maps `notes`, so the edit form opens empty and saving nulls the notes; `BillDetailSheet.tsx:356` never shows them either. Fix is one mapper line (`notes: dbBill.notes ?? null`) + optional mapper test + v0.9.81 bump and patch note. No Planner needed, no A1 touch. Plan and findings are in the issue body. Notes already wiped can't be recovered.
 - **Backlog needing Intake (all `needs-triage`, Intake not yet run):** #341 (Create Goal window shows no error on failed save), #350, #351, #352 (#251 household follow-ups), #359 (Dashboard Upcoming Bills lists paused manual bills by saved date), #363 (#250 row tap area / VoiceOver).
+- **#370** (join recovery path reads `households` by `join_code` as a non-member, likely blocked by RLS; found in the #350 review): `needs-triage`, needs Intake.
 - **Backlog needing a grill session each:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
 - **Owed:** fix the stale "not wired up" comment in `src/components/NotifyHourDialog.tsx` (line 15) in the next PR touching that file. The website (separate repo) must link to `/getting-started`.
@@ -28,7 +29,7 @@
 
 ## Next session, in order
 
-1. Plan #350 (Planner, A1; standing pause after reviewed plan).
+1. Build #350 from a fresh session (plan comment on the issue; step 0 live policy check first).
 2. Build the `ready-for-agent` fixes (#341, #352, #363, #359, #351), one PR each or grouped if he wants one version bump; small chores #265, #266 still need Intake.
 3. Grill #261, #315, #316 individually when Anthony asks.
 4. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
