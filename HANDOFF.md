@@ -4,9 +4,10 @@
 
 ## Current state (2026-10-18)
 
-- **`main` = v0.9.80. No open PRs.** Shipped today, live checks by Anthony as he uses the app (he raises any problem; no follow-up needed from us):
+- **`main` = v0.9.81. No open PRs.** Shipped today, live checks by Anthony as he uses the app (he raises any problem; no follow-up needed from us):
+  - **#357 editing a bill no longer erases its notes (v0.9.81, PR #367).** `mapBillFromDb` now maps `notes`, so bill notes show in the bill details and survive edits. No unit test (mapper not exported from `AppContext.tsx`). Notes already wiped can't be recovered. Live check: open a bill with notes, see them, edit and save, they stay.
   - **#348 pay info no longer flashes empty on warm reload (v0.9.80, PR #365).** `pay_schedules` and `pay_history` now go through `resolveWarmReloadRace`; the helper moved to `src/lib/warmReloadRace.ts` with 6 unit tests; `docs/lessons.md` corrected (`paydays` is the unused legacy table). Live check: fully close and reopen, and background then return; the Dashboard must not flash "Add your payday".
-  - **#250 bills with no due date (v0.9.79, PR #362, SPEC Slice 22).** Prod migration `20261018120000` applied before merge: `bills.due_date` is now nullable, new `bills.due_date_prompt_muted` boolean (default false). Dateless bills show "No due date" and sort last in their group; paying a manual repeating dateless bill asks "When is it next due?" (pick, skip, or "Don't ask again"); after 30 days an orange "Add due date" button shows. The Getting started "Always give a bill a due date" item is removed. Follow-up #363 (Add due date tap area overlaps the name line; VoiceOver reads the row twice, `needs-triage`).
+  - **#250 bills with no due date (v0.9.79, PR #362, SPEC Slice 22).** Prod migration `20261018120000` applied before merge: `bills.due_date` is now nullable, new `bills.due_date_prompt_muted` boolean (default false). Dateless bills show "No due date" and sort last in their group; paying a manual repeating dateless bill asks "When is it next due?" (pick, skip, or "Don't ask again"); after 30 days an orange "Add due date" button shows. The Getting started "Always give a bill a due date" item is removed. Follow-up #363 (see Intake below).
   - **#267 paused bills (v0.9.78, PR #360, SPEC Slice 21).** Paused manual bills show "Paused" (no red date, only under the All filter); one shared "counts toward totals" rule. Follow-up #359.
 - Earlier live checks still pending on iPhone: #251 (v0.9.77 leave/delete household), #333 (v0.9.76), #249 (v0.9.75), #248 (v0.9.74). Live-check results are not recorded; a failed check is raised again and Intake reopens the closed issue.
 - **Session workflow note:** builds run in the current session, or Anthony wraps and clears to start a fresh one himself. The orchestrator does not spawn separate Claude sessions (the spawned session mistakes the orchestrator for Anthony). In-process sub-agents are fine.
@@ -23,12 +24,12 @@
 - **Page-redesign audits** #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings: each blocked by #183 (design reference HTML doc, `needs-triage` / `ready-for-human`, untouched).
 - **Owed:** fix the stale "not wired up" comment in `src/components/NotifyHourDialog.tsx` (line 15) in the next PR touching that file. The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
-- Last active SPEC ticket: Slice 22 (#250); this session's #348 was a bug fix outside any slice, and #357 is next (also a bug fix).
+- Last active SPEC ticket: Slice 22 (#250); #348 and #357 were bug fixes outside any slice.
 
 ## Next session, in order
 
-1. Build #357 (one-line fix, plan in the issue) from a fresh session.
-2. Run Intake on #341, #350, #351, #352, #359, #363; small chores #265, #266.
+1. Ask Anthony for decisions on #359, #350 and #351.
+2. Build the `ready-for-agent` fixes (#341, #352, #363), one PR each or grouped if he wants one version bump; small chores #265, #266 still need Intake.
 3. Grill #261, #315, #316 individually when Anthony asks.
 4. #183 design reference (unblocks #277 to #281). #145 only when Anthony says so.
 
