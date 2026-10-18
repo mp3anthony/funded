@@ -1,5 +1,5 @@
 // Manual-test redeploy trigger — see PR #121, no functional change
-const CACHE_NAME = 'funded-pwa-cache-179-light-icon';
+const CACHE_NAME = 'funded-pwa-cache-dev-1792314292600';
 const OFFLINE_URL = '/offline';
 
 const ASSETS_TO_CACHE = [

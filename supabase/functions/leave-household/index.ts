@@ -34,7 +34,7 @@ serve(async (req) => {
 
   try {
     // 1. Service Role client. Needed to move households.user_id (the creator
-    // column RLS trusts; a DB trigger blocks app users from changing it) and
+    // record; a DB trigger blocks app users from changing it) and
     // to set another member's role. Service-role writes have auth.uid() NULL,
     // so the last-owner triggers do not apply; this function enforces the
     // same rules itself below.
@@ -109,8 +109,10 @@ serve(async (req) => {
     }
     // Any other case is a plain leave: a newOwnerMemberId is ignored.
 
-    // 7. Work out who the household's creator column (households.user_id)
-    // should point at if the leaver is the creator. Never leave it null.
+    // 7. Work out who the household's creator record (households.user_id)
+    // should point at if the leaver is the creator. RLS no longer trusts this
+    // column for access (#350, ADR 0006), so null is allowed when no other
+    // owner exists.
     let nextCreatorUserId: string | null = null;
     if (household.user_id === user.id) {
       if (promoteId) {
@@ -118,9 +120,6 @@ serve(async (req) => {
       } else {
         const oldest = [...otherOwners].sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""))[0];
         nextCreatorUserId = oldest?.user_id ?? null;
-      }
-      if (!nextCreatorUserId) {
-        return json({ error: "There is no other owner to hand this household to. Delete the household instead." }, 400);
       }
     }
 
@@ -137,7 +136,8 @@ serve(async (req) => {
       }
     }
 
-    if (nextCreatorUserId) {
+    if (household.user_id === user.id) {
+      // Next owner, or null when none remains (the column is nullable, #350).
       const { error: creatorError } = await supabaseClient
         .from("households")
         .update({ user_id: nextCreatorUserId })

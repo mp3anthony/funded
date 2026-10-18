@@ -1,6 +1,6 @@
 # households.user_id follows an owner
 
-Status: accepted (2026-10-17, Anthony chose option A + E1 on #251).
+Status: accepted (2026-10-17, Anthony chose option A + E1 on #251). Partly superseded by ADR 0006 (2026-10-18, #350): RLS no longer trusts `households.user_id`, and the column may now be null.
 
 `households.user_id` (the creator) is trusted by about 13 live RLS policies and cascades from `auth.users`, so a creator who leaves must not keep access, and must not take the household with them if their account is deleted. We chose a `leave-household` edge function (service role) that moves `households.user_id` to a remaining accepted owner when the creator leaves, plus a triggers-only migration so owners cannot delete their own member row through the API and the last owner cannot be demoted. A DB trigger already stops app users changing `households.user_id`, so only the service role can move it.
 

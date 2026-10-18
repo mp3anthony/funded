@@ -1776,6 +1776,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     if (currentSession?.user) {
       const userName = currentSession.user.user_metadata?.full_name || currentSession.user.email?.split("@")[0] || "Owner";
       const userEmail = currentSession.user.email || "";
+      // #350: one member row per INSERT. The household_members INSERT policy's
+      // "first owner" branch uses a helper that cannot see rows from the same
+      // statement, so a multi-row insert here could be rejected.
       const { data: newMember, error: memberError } = await supabase
         .from("household_members")
         .insert({
@@ -3882,8 +3885,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // #251. Leave the household through the leave-household edge function
   // (service role). A direct client delete of your own member row can no
   // longer be used by owners (DB trigger), and an owner who created the
-  // household must also move households.user_id (the creator column RLS
-  // trusts) to a remaining owner, which only the service role may do. The
+  // household also has households.user_id (the creator record; RLS no longer
+  // trusts it, #350) moved to a remaining owner or nulled, which only the
+  // service role may do. The
   // function recomputes every rule server-side: a regular member, or an owner
   // while another accepted owner remains, just leaves; the only owner with
   // accepted members must pass newOwnerMemberId. The member row delete

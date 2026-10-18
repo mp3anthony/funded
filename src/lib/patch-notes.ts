@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.9.82",
+    date: "October 2026",
+    highlights: [
+      "Tighter household privacy: someone removed from a household can no longer see it, even if they created it.",
+      "Deleting the account of the person who started a household no longer deletes the household for everyone else.",
+    ],
+  },
+  {
     version: "0.9.81",
     date: "October 2026",
     highlights: [
