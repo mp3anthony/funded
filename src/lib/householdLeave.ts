@@ -51,9 +51,9 @@ export function isDeleteConfirmed(text: string): boolean {
 }
 
 /**
- * Who `households.user_id` (the creator, trusted by RLS) should point at after
- * `leaver` goes. Mirrors the edge function. null = no accepted owner remains
- * (legacy data): the caller must refuse rather than null the column.
+ * Who `households.user_id` (the creator record; RLS no longer trusts it, #350)
+ * should point at after `leaver` goes. Mirrors the edge function. null = no
+ * accepted owner remains: the column is set to null.
  */
 export function nextCreatorUserId(
   members: readonly LeaveMember[],
