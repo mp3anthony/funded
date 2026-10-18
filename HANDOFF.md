@@ -29,7 +29,7 @@
   - No Planner, no A1 touch: **#341** (Create/Edit Goal save failure: inline error in `AddGoalSheet`, make `updateGoal` throw), **#352** (remove client-side step-2 household wipe in `joinHousehold`; optional edge-function `.maybeSingle()` hardening is security-adjacent, flag to Anthony), **#363** (`BillCard.tsx` tap-zone padding + `aria-hidden` on duplicate elements), **#359** (decision: hide paused bills from Dashboard Upcoming Bills; today they show as overdue), **#351** (decision: delete dead `addMember`; its policy gap was closed by #350).
 - **#370** (join recovery path reads `households` by `join_code` as a non-member, likely blocked by RLS; found in the #350 review): `needs-triage`, needs Intake.
 - **Backlog needing a grill session each:** #261 (Report a bug becomes Report an issue; touches Getting started / SPEC Slice 15), #315 (manual Log Pay stores UTC date), #316 (`deletePayHistory` rollback design). Small chores: #265 (remove unused `@supabase/ssr`, stale `sw.js` comment), #266 (track `.env.local.example`).
-- **Page-redesign audits** #277 to #281: folded into the redesign parent (see top); blocked by #183.
+- **Page-redesign audits** #277 to #281: become the per-page parents under #377 (see top); blocked by #183.
 - **Owed:** fix the stale "not wired up" comment in `src/components/NotifyHourDialog.tsx` (line 15) in the next PR touching that file. The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
 - Last active SPEC ticket: Slice 22 (#250); #348, #357 and #350 were fixes outside any slice.
@@ -37,7 +37,7 @@
 ## Next session, in order
 
 1. **Grill Payday** against the design doc (Dashboard is done), then Bills, Goals, Settings. Update the doc with each decision. No building until all page designs are agreed, then slice (see plan above).
-2. Non-UI fixes can still go ahead if Anthony wants: #352, #351 (check with him). UI ones (#341, #363, #359) wait for the redesign grill.
+2. Every page gets a UI and UX review (UX need not change; things may be added or removed). UI fixes (#341, #363, #359) are folded into slices, not built alone. Non-UI fixes can still go ahead if Anthony wants: #352, #351 (check with him). UI ones (#341, #363, #359) wait for the redesign grill.
 3. #261 (touches UI copy), #315, #316 grilled when Anthony asks, or folded into the redesign. Chores #265, #266 need Intake. #145 only when Anthony says so.
 
 ## Where things live
