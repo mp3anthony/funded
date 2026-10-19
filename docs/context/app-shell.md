@@ -59,6 +59,7 @@ _Avoid_: Popup, modal, banner, update dialog, What's new popup
 
 **Finish setting up card**:
 A Dashboard card, shown to household owners only, listing what the household has none of yet (payday, bill, goal). Each row taps through to that page's add form. It leaves by itself once all three exist and returns if one goes missing again, unless that person tapped X, which hides it for good on every device. Sits at the top of the Dashboard.
+Planned (#377): fed by whatever the Setup hub left unticked at the end of Onboarding. The sign-in screens (`/login`, `/reset-password`, `/confirm-email`, offline) get the new look with no behaviour change. Detail in `project/pages/onboarding.md` of the design doc.
 _Avoid_: Checklist, setup wizard, onboarding (the first-run flow)
 
 **Updates page**:
