@@ -139,7 +139,7 @@ export default function RemoveMemberModal({
               <h4 className="text-xs font-bold text-muted uppercase tracking-wider">
                 Affected Financial Items
               </h4>
-              <div className="grid grid-cols-3 gap-4 font-mono">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="p-3 rounded-[2px] bg-foreground/5 text-center">
                   <span className="block text-2xl font-bold text-foreground">{billsCount}</span>
                   <span className="text-[9px] text-subtle uppercase tracking-wider">Bill Splits</span>

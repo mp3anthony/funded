@@ -92,7 +92,7 @@ export default function EditMemberModal({
             type="submit"
             form="edit-member-form"
             disabled={loading || (name === member.name && role === member.role)}
-            className="font-heading uppercase tracking-wider flex items-center justify-center gap-1.5"
+            className="uppercase tracking-wider flex items-center justify-center gap-1.5"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Save Changes
@@ -210,7 +210,7 @@ export default function EditMemberModal({
                     onRemoveTrigger(member);
                     onClose();
                   }}
-                  className="px-3 py-2 rounded-[2px] bg-destructive/10 hover:bg-destructive text-destructive hover:text-foreground border border-destructive/20 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer font-heading uppercase tracking-wider"
+                  className="px-3 py-2 rounded-[2px] bg-destructive/10 hover:bg-destructive text-destructive hover:text-foreground border border-destructive/20 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer uppercase tracking-wider"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Remove

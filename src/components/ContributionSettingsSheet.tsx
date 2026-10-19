@@ -44,7 +44,7 @@ export default function ContributionSettingsSheet({
       footer={
         <div className="w-full flex items-center justify-between">
           <div className="space-y-0.5">
-            <span className="text-[10px] font-bold text-subtle uppercase tracking-wider block font-mono">
+            <span className="text-[10px] font-bold text-subtle uppercase tracking-wider block">
               Total Household Budget
             </span>
             <span className="text-xs text-muted font-body">
@@ -52,10 +52,10 @@ export default function ContributionSettingsSheet({
             </span>
           </div>
           <div className="text-right">
-            <span className="text-xl font-heading font-extrabold text-primary font-mono block">
+            <span className="text-xl font-bold text-primary block">
               ${totalMonthly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-[10px] text-muted uppercase font-mono">
+            <span className="text-[10px] text-muted uppercase">
               per month
             </span>
           </div>
@@ -189,7 +189,7 @@ function MemberContributionRow({
           </span>
         </div>
         {existing && (
-          <span className="text-[10px] font-mono text-muted uppercase">
+          <span className="text-[10px] text-muted uppercase">
             Active: ${Number(existing.amount).toFixed(2)} / {existing.frequency}
           </span>
         )}
@@ -220,7 +220,7 @@ function MemberContributionRow({
 
         {/* Amount Input */}
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-mono text-xs">$</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">$</span>
           <input
             type="number"
             placeholder="0.00"
@@ -231,7 +231,7 @@ function MemberContributionRow({
               setAmount(e.target.value);
               setIsSaved(false);
             }}
-            className="w-full bg-background border border-border rounded-[2px] pl-6 pr-3 py-2 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+            className="w-full bg-background border border-border rounded-[2px] pl-6 pr-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
             required
           />
         </div>
@@ -240,7 +240,7 @@ function MemberContributionRow({
         <button
           onClick={handleSave}
           disabled={!isValid || isSaving}
-          className={`py-2 px-4 rounded-[2px] font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 shrink-0 ${
+          className={`py-2 px-4 rounded-[2px] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 shrink-0 ${
             isSaved
               ? "bg-primary/25 text-primary border border-primary/30"
               : isValid
@@ -263,7 +263,7 @@ function MemberContributionRow({
 
       {/* Frequency Equivalents Display */}
       {isValid && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1 px-1 font-mono text-[10px]">
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1 px-1 text-[10px]">
           <span className={frequency === "weekly" ? "text-primary font-bold animate-pulse" : "text-muted"}>
             Weekly: ${conversions.weekly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
@@ -457,7 +457,7 @@ function SuggestSplitPanel({
         onClick={() => setIsExpanded((v) => !v)}
         className="w-full flex items-center justify-between py-2 px-3 rounded-[2px] border border-border bg-background hover:bg-white/5 transition-colors"
       >
-        <span className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-foreground">
+        <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-foreground">
           <Sparkles size={12} className="text-primary" />
           Suggest Split
         </span>
@@ -544,12 +544,12 @@ function SuggestedSplitRow({ result, onApply }: SuggestedSplitRowProps) {
           )}
           <span className="text-sm font-semibold text-foreground truncate pr-2">{member.name}</span>
         </div>
-        <span className="text-[10px] font-mono text-primary font-bold uppercase">
+        <span className="text-[10px] text-primary font-bold uppercase">
           {(splitPct * 100).toFixed(1)}%
         </span>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 font-mono text-[10px] text-muted">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 text-[10px] text-muted">
         <span>Weekly: ${weekly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         <span>
           Fortnightly: ${fortnightly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -560,7 +560,7 @@ function SuggestedSplitRow({ result, onApply }: SuggestedSplitRowProps) {
       <button
         onClick={handleApply}
         disabled={isApplying}
-        className={`self-start py-1.5 px-4 rounded-[2px] font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
+        className={`self-start py-1.5 px-4 rounded-[2px] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${
           isApplied
             ? "bg-primary/25 text-primary border border-primary/30"
             : "bg-primary text-primary-fg hover:brightness-110 active:scale-95 cursor-pointer"

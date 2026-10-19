@@ -127,14 +127,14 @@ export default function AddPayScheduleSheet({
         className="space-y-4 md:space-y-5"
       >
           {errorMsg && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
               <span className="font-bold">Error:</span> {errorMsg}
             </div>
           )}
 
           {/* Member Dropdown */}
           <div className="flex flex-col space-y-1 md:space-y-1.5">
-            <label className="font-heading text-[10px] md:text-xs font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-[10px] md:text-xs font-semibold text-subtle uppercase tracking-wider">
               Household Member
             </label>
             <div className="relative">
@@ -161,7 +161,7 @@ export default function AddPayScheduleSheet({
 
           {/* Frequency Dropdown */}
           <div className="flex flex-col space-y-1 md:space-y-1.5">
-            <label className="font-heading text-[10px] md:text-xs font-semibold text-subtle capitalize tracking-wider">
+            <label className="text-[10px] md:text-xs font-semibold text-subtle capitalize tracking-wider">
               Frequency
             </label>
             <div className="relative">
@@ -207,12 +207,12 @@ export default function AddPayScheduleSheet({
 
           {/* Fixed Amount Input (Conditional) */}
           {isFixedAmount && (
-            <div className="flex flex-col space-y-1 md:space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-(--duration-base) ease-(--ease-standard)">
-              <label className="font-heading text-[10px] md:text-xs font-semibold text-subtle capitalize tracking-wider">
+            <div className="flex flex-col space-y-1 md:space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-(--duration-feedback) ease-(--ease-enter)">
+              <label className="text-[10px] md:text-xs font-semibold text-subtle capitalize tracking-wider">
                 Amount
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono text-sm">$</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
                 <input
                   type="number"
                   placeholder="0.00"
@@ -220,7 +220,7 @@ export default function AddPayScheduleSheet({
                   min="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-background border border-border rounded-[2px] pl-8 pr-4 py-2.5 md:py-3 font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full bg-background border border-border rounded-[2px] pl-8 pr-4 py-2.5 md:py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
                   required={isFixedAmount}
                 />
               </div>
@@ -229,7 +229,7 @@ export default function AddPayScheduleSheet({
 
           {/* Next Pay Date Datepicker */}
           <div className="flex flex-col space-y-1 md:space-y-1.5">
-            <label className="font-heading text-[10px] md:text-xs font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-[10px] md:text-xs font-semibold text-subtle uppercase tracking-wider">
               Next Pay Date
             </label>
             <div className="relative">
@@ -237,7 +237,7 @@ export default function AddPayScheduleSheet({
                 type="date"
                 value={nextPayDate}
                 onChange={(e) => setNextPayDate(e.target.value)}
-                className="w-full min-w-0 bg-surface border border-border rounded-[2px] p-2.5 md:p-3 font-mono text-sm text-foreground [color-scheme:dark] focus:outline-none focus:ring-1 focus:ring-primary/50"
+                className="w-full min-w-0 bg-surface border border-border rounded-[2px] p-2.5 md:p-3 text-sm text-foreground [color-scheme:dark] focus:outline-none focus:ring-1 focus:ring-primary/50"
                 required
               />
             </div>

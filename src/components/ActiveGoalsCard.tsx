@@ -57,12 +57,12 @@ export const ActiveGoalsCard = React.memo(function ActiveGoalsCard({
     <div className="flex flex-col">
       {/* Header — editorial section with lime rule */}
       <div className={`flex items-center gap-3 ${isMinimised ? "" : "mb-4"}`}>
-        <span className="font-heading font-bold text-[15px] text-foreground shrink-0">Savings Goals</span>
+        <span className="font-bold text-[15px] text-foreground shrink-0">Savings Goals</span>
         <span className="h-0.5 flex-1 rounded-sm" style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }} />
         <Link
           href="/funds"
           prefetch={false}
-          className="text-[10px] font-heading font-bold uppercase tracking-wider text-primary hover:text-foreground transition-colors flex items-center gap-1 group whitespace-nowrap shrink-0"
+          className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-foreground transition-colors flex items-center gap-1 group whitespace-nowrap shrink-0"
         >
           <span>View All</span>
           <ArrowUpRight className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -73,7 +73,7 @@ export const ActiveGoalsCard = React.memo(function ActiveGoalsCard({
           aria-label={isMinimised ? "Expand Savings Goals" : "Minimize Savings Goals"}
         >
           <ChevronDown
-            className="h-4 w-4 transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+            className="h-4 w-4 transition-transform duration-(--duration-structural) ease-(--ease-enter)"
             style={{ transform: isMinimised ? "rotate(0deg)" : "rotate(180deg)" }}
           />
         </button>
@@ -84,7 +84,7 @@ export const ActiveGoalsCard = React.memo(function ActiveGoalsCard({
           HealthScoreCard) so it grows/shrinks smoothly instead of
           popping in and out of the layout. */}
       <div
-        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+        className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
         style={{ gridTemplateRows: isMinimised ? "0fr" : "1fr" }}
       >
         <div

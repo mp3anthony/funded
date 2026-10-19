@@ -267,7 +267,7 @@ export default function PaydayClient() {
         action={
           <button
             onClick={() => setIsAddScheduleOpen(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/95 text-primary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer font-heading uppercase animate-in fade-in duration-(--duration-base) ease-(--ease-standard)"
+            className="flex items-center gap-2 bg-primary text-primary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer uppercase animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)"
           >
             <Plus size={16} />
             <span className="hidden sm:inline">New Schedule</span>
@@ -281,7 +281,7 @@ export default function PaydayClient() {
 
         {paySchedules.length === 0 ? (
           <div className="py-10 text-center">
-            <p className="text-muted font-mono text-sm">No pay schedules active.</p>
+            <p className="text-muted text-sm">No pay schedules active.</p>
             <p className="text-subtle text-xs mt-1 font-body">
               Tap + beside the page title to add your next payday.
             </p>
@@ -326,16 +326,16 @@ export default function PaydayClient() {
                         <h3 className="font-body font-semibold text-[15px] text-foreground truncate">
                           {memberName}
                         </h3>
-                        <span className={`shrink-0 font-mono font-extrabold tracking-tight text-lg ${schedule.is_fixed_amount ? "text-primary" : "text-muted"}`}>
+                        <span className={`shrink-0 font-bold tracking-tight text-lg ${schedule.is_fixed_amount ? "text-primary" : "text-muted"}`}>
                           {formattedAmount}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <span className="min-w-0 truncate font-mono text-[10px] uppercase tracking-wider text-muted">
+                        <span className="min-w-0 truncate text-[10px] uppercase tracking-wider text-muted">
                           {schedule.frequency}
                         </span>
-                        <span className={`flex items-center gap-1 shrink-0 font-mono text-[10px] uppercase font-semibold tracking-wider ${isReady ? "text-primary" : "text-muted"}`}>
+                        <span className={`flex items-center gap-1 shrink-0 text-[10px] uppercase font-semibold tracking-wider ${isReady ? "text-primary" : "text-muted"}`}>
                           <CountdownIcon size={11} className="shrink-0" />
                           {countdown.text}
                         </span>
@@ -363,7 +363,7 @@ export default function PaydayClient() {
                           e.stopPropagation();
                           setActiveVariableSchedule(schedule);
                         }}
-                        className="w-full py-2.5 rounded-xl font-heading text-xs font-bold uppercase bg-primary text-primary-fg hover:brightness-110 active:scale-[0.98] cursor-pointer transition-all"
+                        className="w-full py-2.5 rounded-xl text-xs font-bold uppercase bg-primary text-primary-fg hover:brightness-110 active:scale-[0.98] cursor-pointer transition-all"
                       >
                         {schedule.is_fixed_amount ? "Log Pay" : "Enter Pay Amount"}
                       </button>
@@ -382,7 +382,7 @@ export default function PaydayClient() {
 
         {payHistory.length === 0 ? (
           <div className="py-10 text-center">
-            <p className="text-muted font-mono text-sm">No history logged yet.</p>
+            <p className="text-muted text-sm">No history logged yet.</p>
             <p className="text-subtle text-xs mt-1 font-body">
               Logged payday transactions will appear here.
             </p>
@@ -418,7 +418,7 @@ export default function PaydayClient() {
 
             {isEmpty && selectedContributor !== "All" ? (
               <div className="py-10 text-center">
-                <p className="text-muted font-mono text-sm">
+                <p className="text-muted text-sm">
                   No pays logged for {householdMembers.find((m) => String(m.id) === String(selectedContributor))?.name || "this contributor"} yet.
                 </p>
               </div>
@@ -430,13 +430,13 @@ export default function PaydayClient() {
                   // True means collapsed (minimized). Defaults to collapsed; force-expanded when filtered to one member.
                   const isMinimized = selectedContributor === "All" ? (minimizedMembers[memberId] ?? true) : false;
 
-                  // Editorial subsection header: Syne 13px + mono count + lime fade-rule.
+                  // Editorial subsection header: 13px label + count + lime fade-rule.
                   const headerInner = (
                     <>
-                      <span className="font-heading font-bold text-[13px] text-foreground shrink-0 group-hover:text-primary transition-colors">
+                      <span className="font-bold text-[13px] text-foreground shrink-0 group-hover:text-primary transition-colors">
                         {memberName}&apos;s History
                       </span>
-                      <span className="font-mono text-[11px] font-semibold text-subtle shrink-0">
+                      <span className="text-[11px] font-semibold text-subtle shrink-0">
                         ({histories.length})
                       </span>
                       <span
@@ -455,7 +455,7 @@ export default function PaydayClient() {
                         >
                           {headerInner}
                           <ChevronDown
-                            className="h-4 w-4 text-subtle group-hover:text-foreground transition-transform duration-(--duration-slow) ease-(--ease-standard) shrink-0"
+                            className="h-4 w-4 text-subtle group-hover:text-foreground transition-transform duration-(--duration-structural) ease-(--ease-enter) shrink-0"
                             style={{ transform: isMinimized ? "rotate(0deg)" : "rotate(180deg)" }}
                           />
                         </button>
@@ -471,7 +471,7 @@ export default function PaydayClient() {
                           grows/shrinks smoothly instead of popping in and
                           out of the layout. */}
                       <div
-                        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+                        className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
                         style={{ gridTemplateRows: isMinimized ? "0fr" : "1fr" }}
                       >
                         <div

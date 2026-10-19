@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 interface RowProps {
   /** Left-side label (Instrument Sans). */
   label: React.ReactNode;
-  /** Right-side value. Callers style figures in font-mono as needed. */
+  /** Right-side value. Figures use the body font with tabular numbers. */
   value?: React.ReactNode;
   /** Custom right-side content; overrides `value` when provided. */
   children?: React.ReactNode;
@@ -45,7 +45,7 @@ export default function Row({
       </span>
       <span className="flex items-center gap-2 shrink-0 text-right">
         {children ?? (
-          <span className="font-mono text-[13px] text-muted">{value}</span>
+          <span className="text-[13px] text-muted">{value}</span>
         )}
         {chevron && <ChevronRight className="h-[17px] w-[17px] text-subtle" />}
       </span>

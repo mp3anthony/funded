@@ -40,7 +40,7 @@ export default function FinishSetupCard() {
     >
       <div className="flex items-start gap-2 pl-4 pr-1 pt-1">
         <div className="flex-1 min-w-0 py-2.5">
-          <h2 className="text-sm font-heading font-bold text-foreground">Finish setting up</h2>
+          <h2 className="text-sm font-bold text-foreground">Finish setting up</h2>
           <p className="text-[13px] font-body text-muted leading-snug">
             Add these to get the most out of Funded.
           </p>

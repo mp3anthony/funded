@@ -77,12 +77,12 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
     <div className="flex flex-col">
       {/* Header — editorial section with lime rule */}
       <div className={`flex items-center gap-3 ${isMinimised ? "" : "mb-3"}`}>
-        <span className="font-heading font-bold text-[15px] text-foreground shrink-0">Upcoming Bills</span>
+        <span className="font-bold text-[15px] text-foreground shrink-0">Upcoming Bills</span>
         <span className="h-0.5 flex-1 rounded-sm" style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }} />
         <Link
           href="/bills"
           prefetch={false}
-          className="text-[10px] font-heading font-bold uppercase tracking-wider text-primary hover:text-foreground transition-colors flex items-center gap-1 group whitespace-nowrap shrink-0"
+          className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-foreground transition-colors flex items-center gap-1 group whitespace-nowrap shrink-0"
         >
           <span>View All</span>
           <ArrowUpRight className="h-3 w-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -93,7 +93,7 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
           aria-label={isMinimised ? "Expand Upcoming Bills" : "Minimize Upcoming Bills"}
         >
           <ChevronDown
-            className="h-4 w-4 transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+            className="h-4 w-4 transition-transform duration-(--duration-structural) ease-(--ease-enter)"
             style={{ transform: isMinimised ? "rotate(0deg)" : "rotate(180deg)" }}
           />
         </button>
@@ -104,7 +104,7 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
           HealthScoreCard/ActiveGoalsCard) so it grows/shrinks smoothly
           instead of popping in and out of the layout. */}
       <div
-        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+        className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
         style={{ gridTemplateRows: isMinimised ? "0fr" : "1fr" }}
       >
         <div
@@ -184,7 +184,7 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
                         {bill.name}
                       </span>
                       <span
-                        className={`font-mono text-[10px] font-semibold mt-0.5 uppercase tracking-wider flex items-center gap-1 ${
+                        className={`text-[10px] font-semibold mt-0.5 uppercase tracking-wider flex items-center gap-1 ${
                           isOverdue ? "text-destructive" : isPaid ? "text-[#00e676]" : "text-muted"
                         }`}
                       >
@@ -195,14 +195,14 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
                       </span>
                     </div>
                     <div className="flex flex-col items-end shrink-0 gap-1.5">
-                      <span className="font-mono text-sm font-bold text-foreground tracking-tight">
+                      <span className="text-sm font-bold text-foreground tracking-tight">
                         ${bill.amount.toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
                       </span>
                       <span
-                        className={`text-[9px] font-bold font-mono uppercase tracking-wider px-2 py-0.5 rounded-full ${badgeBg}`}
+                        className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badgeBg}`}
                       >
                         {badgeLabel}
                       </span>

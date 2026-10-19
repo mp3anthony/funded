@@ -129,7 +129,7 @@ export default function AddGoalSheet({
 
           {/* Goal Name */}
           <div className="flex flex-col space-y-1.5 md:space-y-2">
-            <label className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-xs font-semibold text-subtle uppercase tracking-wider">
               Goal Name
             </label>
             <input 
@@ -144,11 +144,11 @@ export default function AddGoalSheet({
 
           {/* Target Amount */}
           <div className="flex flex-col space-y-1.5 md:space-y-2">
-            <label className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-xs font-semibold text-subtle uppercase tracking-wider">
               Target Amount
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono">$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">$</span>
               <input 
                 type="number" 
                 placeholder="0.00"
@@ -156,7 +156,7 @@ export default function AddGoalSheet({
                 step="0.01"
                 value={targetAmount}
                 onChange={(e) => setTargetAmount(e.target.value)}
-                className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 font-mono text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
+                className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
                 required
               />
             </div>
@@ -164,11 +164,11 @@ export default function AddGoalSheet({
 
           {/* Current Amount */}
           <div className="flex flex-col space-y-1.5 md:space-y-2">
-            <label className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-xs font-semibold text-subtle uppercase tracking-wider">
               Current Saved Amount
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono">$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">$</span>
               <input 
                 type="number" 
                 placeholder="0.00"
@@ -176,27 +176,27 @@ export default function AddGoalSheet({
                 step="0.01"
                 value={currentAmount}
                 onChange={(e) => setCurrentAmount(e.target.value)}
-                className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
+                className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
               />
             </div>
           </div>
 
           {/* Deadline Date Picker */}
           <div className="flex flex-col space-y-1.5 md:space-y-2">
-            <label className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-xs font-semibold text-subtle uppercase tracking-wider">
               Deadline
             </label>
             <input 
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="w-full min-w-0 bg-surface border border-border rounded-[2px] p-2.5 md:p-3 font-mono text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className="w-full min-w-0 bg-surface border border-border rounded-[2px] p-2.5 md:p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
 
           {/* Status Dropdown */}
           <div className="flex flex-col space-y-1.5 md:space-y-2">
-            <label className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-xs font-semibold text-subtle uppercase tracking-wider">
               Status
             </label>
             <div className="relative">
@@ -220,7 +220,7 @@ export default function AddGoalSheet({
 
           {/* Category Dropdown */}
           <div className="flex flex-col space-y-1.5 md:space-y-2">
-            <label className="font-heading text-xs font-semibold text-subtle capitalize tracking-wider">
+            <label className="text-xs font-semibold text-subtle capitalize tracking-wider">
               Category
             </label>
             <div className="relative">

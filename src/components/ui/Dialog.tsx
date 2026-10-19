@@ -111,7 +111,7 @@ export default function Dialog({
 
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
-          <h3 className="text-[17px] font-bold text-foreground font-heading flex items-center gap-2 min-w-0">
+          <h3 className="text-[17px] font-bold text-foreground flex items-center gap-2 min-w-0">
             {icon}
             <span className="truncate">{title}</span>
           </h3>
@@ -185,15 +185,15 @@ export function DialogButton({
   );
 }
 
-/* ── DialogSection — Syne label + lime fade-rule ────────────────
+/* ── DialogSection — label + lime fade-rule ────────────────
    The editorial section header used inside modal bodies. Matches the
-   shipped page pattern (font-heading bold + h-0.5 lime→transparent
-   rule): a Syne label, an optional mono count, the fade-rule, and an
+   shipped page pattern (bold label + h-0.5 lime→transparent
+   rule): a label, an optional count, the fade-rule, and an
    optional trailing node (e.g. an "Add" affordance). */
 
 interface DialogSectionProps {
   label: React.ReactNode;
-  /** Optional mono count shown after the label, e.g. member count. */
+  /** Optional count shown after the label, e.g. member count. */
   count?: React.ReactNode;
   /** Optional trailing content pinned to the right of the rule. */
   trailing?: React.ReactNode;
@@ -208,11 +208,11 @@ export function DialogSection({
 }: DialogSectionProps) {
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <span className="font-heading font-bold text-[15px] text-foreground shrink-0">
+      <span className="font-bold text-[15px] text-foreground shrink-0">
         {label}
       </span>
       {count != null && (
-        <span className="font-mono text-[11px] font-semibold text-subtle shrink-0">
+        <span className="text-[11px] font-semibold text-subtle shrink-0">
           {count}
         </span>
       )}

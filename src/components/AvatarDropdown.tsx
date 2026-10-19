@@ -25,7 +25,7 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
   // instant it closed, so the entrance animation had no closing
   // counterpart — it just popped out with zero motion. A 3-state machine
   // ("closed" | "open" | "closing") keeps the panel mounted for one
-  // --duration-base tick while `.menu-panel-animate[data-closing]` plays
+  // --duration-feedback tick while `.menu-panel-animate[data-closing]` plays
   // the entrance keyframes in reverse, then unmounts. All transitions are
   // driven directly from event handlers (click/keydown/route-away), never
   // from a state-reacting effect, so no setState runs in an effect body.
@@ -46,7 +46,7 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
     closeTimeoutRef.current = setTimeout(() => {
       setMenuState("closed");
       closeTimeoutRef.current = null;
-    }, 260); // matches --duration-base
+    }, 300); // matches --duration-feedback
   }, []);
 
   // Clear any pending close timeout on unmount.
@@ -112,7 +112,7 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
           // with no key, so re-renders from user data refreshing (name/
           // avatar_url updates) reuse the same DOM node and just patch
           // its src, which does not restart a CSS animation. No flicker.
-          <img src={user.avatar_url} alt={user.name} className="h-full w-full object-cover animate-in fade-in duration-(--duration-base) ease-(--ease-standard)" />
+          <img src={user.avatar_url} alt={user.name} className="h-full w-full object-cover animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)" />
         ) : (
           user.avatar
         )}
@@ -129,7 +129,7 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
         >
           {/* User Information Header */}
           <div className="px-5 py-3.5 border-b border-border-strong flex flex-col space-y-1">
-            <span className="text-[10px] uppercase font-bold tracking-wider font-mono text-primary">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-primary">
               Signed in as
             </span>
             {/* Name is a button that deep-links to the Profile section of settings */}
@@ -154,7 +154,7 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
             <Link
               href="/settings"
               onClick={closeMenu}
-              className="w-full flex items-center gap-3.5 px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted hover:text-foreground hover:bg-white/5 active:scale-[0.98] transition-all cursor-pointer font-heading"
+              className="w-full flex items-center gap-3.5 px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted hover:text-foreground hover:bg-white/5 active:scale-[0.98] transition-all cursor-pointer"
               role="menuitem"
             >
               <Settings size={16} className="text-muted shrink-0 group-hover:text-foreground" />
@@ -164,7 +164,7 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
             {/* Logout Link */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3.5 px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted hover:text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all cursor-pointer font-heading"
+              className="w-full flex items-center gap-3.5 px-5 py-3.5 text-left text-xs font-bold uppercase tracking-wider text-muted hover:text-destructive hover:bg-destructive/10 active:scale-[0.98] transition-all cursor-pointer"
               role="menuitem"
             >
               <LogOut size={16} className="text-muted shrink-0 group-hover:text-destructive" />

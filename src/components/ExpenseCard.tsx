@@ -109,7 +109,7 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
           </span>
           <span className="flex items-center gap-1.5 mt-0.5">
             <RowPill label="Expense" variant="accent" />
-            <span className="font-mono text-[10px] uppercase font-medium tracking-wider text-muted truncate">
+            <span className="text-[10px] uppercase font-medium tracking-wider text-muted truncate">
               {isPercentageSplit && splitSummary ? splitSummary : (expense.category || "Other")}
             </span>
           </span>
@@ -117,7 +117,7 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
 
         {/* Right: amount over tap-for-more hint */}
         <div className="flex flex-col items-end shrink-0">
-          <span className="font-mono font-extrabold text-primary tracking-tight text-lg">
+          <span className="font-bold text-primary tracking-tight text-lg">
             ${formattedAmount}
           </span>
           <span className="flex items-center gap-1 text-[9px] font-semibold text-muted/60 uppercase tracking-widest group-hover:text-primary transition-colors mt-0.5">

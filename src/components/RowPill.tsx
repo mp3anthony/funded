@@ -31,7 +31,7 @@ const VARIANT_CLASSES: Record<RowPillVariant, string> = {
 export default function RowPill({ label, variant = "neutral" }: RowPillProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-heading font-bold uppercase tracking-wider shrink-0 ${VARIANT_CLASSES[variant]}`}
+      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 ${VARIANT_CLASSES[variant]}`}
     >
       {label}
     </span>

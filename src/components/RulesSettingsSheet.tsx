@@ -145,7 +145,7 @@ export default function RulesSettingsSheet({
         !isFormOpen ? (
           <button
             onClick={() => setIsFormOpen(true)}
-            className="w-full py-3 md:py-3.5 bg-primary text-primary-fg rounded-[2px] font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 active:scale-[0.98]"
+            className="w-full py-3 md:py-3.5 bg-primary text-primary-fg rounded-[2px] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 active:scale-[0.98]"
           >
             <Plus size={14} />
             <span>Add automation rule</span>
@@ -160,13 +160,13 @@ export default function RulesSettingsSheet({
           {/* Rule Form Panel Overlay */}
           {isFormOpen ? (
           <form onSubmit={handleSave} className="flex flex-col space-y-5 px-6 py-5 border-b border-border-strong bg-background/50">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-primary font-heading">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
               {editingRule ? "Edit Automation Rule" : "Create Automation Rule"}
             </h3>
 
             {/* Household Member */}
             <div className="flex flex-col space-y-1.5">
-              <label className="font-heading text-[10px] font-semibold text-subtle uppercase tracking-wider">
+              <label className="text-[10px] font-semibold text-subtle uppercase tracking-wider">
                 Household Member
               </label>
               <select
@@ -185,11 +185,11 @@ export default function RulesSettingsSheet({
 
             {/* Threshold Amount */}
             <div className="flex flex-col space-y-1.5">
-              <label className="font-heading text-[10px] font-semibold text-subtle capitalize tracking-wider">
+              <label className="text-[10px] font-semibold text-subtle capitalize tracking-wider">
                 When my pay exceeds
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-mono text-xs">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">$</span>
                 <input
                   type="number"
                   placeholder="0.00"
@@ -197,7 +197,7 @@ export default function RulesSettingsSheet({
                   min="0.01"
                   value={threshold}
                   onChange={(e) => setThreshold(e.target.value)}
-                  className="w-full bg-surface border border-border rounded-[2px] pl-6 pr-3 py-2.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full bg-surface border border-border rounded-[2px] pl-6 pr-3 py-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
                   required
                 />
               </div>
@@ -205,7 +205,7 @@ export default function RulesSettingsSheet({
 
             {/* Action Type Dropdown */}
             <div className="flex flex-col space-y-1.5">
-              <label className="font-heading text-[10px] font-semibold text-subtle uppercase tracking-wider">
+              <label className="text-[10px] font-semibold text-subtle uppercase tracking-wider">
                 Action Type
               </label>
               <div className="relative">
@@ -228,7 +228,7 @@ export default function RulesSettingsSheet({
             {/* Action Target Selector */}
             {actionType === "goal" ? (
               <div className="flex flex-col space-y-1.5">
-                <label className="font-heading text-[10px] font-semibold text-subtle capitalize tracking-wider">
+                <label className="text-[10px] font-semibold text-subtle capitalize tracking-wider">
                   Target savings goal
                 </label>
                 <select
@@ -253,7 +253,7 @@ export default function RulesSettingsSheet({
 
             {/* Calculation Type Dropdown */}
             <div className="flex flex-col space-y-1.5">
-              <label className="font-heading text-[10px] font-semibold text-subtle capitalize tracking-wider">
+              <label className="text-[10px] font-semibold text-subtle capitalize tracking-wider">
                 Calculation Type
               </label>
               <div className="relative">
@@ -275,13 +275,13 @@ export default function RulesSettingsSheet({
 
             {/* Amount to Add */}
             <div className="flex flex-col space-y-1.5">
-              <label className="font-heading text-[10px] font-semibold text-subtle capitalize tracking-wider">
+              <label className="text-[10px] font-semibold text-subtle capitalize tracking-wider">
                 {amountType === "percentage" ? "Percentage of Surplus" : "Amount to Add"}
               </label>
               <div className="relative">
                 {amountType === "fixed" ? (
                   <>
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-mono text-xs">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-xs">$</span>
                     <input
                       type="number"
                       placeholder="0.00"
@@ -289,7 +289,7 @@ export default function RulesSettingsSheet({
                       min="0.01"
                       value={amountToAdd}
                       onChange={(e) => setAmountToAdd(e.target.value)}
-                      className="w-full bg-surface border border-border rounded-[2px] pl-6 pr-3 py-2.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      className="w-full bg-surface border border-border rounded-[2px] pl-6 pr-3 py-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
                       required
                     />
                   </>
@@ -303,10 +303,10 @@ export default function RulesSettingsSheet({
                       max="100"
                       value={amountToAdd}
                       onChange={(e) => setAmountToAdd(e.target.value)}
-                      className="w-full bg-surface border border-border rounded-[2px] pl-6 pr-10 py-2.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      className="w-full bg-surface border border-border rounded-[2px] pl-6 pr-10 py-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
                       required
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted font-mono text-xs">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-xs">%</span>
                   </>
                 )}
               </div>
@@ -339,7 +339,7 @@ export default function RulesSettingsSheet({
               <button
                 type="submit"
                 disabled={!isFormValid}
-                className={`flex-1 py-2.5 rounded-[2px] font-heading text-xs font-bold uppercase tracking-wider transition-all ${
+                className={`flex-1 py-2.5 rounded-[2px] text-xs font-bold uppercase tracking-wider transition-all ${
                   isFormValid
                     ? "bg-primary text-primary-fg hover:brightness-110 active:scale-95 cursor-pointer"
                     : "bg-surface-raised text-zinc-500 cursor-not-allowed"
@@ -353,7 +353,7 @@ export default function RulesSettingsSheet({
 
         {/* Existing Rules List */}
         <div className="flex flex-col space-y-3 px-6 py-5">
-          <span className="text-[10px] font-bold text-subtle uppercase tracking-wider block font-mono">
+          <span className="text-[10px] font-bold text-subtle uppercase tracking-wider block">
             Active Rules
           </span>
 

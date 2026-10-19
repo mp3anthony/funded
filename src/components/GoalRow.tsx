@@ -50,7 +50,7 @@ export default function GoalRow({
           onOpen();
         }
       }}
-      className={`border-t border-border py-3 cursor-pointer hover:bg-surface/40 active:scale-[0.995] transition-[background-color,transform] duration-(--duration-base) ease-(--ease-standard) focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm${
+      className={`border-t border-border py-3 cursor-pointer hover:bg-surface/40 active:scale-[0.995] transition-[background-color,transform] duration-(--duration-feedback) ease-(--ease-enter) focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm${
         isExpanded ? " fund-row-in" : ""
       }`}
       style={isExpanded ? ({ "--row-delay": `${delayMs}ms` } as CSSProperties) : undefined}
@@ -65,12 +65,12 @@ export default function GoalRow({
             <h4 className="font-body font-semibold text-[15px] text-foreground truncate leading-tight">
               {fund.name}
             </h4>
-            <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-subtle block mt-0.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-subtle block mt-0.5">
               {fund.category}
             </span>
           </div>
         </div>
-        <span className={`font-mono font-bold text-sm shrink-0 ${fund.accentText || "text-primary"}`}>
+        <span className={`font-bold text-sm shrink-0 ${fund.accentText || "text-primary"}`}>
           {displayPercentage.toFixed(1)}%
         </span>
       </div>
@@ -78,13 +78,13 @@ export default function GoalRow({
       {/* Progress bar — driven by live state */}
       <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mt-2.5">
         <div
-          className={`h-full rounded-full transition-all duration-(--duration-slow) ease-(--ease-standard) ${fund.barColor || "bg-primary"}`}
+          className={`h-full rounded-full transition-all duration-(--duration-structural) ease-(--ease-enter) ${fund.barColor || "bg-primary"}`}
           style={{ width: `${percentage}%` }}
         />
       </div>
 
       {/* Amounts */}
-      <div className="flex items-center justify-between font-mono text-[11px] mt-1.5">
+      <div className="flex items-center justify-between text-[11px] mt-1.5">
         <span className="font-semibold text-foreground">
           ${displayCurrentAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
@@ -95,7 +95,7 @@ export default function GoalRow({
 
       {/* Add Money / Completed action */}
       {isComplete ? (
-        <div className="flex items-center gap-1.5 mt-2.5 text-primary text-[11px] font-mono font-bold uppercase tracking-wider">
+        <div className="flex items-center gap-1.5 mt-2.5 text-primary text-[11px] font-bold uppercase tracking-wider">
           <Target className="h-3.5 w-3.5" />
           <span>Goal Reached! 🎉</span>
         </div>
@@ -106,7 +106,7 @@ export default function GoalRow({
             e.stopPropagation();
             onAddAmount();
           }}
-          className="mt-2.5 inline-flex items-center gap-1.5 py-1 text-[11px] font-heading font-bold uppercase tracking-wider text-muted hover:text-primary active:scale-95 transition-[color,transform] duration-(--duration-fast) ease-(--ease-standard)"
+          className="mt-2.5 inline-flex items-center gap-1.5 py-1 text-[11px] font-bold uppercase tracking-wider text-muted hover:text-primary active:scale-95 transition-[color,transform] duration-(--duration-quick) ease-(--ease-enter)"
         >
           <Plus className="h-3.5 w-3.5" />
           Add Amount

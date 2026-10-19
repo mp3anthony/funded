@@ -126,7 +126,7 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
       }
     >
       {isSuccess ? (
-        <div className="flex flex-col items-center justify-center py-6 space-y-4 animate-in zoom-in-95 duration-(--duration-base) ease-(--ease-standard)">
+        <div className="flex flex-col items-center justify-center py-6 space-y-4 animate-in zoom-in-95 duration-(--duration-feedback) ease-(--ease-enter)">
           <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_20px_rgba(200,255,0,0.2)]">
             <Check size={32} className="animate-bounce" />
           </div>
@@ -151,7 +151,7 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
                 value={getDisplayValue()}
                 onChange={handleInputChange}
                 disabled={isJoining}
-                className="w-full bg-background border border-border rounded-[2px] px-4 py-3 text-center font-mono text-xl font-bold tracking-widest text-primary focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all uppercase placeholder:text-zinc-700"
+                className="w-full bg-background border border-border rounded-[2px] px-4 py-3 text-center text-xl font-bold tracking-widest text-primary focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all uppercase placeholder:text-zinc-700"
               />
             </div>
 

@@ -110,7 +110,7 @@ export default function PushStatusDialog({
     >
       <div className="flex flex-col gap-4">
         {error && (
-          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
             <span className="font-bold">Couldn&apos;t enable push notifications:</span>
             <br />
             {error}
@@ -122,7 +122,7 @@ export default function PushStatusDialog({
           </div>
         )}
         <p className="text-sm text-muted leading-relaxed">{statusMessage(status)}</p>
-        <p className="font-mono text-[11px] text-subtle leading-relaxed">
+        <p className="text-[11px] text-subtle leading-relaxed">
           This only affects push alerts on this device — in-app reminders and the notification centre
           keep working either way.
         </p>

@@ -184,7 +184,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
           )}
 
           {errorMsg && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
               <span className="font-bold">Failed to save bill:</span><br/>
               {errorMsg}
             </div>
@@ -192,7 +192,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
           
           {/* 1. Bill Name */}
           <div className="flex flex-col space-y-2">
-            <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
               Bill Name
             </label>
             <input 
@@ -206,7 +206,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
 
           {/* 1.5 Bill Category */}
           <div className="flex flex-col space-y-2">
-            <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
               Category
             </label>
             <div className="relative">
@@ -233,17 +233,17 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
 
           {/* 2. Bill Amount */}
           <div className="flex flex-col space-y-2">
-            <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+            <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
               Bill Amount
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono">$</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">$</span>
               <input 
                 type="number" 
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 font-mono text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
+                className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
               />
             </div>
           </div>
@@ -251,7 +251,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
           {/* Payment Frequency Selector */}
           <div className="flex flex-col space-y-2">
             <div className="flex flex-col">
-              <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+              <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
                 Payment Frequency
               </label>
               <span className="text-xs text-muted">
@@ -280,19 +280,19 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
           {/* Date Row (3. Invoice Date & 4. Due Date) */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex flex-1 flex-col space-y-2">
-              <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+              <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
                 Invoice Date
               </label>
               <input 
                 type="date"
                 value={invoiceDate}
                 onChange={(e) => setInvoiceDate(e.target.value)}
-                className="w-full min-w-0 rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full min-w-0 rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>
             
             <div className="flex flex-1 flex-col space-y-2">
-              <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+              <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
                 Due Date
               </label>
               <input 
@@ -300,14 +300,14 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full min-w-0 rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full min-w-0 rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 md:py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
             </div>
           </div>
 
           {/* 5. Payment Type */}
           <div className="flex flex-col space-y-2">
-            <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
               Payment Type
             </label>
             <div className="relative">
@@ -329,7 +329,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
 
           {/* 6. Assignee */}
           <div className="flex flex-col space-y-2">
-            <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+            <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
               Assignee
             </label>
             <div className="relative">
@@ -360,7 +360,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
 
           {/* 7. Paid By Selector */}
           <div className="flex flex-col space-y-2 pt-2">
-            <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+            <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
               Paid By
             </label>
             {isJointFund ? (
@@ -391,7 +391,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
                   />
                 ) : (
                   <div className="p-4 rounded-[2px] border border-dashed border-border bg-surface-raised/20 text-center">
-                    <p className="text-xs text-muted font-mono">
+                    <p className="text-xs text-muted">
                       Paid directly from the household Joint Fund account.
                     </p>
                   </div>
@@ -409,14 +409,14 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
 
           {/* 8. Notes */}
           <div className="flex flex-col space-y-2 pt-2">
-            <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+            <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
               Notes
             </label>
             <textarea
               placeholder="Add any additional details or context here..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-surface border border-border rounded-[2px] p-3 font-mono text-sm min-h-[80px] resize-y placeholder:text-muted text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              className="w-full bg-surface border border-border rounded-[2px] p-3 text-sm min-h-[80px] resize-y placeholder:text-muted text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
             />
           </div>
 

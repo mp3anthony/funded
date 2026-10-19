@@ -90,7 +90,7 @@ export default function DashboardTipsTicker({ active }: DashboardTipsTickerProps
   return (
     <div
       ref={containerRef}
-      className="fixed inset-x-0 z-40 px-4 transition-opacity duration-(--duration-slow) ease-in-out"
+      className="fixed inset-x-0 z-40 px-4 transition-opacity duration-(--duration-structural) ease-in-out"
       style={{
         bottom: "calc(5rem + env(safe-area-inset-bottom))",
         opacity: visible ? 1 : 0,
@@ -130,7 +130,7 @@ export default function DashboardTipsTicker({ active }: DashboardTipsTickerProps
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss tips"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center text-primary/80 hover:text-primary hover:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full flex items-center justify-center text-primary/80 hover:text-primary active:bg-primary/10 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
             <X className="h-3.5 w-3.5" />
           </button>

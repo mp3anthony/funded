@@ -38,7 +38,7 @@ export default function NextDueDateDialog({
   const isValid = nextDueDatePatch(picked, todayYmd) !== null;
 
   const secondaryClass =
-    "w-full min-h-[44px] rounded-[2px] px-4 py-2.5 bg-surface-elevated text-foreground border border-border font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 disabled:pointer-events-none";
+    "w-full min-h-[44px] rounded-[2px] px-4 py-2.5 bg-surface-elevated text-foreground border border-border font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 disabled:pointer-events-none";
 
   return (
     <Dialog
@@ -53,7 +53,7 @@ export default function NextDueDateDialog({
             type="button"
             onClick={() => onSave(picked)}
             disabled={!isValid || busy}
-            className="w-full min-h-[44px] rounded-[2px] py-3.5 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-heading font-bold uppercase tracking-wider text-xs hover:bg-emerald-500 hover:text-foreground transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
+            className="w-full min-h-[44px] rounded-[2px] py-3.5 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-bold uppercase tracking-wider text-xs hover:bg-emerald-500 hover:text-foreground transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
           >
             Save date
           </button>
@@ -67,14 +67,14 @@ export default function NextDueDateDialog({
       }
     >
       <div className="space-y-4">
-        <p className="text-sm text-muted font-mono break-words">{billName}</p>
+        <p className="text-sm text-muted break-words">{billName}</p>
         <p className="text-sm text-foreground">
           This bill has no due date. Pick when it&apos;s next due and Funded will track it from there.
         </p>
         <div className="flex flex-col space-y-2">
           <label
             htmlFor="next-due-date"
-            className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider"
+            className="text-sm font-semibold text-subtle uppercase tracking-wider"
           >
             Next due date
           </label>
@@ -85,10 +85,10 @@ export default function NextDueDateDialog({
             value={picked}
             onChange={(e) => setPicked(e.target.value)}
             disabled={busy}
-            className="w-full min-w-0 min-h-[44px] rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            className="w-full min-w-0 min-h-[44px] rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
           />
           {picked && !isValid && (
-            <p className="text-xs text-muted font-mono">Pick today or a later date.</p>
+            <p className="text-xs text-muted">Pick today or a later date.</p>
           )}
         </div>
       </div>

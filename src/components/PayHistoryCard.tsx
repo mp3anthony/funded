@@ -93,32 +93,32 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
             <div className="min-w-0">
               <span className="truncate font-body font-semibold text-[15px] text-foreground">{memberName}</span>
             </div>
-            <span className="font-mono font-extrabold text-primary text-base whitespace-nowrap">
+            <span className="font-bold text-primary text-base whitespace-nowrap">
               ${formattedAmount}
             </span>
           </div>
         ) : (
-          <div className="font-mono font-extrabold text-primary text-lg whitespace-nowrap">
+          <div className="font-bold text-primary text-lg whitespace-nowrap">
             ${formattedAmount}
           </div>
         )}
 
         {/* Date & Status / automation-rule allocation row */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-[11px] text-muted font-mono uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted uppercase tracking-wider">
             <Calendar size={12} className="shrink-0" />
             <span>{formattedDate}</span>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             {isPending && (
-              <span className="text-[10px] text-accent font-mono uppercase font-bold tracking-wider">
+              <span className="text-[10px] text-accent uppercase font-bold tracking-wider">
                 Pending
               </span>
             )}
 
             {history.rule_id && rule && (
-              <span className="flex items-center gap-1 text-[10px] text-primary font-mono uppercase font-bold tracking-wider shrink-0">
+              <span className="flex items-center gap-1 text-[10px] text-primary uppercase font-bold tracking-wider shrink-0">
                 <Sparkles size={10} className="shrink-0 text-primary" />
                 +${allocationAmount.toFixed(2)} to {allocationTargetName}
               </span>
@@ -140,7 +140,7 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
         {isPending && (
           <button
             onClick={handleConfirm}
-            className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-all active:scale-95 cursor-pointer"
+            className="p-2 rounded-lg text-primary active:bg-primary/10 transition-all active:scale-95 cursor-pointer"
             title="Confirm this pay entry"
           >
             <CheckCircle2 size={16} />

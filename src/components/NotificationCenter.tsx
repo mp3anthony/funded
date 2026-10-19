@@ -150,7 +150,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                             {!notif.is_read && <Circle size={8} fill="currentColor" className="text-primary" />}
                           </h4>
                           <p className="text-sm text-muted">{notif.message}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider">
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
                             {new Date(notif.created_at).toLocaleDateString()}
                           </p>
                           {isTappable && (
@@ -210,7 +210,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                       <h4 className="font-semibold text-foreground">Notify me at</h4>
                       <p className="text-sm text-muted">Preferred delivery hour</p>
                     </div>
-                    <span className="flex items-center gap-2 font-mono text-sm text-muted shrink-0">
+                    <span className="flex items-center gap-2 text-sm text-muted shrink-0">
                       {formatHourLabel(notificationSettings.notify_hour)}
                       <ChevronRight className="h-4 w-4 text-subtle" />
                     </span>
@@ -226,7 +226,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                     pushStatus.hasLiveSubscription ? (
                       <div className="flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border">
                         <h4 className="font-semibold text-foreground">Push on this device</h4>
-                        <span className="flex items-center gap-1.5 font-mono text-xs text-muted">
+                        <span className="flex items-center gap-1.5 text-xs text-muted">
                           <span className="h-1.5 w-1.5 rounded-full bg-success" /> Active
                         </span>
                       </div>
@@ -246,7 +246,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                   )}
 
                   <div className={`space-y-4 ${!notificationSettings.all_enabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <h4 className="font-heading font-semibold text-muted uppercase tracking-wider text-xs">Notification Types</h4>
+                    <h4 className="font-semibold text-muted uppercase tracking-wider text-xs">Notification Types</h4>
                     
                     <div className="flex items-center justify-between p-3 border-b border-border-strong">
                       <div className="flex-1 pr-4">

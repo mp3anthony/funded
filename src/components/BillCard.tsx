@@ -120,7 +120,7 @@ export default function BillCard({
       ? hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"
       : `DUE ${dueDateDisplay}`);
 
-  const dateSlotClass = "font-mono text-[10px] uppercase font-medium tracking-wider transition-colors";
+  const dateSlotClass = "text-[10px] uppercase font-medium tracking-wider transition-colors";
   const showAddDueDate = hint === "add-due-date";
 
   // #250: the row's tap target is a full-cover button BEHIND the content
@@ -173,7 +173,7 @@ export default function BillCard({
       {/* Right: amount over tap-for-more hint */}
       <div className="flex flex-col items-end shrink-0">
         <span
-          className={`inline-flex items-center gap-1 font-mono font-extrabold tracking-tight text-lg ${
+          className={`inline-flex items-center gap-1 font-bold tracking-tight text-lg ${
             isPaused ? "text-muted" : "text-primary"
           }`}
         >

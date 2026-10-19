@@ -108,7 +108,7 @@ export default function PatchNotesClient() {
                 <SectionHeader
                   title={`v${entry.version}`}
                   trailing={
-                    <span className="font-mono text-[11px] text-subtle shrink-0">{entry.date}</span>
+                    <span className="text-[11px] text-subtle shrink-0">{entry.date}</span>
                   }
                 />
                 <ul className="flex flex-col gap-2 pl-1">

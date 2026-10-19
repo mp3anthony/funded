@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test src/lib/billCycle.test.mjs src/lib/knownIssues.test.mjs src/lib/patchNotesWindow.test.mjs src/lib/updatesCard.test.mjs src/lib/onboarding.test.mjs src/lib/householdTimezone.test.mjs src/lib/finishSetup.test.mjs src/lib/householdLeave.test.mjs src/lib/warmReloadRace.test.mjs"
+    "test": "node --test src/lib/billCycle.test.mjs src/lib/knownIssues.test.mjs src/lib/patchNotesWindow.test.mjs src/lib/updatesCard.test.mjs src/lib/onboarding.test.mjs src/lib/householdTimezone.test.mjs src/lib/finishSetup.test.mjs src/lib/householdLeave.test.mjs src/lib/warmReloadRace.test.mjs src/lib/designTokens.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

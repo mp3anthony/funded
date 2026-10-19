@@ -72,7 +72,7 @@ export default function GettingStartedClient() {
         <p className="text-xs sm:text-sm text-muted mt-1 font-body mb-6">{guideSubtitle}</p>
 
         <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 mb-8">
-          <h2 className="font-heading font-bold text-[15px] text-foreground mb-3">
+          <h2 className="font-bold text-[15px] text-foreground mb-3">
             {installHeading}
           </h2>
           <ul className="flex flex-col gap-2">
@@ -108,10 +108,10 @@ export default function GettingStartedClient() {
           <ol className="flex flex-col gap-6">
             {missions.map((m, i) => (
               <li key={i}>
-                <p className="font-mono text-[11px] uppercase tracking-wider text-subtle">
+                <p className="text-[11px] uppercase tracking-wider text-subtle">
                   Mission {i + 1} · Optional
                 </p>
-                <h3 className="font-heading font-bold text-[15px] text-foreground mt-1 mb-2">
+                <h3 className="font-bold text-[15px] text-foreground mt-1 mb-2">
                   {m.title}
                 </h3>
                 <ul className="flex flex-col gap-2 pl-1">
@@ -127,7 +127,7 @@ export default function GettingStartedClient() {
                 </ul>
                 {i === 3 && (
                   <div className="border border-border rounded-xl p-4 mt-3">
-                    <h4 className="font-heading font-bold text-[13px] text-foreground mb-2">
+                    <h4 className="font-bold text-[13px] text-foreground mb-2">
                       {billVsExpenseHeading}
                     </h4>
                     <ul className="flex flex-col gap-2">
@@ -156,7 +156,7 @@ export default function GettingStartedClient() {
           <ul className="flex flex-col gap-3 pl-1">
             {pageGuide.map((p) => (
               <li key={p.name} className="flex flex-col gap-0.5">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-foreground">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-foreground">
                   {p.name}
                 </span>
                 <span className="text-[13px] font-body text-foreground/85 leading-relaxed">
@@ -168,7 +168,7 @@ export default function GettingStartedClient() {
         </section>
 
         <div className="rounded-xl border border-accent/40 bg-accent/5 p-4 mb-8">
-          <h2 className="font-heading font-bold text-[15px] text-foreground mb-3">
+          <h2 className="font-bold text-[15px] text-foreground mb-3">
             {goodToKnowHeading}
           </h2>
           <ul className="flex flex-col gap-2">

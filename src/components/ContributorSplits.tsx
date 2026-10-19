@@ -195,7 +195,7 @@ export default function ContributorSplits({
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-foreground">{member.name}</span>
                   {isAssignee && (
-                    <span className="text-[10px] font-heading font-bold capitalize tracking-wider text-primary">
+                    <span className="text-[10px] font-bold capitalize tracking-wider text-primary">
                       Assignee
                     </span>
                   )}
@@ -204,19 +204,19 @@ export default function ContributorSplits({
               
               <div className="relative w-24 sm:w-28">
                 {splitMode === "amount" && (
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-mono text-sm">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
                 )}
                 <input
                   type="number"
                   placeholder="0"
                   value={inputValues[member.id] || ""}
                   onChange={(e) => handleInputChange(member.id, e.target.value)}
-                  className={`w-full rounded-[2px] border border-border bg-surface py-2 font-mono text-sm text-right text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all ${
+                  className={`w-full rounded-[2px] border border-border bg-surface py-2 text-sm text-right text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all ${
                     splitMode === "amount" ? "pl-7 pr-3" : "px-3 pr-7"
                   }`}
                 />
                 {splitMode === "percentage" && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted font-mono text-sm">%</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
                 )}
               </div>
             </div>
@@ -226,7 +226,7 @@ export default function ContributorSplits({
 
       {/* Real-time Validation Status */}
       <div className="flex flex-col items-center justify-center pt-3 border-t border-border/50">
-        <p className={`font-mono text-sm transition-colors duration-300 ${statusColor}`}>
+        <p className={`text-sm transition-colors duration-300 ${statusColor}`}>
           {splitMode === "percentage" ? (
             isOver ? (
               `${Math.abs(remaining).toFixed(1)}% over`

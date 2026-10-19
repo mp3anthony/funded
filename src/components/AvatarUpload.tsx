@@ -129,7 +129,7 @@ export default function AvatarUpload({
             }}
           />
         ) : (
-          <div className="h-full w-full bg-gradient-to-tr from-primary to-emerald-500 flex items-center justify-center text-foreground font-extrabold text-2xl">
+          <div className="h-full w-full bg-gradient-to-tr from-primary to-emerald-500 flex items-center justify-center text-foreground font-bold text-2xl">
             {memberName.charAt(0).toUpperCase() || "?"}
           </div>
         )}

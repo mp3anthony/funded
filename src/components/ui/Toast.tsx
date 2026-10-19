@@ -78,7 +78,7 @@ function ToastBody({ toast, onDismiss }: { toast: AppToast; onDismiss: (id?: num
           // Solid filled button (black on the lime primary, ~7:1+ in both themes)
           // with a 44px minimum tap target. It used to be lime text on the grey
           // toast (1.8:1 in light mode, 28px tall), which read as no button at all.
-          className="shrink-0 min-h-[44px] min-w-[72px] rounded-[2px] px-4 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-sm shadow-sm hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer touch-manipulation"
+          className="shrink-0 min-h-[44px] min-w-[72px] rounded-[2px] px-4 bg-primary text-primary-fg font-bold uppercase tracking-wider text-sm shadow-sm hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer touch-manipulation"
         >
           {toast.actionLabel}
         </button>

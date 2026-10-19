@@ -341,7 +341,7 @@ export default function BillsClient() {
         action={
           <button
             onClick={() => setIsAddBillSheetOpen(true)}
-            className="flex items-center gap-2 bg-secondary hover:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200 cursor-pointer animate-in fade-in duration-(--duration-base) ease-(--ease-standard)"
+            className="flex items-center gap-2 bg-secondary active:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200 cursor-pointer animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add Bill</span>
@@ -351,7 +351,7 @@ export default function BillsClient() {
 
       {/* 3. Total Bar */}
       <div className="px-1">
-        <div className="text-3xl font-bold text-primary tracking-tight font-mono">
+        <div className="text-3xl font-bold text-primary tracking-tight">
           ${totalBills.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
         <div className="text-xs font-bold uppercase tracking-wider text-subtle mt-1">
@@ -516,7 +516,7 @@ export default function BillsClient() {
         <div className="flex items-center justify-end px-1">
           <button
             onClick={() => setIsEditCategoryOrderOpen(true)}
-            className="text-[10px] font-heading font-bold text-muted hover:text-foreground uppercase tracking-wider transition-colors"
+            className="text-[10px] font-bold text-muted hover:text-foreground uppercase tracking-wider transition-colors"
           >
             Edit Order
           </button>
@@ -525,11 +525,11 @@ export default function BillsClient() {
           <div className="py-10 text-center">
             {bills.length === 0 && expenses.length === 0 ? (
               <>
-                <p className="text-muted font-mono text-sm">No bills yet.</p>
+                <p className="text-muted text-sm">No bills yet.</p>
                 <p className="text-subtle text-xs mt-1 font-body">Tap + beside the page title to add your first bill.</p>
               </>
             ) : (
-              <p className="text-muted font-mono text-sm">{emptyStateMessage}</p>
+              <p className="text-muted text-sm">{emptyStateMessage}</p>
             )}
           </div>
         ) : (
@@ -549,10 +549,10 @@ export default function BillsClient() {
                   onClick={() => toggleCategory(category)}
                   className="flex items-center gap-3 w-full text-left px-1 focus:outline-none group"
                 >
-                  <span className="font-heading font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
+                  <span className="font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
                     {category}
                   </span>
-                  <span className="font-mono text-[11px] font-semibold text-subtle shrink-0">
+                  <span className="text-[11px] font-semibold text-subtle shrink-0">
                     ({categoryItems.length})
                   </span>
                   <span

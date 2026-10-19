@@ -190,7 +190,7 @@ export default function AddExpenseSheet({
         )}
 
         {errorMsg && (
-          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
             <span className="font-bold">Failed to save expense:</span><br/>
             {errorMsg}
           </div>
@@ -198,7 +198,7 @@ export default function AddExpenseSheet({
 
         {/* 1. Expense Name */}
         <div className="flex flex-col space-y-2">
-          <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+          <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
             Expense Name
           </label>
           <input
@@ -212,7 +212,7 @@ export default function AddExpenseSheet({
 
         {/* 2. Category */}
         <div className="flex flex-col space-y-2">
-          <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+          <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
             Category
           </label>
           <div className="relative">
@@ -239,24 +239,24 @@ export default function AddExpenseSheet({
 
         {/* 3. Amount */}
         <div className="flex flex-col space-y-2">
-          <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+          <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
             Amount
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono">$</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">$</span>
             <input
               type="number"
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 font-mono text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
+              className="w-full rounded-[2px] border border-border bg-surface-raised pl-8 pr-4 py-2.5 md:py-3 text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
             />
           </div>
         </div>
 
         {/* 4. Split Type */}
         <div className="flex flex-col space-y-2">
-          <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+          <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
             Split Type
           </label>
           <div className="grid grid-cols-2 gap-1 bg-background border border-border rounded-[2px] p-1">
@@ -288,7 +288,7 @@ export default function AddExpenseSheet({
         {/* 5a. Assignee (whole-item assignment) */}
         {splitType === "assignee" && (
           <div className="flex flex-col space-y-2">
-            <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+            <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
               Assignee
             </label>
             <div className="relative">
@@ -321,7 +321,7 @@ export default function AddExpenseSheet({
         {/* 5b. Percentage split editor */}
         {splitType === "percentage" && (
           <div className="flex flex-col space-y-2">
-            <label className="font-heading text-sm font-semibold text-subtle capitalize tracking-wider">
+            <label className="text-sm font-semibold text-subtle capitalize tracking-wider">
               Percentage Split
             </label>
             <div className="rounded-[2px] border border-border bg-background divide-y divide-white/5">
@@ -349,9 +349,9 @@ export default function AddExpenseSheet({
                       max="100"
                       value={percentages[String(member.id)] ?? ""}
                       onChange={(e) => handlePercentageChange(String(member.id), e.target.value)}
-                      className="w-full bg-surface-raised border border-border rounded-[2px] pl-3 pr-6 py-2 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      className="w-full bg-surface-raised border border-border rounded-[2px] pl-3 pr-6 py-2 text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-primary/50"
                     />
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted font-mono text-xs pointer-events-none">
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted text-xs pointer-events-none">
                       %
                     </span>
                   </div>
@@ -359,7 +359,7 @@ export default function AddExpenseSheet({
               ))}
             </div>
             <div
-              className={`flex items-center justify-between rounded-[2px] border px-3 py-2 font-mono text-xs ${
+              className={`flex items-center justify-between rounded-[2px] border px-3 py-2 text-xs ${
                 percentageValid
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-destructive/30 bg-destructive/10 text-destructive"
@@ -388,14 +388,14 @@ export default function AddExpenseSheet({
 
         {/* 6. Notes */}
         <div className="flex flex-col space-y-2 pt-2">
-          <label className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+          <label className="text-sm font-semibold text-subtle uppercase tracking-wider">
             Notes
           </label>
           <textarea
             placeholder="Add any additional details or context here..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full bg-surface border border-border rounded-[2px] p-3 font-mono text-sm min-h-[80px] resize-y placeholder:text-muted text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            className="w-full bg-surface border border-border rounded-[2px] p-3 text-sm min-h-[80px] resize-y placeholder:text-muted text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
           />
         </div>
       </div>

@@ -143,7 +143,7 @@ export default function BillDetailSheet({
                 markAsUnpaid(bill);
                 onClose();
               }}
-              className="w-full rounded-[2px] py-3.5 bg-accent/20 text-accent border border-accent/30 font-heading font-bold uppercase tracking-wider text-xs hover:bg-accent hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full rounded-[2px] py-3.5 bg-accent/20 text-accent border border-accent/30 font-bold uppercase tracking-wider text-xs hover:bg-accent hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
             >
               Mark as Unpaid
             </button>
@@ -157,7 +157,7 @@ export default function BillDetailSheet({
                 markAsPaid(bill);
                 onClose();
               }}
-              className="w-full rounded-[2px] py-3.5 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-heading font-bold uppercase tracking-wider text-xs hover:bg-emerald-500 hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
+              className="w-full rounded-[2px] py-3.5 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-bold uppercase tracking-wider text-xs hover:bg-emerald-500 hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
             >
               Mark as Paid
             </button>
@@ -166,13 +166,13 @@ export default function BillDetailSheet({
           <div className="flex space-x-2 w-full">
             <button
               onClick={onDelete}
-              className="flex-1 rounded-[2px] py-3 bg-destructive/15 text-destructive border border-destructive/20 font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
+              className="flex-1 rounded-[2px] py-3 bg-destructive/15 text-destructive border border-destructive/20 font-bold uppercase tracking-wider text-[10px] hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
             >
               Delete
             </button>
             <button
               onClick={() => onEdit()}
-              className="flex-1 rounded-[2px] py-3 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-[10px] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+              className="flex-1 rounded-[2px] py-3 bg-primary text-primary-fg font-bold uppercase tracking-wider text-[10px] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
             >
               Edit
             </button>
@@ -181,7 +181,7 @@ export default function BillDetailSheet({
                 onClick={() => {
                   togglePauseBill(bill.id, !bill.is_paused);
                 }}
-                className="flex-1 rounded-[2px] py-3 bg-surface-elevated text-foreground border border-border font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                className="flex-1 rounded-[2px] py-3 bg-surface-elevated text-foreground border border-border font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
               >
                 {bill.is_paused ? "Resume" : "Pause"}
               </button>
@@ -197,14 +197,14 @@ export default function BillDetailSheet({
           <div className="flex flex-col space-y-4">
             
             {/* Title */}
-            <h3 className="font-heading font-bold text-3xl text-foreground tracking-wide break-words">
+            <h3 className="font-bold text-3xl text-foreground tracking-wide break-words">
               {bill.name}
             </h3>
 
             {/* Badges Section */}
             <div className="flex flex-wrap items-center gap-2">
               <span 
-                className={`rounded-full px-3 py-1 text-[10px] font-heading font-bold uppercase tracking-widest ${
+                className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${
                   isAutoPay 
                     ? "bg-primary/10 text-primary border border-primary/20" 
                     : "bg-surface-elevated text-muted border border-border"
@@ -213,7 +213,7 @@ export default function BillDetailSheet({
                 {paymentTypeStr}
               </span>
               <span
-                className="rounded-full px-3 py-1 text-[10px] font-heading font-bold uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/20"
               >
                 {bill.category || "Other"}
               </span>
@@ -221,17 +221,17 @@ export default function BillDetailSheet({
 
             {/* Amount */}
             <div className="flex flex-col items-start pt-2">
-              <span className="text-4xl font-heading font-extrabold text-foreground tracking-tight">
+              <span className="text-4xl font-bold text-foreground tracking-tight">
                 ${formattedAmount}
               </span>
-              <span className="text-sm text-muted font-mono mt-1">
+              <span className="text-sm text-muted mt-1">
                 (originally ${formattedAmount} {bill.frequency?.toLowerCase() || 'monthly'})
               </span>
             </div>
           </div>
 
           {/* Dates & Assignee Row Grid */}
-          <div className="grid grid-cols-2 gap-4 border-t border-b border-border py-4 font-mono text-xs">
+          <div className="grid grid-cols-2 gap-4 border-t border-b border-border py-4 text-xs">
             <div className="space-y-1">
               <span className="text-subtle uppercase font-semibold">Due Date</span>
               <div className="flex items-center space-x-1.5 text-foreground">
@@ -240,7 +240,7 @@ export default function BillDetailSheet({
                     type="button"
                     onClick={() => onEdit({ focusDueDate: true })}
                     aria-label={`Add due date for ${bill.name}`}
-                    className="min-h-[44px] -my-3 font-mono text-xs font-bold uppercase tracking-wider text-accent hover:underline cursor-pointer"
+                    className="min-h-[44px] -my-3 text-xs font-bold uppercase tracking-wider text-accent hover:underline cursor-pointer"
                   >
                     Add due date
                   </button>
@@ -285,12 +285,12 @@ export default function BillDetailSheet({
                 {isJointFund ? (
                   <>
                     <div className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-                    <p className="text-xs text-muted font-mono">Paid directly from the household Joint Fund.</p>
+                    <p className="text-xs text-muted">Paid directly from the household Joint Fund.</p>
                   </>
                 ) : (
                   <>
                     <AlertTriangle size={15} className="text-muted shrink-0" />
-                    <p className="text-xs text-muted font-mono">No splits configured. Assignee pays 100%.</p>
+                    <p className="text-xs text-muted">No splits configured. Assignee pays 100%.</p>
                   </>
                 )}
               </div>
@@ -316,7 +316,7 @@ export default function BillDetailSheet({
                             {member?.name || "Unknown"}
                           </span>
                           {split.is_assignee && (
-                            <span className="text-[9px] font-heading font-semibold text-primary uppercase">
+                            <span className="text-[9px] font-semibold text-primary uppercase">
                               Assignee
                             </span>
                           )}
@@ -324,10 +324,10 @@ export default function BillDetailSheet({
                       </div>
                       
                       <div className="text-right">
-                        <span className="text-sm font-bold text-foreground font-mono">
+                        <span className="text-sm font-bold text-foreground">
                           ${Number(split.amount).toFixed(2)}
                         </span>
-                        <span className="block text-[10px] text-muted font-mono">
+                        <span className="block text-[10px] text-muted">
                           {splitPercent}%
                         </span>
                       </div>
@@ -338,14 +338,14 @@ export default function BillDetailSheet({
             )}
 
             {paidLabel && (
-              <p className="text-xs text-muted font-mono">{paidLabel}</p>
+              <p className="text-xs text-muted">{paidLabel}</p>
             )}
 
             {showUndoPayment && (
               <button
                 type="button"
                 onClick={handleUndoPayment}
-                className="min-h-[44px] w-full rounded-[2px] px-4 py-2.5 bg-surface-elevated text-foreground border border-border font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                className="min-h-[44px] w-full rounded-[2px] px-4 py-2.5 bg-surface-elevated text-foreground border border-border font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
               >
                 Undo payment
               </button>
@@ -356,7 +356,7 @@ export default function BillDetailSheet({
           {bill.notes && (
             <div className="space-y-2 pt-2">
               <DialogSection label="Notes" />
-              <p className="text-sm text-muted bg-surface p-3 rounded-[2px] border border-border-strong font-mono leading-relaxed whitespace-pre-wrap">
+              <p className="text-sm text-muted bg-surface p-3 rounded-[2px] border border-border-strong leading-relaxed whitespace-pre-wrap">
                 {bill.notes}
               </p>
             </div>

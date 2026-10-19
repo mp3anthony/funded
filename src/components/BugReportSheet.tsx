@@ -382,7 +382,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
       ) : (
         <form id="bug-report-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="bug-title" className="text-[10px] font-bold text-subtle uppercase tracking-wider font-mono">
+            <label htmlFor="bug-title" className="text-[10px] font-bold text-subtle uppercase tracking-wider">
               Title
             </label>
             <input
@@ -400,10 +400,10 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label htmlFor="bug-description" className="text-[10px] font-bold text-subtle uppercase tracking-wider font-mono">
+              <label htmlFor="bug-description" className="text-[10px] font-bold text-subtle uppercase tracking-wider">
                 Description
               </label>
-              <span className="text-[10px] text-subtle font-mono tabular-nums">
+              <span className="text-[10px] text-subtle tabular-nums">
                 {description.length.toLocaleString()}
               </span>
             </div>
@@ -420,7 +420,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-subtle uppercase tracking-wider font-mono">
+            <label className="text-[10px] font-bold text-subtle uppercase tracking-wider">
               Screenshot <span className="normal-case font-normal text-subtle/70">(optional)</span>
             </label>
 
@@ -462,7 +462,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
             )}
 
             {screenshotError && (
-              <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+              <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
                 <span className="font-bold">Screenshot not attached:</span>
                 <br />
                 {screenshotError}
@@ -470,7 +470,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
             )}
 
             {showRestoreNote && !screenshotPreviewUrl && (
-              <div className="bg-white/5 border border-border rounded-[2px] p-3 text-muted text-xs font-mono break-words whitespace-pre-wrap">
+              <div className="bg-white/5 border border-border rounded-[2px] p-3 text-muted text-xs break-words whitespace-pre-wrap">
                 {restoredHadScreenshot ? (
                   <>
                     <span className="font-bold text-foreground">We restored your draft,</span> but your
@@ -491,7 +491,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
           )}
 
           {submitError && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
               <span className="font-bold">Failed to submit report:</span>
               <br />
               {submitError}

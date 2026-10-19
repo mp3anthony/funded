@@ -32,12 +32,12 @@ export default function HealthScore() {
     <div className="bg-surface border border-border rounded-2xl p-5 shadow-sm space-y-4">
       {/* Top Row: Title */}
       <div className="flex items-center justify-between">
-        <span className="font-heading text-xs font-bold uppercase tracking-wider text-subtle font-mono">
+        <span className="text-xs font-bold uppercase tracking-wider text-subtle">
           Household Health Score
         </span>
         <span 
           style={{ color }}
-          className="font-heading text-xs font-bold uppercase tracking-wider transition-colors duration-300"
+          className="text-xs font-bold uppercase tracking-wider transition-colors duration-300"
         >
           {tier}
         </span>
@@ -47,11 +47,11 @@ export default function HealthScore() {
       <div className="flex items-baseline space-x-2">
         <span 
           style={{ color }}
-          className="font-mono text-5xl font-bold tracking-tighter transition-colors duration-300"
+          className="text-5xl font-bold tracking-tighter transition-colors duration-300"
         >
           {score}
         </span>
-        <span className="font-mono text-xs text-muted">/ 100</span>
+        <span className="text-xs text-muted">/ 100</span>
       </div>
 
       {/* Bottom Row: Progress Bar */}
@@ -65,7 +65,7 @@ export default function HealthScore() {
             className="h-full rounded-full transition-all duration-500 ease-out"
           />
         </div>
-        <div className="flex justify-between font-mono text-[9px] text-muted">
+        <div className="flex justify-between text-[9px] text-muted">
           <span>0</span>
           <span>{totalBillsCount === 0 ? "No bills configured" : `${paidBillsCount} of ${totalBillsCount} bills paid`}</span>
           <span>100</span>

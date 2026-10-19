@@ -75,7 +75,7 @@ export default function AddAmountModal({
               placeholder="$0.00"
               value={amountStr ? `$${amountStr}` : ""}
               onChange={(e) => handleInputChange(e.target.value)}
-              className="w-full bg-background border border-border rounded-[2px] px-4 py-3 font-mono text-center text-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted"
+              className="w-full bg-background border border-border rounded-[2px] px-4 py-3 text-center text-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted"
               autoFocus
             />
 
@@ -86,7 +86,7 @@ export default function AddAmountModal({
                   key={amt}
                   type="button"
                   onClick={() => setAmountStr(amt.toFixed(2))}
-                  className="rounded-[2px] border border-border bg-white/5 py-2 font-mono text-xs text-foreground hover:bg-white/10 active:scale-95 transition-all"
+                  className="rounded-[2px] border border-border bg-white/5 py-2 text-xs text-foreground hover:bg-white/10 active:scale-95 transition-all"
                 >
                   +${amt}
                 </button>

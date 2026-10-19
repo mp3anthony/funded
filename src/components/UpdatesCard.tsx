@@ -116,9 +116,9 @@ export default function UpdatesCard() {
       <div className="pointer-events-auto w-full max-w-md rounded-[2px] border border-border-strong bg-surface-elevated shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none">
         <div className="flex items-center gap-2 pl-4 pr-1 pt-1">
           <Sparkles size={16} className="text-primary shrink-0" />
-          <p className="flex-1 min-w-0 text-sm font-heading font-bold text-foreground">
+          <p className="flex-1 min-w-0 text-sm font-bold text-foreground">
             Updates
-            <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
+            <span className="ml-2 text-[11px] font-normal text-subtle">
               v{entry.version} · {entry.date}
             </span>
           </p>

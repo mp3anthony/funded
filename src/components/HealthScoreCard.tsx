@@ -203,21 +203,21 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
       <div className="flex flex-col space-y-1.5">
         <button
           onClick={() => setIsHealthExpanded(prev => !prev)}
-          className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-subtle font-bold hover:text-foreground transition-colors text-left focus:outline-none w-fit"
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-subtle font-bold hover:text-foreground transition-colors text-left focus:outline-none w-fit"
         >
           Household Health
           <ChevronDown
             size={12}
-            className="transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+            className="transition-transform duration-(--duration-structural) ease-(--ease-enter)"
             style={{ transform: isHealthExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
           />
         </button>
         <div className="flex items-center gap-3">
           <div
-            className={`w-3 h-3 rounded-full ${dotColor} transition-colors duration-(--duration-slow) ease-(--ease-standard)`}
+            className={`w-3 h-3 rounded-full ${dotColor} transition-colors duration-(--duration-structural) ease-(--ease-enter)`}
             style={{ boxShadow: `0 0 12px ${glowColor}A6` }}
           />
-          <h2 className="font-heading font-extrabold text-[28px] tracking-tight text-foreground">
+          <h2 className="font-bold text-[28px] tracking-tight text-foreground">
             {statusText}
           </h2>
         </div>
@@ -236,39 +236,39 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
           overflow-hidden wrapper clips mid-transition, and the content's
           opacity fades in over roughly the back half so it doesn't pop. */}
       <div
-        className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+        className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
         style={{ gridTemplateRows: isHealthExpanded ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden min-h-0">
           <div
-            className="grid grid-cols-2 gap-x-6 transition-opacity ease-(--ease-standard)"
+            className="grid grid-cols-2 gap-x-6 transition-opacity ease-(--ease-enter)"
             style={{
               opacity: isHealthExpanded ? 1 : 0,
-              transitionDuration: "260ms",
-              transitionDelay: isHealthExpanded ? "260ms" : "0ms",
+              transitionDuration: "var(--duration-feedback)",
+              transitionDelay: isHealthExpanded ? "var(--duration-feedback)" : "0ms",
             }}
           >
             {/* Tile 1 */}
             <div className="border-t border-border py-2.5 flex flex-col gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Income</span>
-              <span className="font-mono font-bold text-[19px] text-primary tracking-tight">{formatCurrency(displayWeeklyIncome)}</span>
+              <span className="text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Income</span>
+              <span className="font-bold text-[19px] text-primary tracking-tight">{formatCurrency(displayWeeklyIncome)}</span>
             </div>
             {/* Tile 2 */}
             <div className="border-t border-border py-2.5 flex flex-col gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Bills</span>
-              <span className="font-mono font-bold text-[19px] text-foreground tracking-tight">{formatCurrency(displayWeeklyBills)}</span>
+              <span className="text-[10px] uppercase tracking-widest text-subtle font-bold">Weekly Bills</span>
+              <span className="font-bold text-[19px] text-foreground tracking-tight">{formatCurrency(displayWeeklyBills)}</span>
             </div>
             {/* Tile 3 */}
             <div className="border-t border-border py-2.5 flex flex-col gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">
+              <span className="text-[10px] uppercase tracking-widest text-subtle font-bold">
                 {isJointFund ? "Joint Fund Surplus" : "Surplus after bills"}
               </span>
-              <span className={`font-mono font-bold text-[19px] ${surplusColor} tracking-tight`}>{formatCurrency(displayWeeklySurplus)}</span>
+              <span className={`font-bold text-[19px] ${surplusColor} tracking-tight`}>{formatCurrency(displayWeeklySurplus)}</span>
             </div>
             {/* Tile 4 */}
             <div className="border-t border-border py-2.5 flex flex-col gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-widest text-subtle font-bold">Goals Total Added (Weekly)</span>
-              <span className="font-mono font-bold text-[19px] text-primary tracking-tight">{formatCurrency(displaySinkingFundsTotal)}</span>
+              <span className="text-[10px] uppercase tracking-widest text-subtle font-bold">Goals Total Added (Weekly)</span>
+              <span className="font-bold text-[19px] text-primary tracking-tight">{formatCurrency(displaySinkingFundsTotal)}</span>
             </div>
           </div>
         </div>
@@ -281,10 +281,10 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
             onClick={() => setIsContributorsExpanded(prev => !prev)}
             className="group flex items-center gap-3 text-left focus:outline-none"
           >
-            <span className="font-heading font-bold text-[13px] text-foreground shrink-0">Contributors</span>
+            <span className="font-bold text-[13px] text-foreground shrink-0">Contributors</span>
             <ChevronDown
               size={13}
-              className="text-subtle transition-transform duration-(--duration-slow) ease-(--ease-standard)"
+              className="text-subtle transition-transform duration-(--duration-structural) ease-(--ease-enter)"
               style={{ transform: isContributorsExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
             />
             <span className="h-0.5 flex-1 rounded-sm" style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }} />
@@ -294,7 +294,7 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
               grid above, ActiveGoalsCard) so it grows/shrinks smoothly
               instead of popping in and out of the layout. */}
           <div
-            className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+            className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
             style={{ gridTemplateRows: isContributorsExpanded ? "1fr" : "0fr" }}
           >
           <div
@@ -344,12 +344,12 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
                     {member.avatar_url ? (
                       <img src={member.avatar_url} alt={member.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[11px] font-bold font-mono text-muted">{member.avatar}</div>
+                      <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-muted">{member.avatar}</div>
                     )}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="font-body text-xs font-semibold text-foreground truncate">{member.name}</span>
-                    <span className="font-mono text-[11px] font-bold text-primary truncate">
+                    <span className="text-[11px] font-bold text-primary truncate">
                       {formatCurrency(weeklyAmount)}<span className="text-subtle font-normal">/wk</span>
                     </span>
                   </div>

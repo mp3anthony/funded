@@ -77,13 +77,13 @@ export default function PayScheduleDetailSheet({
         <>
           <button
             onClick={onDelete}
-            className="flex-1 py-3 bg-destructive/15 text-destructive border border-destructive/20 rounded-[2px] font-heading font-bold uppercase tracking-wider text-xs hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
+            className="flex-1 py-3 bg-destructive/15 text-destructive border border-destructive/20 rounded-[2px] font-bold uppercase tracking-wider text-xs hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
           >
             Delete
           </button>
           <button
             onClick={onEdit}
-            className="flex-1 py-3 bg-primary text-primary-fg rounded-[2px] font-heading font-bold uppercase tracking-wider text-xs hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+            className="flex-1 py-3 bg-primary text-primary-fg rounded-[2px] font-bold uppercase tracking-wider text-xs hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
           >
             Edit Schedule
           </button>
@@ -96,17 +96,17 @@ export default function PayScheduleDetailSheet({
           {/* Member Name & Frequency */}
           <div className="flex flex-col space-y-1">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading font-bold text-xl text-foreground truncate pr-4">
+              <h3 className="font-bold text-xl text-foreground truncate pr-4">
                 <span>{memberName}</span>
               </h3>
-              <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-heading font-bold uppercase tracking-wider bg-white/5 text-muted border border-border">
+              <span className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 text-muted border border-border">
                 {paySchedule.frequency === 'fortnightly' ? 'fortnightly' : paySchedule.frequency}
               </span>
             </div>
-            <div className="flex items-baseline mt-2 text-2xl font-heading font-extrabold text-foreground">
+            <div className="flex items-baseline mt-2 text-2xl font-bold text-foreground">
               {formattedAmount}
               {paySchedule.is_fixed_amount && (
-                <span className="text-xs font-normal text-muted font-mono ml-2">
+                <span className="text-xs font-normal text-muted ml-2">
                   fixed per payday
                 </span>
               )}
@@ -114,7 +114,7 @@ export default function PayScheduleDetailSheet({
           </div>
 
           {/* Details Info Grid */}
-          <div className="grid grid-cols-2 gap-4 border-t border-border-strong pt-5 font-mono text-xs">
+          <div className="grid grid-cols-2 gap-4 border-t border-border-strong pt-5 text-xs">
             <div className="space-y-1">
               <span className="text-subtle uppercase font-semibold">Next Pay Date</span>
               <div className="flex items-center space-x-1.5 text-foreground">
@@ -135,8 +135,8 @@ export default function PayScheduleDetailSheet({
           {contribution && (
             <div className="mt-4 p-4 rounded-[2px] bg-primary/5 border border-primary/10 flex flex-col space-y-1">
               <span className="text-muted uppercase text-xs font-semibold">Expected Contribution</span>
-              <span className="text-primary font-bold text-lg font-heading tracking-tight">
-                ${Number(contribution.amount).toFixed(2)} <span className="text-sm font-normal font-mono text-muted tracking-normal">per {contribution.frequency}</span>
+              <span className="text-primary font-bold text-lg tracking-tight">
+                ${Number(contribution.amount).toFixed(2)} <span className="text-sm font-normal text-muted tracking-normal">per {contribution.frequency}</span>
               </span>
             </div>
           )}

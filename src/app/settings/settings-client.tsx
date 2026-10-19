@@ -36,7 +36,7 @@ import { leaveModeFor, eligibleNewOwners, isAcceptedMember, isDeleteConfirmed } 
 /* Error box shown inside the leave / delete household dialogs (#251). */
 function LeaveError({ message }: { message: string }) {
   return (
-    <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+    <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
       {message}
     </div>
   );
@@ -280,7 +280,7 @@ export default function SettingsClient() {
 
       {/* ── Identity anchor ─────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
-        <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center font-mono font-bold text-lg text-primary-fg bg-gradient-to-br from-primary to-success">
+        <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center font-bold text-lg text-primary-fg bg-gradient-to-br from-primary to-success">
           {currentMember?.avatar_url ? (
             <img src={currentMember.avatar_url} alt={currentMember.name} className="h-full w-full object-cover" />
           ) : (
@@ -288,10 +288,10 @@ export default function SettingsClient() {
           )}
         </div>
         <div className="min-w-0">
-          <h2 className="font-heading font-bold text-xl text-foreground truncate">
+          <h2 className="font-bold text-xl text-foreground truncate">
             {currentMember?.name || fullName || "Your account"}
           </h2>
-          <div className="font-mono text-xs text-muted mt-1 tracking-wide truncate">
+          <div className="text-xs text-muted mt-1 tracking-wide truncate">
             {householdName || "Household"} · {roleLabel}
           </div>
         </div>
@@ -308,12 +308,12 @@ export default function SettingsClient() {
         <SectionHeader title="App" />
         <Row label="Notifications" chevron onClick={() => setIsNotificationCenterOpen(true)}>
           <span className="flex flex-col items-end gap-0.5">
-            <span className="font-mono text-[13px] text-muted">
+            <span className="text-[13px] text-muted">
               {notificationSettings ? formatNotifyHourLabel(notificationSettings.notify_hour) : "—"}
             </span>
-            <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-subtle">
+            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-subtle">
               <span
-                className={`h-1.5 w-1.5 rounded-full ${pushStatus?.hasLiveSubscription ? "bg-success" : "bg-subtle"} transition-colors duration-(--duration-slow) ease-(--ease-standard)`}
+                className={`h-1.5 w-1.5 rounded-full ${pushStatus?.hasLiveSubscription ? "bg-success" : "bg-subtle"} transition-colors duration-(--duration-structural) ease-(--ease-enter)`}
               />
               {pushStatus?.hasLiveSubscription ? "Active" : "Inactive"}
             </span>
@@ -340,18 +340,18 @@ export default function SettingsClient() {
             />
             <Row label="Automation rules" chevron onClick={() => setIsRulesOpen(true)}>
               {activeRulesCount > 0 ? (
-                <span className="font-mono text-xs font-semibold text-primary">{activeRulesCount} active</span>
+                <span className="text-xs font-semibold text-primary">{activeRulesCount} active</span>
               ) : (
-                <span className="font-mono text-[13px] text-muted">Off</span>
+                <span className="text-[13px] text-muted">Off</span>
               )}
             </Row>
           </>
         )}
         <Row label="Join code" chevron onClick={() => setShowJoinCodeDialog(true)}>
           {joinCode ? (
-            <span className="font-mono text-sm font-bold text-primary tracking-widest">{joinCode}</span>
+            <span className="text-sm font-bold text-primary tracking-widest">{joinCode}</span>
           ) : (
-            <span className="font-mono text-[13px] text-muted">None</span>
+            <span className="text-[13px] text-muted">None</span>
           )}
         </Row>
         <Row
@@ -386,7 +386,7 @@ export default function SettingsClient() {
               onClick={canManage ? () => setMemberToEdit(member) : undefined}
               label={
                 <span className="flex items-center gap-3 min-w-0">
-                  <span className="h-9 w-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center font-mono text-[11px] font-bold bg-surface-elevated text-muted data-[owner=true]:bg-gradient-to-br data-[owner=true]:from-primary data-[owner=true]:to-success data-[owner=true]:text-primary-fg"
+                  <span className="h-9 w-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center text-[11px] font-bold bg-surface-elevated text-muted data-[owner=true]:bg-gradient-to-br data-[owner=true]:from-primary data-[owner=true]:to-success data-[owner=true]:text-primary-fg"
                     data-owner={isOwner}
                   >
                     {member.avatar_url ? (
@@ -397,7 +397,7 @@ export default function SettingsClient() {
                   </span>
                   <span className="flex flex-col min-w-0">
                     <span className="text-sm font-semibold text-foreground truncate">{member.name}</span>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-subtle mt-0.5">
+                    <span className="text-[10px] uppercase tracking-wider text-subtle mt-0.5">
                       {isOwner ? "Owner" : "Member"}
                       {member.invitation_status === "pending" ? " · Pending" : ""}
                     </span>
@@ -445,10 +445,10 @@ export default function SettingsClient() {
           {leaveMode === "delete-only" ? "Delete household" : "Leave household"}
         </button>
         <div className="text-center pt-8 pb-2">
-          <span className="font-mono text-[10px] tracking-wider text-subtle/70">
+          <span className="text-[10px] tracking-wider text-subtle/70">
             funded. v{APP_VERSION}
           </span>
-          <div className="font-mono text-[10px] text-subtle/50 mt-1">© 2026 HazardousSchematics.com</div>
+          <div className="text-[10px] text-subtle/50 mt-1">© 2026 HazardousSchematics.com</div>
         </div>
       </section>
 
@@ -499,7 +499,7 @@ export default function SettingsClient() {
           </div>
 
           <div>
-            <label htmlFor="settings-name" className="block font-mono text-[11px] uppercase tracking-wider text-subtle mb-2">
+            <label htmlFor="settings-name" className="block text-[11px] uppercase tracking-wider text-subtle mb-2">
               Nickname
             </label>
             <div className="relative">
@@ -515,7 +515,7 @@ export default function SettingsClient() {
           </div>
 
           <div>
-            <label htmlFor="settings-email" className="block font-mono text-[11px] uppercase tracking-wider text-subtle mb-2">
+            <label htmlFor="settings-email" className="block text-[11px] uppercase tracking-wider text-subtle mb-2">
               Email Address
             </label>
             <div className="relative">
@@ -581,10 +581,10 @@ export default function SettingsClient() {
           {joinCode ? (
             <>
               <div className="w-full flex items-center justify-center bg-background border border-border-strong rounded-xl py-4">
-                <span className="font-mono text-2xl font-bold text-primary tracking-[0.3em]">{joinCode}</span>
+                <span className="text-2xl font-bold text-primary tracking-[0.3em]">{joinCode}</span>
               </div>
               {codeExpiresAt && (
-                <div className="font-mono text-[11px] uppercase tracking-wider text-subtle">
+                <div className="text-[11px] uppercase tracking-wider text-subtle">
                   Expires {new Date(codeExpiresAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
               )}
@@ -661,16 +661,16 @@ export default function SettingsClient() {
       >
         <div className="flex flex-col gap-3">
           {modeChangeError && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
               <span className="font-bold">Failed to update payment mode:</span><br/>
               {modeChangeError}
             </div>
           )}
-          <div className="font-mono text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
+          <div className="text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
           <p className="text-[15px] leading-relaxed text-foreground">
             Switching to <span className="text-primary font-semibold">{tempMode ? "Joint Fund" : "Direct Pay"}</span> will reset every bill&apos;s contributor splits.
           </p>
-          <p className="font-mono text-xs leading-relaxed text-muted">
+          <p className="text-xs leading-relaxed text-muted">
             You&apos;ll need to reconfigure who pays what. This can&apos;t be undone.
           </p>
         </div>
@@ -804,7 +804,7 @@ export default function SettingsClient() {
           <p className="text-sm leading-relaxed text-muted">
             Every bill, expense, goal, payday, pay history, split and contribution is lost. Other members get no notice; they land on the create-or-join screen the next time they open the app. This can&apos;t be undone.
           </p>
-          <label htmlFor="delete-household-confirm" className="font-mono text-[11px] uppercase tracking-wider text-subtle">
+          <label htmlFor="delete-household-confirm" className="text-[11px] uppercase tracking-wider text-subtle">
             Type DELETE to confirm
           </label>
           <input

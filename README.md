@@ -297,9 +297,8 @@ Fonts are loaded via `next/font/google` for optimal performance (no external CDN
 
 | Font | CSS Variable | Use |
 |------|-------------|-----|
-| **Syne** (400–800) | `--font-heading` | Display headings, wordmark |
-| **Instrument Sans** (400–600) | `--font-body` | Body text, inputs, UI labels |
-| **JetBrains Mono** (400–600) | `--font-mono` | Numeric values, monospace data |
+| **Syne** (400–800) | `--font-heading` | Page-header titles only (the `h1`) |
+| **Instrument Sans** (variable, 400–700) | `--font-body` | Everything else, including all numbers (tabular figures set on `body`) |
 
 ### Colour tokens
 

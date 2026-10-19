@@ -145,7 +145,7 @@ export default function TimezoneDialog({
     >
       <div className="flex flex-col gap-1">
         {error && (
-          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 mb-2 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 mb-2 text-destructive text-xs break-words whitespace-pre-wrap">
             <span className="font-bold">Failed to update timezone:</span>
             <br />
             {error}

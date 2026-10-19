@@ -186,7 +186,7 @@ export default function FundsClient() {
         action={
           <button
             onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-2 bg-secondary hover:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200"
+            className="flex items-center gap-2 bg-secondary active:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">New Goal</span>
@@ -196,13 +196,13 @@ export default function FundsClient() {
 
       {/* Summary bar — de-boxed editorial (live figures only) */}
       <div className="px-1">
-        <div className="text-3xl font-bold text-primary tracking-tight font-mono">
+        <div className="text-3xl font-bold text-primary tracking-tight">
           ${displayTotalSaved.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
         <div className="text-xs font-bold uppercase tracking-wider text-subtle mt-1">
           Total Accumulated Savings
         </div>
-        <div className="text-[11px] font-mono text-muted mt-2">
+        <div className="text-[11px] text-muted mt-2">
           {funds.length} active goal{funds.length !== 1 ? "s" : ""} · {avgCompletion.toFixed(1)}% avg completion
         </div>
       </div>
@@ -214,7 +214,7 @@ export default function FundsClient() {
           trailing={
             <button
               onClick={() => setIsEditCategoryOrderOpen(true)}
-              className="text-[10px] font-heading font-bold text-muted hover:text-foreground uppercase tracking-wider transition-colors"
+              className="text-[10px] font-bold text-muted hover:text-foreground uppercase tracking-wider transition-colors"
             >
               Edit Order
             </button>
@@ -255,10 +255,10 @@ export default function FundsClient() {
         {filteredFunds.length === 0 ? (
           <div className="py-10 text-center">
             {categoryFilter !== "All" ? (
-              <p className="text-muted font-mono text-sm">No goals in {categoryFilter}</p>
+              <p className="text-muted text-sm">No goals in {categoryFilter}</p>
             ) : (
               <>
-                <p className="text-muted font-mono text-sm">No goals configured yet.</p>
+                <p className="text-muted text-sm">No goals configured yet.</p>
                 <p className="text-subtle text-xs mt-1 font-body">Tap + beside the page title to add your first goal.</p>
               </>
             )}
@@ -282,10 +282,10 @@ export default function FundsClient() {
                   onClick={() => toggleCategory(category)}
                   className="flex items-center gap-3 w-full text-left px-1 focus:outline-none group"
                 >
-                  <span className="font-heading font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
+                  <span className="font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
                     {category}
                   </span>
-                  <span className="font-mono text-[11px] font-semibold text-subtle shrink-0">
+                  <span className="text-[11px] font-semibold text-subtle shrink-0">
                     ({categoryFunds.length})
                   </span>
                   <span
@@ -293,7 +293,7 @@ export default function FundsClient() {
                     style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
                   />
                   <ChevronDown
-                    className="h-4 w-4 text-subtle group-hover:text-foreground transition-[transform,color] duration-(--duration-slow) ease-(--ease-standard) shrink-0"
+                    className="h-4 w-4 text-subtle group-hover:text-foreground transition-[transform,color] duration-(--duration-structural) ease-(--ease-enter) shrink-0"
                     style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
                   />
                 </button>
@@ -302,7 +302,7 @@ export default function FundsClient() {
                     technique as the dashboard's HealthScoreCard) so rows
                     grow/shrink smoothly instead of popping in and out. */}
                 <div
-                  className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
+                  className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
                   style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
                 >
                   <div

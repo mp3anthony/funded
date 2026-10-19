@@ -120,11 +120,11 @@ export default function EnterPayAmountModal({
           {/* Form Fields */}
           <div className="space-y-4">
             <div className="flex flex-col space-y-1.5">
-              <label className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+              <label className="text-xs font-semibold text-subtle uppercase tracking-wider">
                 Amount Received
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-mono text-sm">$</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
                 <input
                   type="number"
                   placeholder="0.00"
@@ -132,7 +132,7 @@ export default function EnterPayAmountModal({
                   min="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full bg-background border border-border rounded-[2px] pl-8 pr-4 py-3 font-mono text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full bg-background border border-border rounded-[2px] pl-8 pr-4 py-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
                   autoFocus
                   required
                 />
@@ -140,7 +140,7 @@ export default function EnterPayAmountModal({
             </div>
 
             <div className="flex flex-col space-y-1.5">
-              <label className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+              <label className="text-xs font-semibold text-subtle uppercase tracking-wider">
                 Notes (Optional)
               </label>
               <textarea
@@ -157,11 +157,11 @@ export default function EnterPayAmountModal({
             <div className="space-y-2 pt-1">
               <div className="flex items-center gap-1.5">
                 <Sparkles size={12} className="text-primary" />
-                <span className="font-heading text-xs font-semibold text-subtle uppercase tracking-wider">
+                <span className="text-xs font-semibold text-subtle uppercase tracking-wider">
                   Allocation Preview
                 </span>
               </div>
-              <div className="bg-background border border-border rounded-[2px] p-3.5 space-y-2.5 font-mono text-xs">
+              <div className="bg-background border border-border rounded-[2px] p-3.5 space-y-2.5 text-xs">
                 {/* Gross */}
                 <div className="flex items-center justify-between text-foreground">
                   <span className="text-muted uppercase">Gross Pay</span>
@@ -194,7 +194,7 @@ export default function EnterPayAmountModal({
                 {/* Remaining */}
                 <div className="flex items-center justify-between text-foreground">
                   <span className="text-muted uppercase">Take Home</span>
-                  <span className={`font-extrabold ${allocationPreview.remaining >= 0 ? "text-primary" : "text-destructive"}`}>
+                  <span className={`font-bold ${allocationPreview.remaining >= 0 ? "text-primary" : "text-destructive"}`}>
                     ${allocationPreview.remaining.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>

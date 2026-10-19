@@ -86,13 +86,13 @@ export default function GoalDetailSheet({
         <>
           <button
             onClick={onDelete}
-            className="flex-1 rounded-[2px] py-3.5 bg-destructive/15 text-destructive border border-destructive/20 font-heading font-bold uppercase tracking-wider text-xs hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
+            className="flex-1 rounded-[2px] py-3.5 bg-destructive/15 text-destructive border border-destructive/20 font-bold uppercase tracking-wider text-xs hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
           >
             Delete Goal
           </button>
           <button
             onClick={onEdit}
-            className="flex-1 rounded-[2px] py-3.5 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-xs hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+            className="flex-1 rounded-[2px] py-3.5 bg-primary text-primary-fg font-bold uppercase tracking-wider text-xs hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
           >
             Edit Goal
           </button>
@@ -105,16 +105,16 @@ export default function GoalDetailSheet({
           {/* Goal Name & Category */}
           <div className="flex flex-col space-y-1">
             <div className="flex items-center justify-between">
-              <h3 className="font-heading font-bold text-2xl text-foreground tracking-wide truncate pr-4">
+              <h3 className="font-bold text-2xl text-foreground tracking-wide truncate pr-4">
                 {goal.name}
               </h3>
-              <span className="shrink-0 rounded-full px-3 py-1 text-[10px] font-heading font-bold uppercase tracking-widest bg-surface-elevated text-muted border border-border">
+              <span className="shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-surface-elevated text-muted border border-border">
                 {goal.category}
               </span>
             </div>
-            <div className="flex items-baseline mt-2 text-3xl font-heading font-extrabold text-foreground">
+            <div className="flex items-baseline mt-2 text-3xl font-bold text-foreground">
               ${formattedCurrent}
-              <span className="text-sm font-normal text-muted font-mono ml-2">
+              <span className="text-sm font-normal text-muted ml-2">
                 saved of ${formattedTarget} target
               </span>
             </div>
@@ -122,20 +122,20 @@ export default function GoalDetailSheet({
 
           {/* Progress Section */}
           <div className="space-y-3 bg-surface-raised border border-border p-5 rounded-[2px]">
-            <div className="flex justify-between items-center text-xs uppercase font-mono">
+            <div className="flex justify-between items-center text-xs uppercase">
               <span className="text-subtle font-semibold">Progress</span>
               <span className={`font-bold ${goal.accentText}`}>{displayPercentage.toFixed(1)}%</span>
             </div>
 
             <div className="w-full bg-surface rounded-full h-3.5 overflow-hidden border border-border">
               <div
-                className={`h-full rounded-full transition-[width] duration-(--duration-slow) ease-(--ease-standard) ${goal.barColor}`}
+                className={`h-full rounded-full transition-[width] duration-(--duration-structural) ease-(--ease-enter) ${goal.barColor}`}
                 style={{ width: `${displayPercentage}%` }}
               />
             </div>
 
             {isComplete && (
-              <div className="flex items-center space-x-2 text-primary font-mono text-xs font-bold pt-1">
+              <div className="flex items-center space-x-2 text-primary text-xs font-bold pt-1">
                 <Award size={16} />
                 <span>Savings target fully achieved! 🎉</span>
               </div>
@@ -143,7 +143,7 @@ export default function GoalDetailSheet({
           </div>
 
           {/* Goal Info Grid */}
-          <div className="grid grid-cols-2 gap-4 border-t border-border pt-6 font-mono text-xs">
+          <div className="grid grid-cols-2 gap-4 border-t border-border pt-6 text-xs">
             <div className="space-y-1.5">
               <span className="text-subtle uppercase font-semibold">Target Deadline</span>
               <div className="flex items-center space-x-1.5 text-foreground">

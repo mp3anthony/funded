@@ -51,13 +51,13 @@ export default function ExpenseDetailSheet({
         <div className="flex space-x-2 w-full">
           <button
             onClick={onDelete}
-            className="flex-1 rounded-[2px] py-3 bg-destructive/15 text-destructive border border-destructive/20 font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
+            className="flex-1 rounded-[2px] py-3 bg-destructive/15 text-destructive border border-destructive/20 font-bold uppercase tracking-wider text-[10px] hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
           >
             Delete
           </button>
           <button
             onClick={onEdit}
-            className="flex-1 rounded-[2px] py-3 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-[10px] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+            className="flex-1 rounded-[2px] py-3 bg-primary text-primary-fg font-bold uppercase tracking-wider text-[10px] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
           >
             Edit
           </button>
@@ -67,25 +67,25 @@ export default function ExpenseDetailSheet({
       <div className="space-y-6">
         {/* Title, Badge & Amount */}
         <div className="flex flex-col space-y-4">
-          <h3 className="font-heading font-bold text-3xl text-foreground tracking-wide break-words">
+          <h3 className="font-bold text-3xl text-foreground tracking-wide break-words">
             {expense.name}
           </h3>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full px-3 py-1 text-[10px] font-heading font-bold uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/20">
               {expense.category || "Other"}
             </span>
           </div>
 
           <div className="flex flex-col items-start pt-2">
-            <span className="text-4xl font-heading font-extrabold text-foreground tracking-tight">
+            <span className="text-4xl font-bold text-foreground tracking-tight">
               ${formattedAmount}
             </span>
           </div>
         </div>
 
         {/* Assignee — or a percentage-split breakdown (Issue #98 Slice 3 of 6) */}
-        <div className="border-t border-b border-border py-4 font-mono text-xs">
+        <div className="border-t border-b border-border py-4 text-xs">
           {isPercentageSplit ? (
             <div className="space-y-2">
               <span className="text-subtle uppercase font-semibold">Split</span>
@@ -130,7 +130,7 @@ export default function ExpenseDetailSheet({
         {/* Notes */}
         {expense.notes && (
           <div className="space-y-2 pt-2">
-            <p className="text-sm text-muted bg-surface p-3 rounded-[2px] border border-border-strong font-mono leading-relaxed whitespace-pre-wrap">
+            <p className="text-sm text-muted bg-surface p-3 rounded-[2px] border border-border-strong leading-relaxed whitespace-pre-wrap">
               {expense.notes}
             </p>
           </div>

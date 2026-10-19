@@ -8,7 +8,7 @@ import React from "react";
  * Rounded sliding-thumb switch pattern used for boolean settings in
  * NotificationCenter.tsx (checkbox + peer-checked track/thumb). Left-aligned,
  * switch under a static field-label naming the control (matches the
- * font-heading/text-subtle field-label convention used elsewhere in these
+ * text-subtle field-label convention used elsewhere in these
  * sheets, e.g. "Bill Name" / "Category"), with a small action-framed caption
  * underneath naming the OTHER state — what flipping the switch does, not
  * what it currently is — per client feedback that the control's purpose
@@ -25,7 +25,7 @@ export default function ItemTypeToggle({ value, onChange }: ItemTypeToggleProps)
 
   return (
     <div className="flex flex-col items-start gap-1.5">
-      <span className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider">
+      <span className="text-sm font-semibold text-subtle uppercase tracking-wider">
         Item Type
       </span>
       <label className="relative inline-flex items-center cursor-pointer">
