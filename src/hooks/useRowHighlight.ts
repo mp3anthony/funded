@@ -13,6 +13,9 @@ const SCROLL_DELAY_MS = 300;
  * screen, then `highlightKey` equals the key for `HIGHLIGHT_MS`; the page puts
  * `row-highlight` on an inner wrapper while it matches. A row that is not on
  * screen (hidden by a filter) is simply not found. Reusable by other lists.
+ * `delayMs` (default 300, the pop-up close) is how long to wait first; a page
+ * that expands a collapsed group first passes at least that animation's length
+ * (Goals, R08), so the scroll lands on the settled row.
  */
 export function useRowHighlight() {
   const reduced = useReducedMotion();
@@ -21,7 +24,7 @@ export function useRowHighlight() {
   const timers = useRef<number[]>([]);
 
   const flash = useCallback(
-    (key: string) => {
+    (key: string, delayMs: number = SCROLL_DELAY_MS) => {
       timers.current.forEach((t) => window.clearTimeout(t));
       timers.current.length = 0;
       timers.current.push(
@@ -34,7 +37,7 @@ export function useRowHighlight() {
             });
           });
           timers.current.push(window.setTimeout(() => setHighlightKey(null), HIGHLIGHT_MS));
-        }, SCROLL_DELAY_MS)
+        }, delayMs)
       );
     },
     [reduced]

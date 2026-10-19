@@ -100,7 +100,6 @@ const SQUARE_ALLOWLIST = new Set([
     "components/AddAmountModal.tsx",
     "components/AddBillSheet.tsx",
     "components/AddExpenseSheet.tsx",
-    "components/AddGoalSheet.tsx",
     "components/AddPayScheduleSheet.tsx",
     "components/AvatarCropModal.tsx",
     "components/BillDetailSheet.tsx",

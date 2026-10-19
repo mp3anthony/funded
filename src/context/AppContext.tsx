@@ -97,6 +97,11 @@ export interface Fund {
   owner_id?: string | null;
 }
 
+/** What addFund takes: the database assigns the id, so it is optional (Onboarding still passes a placeholder). */
+export type NewFund = Omit<Fund, "id" | "bgLight" | "barColor" | "accentText" | "icon"> & {
+  id?: string | number;
+};
+
 export interface Payday {
   id: string | number;
   date: string; // ISO YYYY-MM-DD
@@ -746,7 +751,7 @@ interface AppContextValue {
 
   /* Funds */
   funds: Fund[];
-  addFund: (fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) => Promise<void>;
+  addFund: (fund: NewFund) => Promise<string>;
   updateGoal: (id: string | number, goalData: any) => Promise<void>;
   deleteGoal: (id: string | number) => Promise<void>;
   updateFund: (id: string | number, fundData: any) => Promise<void>;
@@ -3201,7 +3206,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Funds Actions ──────────────────────────── */
-  async function addFund(fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) {
+  async function addFund(fund: NewFund): Promise<string> {
     try {
       const hId = await ensureHousehold();
 
@@ -3228,12 +3233,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error;
       }
 
-      if (data) {
-        setFunds((prev) => [...prev, mapFundFromDb(data)]);
-      }
+      if (!data) throw new Error("The goal was not saved. Please try again.");
+      setFunds((prev) => [...prev, mapFundFromDb(data)]);
+      return String(data.id);
     } catch (err) {
       console.error("Failed to add fund:", err);
-      throw err; // callers (AddGoalSheet, Onboarding) keep their UI open on failure
+      throw err; // callers (AddGoalFlow, Onboarding) keep their UI open on failure
     }
   }
 
@@ -3259,7 +3264,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating goal/fund:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -3269,6 +3274,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update goal:", err);
+      throw err; // callers (EditGoalSheet) keep their UI open and show the failure
     }
   }
 

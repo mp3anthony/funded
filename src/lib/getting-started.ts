@@ -89,7 +89,7 @@ export const missions: GuideMission[] = [
     title: "Add a goal and top it up",
     steps: [
       "Go to Goals and tap the + button beside the page title.",
-      "Name your goal, set a target amount, and tap Create Goal.",
+      "Name your goal, set a target amount, and tap Add goal.",
       "Whenever you put money towards it, tap Add Amount under the goal.",
     ],
   },

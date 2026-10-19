@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type Fund } from "@/context/AppContext";
-import AddGoalSheet from "@/components/AddGoalSheet";
+import AddGoalFlow from "@/components/AddGoalFlow";
 import EditGoalSheet from "@/components/EditGoalSheet";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
 import AddAmountModal from "@/components/AddAmountModal";
@@ -15,17 +15,8 @@ import GoalRow from "@/components/GoalRow";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { useCountUp } from "@/hooks/useCountUp";
-
-const GOAL_CATEGORIES = [
-  "Home & Living",
-  "Vacation & Travel",
-  "Wish List",
-  "Education",
-  "Debt & Finance",
-  "Savings",
-  "Emergency",
-  "Other",
-];
+import { useRowHighlight } from "@/hooks/useRowHighlight";
+import { GOAL_CATEGORIES, goalRowKey, type AddedGoal } from "@/lib/addGoalFlow";
 
 // Legacy goal category names → new 8-category scheme
 const GOAL_CATEGORY_REMAP: Record<string, string> = {
@@ -50,6 +41,7 @@ export default function FundsClient() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const { highlightKey, flash } = useRowHighlight();
   const [addAmountGoal, setAddAmountGoal] = useState<Fund | null>(null);
 
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -105,7 +97,7 @@ export default function FundsClient() {
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [isDataLoading, searchParams, funds, pathname, router]);
 
-  // Finish setting up card (#333): /funds?add=1 opens the Add Goal sheet once.
+  // Finish setting up card (#333): /funds?add=1 opens the Add Goal flow once.
   // Not gated on isDataLoading (the sheet needs no data). Waits while a goalId
   // link is pending so the two router.replace strips (each built from the
   // current params) can't resurrect each other's param.
@@ -176,6 +168,15 @@ export default function FundsClient() {
         alert("Failed to delete goal: " + errMsg);
       }
     }
+  };
+
+  // After an add: show the new goal (clear the category filter), open its category, then
+  // scroll to it and let it glow. The longer delay waits out the category expand animation
+  // (--duration-structural, 550ms) so the scroll lands on the settled row.
+  const handleAdded = (goal: AddedGoal) => {
+    setCategoryFilter("All");
+    setExpandedCategories((prev) => ({ ...prev, [goal.category || "Other"]: true }));
+    flash(goalRowKey(goal.id), 600);
   };
 
   return (
@@ -310,20 +311,26 @@ export default function FundsClient() {
                         const isComplete = fund.currentAmount >= fund.targetAmount;
 
                         return (
-                          <GoalRow
+                          // Inner wrapper: the add highlight must not override fund-row-in.
+                          <div
                             key={fund.id}
-                            fund={fund}
-                            IconComponent={IconComponent}
-                            percentage={percentage}
-                            isComplete={isComplete}
-                            staggerIndex={index}
-                            isExpanded={isExpanded}
-                            onOpen={() => {
-                              setSelectedGoal(fund);
-                              setIsDetailOpen(true);
-                            }}
-                            onAddAmount={() => setAddAmountGoal(fund)}
-                          />
+                            id={goalRowKey(fund.id)}
+                            className={highlightKey === goalRowKey(fund.id) ? "row-highlight" : undefined}
+                          >
+                            <GoalRow
+                              fund={fund}
+                              IconComponent={IconComponent}
+                              percentage={percentage}
+                              isComplete={isComplete}
+                              staggerIndex={index}
+                              isExpanded={isExpanded}
+                              onOpen={() => {
+                                setSelectedGoal(fund);
+                                setIsDetailOpen(true);
+                              }}
+                              onAddAmount={() => setAddAmountGoal(fund)}
+                            />
+                          </div>
                         );
                       })}
                     </div>
@@ -364,10 +371,11 @@ export default function FundsClient() {
         existingGoal={selectedGoal}
       />
 
-      {/* Add Goal Sheet */}
-      <AddGoalSheet
-        isOpen={isAddOpen}
+      {/* Add Goal flow */}
+      <AddGoalFlow
+        open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
+        onAdded={handleAdded}
       />
 
       {/* Add Amount Modal */}

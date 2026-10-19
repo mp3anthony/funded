@@ -24,6 +24,7 @@ export default function EditGoalSheet({
   const [deadline, setDeadline] = useState("");
   const [status, setStatus] = useState<'not_started' | 'in_progress' | 'completed' | 'paused'>("not_started");
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && existingGoal) {
@@ -45,11 +46,18 @@ export default function EditGoalSheet({
     Number(targetAmount) > 0 &&
     !isNaN(Number(currentAmount));
 
+  // A failed save's message is cleared whenever the sheet closes, so it never shows on the next open.
+  const closeSheet = () => {
+    setSaveError(null);
+    onClose();
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
     setIsSaving(true);
+    setSaveError(null);
     try {
       const goalData = {
         name,
@@ -64,6 +72,7 @@ export default function EditGoalSheet({
       onClose();
     } catch (error) {
       console.error("Failed to update goal:", error);
+      setSaveError("Couldn't save your changes. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
@@ -72,11 +81,12 @@ export default function EditGoalSheet({
   return (
     <Dialog
       open={isOpen}
-      onClose={onClose}
+      onClose={closeSheet}
       title="Edit Goal"
+      error={saveError}
       footer={
         <>
-          <DialogButton variant="ghost" type="button" onClick={onClose}>
+          <DialogButton variant="ghost" type="button" onClick={closeSheet}>
             Cancel
           </DialogButton>
           <DialogButton

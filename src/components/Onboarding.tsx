@@ -237,7 +237,7 @@ export default function Onboarding() {
       setStepError(null);
       try {
         const target = parseFloat(goalTarget);
-        // Same shape AddGoalSheet writes for a new goal. addFund throws on a
+        // Same shape AddGoalFlow writes for a new goal. addFund throws on a
         // failed insert, so a failure lands in the catch below.
         await addFund({
           id: Date.now(), // placeholder, the database assigns the real id

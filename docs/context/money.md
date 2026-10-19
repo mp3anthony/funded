@@ -123,7 +123,7 @@ A savings target with a name and an amount to reach, shown on the Goals page. Go
 _Avoid_: Funds, fund, sinking fund, savings pot
 
 **Just tracking** (planned, #377):
-A goal kept only as a note of what something costs, with nothing being saved toward it. Shown in the Goals page Wish list group with name and cost, no ring or pace; never counted in any total and never on the Dashboard. Stored in the existing goal status (today `paused`), so no schema change. The other kind is a **Saving** goal. _Avoid_: Paused goal, wish item
+A goal kept only as a note of what something costs, with nothing being saved toward it. Shown in the Goals page Wish list group with name and cost, no ring or pace; never counted in any total and never on the Dashboard. Stored in the existing goal status (today `paused`), so no schema change. Chosen in the Add goal flow's first question ("What kind of goal?") since R08 (#395); until the Goals and Dashboard slices (R17, R18, R25 to R27) a Just tracking goal still shows as a normal goal and is counted in goal totals. The other kind is a **Saving** goal. _Avoid_: Paused goal, wish item
 
 **Impact calculator** (planned, #377):
 A read-only pop-up on the Bills page ("Check impact") answering what a possible payment plan or subscription would do to the household. Inputs: payment amount, how often, number of payments or Ongoing. Shows the extra cost per week, fortnight, month and year, the new Household total beside the current one, and whether the Dashboard verdict would change. Saves nothing; "Turn into a bill" opens the Add flow prefilled (planned). Also opened, prefilled, from a Just tracking goal. _Avoid_: Simulator, what-if
