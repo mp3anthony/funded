@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, CloudOff, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
@@ -30,6 +31,7 @@ const visibleNotes = recentPatchNotes(patchNotes);
  * state message.
  */
 export default function PatchNotesClient() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("notes");
   const [known, setKnown] = useState<"loading" | KnownIssuesResult>("loading");
 
@@ -59,6 +61,8 @@ export default function PatchNotesClient() {
     <div className="flex-1 w-full max-w-2xl mx-auto px-6 pt-4 pb-10 md:pt-6">
       <PageHeader
         title="Updates"
+        showAvatar={false}
+        onBack={() => router.push("/settings")}
         subtitle={
           tab === "notes"
             ? "Patch notes for the funded. app, newest first."

@@ -1,51 +1,79 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, DollarSign, ListChecks, Target } from "lucide-react";
+import { NAV_SLOTS, navIndexForPath } from "@/lib/navSlots";
+import { useKeyboardOpen } from "@/hooks/useKeyboardOpen";
+
+const ICONS = [Home, DollarSign, ListChecks, Target];
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const keyboardOpen = useKeyboardOpen();
+  const pathIndex = navIndexForPath(pathname);
 
-  const navItems = [
-    { name: "HOME", path: "/", icon: Home },
-    { name: "PAYDAY", path: "/payday", icon: DollarSign },
-    { name: "BILLS", path: "/bills", icon: ListChecks },
-    { name: "GOALS", path: "/funds", icon: Target },
-  ];
+  // Optimistic ring: slides on tap before the route lands. State is adjusted
+  // during render (guarded by equality), never in an effect.
+  const [tapped, setTapped] = useState<number | null>(null);
+  const [seenPath, setSeenPath] = useState(pathname);
+  const [lastIndex, setLastIndex] = useState(pathIndex >= 0 ? pathIndex : 0);
+  if (seenPath !== pathname) {
+    setSeenPath(pathname);
+    setTapped(null);
+  }
+  if (pathIndex >= 0 && pathIndex !== lastIndex) {
+    setLastIndex(pathIndex);
+  }
+
+  const activeIndex = tapped ?? pathIndex;
+  const ringVisible = activeIndex >= 0;
+  const ringIndex = ringVisible ? activeIndex : lastIndex;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 w-full shrink-0 border-t border-border bg-background/80 dark:bg-foreground/20 dark:bg-black/80 backdrop-blur-lg">
-      <div className="mx-auto flex max-w-md items-center justify-around px-4 pt-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.path;
-
+    <nav
+      aria-label="Main"
+      className={`fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pointer-events-none transition-opacity duration-(--duration-quick) motion-reduce:transition-none ${
+        keyboardOpen ? "opacity-0" : "opacity-100"
+      }`}
+      style={{ paddingBottom: "var(--nav-bottom)" }}
+    >
+      <div
+        className={`relative grid w-full max-w-[480px] grid-cols-4 rounded-full border border-border-strong bg-surface-raised p-1 shadow-lg shadow-black/40 ${
+          keyboardOpen ? "pointer-events-none" : "pointer-events-auto"
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-full ring-2 ring-inset ring-primary transition-[transform,opacity] duration-(--duration-feedback) ease-(--ease-enter) motion-reduce:transition-none"
+          style={{
+            transform: `translateX(${ringIndex * 100}%)`,
+            opacity: ringVisible ? 1 : 0,
+          }}
+        />
+        {NAV_SLOTS.map((slot, i) => {
+          const Icon = ICONS[i];
+          const isActive = i === activeIndex;
           return (
             <Link
-              key={item.name}
-              href={item.path}
-              className="group flex flex-1 flex-col items-center justify-center pt-2 text-center transition-colors duration-200 ease-in-out"
-              style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))' }}
+              key={slot.href}
+              href={slot.href}
+              onClick={() => setTapped(i)}
+              aria-current={i === pathIndex ? "page" : undefined}
+              className="press relative z-10 flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-full [-webkit-tap-highlight-color:transparent]"
             >
-              <div className="relative flex flex-col items-center gap-1">
-                <Icon
-                  className={`h-5 w-5 transition-all duration-200 ${
-                    isActive
-                      ? "text-primary scale-110 drop-shadow-[0_0_8px_rgba(200,255,0,0.6)]"
-                      : "text-muted group-hover:text-foreground"
-                  }`}
-                />
-                <span
-                  className={`text-[10px] font-semibold tracking-wider transition-colors duration-200 ${
-                    isActive
-                      ? "text-primary font-bold"
-                      : "text-muted group-hover:text-foreground"
-                  }`}
-                >
-                  {item.name}
-                </span>
-              </div>
+              <Icon
+                className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted"}`}
+                aria-hidden="true"
+              />
+              <span
+                className={`text-[11px] transition-colors ${
+                  isActive ? "font-bold text-foreground" : "font-semibold text-muted"
+                }`}
+              >
+                {slot.name}
+              </span>
             </Link>
           );
         })}

@@ -25,7 +25,7 @@ export default function Toast() {
       aria-live="polite"
       aria-atomic="true"
       className="fixed inset-x-0 z-[60] flex justify-center px-4 pointer-events-none"
-      style={{ bottom: "calc(5rem + 12px + env(safe-area-inset-bottom, 0px))" }}
+      style={{ bottom: "calc(var(--nav-clearance) + 12px)" }}
     >
       {toast && <ToastBody key={toast.id} toast={toast} onDismiss={dismissToast} />}
     </div>

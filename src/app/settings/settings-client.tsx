@@ -16,6 +16,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { supabase } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
 import PaymentModeToggle from "@/components/PaymentModeToggle";
 import ContributionSettingsSheet from "@/components/ContributionSettingsSheet";
@@ -100,7 +101,7 @@ export default function SettingsClient() {
   const [deleteText, setDeleteText] = useState("");
 
   /* Deep-link: open the Profile dialog when arriving via /settings?modal=profile
-     (e.g. from the avatar-dropdown name button). Reactive to the query param so
+     (e.g. a link to /settings?modal=profile). Reactive to the query param so
      it also fires when already on /settings (a same-route soft navigation does
      not remount this component); the flag is stripped once consumed so a refresh
      or back-nav doesn't re-open it. */
@@ -276,7 +277,7 @@ export default function SettingsClient() {
   /* ── Render ────────────────────────────────── */
   return (
     <div className="flex-1 w-full max-w-2xl mx-auto px-6 pt-4 pb-10 md:pt-6">
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" showAvatar={false} onBack={() => router.push("/")} />
 
       {/* ── Identity anchor ─────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
@@ -436,6 +437,17 @@ export default function SettingsClient() {
           className="w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
         >
           Report a bug
+        </button>
+        {/* Interim Log out row (R03, #390): the avatar menu is gone; R29 places this for good. */}
+        <button
+          type="button"
+          onClick={async () => {
+            await supabase.auth.signOut();
+            router.push("/login");
+          }}
+          className="w-full text-left py-3 min-h-[44px] border-t border-border text-sm font-medium text-primary"
+        >
+          Log out
         </button>
         <button
           type="button"

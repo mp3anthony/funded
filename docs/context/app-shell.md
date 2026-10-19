@@ -22,6 +22,14 @@ _Avoid_: Snackbar, banner, alert
 A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog. Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc.
 _Avoid_: Wizard, form, modal (as names)
 
+**Bottom navigation** (planned, #377):
+The floating pill at the bottom with four slots: Dashboard, Payday, Bills, Goals. A lime ring slides to the current page. It fades away while the keyboard is open. Settings and Updates sit under no slot, so the ring fades out there.
+_Avoid_: Tab bar, nav bar, menu
+
+**Page header** (planned, #377):
+The large title at the top of every page: Syne title, optional subtitle, a back circle on drill-down pages, a "+" circle where the page adds things, the bell (only when unread) and the avatar, which opens Settings. It scrolls with the page.
+_Avoid_: Title bar, top bar
+
 **Theme**:
 The Light, Dark or System appearance, chosen under Appearance in Settings.
 _Avoid_: Mode (payment mode is a different thing), skin, colour scheme

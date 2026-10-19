@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, X, ChevronDown, ChevronUp } from "lucide-react";
+import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
 import AddBillSheet from "@/components/AddBillSheet";
 import AddExpenseSheet from "@/components/AddExpenseSheet";
@@ -338,15 +338,8 @@ export default function BillsClient() {
       <PageHeader
         title="Bills"
         subtitle="All household costs, organised by category."
-        action={
-          <button
-            onClick={() => setIsAddBillSheetOpen(true)}
-            className="flex items-center gap-2 bg-secondary active:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200 cursor-pointer animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Bill</span>
-          </button>
-        }
+        onAdd={() => setIsAddBillSheetOpen(true)}
+        addLabel="Add bill"
       />
 
       {/* 3. Total Bar */}

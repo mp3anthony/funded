@@ -1,45 +1,55 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import Logo from "./Logo";
+import { Plus } from "lucide-react";
+import BackCircle from "@/components/ui/BackCircle";
+import IconCircle from "@/components/ui/IconCircle";
+import HeaderActions from "@/components/HeaderActions";
 
-interface PageHeaderProps {
+type AddProps =
+  | { onAdd: () => void; addLabel: string }
+  | { onAdd?: undefined; addLabel?: undefined };
+
+type PageHeaderProps = {
   title: string;
   subtitle?: string;
-  action?: React.ReactNode;
-}
+  /** Hide the avatar (Settings and Updates). Default true. */
+  showAvatar?: boolean;
+  /** Drill-down pages: shows a back circle left of the title. */
+  onBack?: () => void;
+  /** Extra controls rendered before the "+" circle (later slices). */
+  extra?: React.ReactNode;
+} & AddProps;
 
-export default function PageHeader({ title, subtitle, action }: PageHeaderProps) {
+export default function PageHeader({
+  title,
+  subtitle,
+  showAvatar = true,
+  onBack,
+  extra,
+  onAdd,
+  addLabel,
+}: PageHeaderProps) {
   return (
-    <div className="flex flex-col w-full mb-4 mt-2 space-y-4">
-      {/* Top Row: Logo (Avatar is now a floating element in AppShell) */}
-      <div className="flex items-center justify-between w-full">
-        <Link
-          href="/"
-          prefetch={false}
-          aria-label="Go to dashboard"
-          className="inline-flex items-center -m-2 p-2 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-        >
-          <Logo size="medium" showWordmark={true} />
-        </Link>
-      </div>
-      
-      {/* Title & Subtitle */}
-      <div className="flex items-center justify-between">
+    <div className="flex items-start justify-between gap-3 mb-4 mt-2">
+      <div className="flex min-w-0 items-start gap-2">
+        {onBack && <BackCircle onClick={onBack} className="-ml-1" />}
         <div className="min-w-0">
-          <h1 className="font-heading font-extrabold text-2xl tracking-tight text-foreground min-w-0 truncate">
+          <h1 className="font-heading font-extrabold text-[28px] sm:text-[32px] leading-tight tracking-tight text-foreground truncate">
             {title}
           </h1>
-          {subtitle && (
-            <p className="text-xs sm:text-sm text-muted mt-1 font-body">
-              {subtitle}
-            </p>
-          )}
+          {subtitle && <p className="text-xs text-muted mt-1 font-body">{subtitle}</p>}
         </div>
-        {action && <div className="shrink-0 flex items-center">{action}</div>}
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {extra}
+        {onAdd && (
+          <IconCircle label={addLabel} onClick={onAdd}>
+            <Plus size={18} aria-hidden="true" />
+          </IconCircle>
+        )}
+        <HeaderActions showAvatar={showAvatar} />
       </div>
     </div>
   );
 }
-

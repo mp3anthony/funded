@@ -5,6 +5,12 @@
    FUNDED — Brand Tokens (Matching Prototype)
 ───────────────────────────────────────────── */
 :root {
+  /* Floating bottom nav (R03, #390): pill height, gap under it, and the space
+     pages and docked cards must clear. Never hard-code these. */
+  --nav-height: 66px;
+  --nav-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  --nav-clearance: calc(var(--nav-height) + var(--nav-bottom));
+
   /* Primary: Lime Green — the signature color */
   --color-primary: #c8ff00;
   --color-primary-light: rgba(200, 255, 0, 0.10);
@@ -527,21 +533,4 @@ body.modal-open main {
 }
 .ticker-tip-fade {
   animation: ticker-tip-fade 900ms ease-out both;
-}
-
-/* ── Floating Avatar Button ── */
-.floating-avatar {
-  position: fixed;
-  /* Align with PageHeader's px-4 pt-4 mt-2 + logo vertical center */
-  top: calc(env(safe-area-inset-top, 0px) + 24px);
-  right: 16px;
-  z-index: 60;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-/* Hide the floating avatar when a modal/sheet is open */
-html.modal-open .floating-avatar,
-body.modal-open .floating-avatar {
-  opacity: 0;
-  pointer-events: none;
 }

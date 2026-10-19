@@ -111,7 +111,7 @@ export default function UpdatesCard() {
     <aside
       aria-label="Updates"
       className="fixed inset-x-0 z-[55] flex justify-center px-4 pointer-events-none"
-      style={{ bottom: "calc(5rem + 12px + env(safe-area-inset-bottom, 0px))" }}
+      style={{ bottom: "calc(var(--nav-clearance) + 12px)" }}
     >
       <div className="pointer-events-auto w-full max-w-md rounded-[2px] border border-border-strong bg-surface-elevated shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none">
         <div className="flex items-center gap-2 pl-4 pr-1 pt-1">

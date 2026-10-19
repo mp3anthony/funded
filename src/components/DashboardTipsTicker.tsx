@@ -13,8 +13,8 @@ interface DashboardTipsTickerProps {
 
 /**
  * News-ticker-style tips banner (#151). Fixed to the bottom of the
- * viewport, sitting directly above BottomNav (same clearance value
- * AppShell already reserves for it). Only shown while `active` — i.e. both
+ * viewport, sitting directly above BottomNav (clears it via the
+ * --nav-clearance token AppShell also reserves). Only shown while `active` — i.e. both
  * dashboard cards are minimised — and can be dismissed for the current
  * "active" streak; dismissing resets as soon as the condition breaks
  * (either card expands), so it's ready to reappear next time both cards
@@ -92,7 +92,7 @@ export default function DashboardTipsTicker({ active }: DashboardTipsTickerProps
       ref={containerRef}
       className="fixed inset-x-0 z-40 px-4 transition-opacity duration-(--duration-structural) ease-in-out"
       style={{
-        bottom: "calc(5rem + env(safe-area-inset-bottom))",
+        bottom: "calc(var(--nav-clearance) + 8px)",
         opacity: visible ? 1 : 0,
       }}
       aria-hidden={!visible}

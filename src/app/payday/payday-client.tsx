@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, Trash2, CheckCircle2, Clock, ChevronDown } from "lucide-react";
+import { Trash2, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
 import AddPayScheduleSheet from "@/components/AddPayScheduleSheet";
 import EnterPayAmountModal from "@/components/EnterPayAmountModal";
@@ -264,15 +264,8 @@ export default function PaydayClient() {
       <PageHeader
         title="Payday"
         subtitle="Manage & track incomes"
-        action={
-          <button
-            onClick={() => setIsAddScheduleOpen(true)}
-            className="flex items-center gap-2 bg-primary text-primary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md transition-all active:scale-95 cursor-pointer uppercase animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">New Schedule</span>
-          </button>
-        }
+        onAdd={() => setIsAddScheduleOpen(true)}
+        addLabel="New pay schedule"
       />
 
       {/* Upcoming Pays */}
