@@ -171,7 +171,6 @@ export default function AddExpenseSheet({
             variant="primary"
             onClick={handleSave}
             disabled={!isFormValid || isSaving}
-            className="uppercase tracking-wider"
           >
             {existingExpense
               ? isSaving

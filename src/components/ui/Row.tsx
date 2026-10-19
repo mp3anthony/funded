@@ -60,7 +60,7 @@ export default function Row({
 
   if (interactive) {
     return (
-      <button type="button" onClick={onClick} className={cn(base, "text-left")}>
+      <button type="button" onClick={onClick} className={cn(base, "text-left press-tint")}>
         {content}
       </button>
     );

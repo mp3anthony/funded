@@ -50,7 +50,7 @@ export default function SurplusSuggestionModal({
       icon={<TrendingUp size={20} className="text-primary" />}
       maxWidthClass="max-w-sm"
       footer={
-        <DialogButton variant="ghost" onClick={onClose} className="uppercase tracking-wider">
+        <DialogButton variant="ghost" onClick={onClose}>
           Skip Allocation
         </DialogButton>
       }

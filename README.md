@@ -221,7 +221,7 @@ funded-nextjs/
 │   │   ├── NotificationCenter.tsx # In-app notification centre (alerts, settings)
 │   │   ├── *Sheet / *Modal / *Dialog.tsx  # Bottom sheets and dialogs (bills, goals, pay, members, bug report, push, timezone)
 │   │   ├── *Card.tsx         # Dashboard and list cards (health score, upcoming bills, goals, activity, bills, expenses)
-│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast)
+│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast, Button, IconCircle/BackCircle/CloseCircle, Chip, Card, Input/Select/Textarea)
 │   ├── context/
 │   │   └── AppContext.tsx    # Global state provider (auth, data, CRUD)
 │   ├── hooks/                # Small shared hooks

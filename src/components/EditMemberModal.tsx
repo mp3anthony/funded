@@ -92,7 +92,7 @@ export default function EditMemberModal({
             type="submit"
             form="edit-member-form"
             disabled={loading || (name === member.name && role === member.role)}
-            className="uppercase tracking-wider flex items-center justify-center gap-1.5"
+            className="flex items-center justify-center gap-1.5"
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Save Changes

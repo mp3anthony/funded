@@ -107,7 +107,6 @@ export default function AddPayScheduleSheet({
             type="submit"
             form="add-pay-schedule-form"
             disabled={!isFormValid || isSaving}
-            className="uppercase tracking-wider"
           >
             {existingSchedule
               ? isSaving

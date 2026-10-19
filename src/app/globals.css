@@ -25,7 +25,7 @@
   /* Destructive: Red */
   --color-destructive: #ff3d57;
   --color-destructive-light: rgba(255, 61, 87, 0.12);
-  --color-destructive-fg: #ffffff;
+  --color-destructive-fg: #000000;
 
   /* Success: Green */
   --color-success: #00e676;
@@ -89,7 +89,7 @@
 
   --color-destructive: #ff3d57;
   --color-destructive-light: rgba(255, 61, 87, 0.12);
-  --color-destructive-fg: #ffffff;
+  --color-destructive-fg: #000000;
 
   --color-success: #00e676;
   --color-success-light: rgba(0, 230, 118, 0.12);
@@ -121,6 +121,7 @@
 
   --color-accent: #c07800;
   --color-destructive: #cc2233;
+  --color-destructive-fg: #ffffff;
   --color-success: #00994a;
 }
 
@@ -147,6 +148,7 @@
 
     --color-accent: #c07800;
     --color-destructive: #cc2233;
+    --color-destructive-fg: #ffffff;
     --color-success: #00994a;
   }
 }
@@ -164,6 +166,7 @@
   --color-primary-light: var(--color-primary-light);
   --color-primary-mid: var(--color-primary-mid);
   --color-primary-fg: var(--color-primary-fg);
+  --color-primary-pressed: color-mix(in srgb, var(--color-primary) 85%, black);
 
   --color-secondary: var(--color-secondary);
   --color-secondary-light: var(--color-secondary-light);
@@ -177,6 +180,7 @@
   --color-destructive: var(--color-destructive);
   --color-destructive-light: var(--color-destructive-light);
   --color-destructive-fg: var(--color-destructive-fg);
+  --color-destructive-pressed: color-mix(in srgb, var(--color-destructive) 85%, black);
 
   --color-success: var(--color-success);
   --color-success-light: var(--color-success-light);

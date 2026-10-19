@@ -1,8 +1,12 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
 import { type Bill, type Fund, type PayHistory, type PaySchedule, type BillSplit, type Expense, type ExpenseSplit } from "@/context/AppContext";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import { countsTowardTotals } from "@/lib/billCycle";
+
+const twMerge = extendTailwindMerge({
+  extend: { theme: { radius: ["card", "sheet", "input"] } },
+});
 
 /**
  * className combiner for the editorial UI primitives — clsx for conditional

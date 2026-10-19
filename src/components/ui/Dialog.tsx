@@ -2,13 +2,14 @@
 
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buttonClasses } from "./Button";
+import CloseCircle from "./CloseCircle";
 
 /* ─────────────────────────────────────────────────────────────
    Dialog — the single "1d" popup template every modal/sheet uses.
 
-   One shell (editorial turn-3 spec): squared card (2px radius) with a
+   One shell (editorial turn-3 spec): card (still squared, 2px radius, until R05) with a
    lime gradient top-edge, header (title + X, hairline under), scrollable
    body, optional footer (hairline over). Destructive flows only swap the
    solid button colour.
@@ -116,14 +117,7 @@ export default function Dialog({
             <span className="truncate">{title}</span>
           </h3>
           {!hideClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="p-2 -mr-2 text-muted hover:text-foreground hover:bg-surface-raised rounded-xl transition-colors shrink-0"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <CloseCircle onClick={onClose} className="-mr-2 -my-1" />
           )}
         </div>
 
@@ -162,22 +156,9 @@ export function DialogButton({
   children,
   ...props
 }: DialogButtonProps) {
-  const styles: Record<DialogButtonVariant, string> = {
-    ghost:
-      "border border-border-strong text-muted hover:text-foreground hover:bg-surface-raised",
-    primary:
-      "bg-primary text-primary-fg hover:brightness-110 active:scale-95 shadow-lg shadow-primary/20",
-    destructive:
-      "bg-destructive text-destructive-fg hover:brightness-110 active:scale-95 shadow-lg shadow-destructive/20",
-  };
-
   return (
     <button
-      className={cn(
-        "flex-1 py-3 rounded-[2px] text-sm font-bold transition-all cursor-pointer disabled:opacity-60 disabled:pointer-events-none",
-        styles[variant],
-        className
-      )}
+      className={cn(buttonClasses({ variant }), "flex-1 px-4", className)}
       {...props}
     >
       {children}

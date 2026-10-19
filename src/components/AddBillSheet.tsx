@@ -164,7 +164,6 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
             variant="primary"
             onClick={handleSave}
             disabled={!isFormValid || isSaving}
-            className="uppercase tracking-wider"
           >
             {existingBill
               ? isSaving

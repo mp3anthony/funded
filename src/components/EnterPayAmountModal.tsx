@@ -101,7 +101,7 @@ export default function EnterPayAmountModal({
       maxWidthClass="max-w-sm"
       footer={
         <>
-          <DialogButton variant="ghost" type="button" onClick={onClose} className="uppercase tracking-wider">
+          <DialogButton variant="ghost" type="button" onClick={onClose}>
             Cancel
           </DialogButton>
           <DialogButton
@@ -109,7 +109,6 @@ export default function EnterPayAmountModal({
             type="submit"
             form="enter-pay-amount-form"
             disabled={!isValid}
-            className="uppercase tracking-wider"
           >
             {submitLabel || "Confirm & Log Pay"}
           </DialogButton>

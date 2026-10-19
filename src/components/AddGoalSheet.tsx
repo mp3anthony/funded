@@ -107,7 +107,6 @@ export default function AddGoalSheet({
             type="submit"
             form="add-goal-form"
             disabled={!isFormValid || isSaving}
-            className="uppercase tracking-wider"
           >
             {existingGoal
               ? isSaving

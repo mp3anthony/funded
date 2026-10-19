@@ -117,7 +117,6 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
               type="submit"
               form="join-household-form"
               disabled={isJoining || codeValue.length !== 6}
-              className="uppercase tracking-wider"
             >
               {isJoining ? "Joining..." : "Join"}
             </DialogButton>

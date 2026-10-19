@@ -333,7 +333,6 @@ export default function AvatarCropModal({
             type="button"
             onClick={onCancel}
             disabled={processing}
-            className="uppercase tracking-wider"
           >
             Cancel
           </DialogButton>
@@ -342,7 +341,7 @@ export default function AvatarCropModal({
             type="button"
             onClick={handleConfirm}
             disabled={loading || processing}
-            className="uppercase tracking-wider flex items-center justify-center gap-1.5"
+            className="flex items-center justify-center gap-1.5"
           >
             {processing ? (
               <Loader2 size={14} className="animate-spin" />

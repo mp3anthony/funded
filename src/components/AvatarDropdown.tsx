@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Settings, LogOut, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import IconCircle from "@/components/ui/IconCircle";
 
 interface AvatarDropdownProps {
   user: {
@@ -98,13 +99,12 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
   return (
     <div ref={containerRef} className="relative inline-block text-left">
       {/* Avatar Trigger button */}
-      <button
+      <IconCircle
+        label="User menu"
         onClick={() => (isOpen ? closeMenu() : openMenu())}
-        type="button"
-        className="h-9 w-9 rounded-xl border-2 border-primary overflow-hidden bg-gradient-to-tr from-primary to-emerald-500 flex items-center justify-center text-foreground font-bold text-sm cursor-pointer shadow-lg transition-transform duration-200 active:scale-95 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/50"
         aria-expanded={isOpen}
         aria-haspopup="true"
-        aria-label="User menu"
+        className="-m-1"
       >
         {user.avatar_url ? (
           // fade-in only plays on this <img>'s actual mount (first time
@@ -112,11 +112,11 @@ export default function AvatarDropdown({ user }: AvatarDropdownProps) {
           // with no key, so re-renders from user data refreshing (name/
           // avatar_url updates) reuse the same DOM node and just patch
           // its src, which does not restart a CSS animation. No flicker.
-          <img src={user.avatar_url} alt={user.name} className="h-full w-full object-cover animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)" />
+          <img src={user.avatar_url} alt={user.name} className="h-full w-full rounded-full object-cover animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)" />
         ) : (
-          user.avatar
+          <span className="text-sm font-bold">{user.avatar}</span>
         )}
-      </button>
+      </IconCircle>
 
       {/* Dropdown Menu — stays mounted through the close animation (see
           the menuState comment above). */}

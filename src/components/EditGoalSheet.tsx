@@ -84,7 +84,6 @@ export default function EditGoalSheet({
             type="submit"
             form="edit-goal-form"
             disabled={!isFormValid || isSaving}
-            className="uppercase tracking-wider"
           >
             {isSaving ? "Updating..." : "Update Goal"}
           </DialogButton>
