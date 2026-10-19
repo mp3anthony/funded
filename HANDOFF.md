@@ -2,7 +2,11 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-19)
+## Current state (2026-10-19, end of day)
+
+- **R01 (#388) BUILT.** Branch `redesign/full-app`, commit f8827f0, draft PR [#425](https://github.com/mp3anthony/funded/pull/425) (the one redesign PR; update its "Slices done" list per slice). Plan + review amendments are on #388 (comment 6262601349); independent review approved; tsc, 168/168 tests, build pass, lint identical to main. Delivered: Instrument Sans + tabular figures everywhere, JetBrains Mono gone, Syne on page-header `h1`s only, forced 2px radius removed, radius tokens (`--radius-card` 16, `--radius-sheet` 28, `--radius-input` 12 provisional, R02 confirms), motion tokens (`--duration-quick/feedback/structural`, `--ease-enter/exit`), `press`/`press-tint` utilities (unused until R02), reduced-motion block, lime fills on `:active`, `designTokens.test.mjs` guard, haze blob removed. Pop-ups stay 2px square until R05. Not yet verified on a device: tabular figures lining up (tnum present in built fonts), `:active` lime fill, Reduce Motion; check on the iPhone preview. #388 stays open until the final merge.
+- **Next: R02 (#389).** Planner plan, independent plan review, standing pause, then build on `redesign/full-app` (check it out; do not branch from main). Then R03, R04.
+- Minor review notes carried: `bills-client.tsx:344` keeps `transition-all duration-200` beside the token duration (harmless); many hard-coded `duration-200/300` remain for page slices; persistent selected-state lime fills left to page slices.
 
 - **REDESIGN FULLY GRILLED AND SLICED (#377).** All seven pages are agreed and in the design doc (artifact https://claude.ai/artifact/WSUDn3pfUNTdDHcQXTwK7x, private; read with the Artifact `read` action, start at `project/README.md`, pages in `project/pages/`). Onboarding was grilled last: reuses the pop-up step flow; Welcome, Household name, Payment mode, then an optional **Setup hub** (pay, bill, goal rows, always-available Enter app); household created only once name and mode are chosen (fixes today's "quit halfway never sees Payment mode"); joiners go straight in; sign-in screens restyled only. Glossaries tagged "(planned, #377)". Open points settled: **no Contributions/Rules header pills** (contribution = row in the member's Payday sheet; rules = "Rules for this goal" in the goal sheet and in the member sheet); **RLS does not enforce owner-only** (any member can UPDATE `households`; fix is slice R28, A1).
 - **SLICE TREE BUILT under #377.** Page parents: #277 Dashboard, #278 Payday, #279 Bills, #280 Goals, #281 Settings (old audit issues reused), plus new #385 Foundations, #386 Pop-ups, #387 Onboarding. Sub-issues are the slices **R01 to R36** (#388 to #423; each titled "Rnn ..."), one plan-and-build session each, `ready-for-agent`. Build order, folds, A1 slices and the full rules are in the #377 body: Foundations R01-R04, Pop-ups R05-R13, Bills R14-R16, Goals R17-R18, Payday R19-R24, Dashboard R25-R27, Settings R28-R30, Onboarding R31-R34, R35 final sweep and release, R36 (#423) post-merge cleanup of the design doc. **A1 (Anthony signs off at plan time):** R19 `pay_history.amount` nullable, R28 owner-only households UPDATE policy, R33 (#370 maybe), R14 (maybe a `user_preferences` column). Folded: #341, #363, #359, #261, #315, #316, #382, #352, #370, #265, #266. Left out: #383 (change login email, after the overhaul), #145 (parked). `SPEC.md` Slice 23 records the binding rules.
@@ -19,11 +23,11 @@
 - **#273** closed as blocked by plan (leaked-password protection needs Supabase Pro). **Repo interaction limit** set to collaborators only until 2027-04-09 (#276); renew then. **Security** details live in the private notes file; no GitHub issue by design.
 - **Owed:** fix the stale "not wired up" comment in `src/components/NotifyHourDialog.tsx` (line 15) in the next PR touching that file. The website (separate repo) must link to `/getting-started`.
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
-- Last active SPEC ticket: Slice 23 (#377, slicing only; nothing built).
+- Last active SPEC ticket: Slice 23 (#377), R01 built.
 
 ## Next session, in order
 
-1. **Start R01 (#388)** in a fresh session: Planner writes the plan (tokens, fonts, radii, motion: remove JetBrains Mono ~205 uses in ~50 files, `globals.css:328` `border-radius: 2px !important`, Syne header-only), independent plan review, then **standing pause** and notify Anthony. On build: create `redesign/full-app` from current `main`, commit R01, **open the one draft PR**, then continue R02 to R04.
+1. **Start R02 (#389)** in a fresh session on `redesign/full-app`: Planner writes the plan, independent plan review, then **standing pause** and notify Anthony. Then R03, R04. (R01 done, see above.)
 2. Raise an A1 sign-off with Anthony before R19/R28 are planned; R28 (#415) has no dependencies and can go earlier.
 3. Non-redesign work is not queued: #383 (change login email) and #145 wait for Anthony. Any new bug goes through Intake as usual; fold it into a slice if the redesign rewrites that code.
 
