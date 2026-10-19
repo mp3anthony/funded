@@ -30,6 +30,7 @@ _Avoid_: Home screen, overview, summary
 
 **Bills page**:
 Where bills and expenses are listed, filtered, added and paid, with amounts shown in a chosen frequency.
+Planned redesign (#377; until it ships, today's page stands): a Household total hero with frequency pills (remembered per person, also drives the Dashboard stats), filter chips for Type and Due plus a Filter pill for Category and Edit Order, categories expanded by default with count and subtotal, rows alphabetical within a category, a countdown line on each bill ("Due in 3 days", "2 days overdue", "Paid") and a one-tap tick to mark an unpaid manual bill paid. Detail in `project/pages/bills.md` of the design doc.
 _Avoid_: Budget page, expenses page
 
 **Goals page**:
