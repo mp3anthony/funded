@@ -132,6 +132,7 @@ _Avoid_: Fair split, auto-split
 
 **Household total**:
 The recurring amount the household commits to across bills, expenses and active fixed-dollar contribution rules, shown at whichever frequency is selected on the Bills page. Percentage rules are left out because the next pay's surplus is unknown. Shown as the Total bar on the Bills page, which adds a muted line "N paused or finished, not counted" whenever any bills are excluded under Counts toward totals.
+Planned change (#377): the Bills page shows a muted split line under it ("Bills · Expenses · Goals"). While any filter or search is active it becomes the **Filtered total** ("N of M items"): only the listed rows count, paused and finished bills count as 0, and goal contributions drop out because they cannot be filtered. The Dashboard always uses the unfiltered Household total.
 _Avoid_: Weekly draw, Bills total, Budget, Allowance
 
 **Counts toward totals**:
