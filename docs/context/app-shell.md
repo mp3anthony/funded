@@ -18,6 +18,10 @@ _Avoid_: Splash screen, skeleton, spinner (as a name)
 The brief message that appears above the bottom navigation after an action, sometimes with one button such as Undo.
 _Avoid_: Snackbar, banner, alert
 
+**Step flow** (planned, #377):
+A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog. Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc.
+_Avoid_: Wizard, form, modal (as names)
+
 **Theme**:
 The Light, Dark or System appearance, chosen under Appearance in Settings.
 _Avoid_: Mode (payment mode is a different thing), skin, colour scheme
@@ -44,6 +48,7 @@ _Avoid_: Income page, pay page
 
 **Settings**:
 The page for account, notifications, appearance, household settings, members, Updates, the Getting started guide, bug reporting and leaving the household.
+Planned change (#377): opened from the avatar top right. An identity card opens Profile (email read-only); Preferences (Notifications, inline Light/Dark/System Appearance); Members with a "+" to invite (Join code sheet); owner-only Household settings (Household name, Payment mode, Timezone; members see them read-only); a Help card (Updates, Getting started, Report an issue); Leave household in its own red card. Contribution amounts and Automation rules move to Payday and Goals. Detail in `project/pages/settings.md` of the design doc.
 _Avoid_: Preferences, profile page, admin
 
 ### Keeping people informed
