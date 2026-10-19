@@ -71,10 +71,10 @@ export const missions: GuideMission[] = [
     title: "Add another bill",
     steps: [
       "Go to Bills and tap the + button beside the page title.",
-      "Fill in the name, amount and how often it's paid.",
-      "Add a due date if you know it, so Funded can tell you when it's due. Don't know it yet? Leave it blank and add it later. After 30 days the bill shows an orange Add due date to remind you.",
-      "Leave Payment Type on Manual so you can mark it paid yourself. Auto-Pay bills pay themselves.",
-      "Tap Save Bill.",
+      "Answer each question as it comes up: what it's called, the amount and how often it's paid. Tap Next after each one.",
+      "On the due date question, add a date if you know it, so Funded can tell you when it's due. Don't know it yet? Leave it blank and add it later. After 30 days the bill shows an orange Add due date to remind you.",
+      "On the last screen, leave Auto-Pay under Optional details on Manual so you can mark it paid yourself. Auto-Pay bills pay themselves.",
+      "Tap Add bill.",
     ],
   },
   {
@@ -126,7 +126,7 @@ export const billVsExpenseHeading = "Bill or expense?";
 export const billVsExpense: string[] = [
   "A bill is something fixed that comes round on a schedule and has a due date, like rent, power or a subscription. You mark it paid, then it moves on to its next due date.",
   "An expense is everyday spending that changes each time, like groceries or fuel. It has no due date and no paid button, but it still counts toward the household total.",
-  "Both sit in one list on the Bills page and add up in the total at the top. To add an expense, tap + on Bills, then flip the Item Type switch at the top to Expense.",
+  "Both sit in one list on the Bills page and add up in the total at the top. To add an expense, tap + on Bills and pick Expense on the first card.",
 ];
 
 export const pageGuide: GuidePage[] = [
@@ -168,7 +168,7 @@ export const goodToKnow: GoodToKnowItem[] = [
     ticket: 249,
   },
   {
-    text: "On phones the + buttons show only a plus sign. Expenses are added with the Item Type switch at the top of Add Bill.",
+    text: "On phones the + buttons show only a plus sign. To add an expense, tap + on Bills and pick Expense on the first card.",
   },
 ];
 

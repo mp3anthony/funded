@@ -703,7 +703,7 @@ interface AppContextValue {
   /* Bills */
   bills: Bill[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addBill: (billData: any, splitsData?: any[]) => Promise<void>;
+  addBill: (billData: any, splitsData?: any[]) => Promise<string>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateBill: (billId: string | number, billData: any, splitsData: any[]) => Promise<void>;
   togglePaid: (id: string | number) => void;
@@ -729,7 +729,7 @@ interface AppContextValue {
   /* Expenses (Issue #98, Slice 2 of 6; split logic added Slice 3 of 6) */
   expenses: Expense[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addExpense: (expenseData: any) => Promise<void>;
+  addExpense: (expenseData: any) => Promise<string>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateExpense: (expenseId: string, expenseData: any) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
@@ -2140,6 +2140,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newSplits && newSplits.length > 0) {
         setBillSplits((prev) => [...prev, ...newSplits]);
       }
+      // R07: the Add flow highlights the new row by this id.
+      return String(newBill.id);
     } catch (err) {
       console.error("Failed to add bill:", err);
       throw err;
@@ -3006,6 +3008,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newSplits.length > 0) {
         setExpenseSplits((prev) => [...prev, ...newSplits.map(mapExpenseSplitFromDb)]);
       }
+      // R07: the Add flow highlights the new row by this id.
+      return String(newExpense.id);
     } catch (err) {
       console.error("Failed to add expense:", err);
       throw err;

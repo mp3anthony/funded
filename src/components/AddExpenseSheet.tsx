@@ -2,22 +2,21 @@
 "use client";
 
 import React, { useState } from "react";
-import { useApp, useCurrentUser, type Expense } from "@/context/AppContext";
+import { useApp, type Expense } from "@/context/AppContext";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
-import ItemTypeToggle from "./ItemTypeToggle";
 import { Check } from "lucide-react";
 
 interface AddExpenseSheetProps {
   isOpen: boolean;
   onClose: () => void;
   existingExpense?: Expense;
-  /** Add-mode only (no existingExpense): lets the user swap to the Bill
-   * form without closing/reopening the dialog by hand. Omitted entirely
-   * while editing, since an existing item's type is fixed. */
-  onSwitchToBill?: () => void;
 }
 
 /**
+ * Edit only since R07 (#394): adding an expense is the Add flow
+ * (components/AddFlow); this is replaced by the expense detail sheet in a
+ * later pop-ups slice.
+ *
  * Issue #98 (Slice 2 of 6, split logic Slice 3 of 6): add/edit form for
  * expenses (variable spend — groceries, fuel, etc. — see #98's decision
  * comment for the bill/expense distinction). Deliberately mirrors
@@ -34,10 +33,8 @@ export default function AddExpenseSheet({
   isOpen,
   onClose,
   existingExpense,
-  onSwitchToBill,
 }: AddExpenseSheetProps) {
-  const { householdMembers, addExpense, updateExpense, expenseSplits, session } = useApp();
-  const currentUser = useCurrentUser();
+  const { householdMembers, updateExpense, expenseSplits, session } = useApp();
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -79,19 +76,11 @@ export default function AddExpenseSheet({
         initialPercentages[String(s.member_id)] = String(s.percentage);
       });
       setPercentages(initialPercentages);
-    } else if (isOpen) {
-      setName("");
-      setAmount("");
-      setCategory("Other");
-      setAssignee(currentUser.id ? String(currentUser.id) : "");
-      setNotes("");
-      setSplitType("assignee");
-      setPercentages({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, existingExpense, currentUser.id]);
+  }, [isOpen, existingExpense]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !existingExpense) return null;
 
   const percentageTotal = displayMembers.reduce(
     (sum, m) => sum + (Number(percentages[String(m.id)]) || 0),
@@ -133,19 +122,7 @@ export default function AddExpenseSheet({
         notes,
       };
 
-      if (existingExpense) {
-        await updateExpense(existingExpense.id, expenseData);
-      } else {
-        await addExpense(expenseData);
-      }
-
-      setName("");
-      setAmount("");
-      setCategory("Other");
-      setAssignee("");
-      setNotes("");
-      setSplitType("assignee");
-      setPercentages({});
+      await updateExpense(existingExpense.id, expenseData);
 
       onClose();
     } catch (error) {
@@ -161,7 +138,7 @@ export default function AddExpenseSheet({
     <Dialog
       open={isOpen}
       onClose={onClose}
-      title={existingExpense ? "Edit Expense" : "Add Expense"}
+      title="Edit Expense"
       footer={
         <>
           <DialogButton variant="ghost" onClick={onClose}>
@@ -172,22 +149,12 @@ export default function AddExpenseSheet({
             onClick={handleSave}
             disabled={!isFormValid || isSaving}
           >
-            {existingExpense
-              ? isSaving
-                ? "Updating..."
-                : "Update Expense"
-              : isSaving
-                ? "Saving..."
-                : "Save Expense"}
+            {isSaving ? "Updating..." : "Update Expense"}
           </DialogButton>
         </>
       }
     >
       <div className="space-y-4 md:space-y-6">
-        {!existingExpense && onSwitchToBill && (
-          <ItemTypeToggle value="expense" onChange={(t) => t === "bill" && onSwitchToBill()} />
-        )}
-
         {errorMsg && (
           <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
             <span className="font-bold">Failed to save expense:</span><br/>

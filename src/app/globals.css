@@ -522,6 +522,23 @@ body.modal-open main {
   }
 }
 
+/* ── New-row highlight (R07, #394) ──
+   A lime wash that fades out on the row just added. Colour only, no movement,
+   so Reduce Motion needs no entry. Put it on an inner wrapper, never on an
+   element that already animates. */
+@keyframes row-highlight {
+  from {
+    background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.row-highlight {
+  animation: row-highlight 1600ms ease-in-out both;
+  border-radius: var(--radius-input);
+}
+
 /* ── Popover/dropdown menu entrance (Slice 99: motion overhaul, PR #141
    review-fix) ──
    Matches the dialog entrance's shape (fade + translate, standard ease,

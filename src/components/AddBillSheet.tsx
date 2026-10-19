@@ -2,10 +2,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { useApp, useCurrentUser, type Bill, type BillSplit } from "@/context/AppContext";
+import { useApp, type Bill, type BillSplit } from "@/context/AppContext";
 import ContributorSplits, { type SplitResult } from "./ContributorSplits";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
-import ItemTypeToggle from "./ItemTypeToggle";
 import { isDateless, UNPAID_STATUS } from "@/lib/billCycle";
 
 interface AddBillSheetProps {
@@ -13,17 +12,16 @@ interface AddBillSheetProps {
   onClose: () => void;
   existingBill?: Bill;
   existingSplits?: BillSplit[];
-  /** Add-mode only (no existingBill): lets the user swap to the Expense
-   * form without closing/reopening the dialog by hand. Omitted entirely
-   * while editing, since an existing item's type is fixed. */
-  onSwitchToExpense?: () => void;
   /** #250: scroll to and focus the Due Date field on open (from "Add due date"). */
   focusDueDate?: boolean;
 }
 
-export default function AddBillSheet({ isOpen, onClose, existingBill, existingSplits, onSwitchToExpense, focusDueDate }: AddBillSheetProps) {
-  const { householdMembers, addBill, updateBill, session, isJointFund } = useApp();
-  const currentUser = useCurrentUser();
+/**
+ * Edit only since R07 (#394): adding a bill is the Add flow (components/AddFlow).
+ * Replaced by the bill detail sheet in a later pop-ups slice.
+ */
+export default function AddBillSheet({ isOpen, onClose, existingBill, existingSplits, focusDueDate }: AddBillSheetProps) {
+  const { householdMembers, updateBill, session, isJointFund } = useApp();
 
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -68,20 +66,8 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
       
       const hasSplits = existingSplits && existingSplits.length > 0;
       setPaidByMode(hasSplits ? "individual" : (isJointFund ? "joint" : "individual"));
-    } else if (isOpen) {
-      setName("");
-      setAmount("");
-      setInvoiceDate("");
-      setDueDate("");
-      setCategory("Other");
-      setPaymentType("Manual");
-      setAssignee(currentUser.id ? String(currentUser.id) : "");
-      setSplits([]);
-      setNotes("");
-      setFrequency("monthly");
-      setPaidByMode(isJointFund ? "joint" : "individual");
     }
-  }, [isOpen, existingBill, currentUser.id, isJointFund, existingSplits]);
+  }, [isOpen, existingBill, isJointFund, existingSplits]);
 
   // Fallback: If householdMembers is empty, display at least the logged-in user
   const displayMembers = householdMembers.length > 0 
@@ -96,7 +82,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
           }]
         : []);
 
-  if (!isOpen) return null;
+  if (!isOpen || !existingBill) return null;
 
   const isFormValid = name.trim() !== "" && amount.trim() !== "" && !isNaN(Number(amount));
 
@@ -123,23 +109,8 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
 
       const finalSplits = paidByMode === "joint" ? [] : splits;
 
-      if (existingBill) {
-        await updateBill(existingBill.id, billData, finalSplits);
-      } else {
-        await addBill(billData, finalSplits);
-      }
-      
-      // Reset form on success
-      setName("");
-      setAmount("");
-      setInvoiceDate("");
-      setDueDate("");
-      setCategory("Other");
-      setPaymentType("Manual");
-      setAssignee("");
-      setSplits([]);
-      setNotes("");
-      
+      await updateBill(existingBill.id, billData, finalSplits);
+
       onClose();
     } catch (error) {
       const err = error as Error;
@@ -154,7 +125,7 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
     <Dialog
       open={isOpen}
       onClose={onClose}
-      title={existingBill ? "Edit Bill" : "Add Bill"}
+      title="Edit Bill"
       footer={
         <>
           <DialogButton variant="ghost" onClick={onClose}>
@@ -165,23 +136,13 @@ export default function AddBillSheet({ isOpen, onClose, existingBill, existingSp
             onClick={handleSave}
             disabled={!isFormValid || isSaving}
           >
-            {existingBill
-              ? isSaving
-                ? "Updating..."
-                : "Update Bill"
-              : isSaving
-                ? "Saving..."
-                : "Save Bill"}
+            {isSaving ? "Updating..." : "Update Bill"}
           </DialogButton>
         </>
       }
     >
       {/* Form Body */}
       <div className="space-y-4 md:space-y-6">
-          {!existingBill && onSwitchToExpense && (
-            <ItemTypeToggle value="bill" onChange={(t) => t === "expense" && onSwitchToExpense()} />
-          )}
-
           {errorMsg && (
             <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
               <span className="font-bold">Failed to save bill:</span><br/>

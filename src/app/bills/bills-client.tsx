@@ -4,8 +4,7 @@ import { useState, useMemo, useEffect, useRef, type CSSProperties } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
-import AddBillSheet from "@/components/AddBillSheet";
-import AddExpenseSheet from "@/components/AddExpenseSheet";
+import AddFlow from "@/components/AddFlow";
 import BillCard from "@/components/BillCard";
 import ExpenseCard from "@/components/ExpenseCard";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
@@ -15,6 +14,8 @@ import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { countsTowardTotals, isDateless } from "@/lib/billCycle";
+import { ITEM_CATEGORIES, rowKey, type AddedItem } from "@/lib/addFlow";
+import { useRowHighlight } from "@/hooks/useRowHighlight";
 
 type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
 
@@ -22,19 +23,6 @@ type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
 // sorted together (Issue #98, Slice 2 fix-round: Anthony asked for one
 // interleaved list instead of a Bills/Expenses tab split).
 type ListRow = { kind: "bill"; item: Bill } | { kind: "expense"; item: Expense };
-
-// Shared by bills and expenses — both use the same category list and the
-// same saved ordering (Issue #98, final sub-slice: confirmed there is no
-// separate expense-category system, so this is intentionally one list).
-const ITEM_CATEGORIES = [
-  "Household Bills",
-  "Living Costs",
-  "Debt & Finance",
-  "Loans",
-  "Subscriptions",
-  "Temporary",
-  "Other",
-];
 
 // Legacy category names → current scheme
 const CATEGORY_REMAP: Record<string, string> = {
@@ -56,8 +44,8 @@ export default function BillsClient() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isAddBillSheetOpen, setIsAddBillSheetOpen] = useState(false);
-  const [isAddExpenseSheetOpen, setIsAddExpenseSheetOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const { highlightKey, flash } = useRowHighlight();
   const [filter, setFilter] = useState<"all" | "week" | "month" | "overdue">("all");
   const [categoryFilter, setCategoryFilter] = useState("All");
   // Issue #157: isolate bills from expenses in the unified list. Only
@@ -90,7 +78,7 @@ export default function BillsClient() {
       .catch(() => {});
   }, [session?.user?.id]);
 
-  // Finish setting up card (#333): /bills?add=1 opens the Add Bill sheet once,
+  // Finish setting up card (#333): /bills?add=1 opens the Add flow once,
   // then the param is stripped so refresh/back never re-opens it.
   const handledAddRef = useRef(false);
   useEffect(() => {
@@ -104,7 +92,7 @@ export default function BillsClient() {
     // One-shot sync with an external input (the tapped link), guarded by
     // handledAddRef — not a render cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsAddBillSheetOpen(true);
+    setIsAddOpen(true);
     const rest = stripAddSheetParam(searchParams);
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [searchParams, pathname, router]);
@@ -330,6 +318,13 @@ export default function BillsClient() {
 
   const hasItems = Object.keys(groupedItems).length > 0;
 
+  // After an add: open the new row's category, then scroll to it and let it glow.
+  // rowKey gives the same "bill-<id>" / "expense-<id>" as the row wrapper ids below.
+  const handleAdded = (item: AddedItem) => {
+    setExpandedCategories((prev) => ({ ...prev, [item.category || "Other"]: true }));
+    flash(rowKey(item.kind, item.id));
+  };
+
   return (
     // 1. Drastically reduced padding and spacing to fix the "oversized" feel
     <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6 space-y-4">
@@ -338,7 +333,7 @@ export default function BillsClient() {
       <PageHeader
         title="Bills"
         subtitle="All household costs, organised by category."
-        onAdd={() => setIsAddBillSheetOpen(true)}
+        onAdd={() => setIsAddOpen(true)}
         addLabel="Add bill"
       />
 
@@ -571,19 +566,30 @@ export default function BillsClient() {
                       const rowStyle = { "--row-delay": `${delayMs}ms` } as CSSProperties;
                       return row.kind === "bill" ? (
                         <div key={`bill-${row.item.id}`} className="fund-row-in" style={rowStyle}>
-                          <BillCard
-                            bill={row.item}
-                            splits={billSplits.filter(s => s.bill_id === row.item.id)}
-                            householdMembers={householdMembers}
-                            displayFrequency={displayFrequency}
-                          />
+                          {/* Inner wrapper: the add highlight must not override fund-row-in. */}
+                          <div
+                            id={`bill-${row.item.id}`}
+                            className={highlightKey === `bill-${row.item.id}` ? "row-highlight" : undefined}
+                          >
+                            <BillCard
+                              bill={row.item}
+                              splits={billSplits.filter(s => s.bill_id === row.item.id)}
+                              householdMembers={householdMembers}
+                              displayFrequency={displayFrequency}
+                            />
+                          </div>
                         </div>
                       ) : (
                         <div key={`expense-${row.item.id}`} className="fund-row-in" style={rowStyle}>
-                          <ExpenseCard
-                            expense={row.item}
-                            householdMembers={householdMembers}
-                          />
+                          <div
+                            id={`expense-${row.item.id}`}
+                            className={highlightKey === `expense-${row.item.id}` ? "row-highlight" : undefined}
+                          >
+                            <ExpenseCard
+                              expense={row.item}
+                              householdMembers={householdMembers}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -595,22 +601,10 @@ export default function BillsClient() {
         )}
       </div>
 
-      <AddBillSheet
-        isOpen={isAddBillSheetOpen}
-        onClose={() => setIsAddBillSheetOpen(false)}
-        onSwitchToExpense={() => {
-          setIsAddBillSheetOpen(false);
-          setIsAddExpenseSheetOpen(true);
-        }}
-      />
-
-      <AddExpenseSheet
-        isOpen={isAddExpenseSheetOpen}
-        onClose={() => setIsAddExpenseSheetOpen(false)}
-        onSwitchToBill={() => {
-          setIsAddExpenseSheetOpen(false);
-          setIsAddBillSheetOpen(true);
-        }}
+      <AddFlow
+        open={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onAdded={handleAdded}
       />
 
       <EditCategoryOrderModal

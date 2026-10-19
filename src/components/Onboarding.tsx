@@ -207,7 +207,7 @@ export default function Onboarding() {
       setStepError(null);
       try {
         const amount = parseFloat(billAmount);
-        // Same shape addBill() reads/inserts as AddBillSheet.tsx's handleSave,
+        // Same shape addBill() reads/inserts as the Add flow's buildBillPayload (lib/addFlow.ts),
         // so a bill created here lands identically in the `bills` table.
         await addBill(
           {
