@@ -424,6 +424,13 @@ body.modal-open main {
     );
   }
 }
+/* Carousel (R04, #391): hide the scrollbar on the swipe track. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .press:active {
     scale: none;

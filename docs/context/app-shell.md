@@ -30,6 +30,10 @@ _Avoid_: Tab bar, nav bar, menu
 The large title at the top of every page: Syne title, optional subtitle, a back circle on drill-down pages, a "+" circle where the page adds things, the bell (only when unread) and the avatar, which opens Settings. It scrolls with the page.
 _Avoid_: Title bar, top bar
 
+**Carousel** (planned, #377):
+A row of cards you swipe sideways, with dots underneath. Some turn by themselves and have a pause button; with Reduce Motion they change without sliding. Used for Dashboard stats, Dashboard Bills and Goals, and Payday contributors.
+_Avoid_: Slider, swiper, ticker (the Dashboard ticker stays separate until it is replaced)
+
 **Theme**:
 The Light, Dark or System appearance, chosen under Appearance in Settings.
 _Avoid_: Mode (payment mode is a different thing), skin, colour scheme

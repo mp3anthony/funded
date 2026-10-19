@@ -224,7 +224,7 @@ funded-nextjs/
 │   │   ├── NotificationCenter.tsx # In-app notification centre (alerts, settings)
 │   │   ├── *Sheet / *Modal / *Dialog.tsx  # Bottom sheets and dialogs (bills, goals, pay, members, bug report, push, timezone)
 │   │   ├── *Card.tsx         # Dashboard and list cards (health score, upcoming bills, goals, activity, bills, expenses)
-│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast, Button, IconCircle/BackCircle/CloseCircle, Chip, Card, Input/Select/Textarea)
+│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast, Button, IconCircle/BackCircle/CloseCircle, Chip, Card, Input/Select/Textarea, Carousel)
 │   ├── context/
 │   │   └── AppContext.tsx    # Global state provider (auth, data, CRUD)
 │   ├── hooks/                # Small shared hooks (viewport vars, keyboard-open for the nav fade)
@@ -233,6 +233,7 @@ funded-nextjs/
 │   │   ├── storage.ts        # Avatar upload/delete/get utilities
 │   │   ├── utils.ts          # Shared helpers (health score, date, frequency conversion)
 │   │   ├── navSlots.ts       # Bottom-nav slots and path-to-slot lookup (tests in navSlots.test.mjs, appShell.test.mjs)
+│   │   ├── carousel.ts       # Carousel maths: snap targets, active slide, auto-rotate rule (tests in carouselLogic.test.mjs, carousel.test.mjs)
 │   │   ├── billCycle.ts      # Bill rollover logic (tests in billCycle.test.mjs)
 │   │   ├── finishSetup.ts    # Finish setting up card rules and the `?add=1` link param that opens a page's add sheet (tests in finishSetup.test.mjs)
 │   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
