@@ -426,13 +426,29 @@ body.modal-open main {
 .sheet-card-animate {
   animation: sheet-card-in var(--duration-feedback) var(--ease-enter) both;
 }
+@keyframes step-card-in-forward {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes step-card-in-back {
+  from { opacity: 0; transform: translateX(-32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.step-card-forward {
+  animation: step-card-in-forward var(--duration-feedback) var(--ease-enter) both;
+}
+.step-card-back {
+  animation: step-card-in-back var(--duration-feedback) var(--ease-enter) both;
+}
 @keyframes dialog-card-fade {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dialog-card-animate,
-  .sheet-card-animate {
+  .sheet-card-animate,
+  .step-card-forward,
+  .step-card-back {
     animation-name: dialog-card-fade;
     animation-timing-function: ease-in-out;
   }

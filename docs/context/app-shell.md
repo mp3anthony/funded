@@ -19,7 +19,7 @@ The brief message that appears above the bottom navigation after an action, some
 _Avoid_: Snackbar, banner, alert
 
 **Step flow** (planned, #377):
-A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog (see Single card, Detail sheet, Confirm dialog below). Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc.
+A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog (see Single card, Detail sheet, Confirm dialog below). Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc. Closing after typing asks first in a confirm dialog.
 _Avoid_: Wizard, form, modal (as names)
 
 **Single card** (planned, #377):
