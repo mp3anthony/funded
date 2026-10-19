@@ -35,6 +35,7 @@ _Avoid_: Budget page, expenses page
 
 **Goals page**:
 Where goals are listed, added and topped up. It is called Goals in the navigation and everywhere users read.
+Planned (#377): Saving goals show a progress ring and a pace line, with a quiet Wish list group of Just tracking goals at the bottom; a "+" circle on each Saving row tops it up. Detail in `project/pages/goals.md` of the design doc.
 _Avoid_: Funds page, Funds, savings page
 
 **Payday page**:
