@@ -101,10 +101,19 @@ _Avoid_: Add income, record pay, deposit
 
 **Pending pay**:
 A pay the app logged automatically because its date passed without anyone logging it, waiting for a member to confirm or correct the amount.
+Planned change (#377; until it ships, today's behaviour above stands): a Pending pay is added to history only once its pay day has ended unlogged (logging on the day writes straight to history). A fixed-pay Pending is prefilled with the schedule amount; a variable-pay Pending has no amount (null, today it is stored as $0). Tapping it opens the confirm pop-up, and a daily notification repeats until it is confirmed. Pending pays sit in the Payday "Needs you" strip.
 _Avoid_: Unconfirmed income, draft pay, missed pay
 
+**Needs you** (planned, #377):
+The strip at the top of Payday, shown only when something needs action: a pay whose date has come (Log Pay / Enter Pay Amount) or a Pending pay to confirm. Most urgent first, hidden when empty.
+_Avoid_: Inbox, to-do
+
+**Average pay** (planned, #377):
+For a variable-pay schedule, the average of its last 4 confirmed pays, ignoring Pending pays; needs at least 2 confirmed, else "Not enough pays yet". Shown as "Estimate from your last 4 pays". Replaces today's last-3-pays rule, which counts Pending $0 rows.
+_Avoid_: Typical pay, expected pay
+
 **Surplus**:
-Pay that comes in well above a member's average, which the app offers to allocate to a goal. The dashboard also shows a weekly surplus, which is income left after bills.
+Pay that comes in well above a member's average (see Average pay), which the app offers to allocate to a goal. The dashboard also shows a weekly surplus, which is income left after bills.
 _Avoid_: Bonus, extra, leftover
 
 ### Saving and planning
@@ -116,6 +125,10 @@ _Avoid_: Funds, fund, sinking fund, savings pot
 **Contribution rule**:
 An automation that moves part of a pay into a goal or a member's contribution whenever that pay exceeds a chosen threshold, as a fixed dollar amount or a percentage. The Settings row for these reads "Automation rules".
 _Avoid_: Auto-save rule, transfer rule
+
+**Suggest Split** (moves to Payday, planned, #377):
+The income-proportional calculator: each member's share is their monthly-normalised income divided by household income, times total monthly bills. Today a panel in Settings; planned as an animated pop-up opened from Payday (income, then share %, then dollars). Joint Fund ends "Contribute $X a week" and Apply sets the member's contribution; Direct Pay ends "Cover X% of each bill" and Apply fills bill splits for bills still on the default. Apply is always a tap. A variable-pay member without enough confirmed pays blocks it, as today. Detail in `project/pages/payday.md` of the design doc.
+_Avoid_: Fair split, auto-split
 
 **Household total**:
 The recurring amount the household commits to across bills, expenses and active fixed-dollar contribution rules, shown at whichever frequency is selected on the Bills page. Percentage rules are left out because the next pay's surplus is unknown. Shown as the Total bar on the Bills page, which adds a muted line "N paused or finished, not counted" whenever any bills are excluded under Counts toward totals.
