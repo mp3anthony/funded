@@ -130,7 +130,7 @@ A read-only pop-up on the Bills page ("Check impact") answering what a possible 
 
 **Contribution rule**:
 An automation that moves part of a pay into a goal or a member's contribution whenever that pay exceeds a chosen threshold, as a fixed dollar amount or a percentage. The Settings row for these reads "Automation rules".
-Planned change (#377): Automation rules and Contribution amounts leave Settings; rules move to the Goals page and contribution amounts to the Payday page (entry points decided in the pop-ups session).
+Planned change (#377): Automation rules and Contribution amounts leave Settings; rules move to the Goals page and contribution amounts to the Payday page. No header pills: rules are listed in the goal sheet ("Rules for this goal", add pre-targeted to that goal), and a member's contribution amount and the rules feeding it sit in that member's Payday detail sheet.
 _Avoid_: Auto-save rule, transfer rule
 
 **Suggest Split** (moves to Payday, planned, #377):

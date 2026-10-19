@@ -24,7 +24,12 @@ _Avoid_: Invite link, invite code, PIN, password
 
 **Onboarding**:
 The first-run setup that either creates a new household or joins one by join code. Creating walks through household, payment mode, a first payday, a first bill and a first goal, then a Setup Complete screen. The payday, bill and goal steps can each be skipped with "Skip for now"; household and payment mode cannot. Anything skipped shows on the owner's Finish setting up card. Joining by code goes straight into the app.
+Planned (#377): full-screen step flows (Welcome, Household name, Payment mode), then an optional **Setup hub** with Add your pay, Add a bill, Add a goal rows (each opens the normal step flow and ticks when saved) and an always-available "Enter app". The household is created only once name and Payment mode are both chosen, in one write; quitting earlier restarts at Welcome. A joiner goes straight into the app (their nudge is the Dashboard's "Set up your pay"). Wrong or expired code shows an inline error and creates nothing.
 _Avoid_: Sign-up wizard, tutorial, welcome flow
+
+**Setup hub** (planned, #377):
+The optional last onboarding screen after the household is created: three rows (pay, bill, goal) that each open the normal step flow and show a green tick once saved, with "Enter app" always available. Replaces the Setup Complete screen and the three "Skip for now" screens. Anything unticked feeds the owner's Finish setting up card.
+_Avoid_: Checklist, Setup Complete
 
 **Leave household**:
 Removing yourself from your household. A regular member, or an owner while another owner remains, leaves and the household carries on. An owner who is the only owner while other accepted members remain must either make an accepted member the new owner and then leave, or delete the household. A sole member can only delete, and so can an only owner whose only other members are pending (they are not in the household yet, so cannot be given ownership).

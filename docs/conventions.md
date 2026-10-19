@@ -17,6 +17,7 @@ Binding build and process rules. Vocabulary lives in `docs/context/`; this file 
 - Confirm the exact resulting version with Anthony immediately before merging to `main`. He can waive a bump. When parallel PRs collide on the version, renumber and confirm again.
 - Milestones: `v0.10.0` when the app is ready for wider testers, `v1.0.0` for public beta. This is a loose guideline; the version applied at each merge is decided with Anthony at merge time.
 - The version shows at the bottom of Settings and on the Updates card, both read from `APP_VERSION`; never restate the current version in a doc.
+- **Long-lived redesign branch (#377) exception:** `redesign/full-app` carries no per-slice bump or patch note. One bump to `v0.10.0` and one patch-notes entry (written from the closed slices' "What's changing") happen in the final slice before the single merge. Testing exception too: Anthony checks each slice on the branch's Vercel preview (live `main` keeps the old app until the end), and each slice's commit range gets an independent sub-agent review. Migrations on that branch must be compatible with the old code still live on `main`, because preview and production share one Supabase.
 - Merge conflicts on `version.ts` and `src/lib/patch-notes.ts` are common when two same-day PRs both bump: keep the higher version and both entries. If both land on the same version number, combine the bullets under one entry.
 
 ## Patch notes

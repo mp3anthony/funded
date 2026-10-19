@@ -857,6 +857,18 @@ problem/checklist on the issue.
 - Dateless bills sort last within each category on Bills and last on Upcoming Bills, appear only under the All filter, and still count toward totals.
 - Full issue: https://github.com/mp3anthony/funded/issues/250
 
+### Slice 23: Full app redesign (Issue #377)
+
+**Decisions (grilled page by page 2026-10-19; the look and every page layout live in the HTML design doc linked from the issue):**
+- The design doc (`project/pages/*.md`) is the source of truth for look and layout. This section holds only the binding build rules.
+- Seven pages agreed: Dashboard, Payday, Bills, Goals, Settings, Pop-ups, Onboarding and sign-in. The sub-issues of #377 are the slices R01 to R36, built in the order listed on the issue. This replaces the onboarding shape in Slice 18 (a hub instead of three skip screens; the household is created only once name and Payment mode are both chosen) and moves the Finish setting up card (Slice 19) into the Dashboard stats slot.
+- One long-lived branch `redesign/full-app` and one PR opened with the first slice; every slice commits to it. No per-slice version bump or patch note; one bump to `v0.10.0` and one patch-notes entry at the end (R35). Live `main` keeps the old app until that merge, so slices are checked on the branch's Vercel preview (an exception to "no preview testing"); Anthony approves the one final merge.
+- Migrations on this branch stay compatible with the old code live on `main` (preview and production share one Supabase) and are applied when their slice is built.
+- A1 slices, each needing Anthony's sign-off at plan time: R19 (`pay_history.amount` nullable), R28 (owner-only `households` UPDATE policy; today any member can write), R33 (#370 may need a policy or edge-function change), R14 (a per-person frequency preference may need a `user_preferences` column).
+- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals and the Dashboard.
+- Left out on purpose: #383 (change login email), #145 (parked).
+- Full issue: https://github.com/mp3anthony/funded/issues/377
+
 ---
 
 ## Part C — Suggested Milestone Order (for confirmation, not final)
