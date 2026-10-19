@@ -101,8 +101,8 @@ _Avoid_: Add income, record pay, deposit
 
 **Pending pay**:
 A pay the app logged automatically because its date passed without anyone logging it, waiting for a member to confirm or correct the amount.
+Planned change (#377; until it ships, today's behaviour above stands): a Pending pay is added to history only once its pay day has ended unlogged (logging on the day writes straight to history). A fixed-pay Pending is prefilled with the schedule amount; a variable-pay Pending has no amount (null, today it is stored as $0). Tapping it opens the confirm pop-up, and a daily notification repeats until it is confirmed. Pending pays sit in the Payday "Needs you" strip.
 _Avoid_: Unconfirmed income, draft pay, missed pay
-Planned change (#377): a Pending pay is added to history only once its pay day has ended unlogged (logging on the day writes straight to history). A fixed-pay Pending is prefilled with the schedule amount; a variable-pay Pending has no amount (null, today it is stored as $0). Tapping it opens the confirm pop-up, and a daily notification repeats until it is confirmed. Pending pays sit in the Payday "Needs you" strip.
 
 **Needs you** (planned, #377):
 The strip at the top of Payday, shown only when something needs action: a pay whose date has come (Log Pay / Enter Pay Amount) or a Pending pay to confirm. Most urgent first, hidden when empty.
@@ -113,7 +113,7 @@ For a variable-pay schedule, the average of its last 4 confirmed pays, ignoring 
 _Avoid_: Typical pay, expected pay
 
 **Surplus**:
-Pay that comes in well above a member's average, which the app offers to allocate to a goal. The dashboard also shows a weekly surplus, which is income left after bills.
+Pay that comes in well above a member's average (see Average pay), which the app offers to allocate to a goal. The dashboard also shows a weekly surplus, which is income left after bills.
 _Avoid_: Bonus, extra, leftover
 
 ### Saving and planning
