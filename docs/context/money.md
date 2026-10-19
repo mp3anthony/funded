@@ -122,6 +122,12 @@ _Avoid_: Bonus, extra, leftover
 A savings target with a name and an amount to reach, shown on the Goals page. Goals are never called funds, and never sinking funds.
 _Avoid_: Funds, fund, sinking fund, savings pot
 
+**Just tracking** (planned, #377):
+A goal kept only as a note of what something costs, with nothing being saved toward it. Shown in the Goals page Wish list group with name and cost, no ring or pace; never counted in any total and never on the Dashboard. Stored in the existing goal status (today `paused`), so no schema change. The other kind is a **Saving** goal. _Avoid_: Paused goal, wish item
+
+**Impact calculator** (planned, #377):
+A read-only pop-up on the Bills page ("Check impact") answering what a possible payment plan or subscription would do to the household. Inputs: payment amount, how often, number of payments or Ongoing. Shows the extra cost per week, fortnight, month and year, the new Household total beside the current one, and whether the Dashboard verdict would change. Saves nothing; "Turn into a bill" opens Add Bill prefilled. Also opened, prefilled, from a Just tracking goal. _Avoid_: Simulator, what-if
+
 **Contribution rule**:
 An automation that moves part of a pay into a goal or a member's contribution whenever that pay exceeds a chosen threshold, as a fixed dollar amount or a percentage. The Settings row for these reads "Automation rules".
 _Avoid_: Auto-save rule, transfer rule
