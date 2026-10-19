@@ -31,6 +31,7 @@ import TimezoneDialog from "@/components/TimezoneDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { type Member } from "@/types";
 import { leaveModeFor, eligibleNewOwners, isAcceptedMember, isDeleteConfirmed } from "@/lib/householdLeave";
 
@@ -689,36 +690,34 @@ export default function SettingsClient() {
       </Dialog>
 
       {/* Leave household (#251): regular member, or owner while another owner remains */}
-      <Dialog
+      <ConfirmDialog
         open={leaveDialog === "leave"}
-        onClose={closeLeaveDialog}
         title="Leave household?"
-        footer={
-          <>
-            <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
-              Cancel
-            </DialogButton>
-            <DialogButton
-              variant="destructive"
-              className="min-h-[44px]"
-              disabled={isLeavingHousehold}
-              onClick={() => runLeaveAction(() => leaveHousehold())}
-            >
-              {isLeavingHousehold ? "Leaving…" : "Leave"}
-            </DialogButton>
-          </>
+        confirmLabel="Leave"
+        busyLabel="Leaving…"
+        showThrownMessage
+        keepBusyOnSuccess
+        onCancel={closeLeaveDialog}
+        onConfirm={async () => {
+          try {
+            await leaveHousehold();
+          } catch (err) {
+            console.error("Failed to leave household:", err);
+            throw err;
+          }
+          window.location.href = "/";
+        }}
+        message={
+          <div className="flex flex-col gap-3">
+            <p>
+              You&apos;ll be removed from {householdName ? <span className="font-semibold">{householdName}</span> : "this household"}. Everyone else carries on.
+            </p>
+            <p className="text-sm text-muted">
+              Your pay schedule, pay history, bill splits and contributions are deleted. Bills, expenses and goals you were assigned stay, but unassigned. You&apos;ll need to create or join a household again.
+            </p>
+          </div>
         }
-      >
-        <div className="flex flex-col gap-3">
-          <p className="text-[15px] leading-relaxed text-foreground">
-            You&apos;ll be removed from {householdName ? <span className="font-semibold">{householdName}</span> : "this household"}. Everyone else carries on.
-          </p>
-          <p className="text-sm leading-relaxed text-muted">
-            Your pay schedule, pay history, bill splits and contributions are deleted. Bills, expenses and goals you were assigned stay, but unassigned. You&apos;ll need to create or join a household again.
-          </p>
-          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
-        </div>
-      </Dialog>
+      />
 
       {/* Hand over ownership, then leave (only owner, other accepted members remain) */}
       <Dialog

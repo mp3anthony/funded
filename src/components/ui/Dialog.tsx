@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { buttonClasses } from "./Button";
@@ -9,10 +9,20 @@ import CloseCircle from "./CloseCircle";
 /* ─────────────────────────────────────────────────────────────
    Dialog — the single "1d" popup template every modal/sheet uses.
 
-   One shell (editorial turn-3 spec): card (still squared, 2px radius, until R05) with a
+   One shell (editorial turn-3 spec): 28px-radius card (`rounded-sheet`) with a
    lime gradient top-edge, header (title + X, hairline under), scrollable
    body, optional footer (hairline over). Destructive flows only swap the
    solid button colour.
+
+   R05 (#392) props: `placement` ("center" default; "bottom" floats at the
+   bottom with a gap and four round corners; "confirm" is a small centred
+   card); `busy` (close X, Escape and backdrop tap do nothing while saving);
+   `error` (red line above the footer buttons, or at the end of the body when
+   there is no footer); `header` (replaces the title row; a node, or a
+   function that receives the title id for aria-labelledby); `role`.
+   The footer stays the card's LAST child (mobile CSS targets
+   `> div:last-child`). Prefer the shells built on this: ConfirmDialog,
+   SingleCard, DetailSheet.
 
    Two behaviours this MUST preserve to fit the existing app:
    • The backdrop carries the `modal-backdrop` class — AppShell's
@@ -52,6 +62,16 @@ interface DialogProps {
   maxWidthClass?: string;
   /** Hide the header close button (rare). */
   hideClose?: boolean;
+  /** Where the card sits on mobile. Defaults to "center". */
+  placement?: "center" | "bottom" | "confirm";
+  /** Saving lock: close X, Escape and backdrop tap do nothing while true. */
+  busy?: boolean;
+  /** Inline error line (red), above the footer buttons or at the end of the body without a footer. */
+  error?: React.ReactNode;
+  /** Replaces the default title row. A function receives the title id for aria-labelledby. */
+  header?: React.ReactNode | ((titleId: string) => React.ReactNode);
+  /** Use "alertdialog" for confirmations. */
+  role?: "dialog" | "alertdialog";
 }
 
 export default function Dialog({
@@ -64,25 +84,37 @@ export default function Dialog({
   footer,
   maxWidthClass = "max-w-md",
   hideClose = false,
+  placement = "center",
+  busy = false,
+  error,
+  header,
+  role = "dialog",
 }: DialogProps) {
-  // Close on Escape.
+  const titleId = useId();
+
+  // Close on Escape (ignored while busy).
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !busy) onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, busy]);
 
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] modal-backdrop flex items-center justify-center p-4 dialog-backdrop-animate"
-      onClick={onClose}
-      role="dialog"
+      className={cn(
+        "fixed inset-0 z-[100] modal-backdrop flex items-center justify-center p-4 dialog-backdrop-animate",
+        placement === "bottom" && "modal-backdrop--bottom",
+        placement === "confirm" && "modal-backdrop--confirm"
+      )}
+      onClick={busy ? undefined : onClose}
+      role={role}
       aria-modal="true"
+      aria-labelledby={titleId}
     >
       {/* Dim + blur layer, split from the opacity-animated wrapper above.
           Safari doesn't animate `backdrop-filter` smoothly when opacity is
@@ -96,7 +128,8 @@ export default function Dialog({
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
       <div
         className={cn(
-          "relative bg-surface border border-border-strong rounded-[2px] w-full max-h-full flex flex-col shadow-2xl overflow-hidden dialog-card-animate",
+          "relative bg-surface border border-border-strong rounded-sheet w-full max-h-full flex flex-col shadow-2xl overflow-hidden",
+          placement === "bottom" ? "sheet-card-animate" : "dialog-card-animate",
           maxWidthClass
         )}
         onClick={(e) => e.stopPropagation()}
@@ -111,26 +144,58 @@ export default function Dialog({
         />
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
-          <h3 className="text-[17px] font-bold text-foreground flex items-center gap-2 min-w-0">
-            {icon}
-            <span className="truncate">{title}</span>
-          </h3>
-          {!hideClose && (
-            <CloseCircle onClick={onClose} className="-mr-2 -my-1" />
-          )}
-        </div>
+        {header !== undefined ? (
+          typeof header === "function" ? header(titleId) : header
+        ) : (
+          <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
+            <h3
+              id={titleId}
+              className="text-[17px] font-bold text-foreground flex items-center gap-2 min-w-0"
+            >
+              {icon}
+              <span className="truncate">{title}</span>
+            </h3>
+            {!hideClose && (
+              <CloseCircle
+                onClick={onClose}
+                disabled={busy}
+                className="-mr-2 -my-1"
+              />
+            )}
+          </div>
+        )}
 
         {/* Subheader — non-scrolling region (consumer styles content) */}
         {subheader && <div className="shrink-0">{subheader}</div>}
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-5">{children}</div>
+        <div className="overflow-y-auto flex-1 p-5">
+          {children}
+          {error && !footer && (
+            <p role="alert" className="mt-3 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
 
-        {/* Footer */}
+        {/* Footer (keep it the card's last child) */}
         {footer && (
-          <div className="flex items-center gap-3 p-5 border-t border-border shrink-0">
-            {footer}
+          <div
+            className={cn(
+              "p-5 border-t border-border shrink-0",
+              error ? "flex flex-col gap-3" : "flex items-center gap-3"
+            )}
+          >
+            {error ? (
+              <>
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+                <div className="flex items-center gap-3">{footer}</div>
+              </>
+            ) : (
+              footer
+            )}
           </div>
         )}
       </div>

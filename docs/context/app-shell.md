@@ -19,8 +19,20 @@ The brief message that appears above the bottom navigation after an action, some
 _Avoid_: Snackbar, banner, alert
 
 **Step flow** (planned, #377):
-A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog. Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc.
+A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog (see Single card, Detail sheet, Confirm dialog below). Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc.
 _Avoid_: Wizard, form, modal (as names)
+
+**Single card** (planned, #377):
+One pop-up card at the bottom of the screen for one or two fields, with one main pill (and sometimes a quieter second pill such as "Skip"). Saving shows "Saving…"; a failure keeps the card open with a red line and "Try again".
+_Avoid_: Modal, form
+
+**Detail sheet** (planned, #377):
+A pop-up that shows one item (a bill, goal or pay schedule) as tappable rows. The main actions sit on top and a red Delete pill sits at the bottom; Delete asks first in a confirm dialog. A row opens a single card to edit that one field.
+_Avoid_: Edit form, details modal
+
+**Confirm dialog** (planned, #377):
+A small centred question with Cancel and a red action pill, used before anything destructive. Replaces the browser's own confirm box.
+_Avoid_: Alert, prompt
 
 **Bottom navigation** (planned, #377):
 The floating pill at the bottom with four slots: Dashboard, Payday, Bills, Goals. A lime ring slides to the current page. It fades away while the keyboard is open. Settings and Updates sit under no slot, so the ring fades out there.

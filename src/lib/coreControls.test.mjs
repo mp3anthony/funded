@@ -127,7 +127,6 @@ const SQUARE_ALLOWLIST = new Set([
     "components/SurplusSuggestionModal.tsx",
     "components/TimezoneDialog.tsx",
     "components/UpdatesCard.tsx",
-    "components/ui/Dialog.tsx",
 ]);
 
 test("no new square corners (rounded-[2px] ratchet)", () => {

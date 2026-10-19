@@ -17,6 +17,8 @@ interface RowProps {
    *  settings sections separate rows with whitespace, not borders. */
   divider?: boolean;
   onClick?: () => void;
+  /** Taller tap target (44px) for tappable rows inside pop-ups. */
+  tall?: boolean;
   className?: string;
 }
 
@@ -34,6 +36,7 @@ export default function Row({
   chevron,
   divider,
   onClick,
+  tall,
   className,
 }: RowProps) {
   const interactive = typeof onClick === "function";
@@ -55,6 +58,7 @@ export default function Row({
   const base = cn(
     "w-full flex items-center justify-between gap-3 py-2.5",
     divider && "border-t border-border",
+    tall && interactive && "min-h-11",
     className
   );
 
