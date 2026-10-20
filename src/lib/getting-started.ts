@@ -81,7 +81,7 @@ export const missions: GuideMission[] = [
     title: "Add another pay schedule",
     steps: [
       "Go to Payday and tap the + button beside the page title.",
-      "Choose whose pay it is, the next pay date, how often it comes, and whether the amount is fixed or varies.",
+      "Answer each question as it comes up: whether the amount is fixed or varies, how often it comes, the next pay date and, for fixed pay, the amount. Owners first pick whose pay it is. Tap Next after each one, then tap Add pay schedule.",
       "To see Log Pay, set the next pay date to today. Log Pay appears on the day the pay is due (Enter Pay Amount if the pay varies). Tap it when the money lands. A past date is logged for you as a pending pay to confirm instead.",
     ],
   },

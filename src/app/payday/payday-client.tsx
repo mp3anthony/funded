@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Trash2, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
+import AddPayFlow from "@/components/AddPayFlow";
 import AddPayScheduleSheet from "@/components/AddPayScheduleSheet";
 import EnterPayAmountModal from "@/components/EnterPayAmountModal";
 import PayHistoryCard from "@/components/PayHistoryCard";
@@ -13,6 +14,8 @@ import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { hasPaydayLinkParams, resolvePaydayLink, stripPaydayLinkParams } from "@/lib/notifications/paydayLink";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
+import { useRowHighlight } from "@/hooks/useRowHighlight";
+import { payScheduleRowKey } from "@/lib/addPayFlow";
 
 export default function PaydayClient() {
   const { paySchedules, payHistory, householdMembers, deletePaySchedule, logPay, calculateAveragePay, addToGoal, isJointFund, householdContributions, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay } = useApp();
@@ -22,6 +25,7 @@ export default function PaydayClient() {
   const pathname = usePathname();
 
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
+  const { highlightKey, flash } = useRowHighlight();
   const [activeVariableSchedule, setActiveVariableSchedule] = useState<PaySchedule | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<PaySchedule | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -104,7 +108,7 @@ export default function PaydayClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLinkReady, searchParams, paySchedules, payHistory, pathname, router]);
 
-  // Finish setting up card (#333): /payday?add=1 opens the Add Schedule sheet
+  // Finish setting up card (#333): /payday?add=1 opens the New pay schedule flow
   // once (no data wait needed), then the param is stripped. "add" is not one of
   // the notification link params, so the effect above leaves it alone.
   const handledAddRef = useRef(false);
@@ -296,6 +300,7 @@ export default function PaydayClient() {
               return (
                 <div
                   key={schedule.id}
+                  id={payScheduleRowKey(schedule.id)}
                   role="button"
                   tabIndex={0}
                   onClick={() => {
@@ -311,6 +316,8 @@ export default function PaydayClient() {
                   }}
                   className="border-t border-border hover:bg-surface/40 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
                 >
+                  {/* Inner wrapper: the add highlight sits here, the outer div keeps the row id. */}
+                  <div className={highlightKey === payScheduleRowKey(schedule.id) ? "row-highlight" : undefined}>
                   {/* Info row: name/amount + freq/countdown · delete */}
                   <div className="flex items-center gap-3 py-3">
                     {/* Middle: name+amount over frequency+countdown */}
@@ -362,6 +369,7 @@ export default function PaydayClient() {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })}
@@ -493,10 +501,11 @@ export default function PaydayClient() {
         )}
       </div>
 
-      {/* Add Pay Schedule Sheet Overlay */}
-      <AddPayScheduleSheet
-        isOpen={isAddScheduleOpen}
+      {/* New pay schedule flow */}
+      <AddPayFlow
+        open={isAddScheduleOpen}
         onClose={() => setIsAddScheduleOpen(false)}
+        onAdded={(id) => flash(payScheduleRowKey(id))}
       />
 
       {/* Edit Pay Schedule Sheet Overlay */}

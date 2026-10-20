@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useApp, useCurrentUser, type PaySchedule } from "@/context/AppContext";
+import { useApp, type PaySchedule } from "@/context/AppContext";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 
 interface AddPayScheduleSheetProps {
@@ -10,13 +10,15 @@ interface AddPayScheduleSheetProps {
   existingSchedule?: PaySchedule | null;
 }
 
+// Edit-only since R09 (#396): adding a schedule lives in AddPayFlow. Keeps its
+// old name until the detail-sheet slice replaces it.
+
 export default function AddPayScheduleSheet({
   isOpen,
   onClose,
   existingSchedule,
 }: AddPayScheduleSheetProps) {
-  const { householdMembers, addPaySchedule, updatePaySchedule } = useApp();
-  const currentUser = useCurrentUser();
+  const { householdMembers, updatePaySchedule } = useApp();
 
   const [memberId, setMemberId] = useState("");
   const [frequency, setFrequency] = useState<"weekly" | "fortnightly" | "monthly">("monthly");
@@ -34,29 +36,17 @@ export default function AddPayScheduleSheet({
       return;
     }
 
-    if (isOpen && !hasInitialized) {
-      if (existingSchedule) {
-        setMemberId(String(existingSchedule.member_id));
-        setFrequency(existingSchedule.frequency);
-        setIsFixedAmount(existingSchedule.is_fixed_amount);
-        setAmount(existingSchedule.amount ? String(existingSchedule.amount) : "");
-        setNextPayDate(existingSchedule.next_pay_date || "");
-        setHasInitialized(true);
-      } else {
-        const defaultMemberId = currentUser.id ? String(currentUser.id) : (householdMembers[0]?.id ? String(householdMembers[0].id) : "");
-        setMemberId(defaultMemberId);
-        setFrequency("monthly");
-        setIsFixedAmount(true);
-        setAmount("");
-        setNextPayDate("");
-        if (defaultMemberId) {
-          setHasInitialized(true);
-        }
-      }
+    if (isOpen && !hasInitialized && existingSchedule) {
+      setMemberId(String(existingSchedule.member_id));
+      setFrequency(existingSchedule.frequency);
+      setIsFixedAmount(existingSchedule.is_fixed_amount);
+      setAmount(existingSchedule.amount ? String(existingSchedule.amount) : "");
+      setNextPayDate(existingSchedule.next_pay_date || "");
+      setHasInitialized(true);
     }
-  }, [isOpen, existingSchedule, householdMembers, currentUser.id, hasInitialized]);
+  }, [isOpen, existingSchedule, hasInitialized]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !existingSchedule) return null;
 
   const isFormValid =
     memberId !== "" &&
@@ -78,11 +68,7 @@ export default function AddPayScheduleSheet({
         next_pay_date: nextPayDate,
       };
 
-      if (existingSchedule) {
-        await updatePaySchedule(existingSchedule.id, scheduleData);
-      } else {
-        await addPaySchedule(scheduleData);
-      }
+      await updatePaySchedule(existingSchedule.id, scheduleData);
       onClose();
     } catch (err: any) {
       console.error("Failed to save pay schedule:", err);
@@ -96,7 +82,7 @@ export default function AddPayScheduleSheet({
     <Dialog
       open={isOpen}
       onClose={onClose}
-      title={existingSchedule ? "Edit Pay Schedule" : "Add Pay Schedule"}
+      title="Edit Pay Schedule"
       footer={
         <>
           <DialogButton variant="ghost" type="button" onClick={onClose}>
@@ -108,13 +94,7 @@ export default function AddPayScheduleSheet({
             form="add-pay-schedule-form"
             disabled={!isFormValid || isSaving}
           >
-            {existingSchedule
-              ? isSaving
-                ? "Updating..."
-                : "Update Schedule"
-              : isSaving
-                ? "Saving..."
-                : "Add Schedule"}
+            {isSaving ? "Updating..." : "Update Schedule"}
           </DialogButton>
         </>
       }

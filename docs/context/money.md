@@ -92,7 +92,7 @@ A day a member gets paid, and the page where pay is scheduled, logged and review
 _Avoid_: Salary day, income day
 
 **Pay schedule**:
-A member's recurring pay, with a next pay date, a frequency, and either a fixed amount or a variable one entered each time. Any household member may view and edit any member's pay schedule (decided 2026-10-04). A monthly pay schedule on the 29th-31st lands on the last day of a shorter month; once saved there it stays on that day until edited (#298).
+A member's recurring pay, with a next pay date, a frequency, and either a fixed amount or a variable one entered each time. Any household member may view and edit any member's pay schedule (decided 2026-10-04). Adding: a member adds their own; only the household owner can add one for someone else (the New pay schedule flow asks "Whose pay" only of an owner, and only when 2+ members have joined). This is an app rule, not a database one (#396). A monthly pay schedule on the 29th-31st lands on the last day of a shorter month; once saved there it stays on that day until edited (#298).
 _Avoid_: Income source, pay plan, salary
 
 **Log Pay**:
@@ -129,7 +129,7 @@ A goal kept only as a note of what something costs, with nothing being saved tow
 A read-only pop-up on the Bills page ("Check impact") answering what a possible payment plan or subscription would do to the household. Inputs: payment amount, how often, number of payments or Ongoing. Shows the extra cost per week, fortnight, month and year, the new Household total beside the current one, and whether the Dashboard verdict would change. Saves nothing; "Turn into a bill" opens the Add flow prefilled (planned). Also opened, prefilled, from a Just tracking goal. _Avoid_: Simulator, what-if
 
 **Contribution rule**:
-An automation that moves part of a pay into a goal or a member's contribution whenever that pay exceeds a chosen threshold, as a fixed dollar amount or a percentage. The Settings row for these reads "Automation rules".
+An automation that moves part of a pay into a goal or a member's contribution whenever that pay exceeds a chosen threshold, as a fixed dollar amount or a percentage. The Settings row for these reads "Automation rules". New rules go to a goal ("Add a rule" flow, the same owner-only "Whose pay" rule as pay schedules); existing contribution rules keep working and stay editable. Interim: the Settings entry stays until the Goals and Payday slices place rules (#396).
 Planned change (#377): Automation rules and Contribution amounts leave Settings; rules move to the Goals page and contribution amounts to the Payday page. No header pills: rules are listed in the goal sheet ("Rules for this goal", add pre-targeted to that goal), and a member's contribution amount and the rules feeding it sit in that member's Payday detail sheet.
 _Avoid_: Auto-save rule, transfer rule
 

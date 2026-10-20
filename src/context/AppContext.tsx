@@ -767,7 +767,7 @@ interface AppContextValue {
   /* Payday Schedule & History */
   paySchedules: PaySchedule[];
   payHistory: PayHistory[];
-  addPaySchedule: (data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
+  addPaySchedule: (data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<string>;
   updatePaySchedule: (id: string, data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
   deletePaySchedule: (id: string) => Promise<void>;
   logPay: (payScheduleId: string, amount: number, date: string, notes: string | null, status?: 'pending' | 'confirmed') => Promise<PayHistory | null>;
@@ -786,7 +786,7 @@ interface AppContextValue {
   /* Contribution Rules */
   contributionRules: ContributionRule[];
   fetchContributionRules: (householdId?: string) => Promise<void>;
-  addRule: (ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) => Promise<void>;
+  addRule: (ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) => Promise<string>;
   updateRule: (id: string, ruleData: Partial<Omit<ContributionRule, "id" | "household_id" | "created_at">>) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;
   toggleRuleActive: (id: string) => Promise<void>;
@@ -4193,7 +4193,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Payday Schedule & History Actions ───────── */
-  async function addPaySchedule(data: Omit<PaySchedule, "id" | "household_id" | "created_at">) {
+  async function addPaySchedule(data: Omit<PaySchedule, "id" | "household_id" | "created_at">): Promise<string> {
     try {
       const hId = await ensureHousehold();
       const insertData = {
@@ -4216,9 +4216,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error;
       }
 
-      if (newSchedule) {
-        setPaySchedules((prev) => [...prev, newSchedule]);
-      }
+      if (!newSchedule) throw new Error("The pay schedule was not saved.");
+      setPaySchedules((prev) => [...prev, newSchedule]);
+      return String(newSchedule.id);
     } catch (err) {
       console.error("Failed to add pay schedule:", err);
       throw err;
@@ -4620,7 +4620,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function addRule(ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) {
+  async function addRule(ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">): Promise<string> {
     try {
       const hId = await ensureHousehold();
       const insertData = {
@@ -4637,14 +4637,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error inserting contribution rule:", error);
-        return;
+        throw error;
       }
 
-      if (data) {
-        setContributionRules((prev) => [...prev, data]);
-      }
+      if (!data) throw new Error("The rule was not saved.");
+      setContributionRules((prev) => [...prev, data]);
+      return String(data.id);
     } catch (err) {
       console.error("Failed to add contribution rule:", err);
+      throw err;
     }
   }
 
@@ -4659,7 +4660,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating contribution rule:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -4669,6 +4670,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update contribution rule:", err);
+      throw err;
     }
   }
 
@@ -5211,6 +5213,8 @@ export function useCurrentUser() {
     email: email,
     avatar: (currentMember?.name || email || "U").charAt(0).toUpperCase(),
     avatar_url: currentMember?.avatar_url || null,
+    // An accepted owner. False while members are still loading (no match yet).
+    isOwner: !!currentMember && currentMember.role === "owner" && isAcceptedMember(currentMember),
   };
 }
 

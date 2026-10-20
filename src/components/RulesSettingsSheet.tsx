@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { Plus, Sparkles, AlertCircle } from "lucide-react";
-import { useApp, useCurrentUser, type Member } from "@/context/AppContext";
+import { useApp, type Member } from "@/context/AppContext";
 import { type ContributionRule, type HouseholdContribution } from "@/types";
 import RuleCard from "./RuleCard";
+import AddRuleFlow from "./AddRuleFlow";
 import Dialog from "@/components/ui/Dialog";
 
 interface RulesSettingsSheetProps {
@@ -24,11 +25,12 @@ export default function RulesSettingsSheet({
   goals,
   contributions,
 }: RulesSettingsSheetProps) {
-  const { addRule, updateRule, deleteRule, toggleRuleActive } = useApp();
-  const currentUser = useCurrentUser();
+  const { updateRule, deleteRule, toggleRuleActive } = useApp();
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  // New rules are made in AddRuleFlow (R09, #396); the form below only edits one.
+  const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<ContributionRule | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Form State
   const [memberId, setMemberId] = useState("");
@@ -39,39 +41,25 @@ export default function RulesSettingsSheet({
   const [amountType, setAmountType] = useState<"fixed" | "percentage">("fixed");
 
   useEffect(() => {
-    if (editingRule) {
-      setMemberId(String(editingRule.member_id));
-      setThreshold(String(editingRule.threshold_amount));
-      setActionType(editingRule.action_type);
-      setActionTargetId(String(editingRule.action_target_id));
-      setAmountToAdd(String(editingRule.amount_to_add));
-      setAmountType(editingRule.amount_type || "fixed");
-      setIsFormOpen(true);
-    } else {
-      setMemberId(currentUser.id ? String(currentUser.id) : (householdMembers[0]?.id ? String(householdMembers[0].id) : ""));
-      setThreshold("");
-      setActionType("goal");
-      setActionTargetId(goals[0]?.id ? String(goals[0].id) : "");
-      setAmountToAdd("");
-      setAmountType("fixed");
-    }
-  }, [editingRule, isOpen, householdMembers, goals, currentUser.id]);
-
-  useEffect(() => {
-    if (!editingRule) {
-      if (actionType === "goal") {
-        setActionTargetId(goals[0]?.id ? String(goals[0].id) : "");
-      } else {
-        const matchingContribution = contributions.find((c) => String(c.member_id) === String(memberId));
-        setActionTargetId(matchingContribution?.id ? String(matchingContribution.id) : memberId);
-      }
-    }
-  }, [actionType, memberId, contributions, goals, editingRule]);
+    if (!editingRule) return;
+    setMemberId(String(editingRule.member_id));
+    setThreshold(String(editingRule.threshold_amount));
+    setActionType(editingRule.action_type);
+    setActionTargetId(String(editingRule.action_target_id));
+    setAmountToAdd(String(editingRule.amount_to_add));
+    setAmountType(editingRule.amount_type || "fixed");
+    setSaveError(null);
+  }, [editingRule]);
 
   if (!isOpen) return null;
 
   const handleEditClick = (rule: ContributionRule) => {
     setEditingRule(rule);
+  };
+
+  const closeForm = () => {
+    setEditingRule(null);
+    setSaveError(null);
   };
 
   const handleDeleteClick = async (ruleId: string) => {
@@ -81,7 +69,11 @@ export default function RulesSettingsSheet({
   };
 
   const handleToggleClick = async (ruleId: string) => {
-    await toggleRuleActive(ruleId);
+    try {
+      await toggleRuleActive(ruleId);
+    } catch (err) {
+      console.error("Failed to toggle rule:", err);
+    }
   };
 
   const isPercentageOverLimit =
@@ -107,7 +99,7 @@ export default function RulesSettingsSheet({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
+    if (!isFormValid || !editingRule) return;
 
     let targetId = actionTargetId;
     if (actionType === "contribution") {
@@ -122,29 +114,33 @@ export default function RulesSettingsSheet({
       action_target_id: targetId,
       amount_to_add: Number(amountToAdd),
       amount_type: amountType,
-      is_active: editingRule ? editingRule.is_active : true,
+      is_active: editingRule.is_active,
     };
 
-    if (editingRule) {
+    setSaveError(null);
+    try {
       await updateRule(editingRule.id, payload);
-    } else {
-      await addRule(payload);
+      closeForm();
+    } catch (err) {
+      console.error("Failed to save rule:", err);
+      setSaveError(
+        err instanceof Error && err.message ? err.message : "Couldn't save the rule. Try again."
+      );
     }
-
-    setIsFormOpen(false);
-    setEditingRule(null);
   };
 
   return (
+    <>
     <Dialog
       open={isOpen}
       onClose={onClose}
       title="Contribution Rules"
+      busy={isAddOpen}
       icon={<Sparkles size={18} className="text-primary animate-pulse" />}
       footer={
-        !isFormOpen ? (
+        !editingRule ? (
           <button
-            onClick={() => setIsFormOpen(true)}
+            onClick={() => setIsAddOpen(true)}
             className="w-full py-3 md:py-3.5 bg-primary text-primary-fg rounded-[2px] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 active:scale-[0.98]"
           >
             <Plus size={14} />
@@ -157,11 +153,11 @@ export default function RulesSettingsSheet({
         Automatically allocate excess pay when you earn above a threshold
       </p>
       <div className="-mx-5">
-          {/* Rule Form Panel Overlay */}
-          {isFormOpen ? (
+          {/* Edit form (new rules go through AddRuleFlow) */}
+          {editingRule ? (
           <form onSubmit={handleSave} className="flex flex-col space-y-5 px-6 py-5 border-b border-border-strong bg-background/50">
             <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
-              {editingRule ? "Edit Automation Rule" : "Create Automation Rule"}
+              Edit Automation Rule
             </h3>
 
             {/* Household Member */}
@@ -324,14 +320,17 @@ export default function RulesSettingsSheet({
               )}
             </div>
 
+            {saveError && (
+              <p role="alert" className="text-[11px] text-destructive">
+                {saveError}
+              </p>
+            )}
+
             {/* Form Actions */}
             <div className="flex space-x-3 pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingRule(null);
-                }}
+                onClick={closeForm}
                 className="flex-1 py-2.5 border border-border rounded-[2px] text-xs font-bold text-muted hover:text-foreground hover:bg-white/5 transition-all cursor-pointer uppercase tracking-wider"
               >
                 Cancel
@@ -392,5 +391,9 @@ export default function RulesSettingsSheet({
         </div>
       </div>
     </Dialog>
+
+    {/* Stacked over this sheet; the sheet ignores Escape and taps while it is open (busy). */}
+    <AddRuleFlow open={isAddOpen} onClose={() => setIsAddOpen(false)} />
+    </>
   );
 }
