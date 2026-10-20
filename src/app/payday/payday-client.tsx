@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Trash2, CheckCircle2, Clock, ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
 import AddPayFlow from "@/components/AddPayFlow";
-import AddPayScheduleSheet from "@/components/AddPayScheduleSheet";
 import EnterPayAmountModal from "@/components/EnterPayAmountModal";
 import PayHistoryCard from "@/components/PayHistoryCard";
 import SurplusSuggestionModal from "@/components/SurplusSuggestionModal";
@@ -27,9 +26,9 @@ export default function PaydayClient() {
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
   const { highlightKey, flash } = useRowHighlight();
   const [activeVariableSchedule, setActiveVariableSchedule] = useState<PaySchedule | null>(null);
-  const [selectedSchedule, setSelectedSchedule] = useState<PaySchedule | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  // R11: keep the id and look the schedule up each render, so the sheet follows every save and closes by itself if it is deleted.
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const selectedSchedule = selectedScheduleId === null ? null : (paySchedules.find((s) => String(s.id) === selectedScheduleId) ?? null);
   const [surplusInfo, setSurplusInfo] = useState<{
     memberId: string;
     newPayAmount: number;
@@ -205,6 +204,8 @@ export default function PaydayClient() {
       alert(`Successfully allocated $${amount.toFixed(2)} to your savings goal!`);
     } catch (err) {
       console.error("Failed to allocate surplus to goal:", err);
+      // addToGoal now throws: say so, rather than closing as if it worked (proper alerts come with R19+).
+      alert("Couldn't add that to your goal: " + (err instanceof Error ? err.message : "Unknown error"));
     }
     setSurplusInfo(null);
   };
@@ -304,14 +305,12 @@ export default function PaydayClient() {
                   role="button"
                   tabIndex={0}
                   onClick={() => {
-                    setSelectedSchedule(schedule);
-                    setIsDetailOpen(true);
+                    setSelectedScheduleId(String(schedule.id));
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setSelectedSchedule(schedule);
-                      setIsDetailOpen(true);
+                      setSelectedScheduleId(String(schedule.id));
                     }
                   }}
                   className="border-t border-border hover:bg-surface/40 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
@@ -508,34 +507,12 @@ export default function PaydayClient() {
         onAdded={(id) => flash(payScheduleRowKey(id))}
       />
 
-      {/* Edit Pay Schedule Sheet Overlay */}
-      <AddPayScheduleSheet
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        existingSchedule={selectedSchedule}
-      />
-
-      {/* Pay Schedule Detail Sheet */}
+      {/* Pay Schedule Detail Sheet (edits one field at a time) */}
       <PayScheduleDetailSheet
-        isOpen={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
+        isOpen={selectedSchedule !== null}
+        onClose={() => setSelectedScheduleId(null)}
         paySchedule={selectedSchedule}
         householdMembers={householdMembers}
-        onEdit={() => {
-          setIsDetailOpen(false);
-          setIsEditOpen(true);
-        }}
-        onDelete={async () => {
-          if (selectedSchedule && confirm("Are you sure you want to delete this payday schedule?")) {
-            try {
-              await deletePaySchedule(selectedSchedule.id);
-              setIsDetailOpen(false);
-            } catch (err) {
-              const errMsg = err instanceof Error ? err.message : "Unknown error";
-              alert("Failed to delete payday schedule: " + errMsg);
-            }
-          }
-        }}
       />
 
       {/* Unified Pay Log Modal (for both fixed & variable) */}

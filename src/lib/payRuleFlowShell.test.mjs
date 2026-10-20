@@ -54,13 +54,6 @@ test("the lib files stay import-free so node can run them", () => {
   }
 });
 
-test("AddPayScheduleSheet is edit-only", () => {
-  const t = read("components/AddPayScheduleSheet.tsx");
-  assert.ok(!t.includes("addPaySchedule("));
-  assert.ok(t.includes("!existingSchedule) return null"));
-  assert.ok(t.includes("updatePaySchedule("));
-});
-
 test("Payday page opens AddPayFlow and highlights the new row on an inner wrapper", () => {
   const t = read("app/payday/payday-client.tsx");
   assert.ok(t.includes('from "@/components/AddPayFlow"'));
@@ -68,18 +61,17 @@ test("Payday page opens AddPayFlow and highlights the new row on an inner wrappe
   assert.ok(t.includes("id={payScheduleRowKey(schedule.id)}"));
   assert.ok(t.includes("flash(payScheduleRowKey(id))"));
   assert.ok(t.includes("setIsAddScheduleOpen(true)") && t.includes("stripAddSheetParam(searchParams)"));
-  assert.ok(t.includes("existingSchedule={selectedSchedule}"), "edit sheet instance kept");
+  assert.ok(t.includes("<PayScheduleDetailSheet"), "edit lives in the detail sheet");
+  assert.ok(!t.includes("AddPayScheduleSheet"), "the edit-only sheet is gone");
 });
 
-test("Rules sheet opens AddRuleFlow for new rules and only edits in place", () => {
+test("Rules sheet opens AddRuleFlow for new rules and RuleDetailSheet for the rest", () => {
   const t = read("components/RulesSettingsSheet.tsx");
   assert.ok(t.includes('import AddRuleFlow from "./AddRuleFlow"'));
-  assert.ok(t.includes("busy={isAddOpen}"), "underlying sheet must ignore Escape while the flow is open");
-  assert.ok(!t.includes("addRule("), "adding a rule lives in AddRuleFlow");
-  assert.ok(!t.includes("isFormOpen"));
-  assert.ok(t.includes('value="contribution"'), "existing contribution rules stay editable");
-  assert.ok(t.includes("saveError") && t.includes('role="alert"'));
-  assert.ok(t.includes("deleteRule(ruleId)") && t.includes("confirm("), "delete is untouched");
+  assert.ok(t.includes('import RuleDetailSheet from "./RuleDetailSheet"'));
+  assert.ok(t.includes("busy={isAddOpen || activeRuleId !== null}"), "underlying sheet must ignore Escape while a layer is open");
+  assert.ok(t.includes("<RuleDetailSheet") && t.includes("<AddRuleFlow"));
+  assert.ok(!t.includes("addRule(") && !t.includes("confirm("), "adding lives in AddRuleFlow, deleting in RuleDetailSheet");
   assert.ok(read("components/AddRuleFlow.tsx").includes("/funds?add=1"), "no-goals line links to Add a goal");
 });
 
@@ -98,7 +90,7 @@ test("addPaySchedule and addRule return the id, updateRule throws, isOwner exist
   const upd = fnBody(t, "async function updateRule(", "async function deleteRule(");
   assert.ok(upd.includes("throw error;") && upd.includes("throw err;") && !/\breturn;/.test(upd));
   const del = fnBody(t, "async function deleteRule(", "async function toggleRuleActive(");
-  assert.ok(del.includes("return;") && !del.includes("throw"), "deleteRule is untouched");
+  assert.ok(del.includes(".select()") && del.includes("throw error;") && del.includes("throw err;") && !/return;/.test(del), "deleteRule throws (R11)");
   assert.ok(t.includes('isOwner: !!currentMember && currentMember.role === "owner" && isAcceptedMember(currentMember)'));
 });
 

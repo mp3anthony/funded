@@ -867,7 +867,6 @@ export default function SettingsClient() {
         householdMembers={members}
         rules={contributionRules}
         goals={funds}
-        contributions={householdContributions}
       />
       <BugReportSheet
         isOpen={isBugReportOpen}

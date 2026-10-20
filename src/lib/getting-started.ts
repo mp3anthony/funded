@@ -91,6 +91,7 @@ export const missions: GuideMission[] = [
       "Go to Goals and tap the + button beside the page title.",
       "Name your goal, set a target amount, and tap Add goal.",
       "Whenever you put money towards it, tap Add Amount under the goal.",
+      "To change a goal or pay schedule later, tap it, then tap the line you want to change.",
     ],
   },
   {

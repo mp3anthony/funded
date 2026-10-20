@@ -153,3 +153,79 @@ export function buildGoalPayload(v: AddGoalValues) {
     status: goalStatus(v),
   };
 }
+
+// ── Goal detail sheet (R11, #398) ───────────────────────────────────────────
+
+/** The goal sheet's one-field cards. */
+export type GoalField = "name" | "kind" | "target" | "saved" | "deadline" | "category";
+
+/** What the sheet needs from a goal (a `Fund` fits). */
+export interface GoalLike {
+  name: string;
+  category?: string | null;
+  currentAmount: number;
+  targetAmount: number;
+  deadline?: string | null;
+  status?: string | null;
+}
+
+/** Edit values for a goal. Just tracking = status "paused". */
+export function valuesFromGoal(g: GoalLike): AddGoalValues {
+  return {
+    kind: g.status === "paused" ? "tracking" : "saving",
+    name: g.name,
+    target: String(g.targetAmount),
+    saved: String(g.currentAmount),
+    deadline: g.deadline ? String(g.deadline).slice(0, 10) : "",
+    category: (g.category ?? "").trim() || "Other",
+  };
+}
+
+/** Why Save is blocked for this field's card, or null. */
+export function goalFieldError(field: GoalField, v: AddGoalValues): string | null {
+  if (field === "name" && v.name.trim() === "") return "Enter a name";
+  if (field === "target" && parseAmount(v.target) === null) return "Enter an amount above $0";
+  if (field === "saved" && parseSaved(v.saved) === null) return "Enter $0 or more";
+  return null;
+}
+
+/**
+ * What `updateGoal` takes. It writes every column, so every field save sends
+ * the whole goal; the status is worked out again each time. Just tracking keeps
+ * its saved amount (switching back restores it). `member_id` is passed through
+ * so a save never clears it.
+ */
+export function goalUpdate(v: AddGoalValues, goal: { member_id?: string | null }) {
+  return {
+    name: v.name.trim(),
+    category: v.category,
+    targetAmount: parseAmount(v.target) ?? 0,
+    currentAmount: parseSaved(v.saved) ?? 0,
+    deadline: v.deadline || null,
+    status: goalStatus(v),
+    member_id: goal.member_id ?? null,
+  };
+}
+
+/** The status line on the goal sheet. */
+export function goalStatusLabel(g: { status?: string | null; currentAmount: number; targetAmount: number }): string {
+  if (g.status === "paused") return "Just tracking";
+  if (g.targetAmount > 0 && g.currentAmount >= g.targetAmount) return "Reached";
+  return "Saving";
+}
+
+/** The Category choices, plus the goal's own category when it is an old one not in the list. */
+export function goalCategoryOptions(current?: string | null): Option[] {
+  const list: Option[] = GOAL_CATEGORIES.map((c) => ({ value: c, label: c }));
+  const cur = (current ?? "").trim();
+  if (cur && !GOAL_CATEGORIES.includes(cur)) list.push({ value: cur, label: cur });
+  return list;
+}
+
+/** The rules that put money into this goal (not old "Add to Contribution" rules). Ids may be a number or a string. */
+export function rulesForGoal<T extends { action_type: string; action_target_id: string | number }>(
+  rules: readonly T[],
+  goalId: string | number
+): T[] {
+  return rules.filter((r) => r.action_type === "goal" && String(r.action_target_id) === String(goalId));
+}

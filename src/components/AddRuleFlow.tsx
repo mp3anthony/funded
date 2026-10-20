@@ -10,6 +10,7 @@ import Row from "@/components/ui/Row";
 import StepFlow, { type FlowStep } from "@/components/ui/StepFlow";
 import { isAcceptedMember } from "@/lib/householdLeave";
 import { hasChanges } from "@/lib/stepFlow";
+import { canPickMember } from "@/lib/addPayFlow";
 import {
   AMOUNT_TYPE_OPTIONS,
   applyAmountTypeChange,
@@ -58,9 +59,9 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
 
   // Pending (not yet joined) members are not offered.
   const acceptedMembers = householdMembers.filter(isAcceptedMember);
-  const canPickMember = currentUser.isOwner && acceptedMembers.length >= 2;
+  const canPick = canPickMember(currentUser.isOwner, acceptedMembers.length);
   const memberId = effectiveMember(values.member, {
-    isOwner: canPickMember,
+    isOwner: canPick,
     currentId: String(currentUser.id),
   });
   const memberName = householdMembers.find((m) => String(m.id) === memberId)?.name ?? "—";
@@ -213,13 +214,13 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
   };
   // A pre-picked goal (the `goalId` prop) skips the goal card, but only if that goal exists.
   const skipGoal = !!goalId && funds.some((g) => String(g.id) === goalId);
-  const steps = stepKeys(canPickMember)
+  const steps = stepKeys(canPick)
     .filter((k) => !(k === "goal" && skipGoal))
     .map((k) => byKey[k]);
 
   const summary = ({ edit }: { edit: (key: string) => void }) => (
     <div className="flex flex-col">
-      {canPickMember ? (
+      {canPick ? (
         <Row tall chevron label="Whose pay" value={memberName} onClick={() => edit("member")} />
       ) : (
         <Row tall label="Whose pay" value={memberName} />

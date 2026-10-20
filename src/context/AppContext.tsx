@@ -3311,7 +3311,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update goal:", err);
-      throw err; // callers (EditGoalSheet) keep their UI open and show the failure
+      throw err; // callers (GoalDetailSheet) keep their UI open and show the failure
     }
   }
 
@@ -3346,8 +3346,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function addToGoal(id: string | number, amount: number) {
     try {
-      const fund = funds.find((f) => f.id === id);
-      if (!fund) return;
+      const fund = funds.find((f) => String(f.id) === String(id));
+      if (!fund) throw new Error("That goal is no longer there.");
 
       const newCurrentAmount = fund.currentAmount + amount;
 
@@ -3360,16 +3360,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error adding to goal:", error);
-        return;
+        throw error;
       }
 
       if (data) {
         setFunds((prev) =>
-          prev.map((f) => (f.id === id ? mapFundFromDb(data) : f))
+          prev.map((f) => (String(f.id) === String(id) ? mapFundFromDb(data) : f))
         );
       }
     } catch (err) {
       console.error("Failed to add money to goal:", err);
+      throw err; // callers (AddAmountModal, rule allocation, surplus) show or catch the failure
     }
   }
 
@@ -4713,19 +4714,27 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function deleteRule(id: string) {
     try {
-      const { error } = await supabase
+      // .select() returns the rows actually deleted; an empty result means the delete was blocked.
+      const { data, error } = await supabase
         .from("contribution_rules")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select();
 
       if (error) {
         console.error("Error deleting contribution rule:", error);
-        return;
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error(
+          "The rule couldn't be deleted — it may have already been removed, or you may not have permission to delete it."
+        );
       }
 
       setContributionRules((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       console.error("Failed to delete contribution rule:", err);
+      throw err;
     }
   }
 

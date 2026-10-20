@@ -14,6 +14,7 @@ import {
   PAY_TYPE_OPTIONS,
   amountLabel,
   buildPaySchedulePayload,
+  canPickMember,
   dateLabel,
   effectiveMember,
   initialValues,
@@ -38,7 +39,7 @@ interface AddPayFlowProps {
  * pay, the amount), then a summary. Only an owner with 2+ members is asked
  * "Whose pay"; everyone else saves their own. All entries live here, so Back
  * keeps them and a failed save ("Try again") loses nothing. Rules live in
- * `lib/addPayFlow.ts`. Editing an existing schedule stays in AddPayScheduleSheet.
+ * `lib/addPayFlow.ts`. Editing an existing schedule is in PayScheduleDetailSheet.
  */
 export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) {
   const uid = useId();
@@ -57,9 +58,9 @@ export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) 
 
   // Pending (not yet joined) members are not offered.
   const acceptedMembers = householdMembers.filter(isAcceptedMember);
-  const canPickMember = currentUser.isOwner && acceptedMembers.length >= 2;
+  const canPick = canPickMember(currentUser.isOwner, acceptedMembers.length);
   const memberId = effectiveMember(values.member, {
-    isOwner: canPickMember,
+    isOwner: canPick,
     currentId: String(currentUser.id),
     memberIds: acceptedMembers.map((m) => String(m.id)),
   });
@@ -172,13 +173,13 @@ export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) 
     nextPayDate: dateStep,
     amount: amountStep,
   };
-  const steps = stepKeys({ canPickMember, payType: values.payType }).map((k) => byKey[k]);
+  const steps = stepKeys({ canPickMember: canPick, payType: values.payType }).map((k) => byKey[k]);
 
   const amountNum = parseAmount(values.amount);
 
   const summary = ({ edit }: { edit: (key: string) => void }) => (
     <div className="flex flex-col">
-      {canPickMember ? (
+      {canPick ? (
         <Row tall chevron label="Whose pay" value={memberName} onClick={() => edit("member")} />
       ) : (
         <Row tall label="Whose pay" value={memberName} />

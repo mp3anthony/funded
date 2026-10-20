@@ -112,3 +112,58 @@ export function buildPaySchedulePayload(v: AddPayValues, memberId: string) {
     next_pay_date: v.nextPayDate,
   };
 }
+
+// ── Pay schedule detail sheet (R11, #398) ───────────────────────────────────
+
+/** The pay schedule sheet's one-field cards. */
+export type PayField = "member" | "payType" | "frequency" | "nextPayDate" | "amount";
+
+/** What the sheet needs from a pay schedule (a `PaySchedule` fits). */
+export interface ScheduleLike {
+  member_id: string | number;
+  frequency: string;
+  is_fixed_amount: boolean;
+  amount: number | null;
+  next_pay_date: string;
+}
+
+/** Edit values for a pay schedule. */
+export function valuesFromSchedule(s: ScheduleLike): AddPayValues {
+  return {
+    member: String(s.member_id),
+    payType: s.is_fixed_amount ? "fixed" : "variable",
+    frequency: (s.frequency as PayFrequency) || "monthly",
+    nextPayDate: s.next_pay_date ? String(s.next_pay_date).slice(0, 10) : "",
+    amount: s.is_fixed_amount && s.amount !== null && s.amount !== undefined ? String(s.amount) : "",
+  };
+}
+
+/** Why Save is blocked for this field's card, or null. Fixed pay needs an amount, on the pay type card too. */
+export function payFieldError(field: PayField, v: AddPayValues): string | null {
+  if (field === "member" && v.member === "") return "Pick whose pay";
+  if (field === "nextPayDate" && v.nextPayDate === "") return "Pick a date";
+  if ((field === "payType" || field === "amount") && v.payType === "fixed" && parseAmount(v.amount) === null) {
+    return "Enter an amount above $0";
+  }
+  return null;
+}
+
+/** What `updatePaySchedule` takes (the whole schedule; Variable saves no amount). */
+export function payScheduleUpdate(v: AddPayValues) {
+  return buildPaySchedulePayload(v, v.member);
+}
+
+/** Only an owner with 2+ accepted members can change whose pay a schedule or rule is. */
+export function canPickMember(isOwner: boolean, acceptedCount: number): boolean {
+  return isOwner && acceptedCount >= 2;
+}
+
+/** The "Whose pay" choices: accepted members, plus the current one if they are not accepted (so the card never shows blank). */
+export function memberOptions(
+  accepted: readonly { id: string | number; name: string }[],
+  currentId: string
+): Option[] {
+  const list: Option[] = accepted.map((m) => ({ value: String(m.id), label: m.name }));
+  if (currentId && !list.some((o) => o.value === currentId)) list.push({ value: currentId, label: "Former member" });
+  return list;
+}

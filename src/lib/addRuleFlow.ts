@@ -129,3 +129,66 @@ export function buildRulePayload(v: AddRuleValues, memberId: string) {
     is_active: true,
   };
 }
+
+// ── Rule detail sheet (R11, #398) ───────────────────────────────────────────
+
+/** The rule sheet's one-field cards. The amount card carries the type too. */
+export type RuleField = "member" | "goal" | "threshold" | "amount";
+
+/** What the sheet needs from a rule (a `ContributionRule` fits). */
+export interface RuleLike {
+  member_id: string | number;
+  threshold_amount: number | string;
+  action_type: "goal" | "contribution";
+  action_target_id: string | number;
+  amount_to_add: number | string;
+  amount_type?: AmountType | null;
+  is_active: boolean;
+}
+
+/** Edit values for a rule. A contribution rule has no goal, so `goalId` is "". */
+export function valuesFromRule(r: RuleLike): AddRuleValues {
+  return {
+    member: String(r.member_id),
+    goalId: r.action_type === "goal" ? String(r.action_target_id) : "",
+    threshold: String(r.threshold_amount),
+    amountType: r.amount_type === "percentage" ? "percentage" : "fixed",
+    amount: String(r.amount_to_add),
+  };
+}
+
+/** Why Save is blocked for this field's card, or null. `goalIds` are the goals that exist. */
+export function ruleFieldError(field: RuleField, v: AddRuleValues, goalIds: readonly string[]): string | null {
+  if (field === "goal" && !goalIds.includes(v.goalId)) return "Choose a goal";
+  if (field === "threshold" && parseThreshold(v.threshold) === null) return "Enter an amount of $0 or more";
+  if (field === "amount" && parseRuleAmount(v.amountType, v.amount) === null) {
+    return v.amountType === "percentage" ? "Enter 0.01 to 100" : "Enter an amount above $0";
+  }
+  return null;
+}
+
+/**
+ * What `updateRule` takes. Keeps the rule's action type and on/off state. A goal
+ * rule points at the chosen goal; a contribution rule points at
+ * `contributionTargetId` (the member's contribution row, worked out by the caller).
+ */
+export function ruleUpdate(v: AddRuleValues, rule: RuleLike, contributionTargetId: string) {
+  return {
+    member_id: v.member,
+    threshold_amount: parseThreshold(v.threshold) ?? 0,
+    action_type: rule.action_type,
+    action_target_id: rule.action_type === "goal" ? v.goalId : contributionTargetId,
+    amount_to_add: parseRuleAmount(v.amountType, v.amount) ?? 0,
+    amount_type: v.amountType,
+    is_active: rule.is_active,
+  };
+}
+
+/** One list row for a rule: "$50" or "10% of the extra" (with "Name · " first when given), and "Every pay" or "Over $200.00" (+ " · Off"). */
+export function ruleRowText(rule: RuleLike, memberName: string | null): { label: string; value: string } {
+  const type: AmountType = rule.amount_type === "percentage" ? "percentage" : "fixed";
+  const amount = parseRuleAmount(type, String(rule.amount_to_add));
+  const what = amount === null ? "—" : type === "percentage" ? `${amount}% of the extra` : Number.isInteger(amount) ? `$${amount}` : amountLabel(amount);
+  const value = thresholdLabel(String(rule.threshold_amount)) + (rule.is_active ? "" : " · Off");
+  return { label: memberName ? `${memberName} · ${what}` : what, value };
+}

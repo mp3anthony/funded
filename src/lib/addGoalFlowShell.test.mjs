@@ -59,9 +59,10 @@ test("addFund returns the new id, updateGoal throws", () => {
   assert.ok(body.includes("throw err;"), "updateGoal must throw in the catch");
 });
 
-test("EditGoalSheet shows a failed save", () => {
-  const t = read("components/EditGoalSheet.tsx");
-  assert.ok(t.includes("error={saveError}"));
+test("GoalDetailSheet saves through goalUpdate and shows a failed save via the field card", () => {
+  const t = read("components/GoalDetailSheet.tsx");
+  assert.ok(t.includes("updateGoal(goal.id, goalUpdate(draft, goal))"));
+  assert.ok(read("components/ui/SingleCard.tsx").includes("error={error}"));
 });
 
 test("Getting started says Add goal", () => {

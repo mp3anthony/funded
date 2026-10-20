@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useId } from "react";
+import { flushSync } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type Fund } from "@/context/AppContext";
 import AddGoalFlow from "@/components/AddGoalFlow";
-import EditGoalSheet from "@/components/EditGoalSheet";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
 import AddAmountModal from "@/components/AddAmountModal";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
@@ -30,19 +30,22 @@ const GOAL_CATEGORY_REMAP: Record<string, string> = {
 };
 
 export default function FundsClient() {
-  const { funds, deleteGoal, addToGoal, session, isDataLoading } = useApp();
+  const { funds, session, isDataLoading } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   // ── Local UI state ────────────────────────────────────────────────
-  const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  // R11: keep the id and look the goal up each render, so the sheet follows every
+  // save and closes by itself if the goal is deleted.
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const selectedGoal =
+    selectedGoalId === null ? null : (funds.find((f) => String(f.id) === selectedGoalId) ?? null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const { highlightKey, flash } = useRowHighlight();
   const [addAmountGoal, setAddAmountGoal] = useState<Fund | null>(null);
+  const addAmountInputId = useId();
 
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -87,8 +90,7 @@ export default function FundsClient() {
       // One-shot sync with an external input (the tapped link), guarded by
       // handledGoalLinkRef — not a render cascade.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedGoal(target);
-      setIsDetailOpen(true);
+      setSelectedGoalId(String(target.id));
     }
 
     const params = new URLSearchParams(searchParams.toString());
@@ -157,17 +159,10 @@ export default function FundsClient() {
   }, [groupedFunds, categoryOrder]);
 
   // ── Handlers ──────────────────────────────────────────────────────
-  const handleDeleteGoal = async () => {
-    if (selectedGoal && confirm(`Are you sure you want to delete "${selectedGoal.name}"?`)) {
-      try {
-        await deleteGoal(selectedGoal.id);
-        setIsDetailOpen(false);
-        setSelectedGoal(null);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        alert("Failed to delete goal: " + errMsg);
-      }
-    }
+  // Open "Add to {goal}" and focus its box inside the same tap, so the iOS keyboard rises with it.
+  const openAddAmount = (fund: Fund) => {
+    flushSync(() => setAddAmountGoal(fund));
+    document.getElementById(addAmountInputId)?.focus();
   };
 
   // After an add: show the new goal (clear the category filter), open its category, then
@@ -324,11 +319,8 @@ export default function FundsClient() {
                               isComplete={isComplete}
                               staggerIndex={index}
                               isExpanded={isExpanded}
-                              onOpen={() => {
-                                setSelectedGoal(fund);
-                                setIsDetailOpen(true);
-                              }}
-                              onAddAmount={() => setAddAmountGoal(fund)}
+                              onOpen={() => setSelectedGoalId(String(fund.id))}
+                              onAddAmount={() => openAddAmount(fund)}
                             />
                           </div>
                         );
@@ -347,28 +339,10 @@ export default function FundsClient() {
           component itself is always mounted here; only its internal
           isOpen/goal check hides it), including reopening the same goal. */}
       <GoalDetailSheet
-        key={isDetailOpen ? `open-${selectedGoal?.id ?? "none"}` : "closed"}
-        isOpen={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false);
-          setSelectedGoal(null);
-        }}
+        key={selectedGoal ? `open-${selectedGoal.id}` : "closed"}
+        isOpen={selectedGoal !== null}
+        onClose={() => setSelectedGoalId(null)}
         goal={selectedGoal}
-        onEdit={() => {
-          setIsDetailOpen(false);
-          setIsEditOpen(true);
-        }}
-        onDelete={handleDeleteGoal}
-      />
-
-      {/* Edit Goal Sheet */}
-      <EditGoalSheet
-        isOpen={isEditOpen}
-        onClose={() => {
-          setIsEditOpen(false);
-          setSelectedGoal(null);
-        }}
-        existingGoal={selectedGoal}
       />
 
       {/* Add Goal flow */}
@@ -383,11 +357,7 @@ export default function FundsClient() {
         isOpen={addAmountGoal !== null}
         onClose={() => setAddAmountGoal(null)}
         goal={addAmountGoal}
-        onConfirm={(amount) => {
-          if (addAmountGoal) {
-            addToGoal(addAmountGoal.id, amount);
-          }
-        }}
+        inputId={addAmountInputId}
       />
 
       {/* Edit Category Order Modal */}

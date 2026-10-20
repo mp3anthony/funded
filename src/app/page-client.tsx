@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useApp, useCurrentUser, type Fund } from "@/context/AppContext";
+import { useApp, useCurrentUser } from "@/context/AppContext";
 import BillDetailSheet from "@/components/BillDetailSheet";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
-import EditGoalSheet from "@/components/EditGoalSheet";
 import PageHeader from "@/components/PageHeader";
 
 // New premium components
@@ -22,7 +21,6 @@ export default function HomeClient() {
     payHistory,
     billSplits,
     members: householdMembers,
-    deleteGoal,
     isUpdatesCardVisible,
   } = useApp();
   const currentUser = useCurrentUser();
@@ -34,9 +32,10 @@ export default function HomeClient() {
   const selectedBill =
     selectedBillId === null ? null : (bills.find((b) => String(b.id) === String(selectedBillId)) ?? null);
 
-  const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
-  const [isGoalDetailOpen, setIsGoalDetailOpen] = useState(false);
-  const [isGoalEditOpen, setIsGoalEditOpen] = useState(false);
+  // R11: same for goals.
+  const [selectedGoalId, setSelectedGoalId] = useState<string | number | null>(null);
+  const selectedGoal =
+    selectedGoalId === null ? null : (funds.find((f) => String(f.id) === String(selectedGoalId)) ?? null);
 
   /* ── Tips ticker trigger (#151) — reappears fixed to the bottom of the
      viewport only once both Upcoming Bills and Savings Goals are minimised.
@@ -47,20 +46,6 @@ export default function HomeClient() {
   const [isBillsMinimised, setIsBillsMinimised] = useState<boolean | null>(null);
   const [isGoalsMinimised, setIsGoalsMinimised] = useState<boolean | null>(null);
   const bothCardsMinimised = isBillsMinimised === true && isGoalsMinimised === true;
-
-  /* ── Sheet Deletion Handlers ─────────────────── */
-  const handleDeleteGoal = async () => {
-    if (selectedGoal && confirm(`Are you sure you want to delete "${selectedGoal.name}"?`)) {
-      try {
-        await deleteGoal(selectedGoal.id);
-        setIsGoalDetailOpen(false);
-        setSelectedGoal(null);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        alert("Failed to delete goal: " + errMsg);
-      }
-    }
-  };
 
   return (
     <div className="flex-1 w-full max-w-2xl lg:max-w-4xl mx-auto px-6 pt-4 pb-10">
@@ -85,10 +70,7 @@ export default function HomeClient() {
           <div className="lg:col-span-1">
             <ActiveGoalsCard
               funds={funds}
-              onGoalClick={(goal) => {
-                setSelectedGoal(goal);
-                setIsGoalDetailOpen(true);
-              }}
+              onGoalClick={(goal) => setSelectedGoalId(goal.id)}
               onMinimisedChange={setIsGoalsMinimised}
             />
           </div>
@@ -120,28 +102,10 @@ export default function HomeClient() {
           component itself is always mounted here; only its internal
           isOpen/goal check hides it), including reopening the same goal. */}
       <GoalDetailSheet
-        key={isGoalDetailOpen ? `open-${selectedGoal?.id ?? "none"}` : "closed"}
-        isOpen={isGoalDetailOpen}
-        onClose={() => {
-          setIsGoalDetailOpen(false);
-          setSelectedGoal(null);
-        }}
+        key={selectedGoal ? `open-${selectedGoal.id}` : "closed"}
+        isOpen={selectedGoal !== null}
+        onClose={() => setSelectedGoalId(null)}
         goal={selectedGoal}
-        onEdit={() => {
-          setIsGoalDetailOpen(false);
-          setIsGoalEditOpen(true);
-        }}
-        onDelete={handleDeleteGoal}
-      />
-
-      {/* Edit Goal Sheet */}
-      <EditGoalSheet
-        isOpen={isGoalEditOpen}
-        onClose={() => {
-          setIsGoalEditOpen(false);
-          setSelectedGoal(null);
-        }}
-        existingGoal={selectedGoal}
       />
     </div>
   );

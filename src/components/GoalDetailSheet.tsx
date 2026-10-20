@@ -1,169 +1,270 @@
 "use client";
 
-import { Calendar, Award, Play, Pause, Check } from "lucide-react";
-import type { Fund } from "@/context/AppContext";
-import Dialog from "@/components/ui/Dialog";
+import React, { useId, useState } from "react";
+import { flushSync } from "react-dom";
+import { Plus } from "lucide-react";
+import { useApp, type Fund } from "@/context/AppContext";
+import Button from "@/components/ui/Button";
+import DetailSheet from "@/components/ui/DetailSheet";
+import IconCircle from "@/components/ui/IconCircle";
+import Row from "@/components/ui/Row";
+import AddAmountModal from "@/components/AddAmountModal";
+import AddRuleFlow from "@/components/AddRuleFlow";
+import GoalFieldCard, { goalFieldTakesKeyboard } from "@/components/GoalFieldCard";
+import RuleDetailSheet from "@/components/RuleDetailSheet";
 import { useCountUp } from "@/hooks/useCountUp";
+import { isAcceptedMember } from "@/lib/householdLeave";
+import { ruleRowText } from "@/lib/addRuleFlow";
+import {
+  KIND_OPTIONS,
+  amountLabel,
+  deadlineLabel,
+  goalFieldError,
+  goalStatusLabel,
+  goalUpdate,
+  optionLabel,
+  rulesForGoal,
+  valuesFromGoal,
+  type AddGoalValues,
+  type GoalField,
+} from "@/lib/addGoalFlow";
 
 interface GoalDetailSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  /** The live goal (parents look it up by id so it follows every save). */
   goal: Fund | null;
-  onEdit: () => void;
-  onDelete: () => void;
 }
 
-export default function GoalDetailSheet({
-  isOpen,
-  onClose,
-  goal,
-  onEdit,
-  onDelete,
-}: GoalDetailSheetProps) {
-  const percentage = goal ? Math.min((goal.currentAmount / goal.targetAmount) * 100, 100) : 0;
-  const isComplete = !!goal && goal.currentAmount >= goal.targetAmount;
+/** A row value that keeps long text on one line. */
+function Val({ children }: { children: React.ReactNode }) {
+  return <span className="block max-w-[55vw] truncate text-[13px] text-muted">{children}</span>;
+}
 
-  // Slice 99: call sites key this component so each open (including
-  // reopening the same goal) is a fresh mount, even though the component
-  // itself stays rendered across opens/closes (only the early return below
-  // hides it) — so the saved amount and progress % reliably count up from
-  // 0 as a small authored reveal, consistent with the Dialog card's own
-  // entrance rather than popping straight to the final figures.
+/**
+ * Goal detail sheet (R11, #398): a status line with a progress bar, "Add amount",
+ * one tappable row per field (each opens a one-field card), "Rules for this goal"
+ * and a red Delete at the bottom. The old Edit button and edit form are gone.
+ * Rules live in `lib/addGoalFlow.ts`.
+ */
+export default function GoalDetailSheet({ isOpen, onClose, goal }: GoalDetailSheetProps) {
+  const uid = useId();
+  const inputId = `${uid}-input`;
+  const addAmountInputId = `${uid}-add-amount`;
+  const { contributionRules, householdMembers, updateGoal, deleteGoal, deleteRule } = useApp();
+
+  // The field card: which field, and the draft of every field (seeded from the live goal when it opens).
+  const [editing, setEditing] = useState<GoalField | null>(null);
+  const [draft, setDraft] = useState<AddGoalValues | null>(null);
+  const [addAmountOpen, setAddAmountOpen] = useState(false);
+  const [addRuleOpen, setAddRuleOpen] = useState(false);
+  const [ruleId, setRuleId] = useState<string | null>(null);
+
+  // Fresh state every time the sheet opens, and cleared when it closes (derived-state reset, no effect).
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    setEditing(null);
+    setDraft(null);
+    setAddAmountOpen(false);
+    setAddRuleOpen(false);
+    setRuleId(null);
+  }
+
+  // Slice 99: call sites key this component so each open (including reopening the
+  // same goal) is a fresh mount, so the saved amount and progress count up from 0.
+  const target = goal ? Number(goal.targetAmount) : 0;
+  const percentage = goal && target > 0 ? Math.min((goal.currentAmount / target) * 100, 100) : 0;
   const displayCurrentAmount = useCountUp(goal?.currentAmount ?? 0, 700, true);
   const displayPercentage = useCountUp(percentage, 700, true);
 
   if (!isOpen || !goal) return null;
 
-  // Format currency
-  const formattedCurrent = displayCurrentAmount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  const formattedTarget = Number(goal.targetAmount).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const seed = valuesFromGoal(goal);
+  const statusLabel = goalStatusLabel(goal);
+  const isTracking = seed.kind === "tracking";
+  const goalRules = rulesForGoal(contributionRules, goal.id);
+  const showRules = !isTracking || goalRules.length > 0;
+  // The rule sheet closes by itself when its rule is deleted (the id is then stale).
+  const activeRuleId =
+    ruleId !== null && contributionRules.some((r) => String(r.id) === ruleId) ? ruleId : null;
 
-  // Status Badge Logic
-  const status = goal.status || "not_started";
-  let statusLabel = "Not Started";
-  let statusBadgeClass = "bg-surface-raised text-zinc-400 border border-zinc-700";
-  let StatusIcon = Play;
+  const acceptedMembers = householdMembers.filter(isAcceptedMember);
+  const showMemberNames = acceptedMembers.length >= 2;
 
-  if (status === "in_progress") {
-    statusLabel = "In Progress";
-    statusBadgeClass = "bg-primary/10 text-primary border border-primary/20";
-    StatusIcon = Play;
-  } else if (status === "completed") {
-    statusLabel = "Completed";
-    statusBadgeClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-    StatusIcon = Check;
-  } else if (status === "paused") {
-    statusLabel = "Paused";
-    statusBadgeClass = "bg-accent/10 text-accent border border-accent/20";
-    StatusIcon = Pause;
-  }
+  const openField = (f: GoalField) => {
+    // Render the card inside this tap, then focus its box, so the iOS keyboard opens with it.
+    flushSync(() => {
+      setDraft(valuesFromGoal(goal));
+      setEditing(f);
+    });
+    if (goalFieldTakesKeyboard(f)) document.getElementById(inputId)?.focus();
+  };
 
-  // Format Deadline
-  let formattedDeadline = "No deadline set";
-  if (goal.deadline) {
-    const d = new Date(goal.deadline + "T00:00:00");
-    if (!isNaN(d.getTime())) {
-      formattedDeadline = d.toLocaleDateString("en-US", {
-        month: "long",
-        day: "2-digit",
-        year: "numeric",
-      });
+  const openAddAmount = () => {
+    flushSync(() => setAddAmountOpen(true));
+    document.getElementById(addAmountInputId)?.focus();
+  };
+
+  const patchDraft = (p: Partial<AddGoalValues>) => setDraft((d) => (d ? { ...d, ...p } : d));
+
+  const saveField = async () => {
+    if (!draft) return false;
+    await updateGoal(goal.id, goalUpdate(draft, goal));
+  };
+
+  // The goal goes first; its rules are then removed best effort (a leftover rule points at nothing and does nothing).
+  const deleteWithRules = async () => {
+    const rules = goalRules;
+    await deleteGoal(goal.id);
+    for (const r of rules) {
+      try {
+        await deleteRule(r.id);
+      } catch (err) {
+        console.error("Failed to delete rule of deleted goal:", err);
+      }
     }
-  }
+  };
+
+  const n = goalRules.length;
+  const deleteMessage =
+    `"${goal.name}" will be removed.` +
+    (n > 0 ? ` Its ${n} rule${n === 1 ? " is" : "s are"} removed too.` : "");
+
+  const actions =
+    !isTracking && statusLabel !== "Reached" ? (
+      <Button fullWidth onClick={openAddAmount}>
+        Add amount
+      </Button>
+    ) : undefined;
 
   return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      title="Goal Details"
-      footer={
-        <>
-          <button
-            onClick={onDelete}
-            className="flex-1 rounded-[2px] py-3.5 bg-destructive/15 text-destructive border border-destructive/20 font-bold uppercase tracking-wider text-xs hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
-          >
-            Delete Goal
-          </button>
-          <button
-            onClick={onEdit}
-            className="flex-1 rounded-[2px] py-3.5 bg-primary text-primary-fg font-bold uppercase tracking-wider text-xs hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
-          >
-            Edit Goal
-          </button>
-        </>
-      }
-    >
-      {/* Content Body */}
-      <div className="space-y-6">
-
-          {/* Goal Name & Category */}
-          <div className="flex flex-col space-y-1">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-2xl text-foreground tracking-wide truncate pr-4">
-                {goal.name}
-              </h3>
-              <span className="shrink-0 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-surface-elevated text-muted border border-border">
-                {goal.category}
+    <>
+      <DetailSheet
+        open={isOpen}
+        onClose={onClose}
+        title={goal.name}
+        actions={actions}
+        busy={editing !== null || addAmountOpen || addRuleOpen || activeRuleId !== null}
+        onDelete={deleteWithRules}
+        deleteConfirm={{
+          title: "Delete this goal?",
+          message: deleteMessage,
+          confirmLabel: "Delete",
+        }}
+        deletedToast="Goal deleted"
+      >
+        <p className="mb-1 text-sm text-muted">
+          {statusLabel}
+          {!isTracking && (
+            <>
+              {" · "}
+              <span className="tabular-nums">
+                {amountLabel(displayCurrentAmount)} of {amountLabel(target)}
               </span>
-            </div>
-            <div className="flex items-baseline mt-2 text-3xl font-bold text-foreground">
-              ${formattedCurrent}
-              <span className="text-sm font-normal text-muted ml-2">
-                saved of ${formattedTarget} target
-              </span>
-            </div>
+            </>
+          )}
+        </p>
+        {!isTracking && (
+          <div className="mb-2 h-3 w-full overflow-hidden rounded-full border border-border bg-surface">
+            <div
+              className={`h-full rounded-full transition-[width] duration-(--duration-structural) ease-(--ease-enter) ${goal.barColor}`}
+              style={{ width: `${displayPercentage}%` }}
+            />
           </div>
+        )}
+        <div className="flex flex-col">
+          <Row divider tall chevron label="Name" onClick={() => openField("name")}>
+            <Val>{goal.name}</Val>
+          </Row>
+          <Row
+            divider
+            tall
+            chevron
+            label="Kind"
+            value={optionLabel(KIND_OPTIONS, seed.kind)}
+            onClick={() => openField("kind")}
+          />
+          <Row divider tall chevron label="Target" value={amountLabel(target)} onClick={() => openField("target")} />
+          {!isTracking && (
+            <Row
+              divider
+              tall
+              chevron
+              label="Saved"
+              value={amountLabel(Number(goal.currentAmount))}
+              onClick={() => openField("saved")}
+            />
+          )}
+          <Row
+            divider
+            tall
+            chevron
+            label="Deadline"
+            value={deadlineLabel(seed.deadline)}
+            onClick={() => openField("deadline")}
+          />
+          <Row divider tall chevron label="Category" value={seed.category} onClick={() => openField("category")} />
+        </div>
 
-          {/* Progress Section */}
-          <div className="space-y-3 bg-surface-raised border border-border p-5 rounded-[2px]">
-            <div className="flex justify-between items-center text-xs uppercase">
-              <span className="text-subtle font-semibold">Progress</span>
-              <span className={`font-bold ${goal.accentText}`}>{displayPercentage.toFixed(1)}%</span>
+        {showRules && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[15px] font-bold text-foreground">Rules for this goal</h3>
+              <IconCircle label="Add a rule" onClick={() => setAddRuleOpen(true)}>
+                <Plus size={18} />
+              </IconCircle>
             </div>
-
-            <div className="w-full bg-surface rounded-full h-3.5 overflow-hidden border border-border">
-              <div
-                className={`h-full rounded-full transition-[width] duration-(--duration-structural) ease-(--ease-enter) ${goal.barColor}`}
-                style={{ width: `${displayPercentage}%` }}
-              />
-            </div>
-
-            {isComplete && (
-              <div className="flex items-center space-x-2 text-primary text-xs font-bold pt-1">
-                <Award size={16} />
-                <span>Savings target fully achieved! 🎉</span>
+            {n === 0 ? (
+              <p className="text-sm text-muted">Move spare pay into a goal automatically</p>
+            ) : (
+              <div className="flex flex-col">
+                {goalRules.map((r) => {
+                  const name = showMemberNames
+                    ? (householdMembers.find((m) => String(m.id) === String(r.member_id))?.name ?? null)
+                    : null;
+                  const text = ruleRowText(r, name);
+                  return (
+                    <Row
+                      key={r.id}
+                      divider
+                      tall
+                      chevron
+                      label={text.label}
+                      value={text.value}
+                      onClick={() => setRuleId(String(r.id))}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
+        )}
+      </DetailSheet>
 
-          {/* Goal Info Grid */}
-          <div className="grid grid-cols-2 gap-4 border-t border-border pt-6 text-xs">
-            <div className="space-y-1.5">
-              <span className="text-subtle uppercase font-semibold">Target Deadline</span>
-              <div className="flex items-center space-x-1.5 text-foreground">
-                <Calendar size={14} className="text-muted" />
-                <span>{formattedDeadline}</span>
-              </div>
-            </div>
+      {draft && (
+        <GoalFieldCard
+          field={editing}
+          onClose={() => setEditing(null)}
+          values={draft}
+          onChange={patchDraft}
+          inputId={inputId}
+          error={editing ? goalFieldError(editing, draft) : null}
+          onSubmit={saveField}
+          successToast="Goal updated"
+        />
+      )}
 
-            <div className="space-y-1.5">
-              <span className="text-subtle uppercase font-semibold">Status</span>
-              <div className="flex items-center">
-                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusBadgeClass}`}>
-                  <StatusIcon size={12} />
-                  <span>{statusLabel}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+      <AddAmountModal
+        isOpen={addAmountOpen}
+        onClose={() => setAddAmountOpen(false)}
+        goal={goal}
+        inputId={addAmountInputId}
+      />
 
-      </div>
-    </Dialog>
+      <AddRuleFlow open={addRuleOpen} onClose={() => setAddRuleOpen(false)} goalId={String(goal.id)} />
+
+      <RuleDetailSheet ruleId={activeRuleId} onClose={() => setRuleId(null)} />
+    </>
   );
 }
