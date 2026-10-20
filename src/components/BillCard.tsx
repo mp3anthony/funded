@@ -2,10 +2,9 @@
 
 import React, { useState } from "react";
 import { Pause } from "lucide-react";
-import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
+import type { Bill, BillSplit, Member } from "@/context/AppContext";
 import { convertAmount } from "@/lib/utils";
 import BillDetailSheet from "./BillDetailSheet";
-import AddBillSheet from "./AddBillSheet";
 import RowPill from "./RowPill";
 import { isDateless, dueDateHint } from "@/lib/billCycle";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
@@ -23,11 +22,9 @@ export default function BillCard({
   householdMembers,
   displayFrequency = "weekly",
 }: BillCardProps) {
-  const { deleteBill } = useApp();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  // #250: open the edit form scrolled to the due date (from "Add due date").
-  const [editFocusDueDate, setEditFocusDueDate] = useState(false);
+  // #250: "Add due date" opens the detail sheet straight on its Due date card.
+  const [startField, setStartField] = useState<"dueDate" | undefined>(undefined);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -45,6 +42,7 @@ export default function BillCard({
 
   const handleCloseDetail = () => {
     setIsDetailOpen(false);
+    setStartField(undefined);
     if (highlightBillId === bill.id.toString()) {
       const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
       params.delete("billId");
@@ -97,22 +95,9 @@ export default function BillCard({
     maximumFractionDigits: 2,
   });
 
-  // Calculate secondary label logic moved to BillDetailSheet
-  const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete "${bill.name}"?`)) {
-      try {
-        await deleteBill(bill.id);
-        setIsDetailOpen(false);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        alert("Failed to delete bill: " + errMsg);
-      }
-    }
-  };
-
-  const openEdit = (focusDueDate: boolean) => {
-    setEditFocusDueDate(focusDueDate);
-    setIsEditOpen(true);
+  const openDueDateCard = () => {
+    setStartField("dueDate");
+    setIsDetailOpen(true);
   };
 
   const dateText = bill.dueLabel
@@ -129,7 +114,7 @@ export default function BillCard({
   const dateSlot = showAddDueDate ? (
     <button
       type="button"
-      onClick={() => openEdit(true)}
+      onClick={openDueDateCard}
       aria-label={`Add due date for ${bill.name}`}
       className={`${dateSlotClass} relative z-10 pointer-events-auto font-bold text-accent pt-[17px] -mt-[17px] pb-3 -mb-3 pr-3 cursor-pointer`}
     >
@@ -209,22 +194,7 @@ export default function BillCard({
         bill={bill}
         splits={splits}
         householdMembers={householdMembers}
-        onEdit={(opts) => {
-          setIsDetailOpen(false);
-          openEdit(opts?.focusDueDate === true);
-        }}
-        onDelete={handleDelete}
-      />
-
-      <AddBillSheet
-        isOpen={isEditOpen}
-        onClose={() => {
-          setIsEditOpen(false);
-          setEditFocusDueDate(false);
-        }}
-        existingBill={bill}
-        existingSplits={splits}
-        focusDueDate={editFocusDueDate}
+        startField={startField}
       />
     </>
   );

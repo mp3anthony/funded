@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useApp, useCurrentUser, type Bill, type Fund } from "@/context/AppContext";
+import { useApp, useCurrentUser, type Fund } from "@/context/AppContext";
 import BillDetailSheet from "@/components/BillDetailSheet";
-import AddBillSheet from "@/components/AddBillSheet";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
 import EditGoalSheet from "@/components/EditGoalSheet";
 import PageHeader from "@/components/PageHeader";
@@ -23,18 +22,17 @@ export default function HomeClient() {
     payHistory,
     billSplits,
     members: householdMembers,
-    deleteBill,
     deleteGoal,
     isUpdatesCardVisible,
   } = useApp();
   const currentUser = useCurrentUser();
 
   /* ── Local UI States for Sheets ──────────────── */
-  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  // #250: open the edit form at the due date (from "Add due date").
-  const [editFocusDueDate, setEditFocusDueDate] = useState(false);
+  // R10: keep the id and look the bill up each render, so the sheet follows every
+  // save and closes by itself if the bill is deleted.
+  const [selectedBillId, setSelectedBillId] = useState<string | number | null>(null);
+  const selectedBill =
+    selectedBillId === null ? null : (bills.find((b) => String(b.id) === String(selectedBillId)) ?? null);
 
   const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
   const [isGoalDetailOpen, setIsGoalDetailOpen] = useState(false);
@@ -51,18 +49,6 @@ export default function HomeClient() {
   const bothCardsMinimised = isBillsMinimised === true && isGoalsMinimised === true;
 
   /* ── Sheet Deletion Handlers ─────────────────── */
-  const handleDeleteBill = async () => {
-    if (selectedBill && confirm(`Are you sure you want to delete "${selectedBill.name}"?`)) {
-      try {
-        await deleteBill(selectedBill.id);
-        setIsDetailOpen(false);
-        setSelectedBill(null);
-      } catch (err: any) {
-        alert("Failed to delete bill: " + (err?.message || "Unknown error"));
-      }
-    }
-  };
-
   const handleDeleteGoal = async () => {
     if (selectedGoal && confirm(`Are you sure you want to delete "${selectedGoal.name}"?`)) {
       try {
@@ -92,10 +78,7 @@ export default function HomeClient() {
           <div className="lg:col-span-2">
             <UpcomingBillsCard
               bills={bills}
-              onBillClick={(bill) => {
-                setSelectedBill(bill);
-                setIsDetailOpen(true);
-              }}
+              onBillClick={(bill) => setSelectedBillId(bill.id)}
               onMinimisedChange={setIsBillsMinimised}
             />
           </div>
@@ -122,11 +105,8 @@ export default function HomeClient() {
 
       {/* Bill Detail Sheet */}
       <BillDetailSheet
-        isOpen={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false);
-          setSelectedBill(null);
-        }}
+        isOpen={selectedBill !== null}
+        onClose={() => setSelectedBillId(null)}
         bill={selectedBill}
         splits={
           selectedBill
@@ -134,29 +114,6 @@ export default function HomeClient() {
             : []
         }
         householdMembers={householdMembers}
-        onEdit={(opts) => {
-          setIsDetailOpen(false);
-          setEditFocusDueDate(opts?.focusDueDate === true);
-          setIsEditOpen(true);
-        }}
-        onDelete={handleDeleteBill}
-      />
-
-      {/* Edit Bill Sheet */}
-      <AddBillSheet
-        isOpen={isEditOpen}
-        onClose={() => {
-          setIsEditOpen(false);
-          setEditFocusDueDate(false);
-          setSelectedBill(null);
-        }}
-        focusDueDate={editFocusDueDate}
-        existingBill={selectedBill || undefined}
-        existingSplits={
-          selectedBill
-            ? billSplits.filter((s) => String(s.bill_id) === String(selectedBill.id))
-            : []
-        }
       />
 
       {/* Goal Detail Sheet — keyed so it genuinely remounts per open (the

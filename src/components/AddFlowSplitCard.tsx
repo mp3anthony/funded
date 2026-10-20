@@ -61,9 +61,10 @@ interface AddFlowSplitCardProps {
 }
 
 /**
- * The Split card of the Add flow (R07, #394). Controlled: every value lives in
+ * The Split card of the Add flow (R07, #394) and of the bill and expense detail
+ * sheets (R10, via ItemFieldCard). Controlled: every value lives in
  * the flow's state and nothing here keeps state or runs effects, so leaving the
- * card and coming back loses nothing (unlike the edit sheet's ContributorSplits).
+ * card and coming back loses nothing.
  */
 export default function AddFlowSplitCard({
   id,

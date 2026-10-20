@@ -104,6 +104,14 @@ export const missions: GuideMission[] = [
     note: "Only Manual bills have this button. Auto-Pay bills pay themselves.",
   },
   {
+    title: "Change or delete a bill",
+    steps: [
+      "To change a bill later, tap it, then tap the line you want to change.",
+      "Make the change and tap Save.",
+      "To remove it, tap Delete at the bottom of the same pop-up. It asks first.",
+    ],
+  },
+  {
     title: "Turn on notifications and pick a time",
     steps: [
       "Do this in the installed app.",

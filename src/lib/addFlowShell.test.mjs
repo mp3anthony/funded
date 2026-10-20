@@ -24,8 +24,6 @@ test("new files exist, ItemTypeToggle is gone", () => {
 test("nothing in src, docs or getting-started still names ItemTypeToggle or the Item Type switch", () => {
   for (const rel of [
     "components/AddFlow.tsx",
-    "components/AddBillSheet.tsx",
-    "components/AddExpenseSheet.tsx",
     "app/bills/bills-client.tsx",
     "lib/getting-started.ts",
   ]) {
@@ -78,11 +76,10 @@ test("Bills page opens AddFlow and highlights the new row on an inner wrapper", 
   assert.ok(t.includes("stripAddSheetParam(searchParams)"));
 });
 
-test("old sheets are edit-only", () => {
-  const bill = read("components/AddBillSheet.tsx");
-  assert.ok(!bill.includes("addBill(") && !bill.includes("onSwitchToExpense"));
-  const exp = read("components/AddExpenseSheet.tsx");
-  assert.ok(!exp.includes("addExpense(") && !exp.includes("onSwitchToBill"));
+test("the old edit sheets are gone (R10)", () => {
+  for (const rel of ["components/AddBillSheet.tsx", "components/AddExpenseSheet.tsx"]) {
+    assert.ok(!existsSync(join(SRC, rel)), `${rel} should be deleted`);
+  }
 });
 
 test("highlight styles exist", () => {

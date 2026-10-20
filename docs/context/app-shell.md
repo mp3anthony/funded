@@ -26,8 +26,8 @@ _Avoid_: Wizard, form, modal (as names)
 One pop-up card at the bottom of the screen for one or two fields, with one main pill (and sometimes a quieter second pill such as "Skip"). Saving shows "Saving…"; a failure keeps the card open with a red line and "Try again".
 _Avoid_: Modal, form
 
-**Detail sheet** (planned, #377):
-A pop-up that shows one item (a bill, goal or pay schedule) as tappable rows. The main actions sit on top and a red Delete pill sits at the bottom; Delete asks first in a confirm dialog. A row opens a single card to edit that one field.
+**Detail sheet** (bills and expenses built in R10, #397; goal and pay schedule planned, #377):
+A pop-up that shows one item (a bill, goal or pay schedule) as tappable rows. The main actions sit on top and a red Delete pill sits at the bottom; Delete asks first in a confirm dialog. A row opens a single card to edit that one field. There is no Edit button. A bill's status line (Paid, Paused, "Paid for September") is read-only; its Mark as Paid, Undo payment and Pause actions sit on top and wait for the save ("Saving…"), showing a red line if it fails. An expense sheet has no actions.
 _Avoid_: Edit form, details modal
 
 **Confirm dialog** (planned, #377):

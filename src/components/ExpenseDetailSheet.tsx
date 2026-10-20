@@ -1,141 +1,164 @@
 "use client";
 
-import { useApp, type Expense, type Member } from "@/context/AppContext";
-import Dialog from "@/components/ui/Dialog";
+import React, { useId, useState } from "react";
+import { flushSync } from "react-dom";
+import { useApp, useCurrentUser, type Expense, type Member } from "@/context/AppContext";
+import DetailSheet from "@/components/ui/DetailSheet";
+import Row from "@/components/ui/Row";
+import ItemFieldCard, { fieldTakesKeyboard } from "@/components/ItemFieldCard";
+import {
+  amountLabel,
+  expenseFieldError,
+  expenseUpdate,
+  splitBreakdownLabel,
+  valuesFromExpense,
+  type EditValues,
+  type ExpenseField,
+  type SplitContext,
+} from "@/lib/addFlow";
 
 interface ExpenseDetailSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  /** The live expense (parents pass the current row so it follows every save). */
   expense: Expense | null;
   householdMembers: Member[];
-  onEdit: () => void;
-  onDelete: () => void;
+}
+
+/** A row value that keeps long text on one line. */
+function Val({ children }: { children: React.ReactNode }) {
+  return <span className="block max-w-[55vw] truncate text-[13px] text-muted">{children}</span>;
 }
 
 /**
- * Issue #98 (Slice 2 of 6, split breakdown added Slice 3 of 6): expense
- * detail view — mirrors BillDetailSheet's shell (same Dialog, same footer
- * button layout) but deliberately much simpler: no paid/unpaid toggle, no
- * pause. Shows a percentage-split breakdown in place of the single
- * Assignee row when split_mode === "percentage".
+ * Expense detail sheet (R10, #397): one tappable row per field (each opens a
+ * one-field card) and a red Delete at the bottom. No actions on top: an expense
+ * has no due date, paid state or pause. The old Edit button is gone.
  */
 export default function ExpenseDetailSheet({
   isOpen,
   onClose,
   expense,
   householdMembers,
-  onEdit,
-  onDelete,
 }: ExpenseDetailSheetProps) {
-  const { expenseSplits } = useApp();
+  const uid = useId();
+  const inputId = `${uid}-input`;
+  const { expenseSplits, isJointFund, updateExpense, deleteExpense } = useApp();
+  const currentUser = useCurrentUser();
+  const currentId = currentUser.id ? String(currentUser.id) : "";
+
+  const [editing, setEditing] = useState<ExpenseField | null>(null);
+  const [draft, setDraft] = useState<EditValues | null>(null);
+
+  // Clear the card when the sheet closes (derived-state reset, no effect).
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    if (!isOpen) {
+      setEditing(null);
+      setDraft(null);
+    }
+  }
 
   if (!isOpen || !expense) return null;
 
-  const isPercentageSplit = expense.split_mode === "percentage";
-  const assignee = householdMembers.find((m) => String(m.id) === String(expense.assignee_id));
-  const splits = isPercentageSplit
-    ? expenseSplits.filter((s) => String(s.expense_id) === String(expense.id))
-    : [];
+  const memberList = householdMembers.map((m) => ({ id: String(m.id), name: m.name }));
+  const ctx: SplitContext = {
+    memberIds: memberList.map((m) => m.id),
+    isJointFund,
+    fallbackAssigneeId: currentId,
+  };
+  const rows = expenseSplits
+    .filter((s) => String(s.expense_id) === String(expense.id))
+    .map((s) => ({ member_id: String(s.member_id), percentage: Number(s.percentage) }));
+  const seed = valuesFromExpense(expense, rows);
+  const isPercentage = seed.expenseSplit === "percentage";
+  const assigneeName = memberList.find((m) => m.id === seed.assignee)?.name;
 
-  const formattedAmount = Number(expense.amount).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const openField = (f: ExpenseField) => {
+    // Render the card inside this tap, then focus its box, so the iOS keyboard opens with it.
+    flushSync(() => {
+      setDraft(valuesFromExpense(expense, rows));
+      setEditing(f);
+    });
+    if (fieldTakesKeyboard(f)) document.getElementById(inputId)?.focus();
+  };
+
+  const patchDraft = (p: Partial<EditValues>) => setDraft((d) => (d ? { ...d, ...p } : d));
+
+  const saveField = async () => {
+    if (!draft || !editing) return false;
+    const { data } = expenseUpdate({ field: editing, values: draft, ctx });
+    await updateExpense(expense.id, data);
+  };
+
+  const noteLine = (expense.notes ?? "").split("\n")[0].trim();
 
   return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      title="Expense Details"
-      footer={
-        <div className="flex space-x-2 w-full">
-          <button
-            onClick={onDelete}
-            className="flex-1 rounded-[2px] py-3 bg-destructive/15 text-destructive border border-destructive/20 font-bold uppercase tracking-wider text-[10px] hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
-          >
-            Delete
-          </button>
-          <button
-            onClick={onEdit}
-            className="flex-1 rounded-[2px] py-3 bg-primary text-primary-fg font-bold uppercase tracking-wider text-[10px] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
-          >
-            Edit
-          </button>
+    <>
+      <DetailSheet
+        open={isOpen}
+        onClose={onClose}
+        title={expense.name}
+        busy={editing !== null}
+        onDelete={() => deleteExpense(expense.id)}
+        deleteConfirm={{
+          title: "Delete this expense?",
+          message: `"${expense.name}" will be removed.`,
+          confirmLabel: "Delete",
+        }}
+        deletedToast="Expense deleted"
+      >
+        <div className="flex flex-col">
+          <Row divider tall chevron label="Name" onClick={() => openField("name")}>
+            <Val>{expense.name}</Val>
+          </Row>
+          <Row
+            divider
+            tall
+            chevron
+            label="Amount"
+            value={`${amountLabel(Number(expense.amount))} a week`}
+            onClick={() => openField("amount")}
+          />
+          <Row divider tall chevron label="Category" value={expense.category || "Other"} onClick={() => openField("category")} />
+          <Row
+            divider
+            tall
+            chevron
+            label="Assigned to"
+            value={isPercentage ? "Split by percentage" : (assigneeName ?? "Unassigned")}
+            onClick={() => openField(isPercentage ? "split" : "assignee")}
+          />
+          <Row divider tall chevron label="Split" onClick={() => openField("split")}>
+            <Val>
+              {splitBreakdownLabel(isPercentage ? rows : [], memberList, {
+                isJointFund: false,
+                assigneeName,
+              })}
+            </Val>
+          </Row>
+          <Row divider tall chevron label="Notes" onClick={() => openField("notes")}>
+            <Val>{noteLine || "None"}</Val>
+          </Row>
         </div>
-      }
-    >
-      <div className="space-y-6">
-        {/* Title, Badge & Amount */}
-        <div className="flex flex-col space-y-4">
-          <h3 className="font-bold text-3xl text-foreground tracking-wide break-words">
-            {expense.name}
-          </h3>
+      </DetailSheet>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              {expense.category || "Other"}
-            </span>
-          </div>
-
-          <div className="flex flex-col items-start pt-2">
-            <span className="text-4xl font-bold text-foreground tracking-tight">
-              ${formattedAmount}
-            </span>
-          </div>
-        </div>
-
-        {/* Assignee — or a percentage-split breakdown (Issue #98 Slice 3 of 6) */}
-        <div className="border-t border-b border-border py-4 text-xs">
-          {isPercentageSplit ? (
-            <div className="space-y-2">
-              <span className="text-subtle uppercase font-semibold">Split</span>
-              <div className="space-y-2 pt-1">
-                {splits.length === 0 ? (
-                  <span className="text-sm font-semibold text-foreground">No split set</span>
-                ) : (
-                  splits.map((s) => {
-                    const member = householdMembers.find((m) => String(m.id) === String(s.member_id));
-                    return (
-                      <div key={s.id} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 text-foreground">
-                          <div className="h-6 w-6 rounded-full bg-surface-elevated border border-border flex items-center justify-center font-bold text-[10px] overflow-hidden">
-                            {member?.avatar_url ? (
-                              <img src={member.avatar_url} alt={member.name} className="h-full w-full object-cover" />
-                            ) : (
-                              member?.avatar || member?.name.charAt(0).toUpperCase() || "?"
-                            )}
-                          </div>
-                          <span className="text-sm font-semibold">{member?.name || "Unknown"}</span>
-                        </div>
-                        <span className="text-sm font-bold text-primary">{s.percentage}%</span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <span className="text-subtle uppercase font-semibold">Assignee</span>
-              <div className="flex items-center space-x-2 text-foreground pt-1">
-                <div className="h-6 w-6 rounded-full bg-surface-elevated border border-border flex items-center justify-center font-bold text-[10px]">
-                  {assignee?.avatar || "P"}
-                </div>
-                <span className="text-sm font-semibold">{assignee?.name || "Unassigned"}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Notes */}
-        {expense.notes && (
-          <div className="space-y-2 pt-2">
-            <p className="text-sm text-muted bg-surface p-3 rounded-[2px] border border-border-strong leading-relaxed whitespace-pre-wrap">
-              {expense.notes}
-            </p>
-          </div>
-        )}
-      </div>
-    </Dialog>
+      {draft && (
+        <ItemFieldCard
+          field={editing}
+          kind="expense"
+          onClose={() => setEditing(null)}
+          values={draft}
+          onChange={patchDraft}
+          ctx={ctx}
+          members={memberList}
+          inputId={inputId}
+          error={editing ? expenseFieldError(editing, draft, ctx) : null}
+          onSubmit={saveField}
+          successToast="Expense updated"
+        />
+      )}
+    </>
   );
 }

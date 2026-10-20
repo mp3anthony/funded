@@ -346,3 +346,277 @@ export function buildExpensePayload(v: AddFlowValues, ctx: SplitContext) {
 export function dirtyValues(v: AddFlowValues, fallbackAssigneeId = ""): AddFlowValues {
   return { ...v, assignee: effectiveAssignee(v, fallbackAssigneeId) };
 }
+
+/* ══ Edit (R10, #397): the bill and expense detail sheets ═════════════
+   One card per field. The sheet seeds `EditValues` from the live item, the
+   card changes one field, and `billUpdate` / `expenseUpdate` build the exact
+   payload for that save. Pure; the sheets own the state and the saving. */
+
+export interface EditValues extends AddFlowValues {
+  /** "" = none. Only bills have one. */
+  invoiceDate: string;
+}
+
+export type BillField =
+  | "name"
+  | "amount"
+  | "frequency"
+  | "dueDate"
+  | "invoiceDate"
+  | "category"
+  | "assignee"
+  | "split"
+  | "autoPay"
+  | "notes";
+
+export type ExpenseField = "name" | "amount" | "category" | "assignee" | "split" | "notes";
+
+/** The parts of a bill row the edit rules read (a structural copy of AppContext's `Bill`). */
+export interface EditBillLike {
+  name: string;
+  amount: number;
+  category?: string;
+  frequency?: string;
+  /** The SAVED date (also set when a label is shown instead). */
+  due_date?: string | null;
+  invoice_date?: string | null;
+  payment_type?: string;
+  assignee_id?: string;
+  notes?: string | null;
+}
+
+export interface EditBillSplitLike {
+  member_id: string;
+  amount: number;
+  is_assignee?: boolean;
+}
+
+export interface EditExpenseLike {
+  name: string;
+  amount: number;
+  category?: string;
+  notes?: string | null;
+  split_mode?: string;
+  assignee_id?: string | null;
+}
+
+export interface EditExpenseSplitLike {
+  member_id: string;
+  percentage: number;
+}
+
+export interface EditMember {
+  id: string;
+  name: string;
+}
+
+const ymd10 = (s: string | null | undefined): string => (s ? String(s).slice(0, 10) : "");
+
+/** The Category choices, plus the item's own category when it is an old one not in the list. */
+export function categoryOptions(current?: string | null): Option[] {
+  const list: Option[] = ITEM_CATEGORIES.map((c) => ({ value: c, label: c }));
+  const cur = (current ?? "").trim();
+  if (cur && !ITEM_CATEGORIES.includes(cur)) list.push({ value: cur, label: cur });
+  return list;
+}
+
+/** Edit values for a bill. Existing split rows are dollar amounts, so the basis is "amount". */
+export function valuesFromBill(
+  bill: EditBillLike,
+  splits: readonly EditBillSplitLike[],
+  ctx: SplitContext
+): EditValues {
+  const assigneeRow = splits.find((s) => s.is_assignee);
+  const assignee = bill.assignee_id
+    ? String(bill.assignee_id)
+    : assigneeRow
+      ? String(assigneeRow.member_id)
+      : "";
+  const shares: Record<string, string> = {};
+  for (const s of splits) {
+    const id = String(s.member_id);
+    if (id !== assignee) shares[id] = String(s.amount);
+  }
+  return {
+    type: "bill",
+    name: bill.name,
+    amount: String(bill.amount),
+    frequency: bill.frequency ? bill.frequency.toLowerCase() : "monthly",
+    dueDate: ymd10(bill.due_date),
+    invoiceDate: ymd10(bill.invoice_date),
+    category: bill.category || "Other",
+    assignee,
+    paymentType: (bill.payment_type ?? "").toLowerCase() === "auto" ? "Auto" : "Manual",
+    billSplitMode: ctx.isJointFund && splits.length === 0 ? "joint" : "individual",
+    splitBasis: "amount",
+    shares,
+    expenseSplit: "assignee",
+    percentages: {},
+    notes: bill.notes ?? "",
+  };
+}
+
+export function valuesFromExpense(
+  expense: EditExpenseLike,
+  splits: readonly EditExpenseSplitLike[]
+): EditValues {
+  const percentages: Record<string, string> = {};
+  for (const s of splits) percentages[String(s.member_id)] = String(s.percentage);
+  return {
+    type: "expense",
+    name: expense.name,
+    amount: String(expense.amount),
+    frequency: "monthly",
+    dueDate: "",
+    invoiceDate: "",
+    category: expense.category || "Other",
+    assignee: expense.assignee_id ? String(expense.assignee_id) : "",
+    paymentType: "Manual",
+    billSplitMode: "individual",
+    splitBasis: "percentage",
+    shares: {},
+    expenseSplit: expense.split_mode === "percentage" ? "percentage" : "assignee",
+    percentages,
+    notes: expense.notes ?? "",
+  };
+}
+
+/** Red-line text when the card cannot be saved yet, else null. */
+export function billFieldError(
+  field: BillField,
+  v: EditValues,
+  ctx: SplitContext
+): string | null {
+  if (field === "name" && v.name.trim() === "") return "Enter a name";
+  if (field === "amount") {
+    if (parseAmount(v.amount) === null) return "Enter an amount above $0";
+    // A shared bill: the others keep their dollar shares, so they must still fit.
+    if (!splitValid(v, ctx)) return "The other shares add up to more than this amount";
+  }
+  if (field === "assignee" && effectiveAssignee(v, ctx.fallbackAssigneeId) === "") {
+    return "Pick who looks after it";
+  }
+  if (field === "split" && !splitValid(v, ctx)) return "The shares add up to more than the bill";
+  return null;
+}
+
+export function expenseFieldError(
+  field: ExpenseField,
+  v: EditValues,
+  ctx: SplitContext
+): string | null {
+  if (field === "name" && v.name.trim() === "") return "Enter a name";
+  if (field === "amount" && parseAmount(v.amount) === null) return "Enter an amount above $0";
+  if (field === "split" && !splitValid(v, ctx)) return "Percentages must add up to 100%";
+  return null;
+}
+
+export interface BillUpdate {
+  /** What `updateBill` takes. Dates are present only when the edited field is a date. */
+  data: Record<string, unknown>;
+  /** What `updateBill` takes as splits. Undefined = leave the saved rows alone. */
+  splits: SplitRow[] | undefined;
+}
+
+/**
+ * The save for one edited bill field. `updateBill` writes every non-date column
+ * from this payload, so the unedited ones are sent as they are saved. Dates are
+ * left out unless that date is the field being edited (an autopay date that has
+ * rolled forward on screen must not be rewritten by a rename). Splits are
+ * rebuilt only when they depend on the edited field: Split always; Amount and
+ * Assigned to only if the bill already had split rows.
+ */
+export function billUpdate(args: {
+  field: BillField;
+  values: EditValues;
+  ctx: SplitContext;
+  hadSplits: boolean;
+  /** Saved status and whether the bill had a due date before this edit. */
+  bill: { status?: string; hadDueDate: boolean };
+  /** The status that means "not paid yet" (billCycle's UNPAID_STATUS). */
+  unpaidStatus: string;
+}): BillUpdate {
+  const { field, values: v, ctx, hadSplits, bill, unpaidStatus } = args;
+  const data: Record<string, unknown> = {
+    name: v.name.trim(),
+    amount: parseAmount(v.amount) ?? 0,
+    category: v.category,
+    paymentType: v.paymentType,
+    assignee: effectiveAssignee(v, ctx.fallbackAssigneeId),
+    notes: v.notes,
+    frequency: v.frequency.toLowerCase(),
+  };
+  if (field === "dueDate") {
+    data.dueDate = v.dueDate;
+    // A Paid bill that had no date and is given one goes back to unpaid on that date (#250).
+    if (v.dueDate && bill.status === "Paid" && !bill.hadDueDate) data.status = unpaidStatus;
+  }
+  if (field === "invoiceDate") data.invoiceDate = v.invoiceDate;
+
+  const rebuild = field === "split" || ((field === "amount" || field === "assignee") && hadSplits);
+  return { data, splits: rebuild ? buildBillSplits(v, ctx) : undefined };
+}
+
+export interface ExpenseUpdate {
+  data: Record<string, unknown>;
+}
+
+/** The save for one edited expense field. `splits` is sent only for the Split card. */
+export function expenseUpdate(args: {
+  field: ExpenseField;
+  values: EditValues;
+  ctx: SplitContext;
+}): ExpenseUpdate {
+  const { field, values: v, ctx } = args;
+  const isPercentage = v.expenseSplit === "percentage";
+  const data: Record<string, unknown> = {
+    name: v.name.trim(),
+    amount: parseAmount(v.amount) ?? 0,
+    category: v.category,
+    split_mode: v.expenseSplit,
+    assignee_id: isPercentage ? null : v.assignee || null,
+    notes: v.notes,
+  };
+  if (field === "split") {
+    data.splits = isPercentage ? expenseSplitRows(ctx.memberIds, v.percentages) : [];
+  }
+  return { data };
+}
+
+export interface BreakdownRow {
+  member_id: string;
+  amount?: number;
+  percentage?: number;
+}
+
+/**
+ * The Split row value on a detail sheet. Nothing saved: "Joint Fund" (Joint Fund
+ * households) or "All on <assignee>". One member: "All on <name>". Two: "Ann $20.00
+ * and Bob $10.00" (percentages for an expense). More: "Shared by N".
+ */
+export function splitBreakdownLabel(
+  rows: readonly BreakdownRow[],
+  members: readonly EditMember[],
+  opts: { isJointFund: boolean; assigneeName?: string }
+): string {
+  const nameOf = (id: string) => members.find((m) => m.id === String(id))?.name ?? "Unknown";
+  const used = rows.filter((r) => (r.amount ?? r.percentage ?? 0) > 0);
+  if (rows.length === 0) {
+    if (opts.isJointFund) return "Joint Fund";
+    return opts.assigneeName ? `All on ${opts.assigneeName}` : "—";
+  }
+  if (used.length <= 1) {
+    const only = used[0] ? nameOf(used[0].member_id) : opts.assigneeName;
+    return only ? `All on ${only}` : "—";
+  }
+  if (used.length === 2) {
+    return used
+      .map((r) =>
+        r.percentage !== undefined && r.amount === undefined
+          ? `${nameOf(r.member_id)} ${r.percentage}%`
+          : `${nameOf(r.member_id)} ${amountLabel(r.amount ?? 0)}`
+      )
+      .join(" and ");
+  }
+  return `Shared by ${used.length}`;
+}

@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { useApp, type Expense, type Member } from "@/context/AppContext";
 import ExpenseDetailSheet from "./ExpenseDetailSheet";
-import AddExpenseSheet from "./AddExpenseSheet";
 import RowPill from "./RowPill";
 
 export interface ExpenseCardProps {
@@ -19,9 +18,8 @@ export interface ExpenseCardProps {
  * it from a bill row (fix-round: unify bills/expenses into one list).
  */
 export default function ExpenseCard({ expense, householdMembers }: ExpenseCardProps) {
-  const { deleteExpense, expenseSplits } = useApp();
+  const { expenseSplits } = useApp();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const assignee = householdMembers.find((m) => String(m.id) === String(expense.assignee_id));
 
@@ -41,18 +39,6 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-
-  const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete "${expense.name}"?`)) {
-      try {
-        await deleteExpense(expense.id);
-        setIsDetailOpen(false);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        alert("Failed to delete expense: " + errMsg);
-      }
-    }
-  };
 
   return (
     <>
@@ -132,17 +118,6 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
         onClose={() => setIsDetailOpen(false)}
         expense={expense}
         householdMembers={householdMembers}
-        onEdit={() => {
-          setIsDetailOpen(false);
-          setIsEditOpen(true);
-        }}
-        onDelete={handleDelete}
-      />
-
-      <AddExpenseSheet
-        isOpen={isEditOpen}
-        onClose={() => setIsEditOpen(false)}
-        existingExpense={expense}
       />
     </>
   );
