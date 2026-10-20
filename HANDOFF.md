@@ -2,7 +2,7 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-22)
+## Current state (2026-10-21)
 
 - **R01 (#388) BUILT.** Branch `redesign/full-app`, commit f8827f0, draft PR [#425](https://github.com/mp3anthony/funded/pull/425) (the one redesign PR; update its "Slices done" list per slice). Plan + review amendments are on #388 (comment 6262601349); independent review approved; tsc, 168/168 tests, build pass, lint identical to main. Delivered: Instrument Sans + tabular figures everywhere, JetBrains Mono gone, Syne on page-header `h1`s only, forced 2px radius removed, radius tokens (`--radius-card` 16, `--radius-sheet` 28, `--radius-input` 12 provisional, R02 confirms), motion tokens (`--duration-quick/feedback/structural`, `--ease-enter/exit`), `press`/`press-tint` utilities (unused until R02), reduced-motion block, lime fills on `:active`, `designTokens.test.mjs` guard, haze blob removed. Not yet verified on a device: tabular figures lining up (tnum present in built fonts), `:active` lime fill, Reduce Motion; check on the iPhone preview. #388 stays open until the final merge.
 - **R01 independently reviewed: approved** (no blockers; nits: guard test does not flag stray `260|520|120` literals or `font-extrabold` outside Syne headers; menu exit easing reverses to a decelerate-shaped curve, harmless).
