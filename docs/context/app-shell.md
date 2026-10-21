@@ -71,7 +71,7 @@ Where pay schedules are set up, pay is logged, pending pay is confirmed and rece
 _Avoid_: Income page, pay page
 
 **Settings**:
-The page for account, notifications, appearance, household settings, members, Updates, the Getting started guide, bug reporting and leaving the household.
+The page for account, notifications, appearance, household settings, members, Updates, the Getting started guide, issue reporting and leaving the household.
 Planned change (#377): opened from the avatar top right. An identity card opens Profile (email read-only); Preferences (Notifications, inline Light/Dark/System Appearance); Members with a "+" to invite (Join code sheet); owner-only Household settings (Household name, Payment mode, Timezone; members see them read-only); a Help card (Updates, Getting started, Report an issue); Leave household in its own red card. Contribution amounts and Automation rules move to Payday and Goals. Detail in `project/pages/settings.md` of the design doc.
 _Avoid_: Preferences, profile page, admin
 
@@ -102,6 +102,6 @@ _Avoid_: Issue tracker, bug list, status page
 A problem we already know about, flagged with the `known-issue` label on GitHub and given a short "User-facing blurb" for members to read. In anything members read, call it a "known issue" or "problem we know about", never "bug", "open issue" or "ticket".
 _Avoid_: Bug (in member-facing text), open issue, ticket
 
-**Bug report**:
-A problem a member submits from Settings with a title and description, which reaches Anthony as a filed issue.
-_Avoid_: Feedback, support ticket, complaint
+**Issue report**:
+What a member sends from Settings > Report an issue: a title, a description and an optional screenshot. An "issue" can be a bug, something that looks wrong, an idea, or something confusing. It reaches Anthony as a filed GitHub issue labelled `from-app`. Not the same as a known issue. (Renamed from "Bug report" in #261, R12.)
+_Avoid_: Bug report, feedback, support ticket, complaint

@@ -654,6 +654,11 @@ question of how the app→GitHub path works without continuous polling.
   or readable from the client.
 - A failed submission (network/API error) shows a clear in-app failure
   state, not a silent no-op.
+- **Amendment (#261, R12):** the member-facing wording is "issue", not
+  "bug" (Settings > Report an issue). The form is a two-card step flow
+  (Title, Description) with an optional Screenshot row. The route path
+  (`/api/bug-report`), `GITHUB_BUG_REPORT_TOKEN` and the `from-app` label
+  are unchanged.
 
 **Testing:** New server route + external API call + new secret — the
 secret-handling and failure-path deserve a manual look even though the form

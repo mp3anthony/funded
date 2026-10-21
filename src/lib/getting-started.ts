@@ -122,10 +122,10 @@ export const missions: GuideMission[] = [
     ],
   },
   {
-    title: "Report a bug",
+    title: "Report an issue",
     steps: [
-      "Something look wrong, or just confusing? Go to Settings and tap Report a bug.",
-      "Give it a short title and say what happened. Add a screenshot if it helps.",
+      "Something look wrong, or just confusing? Go to Settings and tap Report an issue.",
+      "Give it a short title, then say what happened. Add a screenshot if it helps.",
       "It goes straight to the developer.",
     ],
   },
@@ -182,4 +182,4 @@ export const goodToKnow: GoodToKnowItem[] = [
 ];
 
 export const guideFooter =
-  "Found something confusing? That's worth reporting too: Settings > Report a bug.";
+  "Found something confusing? That's worth reporting too: Settings > Report an issue.";

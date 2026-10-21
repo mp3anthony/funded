@@ -7,7 +7,7 @@ Funded is a household bills and goals budgeting app, installed on a phone, where
 - [Household](./docs/context/household.md) — the household, its members, join codes and how bills are settled (Joint Fund or Direct Pay)
 - [Money](./docs/context/money.md) — bills, expenses, pay, goals, contribution rules and the health score
 - [Notifications](./docs/context/notifications.md) — reminders, inbox, push, notify hour and where a tap leads
-- [App shell](./docs/context/app-shell.md) — the installed app, its pages, toasts, patch notes and bug reports
+- [App shell](./docs/context/app-shell.md) — the installed app, its pages, toasts, patch notes and issue reports
 
 ## Relationships
 

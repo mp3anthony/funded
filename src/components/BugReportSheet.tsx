@@ -1,12 +1,27 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { CheckCircle2, Loader2, Paperclip, X } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useId } from "react";
+import { Paperclip, X } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import { buttonClasses } from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
+import Input from "@/components/ui/Input";
+import Row from "@/components/ui/Row";
+import SectionHeader from "@/components/ui/SectionHeader";
+import StepFlow, { type FlowStep } from "@/components/ui/StepFlow";
+import Textarea from "@/components/ui/Textarea";
 import { uploadBugReportScreenshot } from "@/lib/storage";
-
-const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024; // 5MB, matches the storage bucket's own limit
+import { hasChanges } from "@/lib/stepFlow";
+import {
+  DESCRIPTION_INTRO,
+  SCREENSHOT_TYPES,
+  TITLE_MAX_LENGTH,
+  buildIssuePayload,
+  canSend,
+  descriptionOk,
+  screenshotError as screenshotRuleError,
+  titleOk,
+} from "@/lib/reportIssue";
 
 // sessionStorage key for the in-progress draft (#168). Android/Chrome can
 // kill this tab's renderer while the native file-picker is foregrounded for
@@ -15,6 +30,7 @@ const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024; // 5MB, matches the storage bucket
 // sheet was open) as the user types/attaches, and restore + reopen on mount
 // so that trip doesn't lose their draft. The screenshot File itself can't be
 // serialized, so it's never persisted — see the restore note below.
+// (Key name kept from before the "issue" wording change, #261.)
 const DRAFT_STORAGE_KEY = "bugReportDraft";
 
 // A restored draft is only honored if it was written within this many
@@ -32,7 +48,7 @@ const DRAFT_STORAGE_KEY = "bugReportDraft";
 // through the file picker still lands inside the window.
 const DRAFT_RESTORE_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
 
-interface BugReportDraft {
+interface IssueDraft {
   title: string;
   description: string;
   // Whether a screenshot was attached (or being attached) when saved — only
@@ -41,7 +57,7 @@ interface BugReportDraft {
   savedAt: number;
 }
 
-function readDraft(): BugReportDraft | null {
+function readDraft(): IssueDraft | null {
   try {
     const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
     if (!raw) return null;
@@ -66,7 +82,7 @@ function readDraft(): BugReportDraft | null {
   }
 }
 
-function writeDraft(draft: Omit<BugReportDraft, "savedAt">) {
+function writeDraft(draft: Omit<IssueDraft, "savedAt">) {
   try {
     sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }));
   } catch {
@@ -89,25 +105,28 @@ interface BugReportSheetProps {
 }
 
 /**
- * In-app bug report form (Slice 15, #114). Title + description required,
- * screenshot optional. Submission uploads the screenshot (if any) straight to
- * Supabase Storage client-side (same pattern as AvatarUpload), then posts to
- * /api/bug-report, which files a real GitHub issue server-side using a token
- * that never reaches this component.
+ * In-app "Report an issue" flow (Slice 15, #114; R12 #399 rebuilt it as a
+ * StepFlow and renamed "bug" to "issue", #261). Title, then Description (both
+ * required), then a summary with an optional Screenshot row. Submission
+ * uploads the screenshot (if any) straight to Supabase Storage client-side
+ * (same pattern as AvatarUpload), then posts to /api/bug-report, which files a
+ * real GitHub issue server-side using a token that never reaches this
+ * component. The file and route keep their old names on purpose.
+ *
+ * A failed send shows StepFlow's shared red line with "Try again"; nothing
+ * typed is lost. Rules live in `lib/reportIssue.ts`.
  */
 export default function BugReportSheet({ isOpen, onClose, session }: BugReportSheetProps) {
+  const uid = useId();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreviewUrl, setScreenshotPreviewUrl] = useState<string | null>(null);
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const lastLoggedDescriptionLengthRef = useRef(0);
   // Latest draft contents, for the page-hide/attach saves below (which run
   // outside React's render cycle and need current values).
-  const draftRef = useRef<Omit<BugReportDraft, "savedAt">>({ title: "", description: "", hadScreenshot: false });
+  const draftRef = useRef<Omit<IssueDraft, "savedAt">>({ title: "", description: "", hadScreenshot: false });
   // Mirrors a successful submit synchronously, so a page-hide save that fires
   // before React re-renders (and tears the listeners down) can't re-save it.
   const submittedRef = useRef(false);
@@ -144,15 +163,15 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
   // doesn't lose it. Only while the sheet is actually open.
   useEffect(() => {
     draftRef.current = { ...draftRef.current, title, description };
-    if (!effectiveOpen || isSubmitted) return;
+    if (!effectiveOpen || submittedRef.current) return;
     writeDraft(draftRef.current);
-  }, [effectiveOpen, title, description, isSubmitted]);
+  }, [effectiveOpen, title, description]);
 
   // Re-save with a fresh timestamp when the page is hidden/backgrounded
   // (e.g. the native file picker takes over), so the restore window is
   // measured from when the user left — not from their last keystroke.
   useEffect(() => {
-    if (!effectiveOpen || isSubmitted) return;
+    if (!effectiveOpen) return;
     const saveNow = () => {
       if (submittedRef.current) return;
       writeDraft(draftRef.current);
@@ -166,7 +185,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", saveNow);
     };
-  }, [effectiveOpen, isSubmitted]);
+  }, [effectiveOpen]);
 
   const setDraftHadScreenshot = useCallback((hadScreenshot: boolean) => {
     if (submittedRef.current) return;
@@ -208,6 +227,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     };
   }, []);
 
+  // Close (cancel, discard, or after a successful send): wipe everything.
   function resetAndClose() {
     setTitle("");
     setDescription("");
@@ -217,9 +237,6 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
       return null;
     });
     setScreenshotError(null);
-    setSubmitError(null);
-    setIsSubmitted(false);
-    setIsSubmitting(false);
     lastLoggedDescriptionLengthRef.current = 0;
     draftRef.current = { title: "", description: "", hadScreenshot: false };
     submittedRef.current = false;
@@ -235,23 +252,11 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     e.target.value = "";
     if (!file) return;
 
-    const validTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/heic",
-      "image/heif",
-      "image/gif",
-    ];
     // Rejected files leave nothing attached (the input only renders when no
     // screenshot is attached), so clear the flag set when Attach was tapped.
-    if (!validTypes.includes(file.type)) {
-      setScreenshotError("Invalid file type. Only JPEG, PNG, WebP, HEIC/HEIF, and GIF are allowed.");
-      setDraftHadScreenshot(false);
-      return;
-    }
-    if (file.size > MAX_SCREENSHOT_BYTES) {
-      setScreenshotError("That screenshot is too large. Please choose one under 5MB.");
+    const rejection = screenshotRuleError(file);
+    if (rejection) {
+      setScreenshotError(rejection);
       setDraftHadScreenshot(false);
       return;
     }
@@ -292,17 +297,13 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
     setDraftHadScreenshot(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim() || !description.trim() || isSubmitting) return;
+  // Throws on any failure so StepFlow shows its shared red line + "Try again".
+  async function handleSubmit() {
+    if (!canSend({ title, description })) return;
 
     if (!session?.access_token) {
-      setSubmitError("You need to be signed in to report a bug.");
-      return;
+      throw new Error("You need to be signed in to report an issue.");
     }
-
-    setIsSubmitting(true);
-    setSubmitError(null);
 
     try {
       let screenshotUrl: string | undefined;
@@ -322,183 +323,180 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
+          ...buildIssuePayload({ title, description }),
           screenshotUrl,
         }),
       });
 
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.success) {
-        throw new Error(result?.error || `Failed to submit bug report (status ${response.status}).`);
+        throw new Error(result?.error || `Failed to submit issue report (status ${response.status}).`);
       }
 
       submittedRef.current = true;
       draftRef.current = { title: "", description: "", hadScreenshot: false };
-      setIsSubmitted(true);
       clearDraft();
     } catch (err: unknown) {
-      console.error("Bug report submission failed:", err);
-      const message = err instanceof Error ? err.message : "Something went wrong submitting your report. Please try again.";
-      setSubmitError(message);
-    } finally {
-      setIsSubmitting(false);
+      console.error("Issue report submission failed:", err);
+      throw err;
     }
   }
 
+  const titleId = `${uid}-title`;
+  const descId = `${uid}-description`;
+  const shotId = `${uid}-screenshot`;
+
+  const titleStep: FlowStep = {
+    key: "title",
+    valid: titleOk(title),
+    content: (
+      <>
+        {showRestoreNote && !screenshotPreviewUrl && (
+          <div className="break-words whitespace-pre-wrap rounded-card border border-border bg-surface-raised p-3 text-xs text-muted">
+            {restoredHadScreenshot ? (
+              <>
+                <span className="font-bold text-foreground">We restored your draft,</span> but your
+                screenshot couldn&apos;t be — please re-attach it if you still want it included.
+              </>
+            ) : (
+              <span className="font-bold text-foreground">We restored your draft.</span>
+            )}
+          </div>
+        )}
+        <Field id={titleId} label="What's it about?" question>
+          <Input
+            id={titleId}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="A short summary"
+            maxLength={TITLE_MAX_LENGTH}
+            enterKeyHint="next"
+            autoComplete="off"
+          />
+        </Field>
+      </>
+    ),
+  };
+
+  const descriptionStep: FlowStep = {
+    key: "description",
+    valid: descriptionOk(description),
+    content: (
+      <Field
+        id={descId}
+        label="Tell us more"
+        question
+        description={
+          <>
+            {DESCRIPTION_INTRO} Say what happened and what you expected instead.{" "}
+            <span className="tabular-nums">{description.length.toLocaleString()} characters</span>
+          </>
+        }
+      >
+        <Textarea
+          id={descId}
+          value={description}
+          onChange={handleDescriptionChange}
+          placeholder="What happened? What did you expect instead? Steps to reproduce help a lot."
+          rows={5}
+          aria-describedby={`${descId}-desc`}
+        />
+      </Field>
+    ),
+  };
+
+  const extras: FlowStep[] = [
+    {
+      key: "screenshot",
+      autoFocus: false,
+      content: (
+        <Field
+          id={shotId}
+          label="Add a screenshot?"
+          question
+          description="Optional. JPEG, PNG, WebP, HEIC or GIF, under 5MB."
+        >
+          {screenshotPreviewUrl ? (
+            <div className="relative inline-block self-start">
+              {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
+              <img
+                src={screenshotPreviewUrl}
+                alt="Screenshot preview"
+                className="h-24 w-auto rounded-card border border-border object-cover"
+              />
+              <button
+                type="button"
+                onClick={removeScreenshot}
+                aria-label="Remove screenshot"
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-fg shadow-md"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <label className={`${buttonClasses({ variant: "ghost" })} w-fit self-start`}>
+              <input
+                id={shotId}
+                type="file"
+                onChange={handleFileChange}
+                onClick={handleAttachClick}
+                ref={fileInputRef}
+                accept={SCREENSHOT_TYPES.join(",")}
+                className="sr-only"
+              />
+              <Paperclip size={16} />
+              Attach a screenshot
+            </label>
+          )}
+          {screenshotError && (
+            <p role="alert" className="break-words text-sm text-destructive">
+              Screenshot not attached: {screenshotError}
+            </p>
+          )}
+        </Field>
+      ),
+    },
+  ];
+
+  const summary = ({ edit }: { edit: (key: string) => void }) => (
+    <>
+      <div className="flex flex-col">
+        <Row tall chevron label="Title" onClick={() => edit("title")}>
+          <span className="max-w-[55vw] truncate text-[13px] text-muted">{title.trim() || "—"}</span>
+        </Row>
+        <Row tall chevron label="Description" onClick={() => edit("description")}>
+          <span className="max-w-[55vw] truncate text-[13px] text-muted">{description.trim() || "—"}</span>
+        </Row>
+      </div>
+      <div className="flex flex-col">
+        <SectionHeader title="Optional details" size="sm" className="mb-1 mt-2" />
+        <Row
+          tall
+          chevron
+          label="Screenshot"
+          value={screenshotFile ? "Attached" : "None"}
+          onClick={() => edit("screenshot")}
+        />
+      </div>
+    </>
+  );
+
   return (
-    <Dialog
+    <StepFlow
       open={effectiveOpen}
       onClose={resetAndClose}
-      title="Report a Bug"
-      footer={
-        isSubmitted ? (
-          <DialogButton variant="primary" onClick={resetAndClose} className="w-full">
-            Done
-          </DialogButton>
-        ) : (
-          <>
-            <DialogButton variant="ghost" onClick={resetAndClose} disabled={isSubmitting}>
-              Cancel
-            </DialogButton>
-            <DialogButton
-              type="submit"
-              form="bug-report-form"
-              variant="primary"
-              disabled={isSubmitting || !title.trim() || !description.trim()}
-            >
-              {isSubmitting ? "Submitting…" : "Submit Report"}
-            </DialogButton>
-          </>
-        )
-      }
-    >
-      {isSubmitted ? (
-        <div className="flex flex-col items-center text-center gap-3 py-6">
-          <CheckCircle2 className="h-12 w-12 text-primary" />
-          <p className="text-sm font-semibold text-foreground">Thanks — your bug report was submitted.</p>
-          <p className="text-xs text-muted">We&apos;ll take a look.</p>
-        </div>
-      ) : (
-        <form id="bug-report-form" onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label htmlFor="bug-title" className="text-[10px] font-bold text-subtle uppercase tracking-wider">
-              Title
-            </label>
-            <input
-              id="bug-title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Short summary of the problem"
-              maxLength={150}
-              required
-              disabled={isSubmitting}
-              className="w-full px-3 py-2.5 bg-surface-elevated border border-border rounded-[2px] text-sm text-foreground placeholder:text-subtle focus:outline-none focus:border-primary disabled:opacity-50"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="bug-description" className="text-[10px] font-bold text-subtle uppercase tracking-wider">
-                Description
-              </label>
-              <span className="text-[10px] text-subtle tabular-nums">
-                {description.length.toLocaleString()}
-              </span>
-            </div>
-            <textarea
-              id="bug-description"
-              value={description}
-              onChange={handleDescriptionChange}
-              placeholder="What happened? What did you expect instead? Steps to reproduce help a lot."
-              rows={5}
-              required
-              disabled={isSubmitting}
-              className="w-full px-3 py-2.5 bg-surface-elevated border border-border rounded-[2px] text-sm text-foreground placeholder:text-subtle focus:outline-none focus:border-primary disabled:opacity-50 resize-none"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-subtle uppercase tracking-wider">
-              Screenshot <span className="normal-case font-normal text-subtle/70">(optional)</span>
-            </label>
-
-            {screenshotPreviewUrl ? (
-              <div className="relative inline-block">
-                <img
-                  src={screenshotPreviewUrl}
-                  alt="Screenshot preview"
-                  className="h-24 w-auto rounded-[2px] border border-border object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={removeScreenshot}
-                  disabled={isSubmitting}
-                  aria-label="Remove screenshot"
-                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-fg flex items-center justify-center shadow-md disabled:opacity-50"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <label
-                className={`flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-border text-muted hover:text-foreground hover:bg-surface-raised text-xs font-semibold rounded-[2px] transition-colors w-fit ${
-                  isSubmitting ? "opacity-50 pointer-events-none" : "cursor-pointer"
-                }`}
-              >
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  onClick={handleAttachClick}
-                  ref={fileInputRef}
-                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif"
-                  className="sr-only"
-                  disabled={isSubmitting}
-                />
-                <Paperclip size={14} />
-                Attach a screenshot
-              </label>
-            )}
-
-            {screenshotError && (
-              <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
-                <span className="font-bold">Screenshot not attached:</span>
-                <br />
-                {screenshotError}
-              </div>
-            )}
-
-            {showRestoreNote && !screenshotPreviewUrl && (
-              <div className="bg-white/5 border border-border rounded-[2px] p-3 text-muted text-xs break-words whitespace-pre-wrap">
-                {restoredHadScreenshot ? (
-                  <>
-                    <span className="font-bold text-foreground">We restored your draft,</span> but your
-                    screenshot couldn&apos;t be — please re-attach it if you still want it included.
-                  </>
-                ) : (
-                  <span className="font-bold text-foreground">We restored your draft.</span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {isSubmitting && (
-            <div className="flex items-center gap-2 text-xs text-muted">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Submitting your report…
-            </div>
-          )}
-
-          {submitError && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
-              <span className="font-bold">Failed to submit report:</span>
-              <br />
-              {submitError}
-            </div>
-          )}
-        </form>
+      title="Report an issue"
+      noun="report"
+      steps={[titleStep, descriptionStep]}
+      extras={extras}
+      summary={summary}
+      submitLabel="Send report"
+      successToast="Report sent. Thanks!"
+      dirty={hasChanges(
+        { title, description, screenshot: screenshotFile ? screenshotFile.name : "" },
+        { title: "", description: "", screenshot: "" }
       )}
-    </Dialog>
+      onSubmit={handleSubmit}
+    />
   );
 }

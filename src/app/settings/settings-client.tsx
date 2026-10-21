@@ -418,7 +418,7 @@ export default function SettingsClient() {
         </button>
       </section>
 
-      {/* ── Updates + Getting started + Report a bug + Leave household + version ── */}
+      {/* ── Updates + Getting started + Report an issue + Leave household + version ── */}
       <section className="pt-8">
         <Link
           href="/patch-notes"
@@ -437,7 +437,7 @@ export default function SettingsClient() {
           onClick={() => setIsBugReportOpen(true)}
           className="w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
         >
-          Report a bug
+          Report an issue
         </button>
         {/* Interim Log out row (R03, #390): the avatar menu is gone; R29 places this for good. */}
         <button
