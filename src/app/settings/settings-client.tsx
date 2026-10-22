@@ -32,17 +32,10 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Field from "@/components/ui/Field";
+import Input from "@/components/ui/Input";
 import { type Member } from "@/types";
 import { leaveModeFor, eligibleNewOwners, isAcceptedMember, isDeleteConfirmed } from "@/lib/householdLeave";
-
-/* Error box shown inside the leave / delete household dialogs (#251). */
-function LeaveError({ message }: { message: string }) {
-  return (
-    <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
-      {message}
-    </div>
-  );
-}
 
 /* ── Page Component ──────────────────────────── */
 export default function SettingsClient() {
@@ -75,7 +68,6 @@ export default function SettingsClient() {
   /* Payment mode confirm flow */
   const [tempMode, setTempMode] = useState<boolean | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [modeChangeError, setModeChangeError] = useState<string | null>(null);
 
   /* Reused sheets */
   const [isContributionOpen, setIsContributionOpen] = useState(false);
@@ -184,29 +176,12 @@ export default function SettingsClient() {
   function handleModeChangeClick(newMode: boolean) {
     if (newMode === isJointFund) return;
     setTempMode(newMode);
-    setModeChangeError(null);
     setShowPaymentModeDialog(false);
     setShowConfirm(true);
   }
 
-  async function handleConfirmModeChange() {
-    if (tempMode !== null) {
-      try {
-        setModeChangeError(null);
-        await updateHouseholdPaymentMode(tempMode);
-      } catch (err) {
-        const error = err as Error;
-        setModeChangeError(error.message || "Failed to update payment mode. Please try again.");
-        return;
-      }
-    }
-    setTempMode(null);
-    setShowConfirm(false);
-  }
-
   function handleCancelModeChange() {
     setTempMode(null);
-    setModeChangeError(null);
     setShowConfirm(false);
   }
 
@@ -473,6 +448,7 @@ export default function SettingsClient() {
         onClose={() => setShowProfileModal(false)}
         title="Profile"
         icon={<User className="h-5 w-5 text-primary" />}
+        error={profileError}
         footer={
           <>
             <DialogButton variant="ghost" onClick={() => setShowProfileModal(false)}>
@@ -497,7 +473,6 @@ export default function SettingsClient() {
         }
       >
         <div className="flex flex-col gap-5">
-          {profileError && <LeaveError message={profileError} />}
           <div className="flex justify-center">
             {currentMember && (
               <AvatarUpload
@@ -656,38 +631,35 @@ export default function SettingsClient() {
         </div>
       </Dialog>
 
-      {/* Payment mode change confirmation */}
-      <Dialog
+      {/* Payment mode change confirmation (R13: ConfirmDialog) */}
+      <ConfirmDialog
         open={showConfirm}
-        onClose={handleCancelModeChange}
-        title="Confirm payment mode change"
-        footer={
-          <>
-            <DialogButton variant="ghost" onClick={handleCancelModeChange}>
-              Cancel
-            </DialogButton>
-            <DialogButton variant="destructive" onClick={handleConfirmModeChange}>
-              Confirm
-            </DialogButton>
-          </>
+        title="Switch payment mode?"
+        confirmLabel="Switch"
+        showThrownMessage
+        successToast="Payment mode changed"
+        errorMessage="Failed to update payment mode. Please try again."
+        onConfirm={async () => {
+          // tempMode stays set until onDone/cancel so the text does not flip mid-save.
+          if (tempMode !== null) await updateHouseholdPaymentMode(tempMode);
+        }}
+        onDone={() => {
+          setTempMode(null);
+          setShowConfirm(false);
+        }}
+        onCancel={handleCancelModeChange}
+        message={
+          <div className="flex flex-col gap-3">
+            <div className="text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
+            <p>
+              Switching to <span className="text-primary font-semibold">{tempMode ? "Joint Fund" : "Direct Pay"}</span> will reset every bill&apos;s contributor splits.
+            </p>
+            <p className="text-xs leading-relaxed text-muted">
+              You&apos;ll need to reconfigure who pays what. This can&apos;t be undone.
+            </p>
+          </div>
         }
-      >
-        <div className="flex flex-col gap-3">
-          {modeChangeError && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
-              <span className="font-bold">Failed to update payment mode:</span><br/>
-              {modeChangeError}
-            </div>
-          )}
-          <div className="text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
-          <p className="text-[15px] leading-relaxed text-foreground">
-            Switching to <span className="text-primary font-semibold">{tempMode ? "Joint Fund" : "Direct Pay"}</span> will reset every bill&apos;s contributor splits.
-          </p>
-          <p className="text-xs leading-relaxed text-muted">
-            You&apos;ll need to reconfigure who pays what. This can&apos;t be undone.
-          </p>
-        </div>
-      </Dialog>
+      />
 
       {/* Leave household (#251): regular member, or owner while another owner remains */}
       <ConfirmDialog
@@ -724,6 +696,8 @@ export default function SettingsClient() {
         open={leaveDialog === "transfer"}
         onClose={closeLeaveDialog}
         title="Pick a new owner"
+        busy={isLeavingHousehold}
+        error={leaveHouseholdError}
         footer={
           <>
             <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
@@ -755,10 +729,10 @@ export default function SettingsClient() {
                   aria-checked={selected}
                   disabled={isLeavingHousehold}
                   onClick={() => setNewOwnerId(m.id)}
-                  className={`flex items-center justify-between gap-3 min-h-[44px] px-4 py-2 rounded-[2px] border text-left text-sm font-semibold transition-colors disabled:opacity-60 ${
+                  className={`flex items-center justify-between gap-3 min-h-11 px-4 py-2 rounded-card border text-left text-sm font-semibold transition-colors disabled:opacity-60 ${
                     selected
-                      ? "bg-primary/10 border-primary/40 text-primary"
-                      : "bg-transparent border-border-strong text-foreground"
+                      ? "border-transparent ring-2 ring-inset ring-primary bg-surface-raised text-foreground"
+                      : "border-border-strong bg-surface-raised text-foreground"
                   }`}
                 >
                   <span className="truncate">{m.name}</span>
@@ -770,7 +744,6 @@ export default function SettingsClient() {
           <p className="text-sm leading-relaxed text-muted">
             Your pay schedule, pay history, bill splits and contributions are deleted when you leave. Bills, expenses and goals you were assigned stay, but unassigned.
           </p>
-          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
           <button
             type="button"
             disabled={isLeavingHousehold}
@@ -787,38 +760,41 @@ export default function SettingsClient() {
       </Dialog>
 
       {/* Delete household: needs DELETE typed. Only reachable while no other owner remains. */}
-      <Dialog
+      <ConfirmDialog
         open={leaveDialog === "delete"}
-        onClose={closeLeaveDialog}
         title="Delete household?"
-        footer={
-          <>
-            <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
-              Cancel
-            </DialogButton>
-            <DialogButton
-              variant="destructive"
-              className="min-h-[44px]"
-              disabled={isLeavingHousehold || !isDeleteConfirmed(deleteText)}
-              onClick={() => runLeaveAction(() => deleteHousehold())}
-            >
-              {isLeavingHousehold ? "Deleting…" : "Delete household"}
-            </DialogButton>
-          </>
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        canConfirm={isDeleteConfirmed(deleteText)}
+        showThrownMessage
+        keepBusyOnSuccess
+        errorMessage="That didn't work. Please check your connection and try again."
+        onCancel={closeLeaveDialog}
+        onConfirm={async () => {
+          setIsLeavingHousehold(true);
+          try {
+            await deleteHousehold();
+          } catch (err) {
+            console.error("Failed to delete household:", err);
+            setIsLeavingHousehold(false);
+            throw err;
+          }
+          window.location.href = "/";
+        }}
+        message={
+          <div className="flex flex-col gap-3">
+            <p>
+              This permanently deletes {householdName ? <span className="font-semibold">{householdName}</span> : "this household"} for{" "}
+              {acceptedCount > 1 ? `all ${acceptedCount} members` : "you"}.
+            </p>
+            <p className="text-sm leading-relaxed text-muted">
+              Every bill, expense, goal, payday, pay history, split and contribution is lost. Other members get no notice; they land on the create-or-join screen the next time they open the app. This can&apos;t be undone.
+            </p>
+          </div>
         }
       >
-        <div className="flex flex-col gap-3">
-          <p className="text-[15px] leading-relaxed text-foreground">
-            This permanently deletes {householdName ? <span className="font-semibold">{householdName}</span> : "this household"} for{" "}
-            {acceptedCount > 1 ? `all ${acceptedCount} members` : "you"}.
-          </p>
-          <p className="text-sm leading-relaxed text-muted">
-            Every bill, expense, goal, payday, pay history, split and contribution is lost. Other members get no notice; they land on the create-or-join screen the next time they open the app. This can&apos;t be undone.
-          </p>
-          <label htmlFor="delete-household-confirm" className="text-[11px] uppercase tracking-wider text-subtle">
-            Type DELETE to confirm
-          </label>
-          <input
+        <Field id="delete-household-confirm" label="Type DELETE to confirm" className="text-left">
+          <Input
             id="delete-household-confirm"
             type="text"
             value={deleteText}
@@ -828,11 +804,9 @@ export default function SettingsClient() {
             autoCorrect="off"
             autoCapitalize="characters"
             spellCheck={false}
-            className="w-full px-4 py-3 min-h-[44px] rounded-[2px] bg-surface border border-border text-foreground text-base font-medium focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none disabled:opacity-60"
           />
-          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
-        </div>
-      </Dialog>
+        </Field>
+      </ConfirmDialog>
 
       {/* Timezone (owner-only; the Row above only opens this for owners) */}
       <TimezoneDialog

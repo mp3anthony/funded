@@ -19,6 +19,8 @@ interface SingleCardProps {
   onSubmit: () => Promise<boolean | void> | boolean | void;
   successToast?: string;
   errorMessage?: string;
+  /** Show the thrown error's own message (server messages). */
+  showThrownMessage?: boolean;
   /** Ghost pill under the main one: "Different amount", "Didn't get paid", "Skip". */
   secondaryAction?: { label: string; onClick: () => void };
 }
@@ -37,6 +39,7 @@ export default function SingleCard({
   onSubmit,
   successToast,
   errorMessage,
+  showThrownMessage,
   secondaryAction,
 }: SingleCardProps) {
   const formId = useId();
@@ -44,6 +47,7 @@ export default function SingleCard({
     onSuccess: onClose,
     successToast,
     errorMessage,
+    showThrownMessage,
   });
 
   // Fresh state each time the card opens (derived-state reset, no effect).

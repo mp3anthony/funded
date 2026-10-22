@@ -96,20 +96,12 @@ test("cn resolves radius tokens against rounded-full", () => {
 // Slices delete entries as they restyle a file; R35 empties the list.
 const SQUARE_ALLOWLIST = new Set([
     "app/login/page.tsx",
-    "app/settings/settings-client.tsx",
-    "components/AvatarCropModal.tsx",
     "components/ContributionSettingsSheet.tsx",
-    "components/EditMemberModal.tsx",
     "components/EnterPayAmountModal.tsx",
     "components/FinishSetupCard.tsx",
-    "components/JoinHouseholdSheet.tsx",
-    "components/NotificationCenter.tsx",
     "components/Onboarding.tsx",
     "components/OnboardingStep.tsx",
-    "components/PushStatusDialog.tsx",
-    "components/RemoveMemberModal.tsx",
     "components/SurplusSuggestionModal.tsx",
-    "components/UpdatesCard.tsx",
 ]);
 
 test("no new square corners (rounded-[2px] ratchet)", () => {

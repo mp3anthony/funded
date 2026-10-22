@@ -14,7 +14,17 @@ export default function EmailVerifiedModal({ isOpen, onClose }: EmailVerifiedMod
       open={isOpen}
       onClose={onClose}
       title="Email verified!"
-      maxWidthClass="max-w-sm"
+      placement="confirm"
+      role="alertdialog"
+      hideClose
+      header={(titleId) => (
+        <h3
+          id={titleId}
+          className="shrink-0 px-5 pt-6 text-center text-[17px] font-bold text-foreground"
+        >
+          Email verified!
+        </h3>
+      )}
       footer={
         <DialogButton variant="primary" onClick={onClose}>
           Continue to Funded

@@ -3,6 +3,8 @@
 import React, { useState, useRef } from "react";
 import { Upload, Trash2, Loader2 } from "lucide-react";
 import { uploadAvatar, deleteAvatar } from "@/lib/storage";
+import Button from "@/components/ui/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import AvatarCropModal from "./AvatarCropModal";
 
 // Generous pre-crop ceiling to guard canvas memory; rejects only absurd files.
@@ -25,6 +27,7 @@ export default function AvatarUpload({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,7 +94,6 @@ export default function AvatarUpload({
 
   const handleRemove = async () => {
     if (!currentAvatarUrl) return;
-    if (!confirm("Are you sure you want to remove your profile photo?")) return;
 
     setLoading(true);
     setError(null);
@@ -115,9 +117,9 @@ export default function AvatarUpload({
 
   return (
     <>
-    <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-surface border border-border rounded-2xl">
+    <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-surface border border-border rounded-card">
       {/* Avatar Display wrapper */}
-      <div className="relative h-20 w-20 rounded-2xl overflow-hidden bg-surface-raised border border-border shrink-0 shadow-inner">
+      <div className="relative h-20 w-20 rounded-full overflow-hidden bg-surface-raised border border-border shrink-0 shadow-inner">
         {activeAvatar ? (
           <img
             src={activeAvatar}
@@ -151,27 +153,25 @@ export default function AvatarUpload({
             accept="image/jpeg,image/png,image/webp"
             className="hidden"
           />
-          <button
-            type="button"
+          <Button
             onClick={triggerFileInput}
             disabled={loading}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-primary-fg text-xs font-bold uppercase tracking-wider rounded-xl transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            className="px-4"
           >
             <Upload size={14} />
-            <span>Upload Photo</span>
-          </button>
+            <span>Upload photo</span>
+          </Button>
 
           {currentAvatarUrl && (
-            <button
-              type="button"
-              onClick={handleRemove}
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmRemoveOpen(true)}
               disabled={loading}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-white/5 border border-border text-muted hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20 text-xs font-bold uppercase tracking-wider rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-              title="Remove Photo"
+              className="px-4"
             >
               <Trash2 size={14} />
               <span>Remove</span>
-            </button>
+            </Button>
           )}
         </div>
 
@@ -189,6 +189,16 @@ export default function AvatarUpload({
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      open={confirmRemoveOpen}
+      title="Remove photo?"
+      message="Are you sure you want to remove your profile photo?"
+      confirmLabel="Remove"
+      busyLabel="Removing…"
+      onConfirm={handleRemove}
+      onCancel={() => setConfirmRemoveOpen(false)}
+    />
 
     {cropSrc && (
       <AvatarCropModal

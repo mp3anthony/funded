@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { Check, ZoomIn, ZoomOut, Loader2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Loader2 } from "lucide-react";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import IconCircle from "@/components/ui/IconCircle";
 
 interface AvatarCropModalProps {
   /** Object URL of the picked file. */
@@ -324,8 +325,10 @@ export default function AvatarCropModal({
     <Dialog
       open={true}
       onClose={onCancel}
-      title="Adjust Photo"
+      title="Adjust photo"
       maxWidthClass="max-w-sm"
+      busy={processing}
+      error={error}
       footer={
         <>
           <DialogButton
@@ -341,14 +344,8 @@ export default function AvatarCropModal({
             type="button"
             onClick={handleConfirm}
             disabled={loading || processing}
-            className="flex items-center justify-center gap-1.5"
           >
-            {processing ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Check size={14} />
-            )}
-            <span>{processing ? "Processing" : "Save Photo"}</span>
+            {processing ? "Processing…" : error ? "Try again" : "Save photo"}
           </DialogButton>
         </>
       }
@@ -363,7 +360,7 @@ export default function AvatarCropModal({
             onPointerUp={endPointer}
             onPointerCancel={endPointer}
             onPointerLeave={endPointer}
-            className="relative w-full aspect-square rounded-[2px] overflow-hidden bg-background border border-border select-none touch-none cursor-grab active:cursor-grabbing"
+            className="relative w-full aspect-square rounded-card overflow-hidden bg-background border border-border select-none touch-none cursor-grab active:cursor-grabbing"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -385,7 +382,7 @@ export default function AvatarCropModal({
                 margin: "6%",
               }}
             />
-            <div className="pointer-events-none absolute inset-0 rounded-[2px] ring-1 ring-white/10" />
+            <div className="pointer-events-none absolute inset-0 rounded-card ring-1 ring-white/10" />
 
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/70">
@@ -396,38 +393,28 @@ export default function AvatarCropModal({
 
           {/* Zoom controls */}
           <div className="flex items-center justify-center gap-3">
-            <button
-              type="button"
+            <IconCircle
+              label="Zoom out"
               onClick={() =>
                 zoomTo(t.current.zoom / 1.25, t.current.V / 2, t.current.V / 2)
               }
               disabled={loading}
-              className="flex items-center justify-center h-10 w-10 rounded-[2px] border border-border text-muted hover:text-foreground hover:bg-white/5 transition-colors disabled:opacity-50 cursor-pointer"
-              aria-label="Zoom out"
             >
               <ZoomOut size={18} />
-            </button>
+            </IconCircle>
             <p className="text-[10px] text-muted font-body text-center flex-1">
               Drag to reposition, pinch or scroll to zoom.
             </p>
-            <button
-              type="button"
+            <IconCircle
+              label="Zoom in"
               onClick={() =>
                 zoomTo(t.current.zoom * 1.25, t.current.V / 2, t.current.V / 2)
               }
               disabled={loading}
-              className="flex items-center justify-center h-10 w-10 rounded-[2px] border border-border text-muted hover:text-foreground hover:bg-white/5 transition-colors disabled:opacity-50 cursor-pointer"
-              aria-label="Zoom in"
             >
               <ZoomIn size={18} />
-            </button>
+            </IconCircle>
           </div>
-
-          {error && (
-            <p className="text-[10px] text-destructive font-semibold uppercase tracking-wider text-center animate-shake">
-              {error}
-            </p>
-          )}
       </div>
     </Dialog>
   );

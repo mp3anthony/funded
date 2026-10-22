@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Settings as SettingsIcon, Clock, AlertTriangle, CheckCircle, Circle, Trash2, ChevronRight } from "lucide-react";
+import { Bell, Settings as SettingsIcon, Clock, AlertTriangle, CheckCircle, Circle, Trash2 } from "lucide-react";
 import { useApp, type Notification, type NotificationSettings } from "@/context/AppContext";
 import Dialog from "@/components/ui/Dialog";
+import Chip from "@/components/ui/Chip";
+import IconCircle from "@/components/ui/IconCircle";
+import Row from "@/components/ui/Row";
 import NotifyHourDialog from "@/components/NotifyHourDialog";
 import PushStatusDialog from "@/components/PushStatusDialog";
 import { useRouter } from "next/navigation";
@@ -29,6 +32,73 @@ function formatHourLabel(hour: number): string {
   const displayHour = hour % 12 === 0 ? 12 : hour % 12;
   return `${displayHour}:00 ${period}`;
 }
+
+/** On/off switch (R13). Local to this panel; the label is the accessible name. */
+function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  return (
+    <label className="relative inline-flex cursor-pointer items-center">
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        aria-label={label}
+        checked={checked}
+        onChange={onChange}
+      />
+      <div className="h-6 w-11 rounded-full border border-border bg-border transition-colors duration-(--duration-feedback) peer-checked:bg-primary after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white" />
+    </label>
+  );
+}
+
+/** A switch row: title and helper text on the left, the switch on the right. */
+function SettingRow({
+  title,
+  description,
+  checked,
+  onChange,
+  divider,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+  divider?: boolean;
+}) {
+  return (
+    <Row
+      divider={divider}
+      className="min-h-11 px-6"
+      label={
+        <span className="block">
+          <span className="block font-semibold text-foreground">{title}</span>
+          <span className="block text-xs text-muted">{description}</span>
+        </span>
+      }
+    >
+      <Switch checked={checked} onChange={onChange} label={title} />
+    </Row>
+  );
+}
+
+const TYPE_SETTINGS: {
+  key: keyof NotificationSettings;
+  title: string;
+  description: string;
+}[] = [
+  { key: "manual_bill_reminders", title: "Manual bill reminders", description: "Alerts when a manual bill is due." },
+  { key: "auto_pay_reminders", title: "Auto-pay reminders", description: "Alerts for upcoming or missed auto-pay bills." },
+  { key: "overdue_bill_reminders", title: "Daily overdue reminders", description: "Repeat overdue bill alerts daily until paid." },
+  { key: "lodge_payment_reminders", title: "Confirm pending pay reminders", description: "Alerts when a scheduled payment needs confirmation." },
+  { key: "payday_reminders", title: "Payday reminders", description: "Alerts when it's time to log your pay." },
+  { key: "goal_milestone_reminders", title: "Goal milestone reminders", description: "Alerts when a goal reaches 25/50/75/100% of its target." },
+];
 
 export default function NotificationCenter({ isOpen, onClose, pushStatus, onPushStatusChange }: NotificationCenterProps) {
   const { notifications, notificationSettings, deleteNotification, clearAllNotifications, updateNotificationSettings } = useApp();
@@ -75,25 +145,13 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
       icon={<Bell size={20} />}
       subheader={
         /* Tabs — non-scrolling region above the body */
-        <div className="flex space-x-4 border-b border-border-strong px-5 pt-1">
-            <button
-              className={`pb-2 px-1 text-sm font-semibold transition-colors relative ${activeTab === 'list' ? 'text-primary' : 'text-muted hover:text-foreground'}`}
-              onClick={() => setActiveTab('list')}
-            >
-              Inbox
-              {activeTab === 'list' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
-              )}
-            </button>
-            <button
-              className={`pb-2 px-1 text-sm font-semibold transition-colors flex items-center gap-1 relative ${activeTab === 'settings' ? 'text-primary' : 'text-muted hover:text-foreground'}`}
-              onClick={() => setActiveTab('settings')}
-            >
-              <SettingsIcon size={14} /> Settings
-              {activeTab === 'settings' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
-              )}
-            </button>
+        <div className="flex gap-2 border-b border-border px-5 py-3">
+          <Chip selected={activeTab === "list"} onClick={() => setActiveTab("list")}>
+            Inbox
+          </Chip>
+          <Chip selected={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
+            <SettingsIcon size={14} /> Settings
+          </Chip>
         </div>
       }
     >
@@ -122,56 +180,62 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                   <>
                     <div className="flex justify-between items-center px-6 py-2.5 bg-surface-elevated border-b border-border text-xs text-muted">
                       <span className="font-semibold">{visibleNotifications.length} active alerts</span>
-                      <button 
+                      <button
+                        type="button"
                         onClick={clearAllNotifications}
-                        className="font-bold text-rose-500 hover:text-rose-600 transition-colors flex items-center gap-1 cursor-pointer focus:outline-none"
+                        className="font-bold text-rose-500 transition-colors flex items-center gap-1 cursor-pointer focus:outline-none"
                       >
-                        <Trash2 size={12} /> Clear All
+                        <Trash2 size={12} /> Clear all
                       </button>
                     </div>
                     {visibleNotifications.map(notif => {
                       const isTappable = getNotificationDestination(notif) !== null;
+                      const content = (
+                        <>
+                          <span className="mt-1 shrink-0">{getIconForType(notif.type)}</span>
+                          <span className="block min-w-0 flex-1 space-y-1">
+                            <span className="flex items-center justify-between text-sm font-semibold text-foreground">
+                              <span>{notif.title}</span>
+                              {!notif.is_read && <Circle size={8} fill="currentColor" className="text-primary" />}
+                            </span>
+                            <span className="block text-sm text-muted">{notif.message}</span>
+                            <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">
+                              {new Date(notif.created_at).toLocaleDateString()}
+                            </span>
+                            {isTappable && (
+                              <span className="mt-0.5 flex items-center gap-1 text-[9px] font-semibold uppercase tracking-widest text-muted/60">
+                                Tap for more
+                                <span aria-hidden="true">›</span>
+                              </span>
+                            )}
+                          </span>
+                        </>
+                      );
                       return (
-                      <div
-                        key={notif.id}
-                        className={`p-4 flex gap-4 transition-colors ${notif.is_read ? 'opacity-60 bg-surface' : 'bg-surface-elevated'}`}
-                      >
-                        <div className="mt-1 flex-shrink-0">
-                          {getIconForType(notif.type)}
-                        </div>
                         <div
-                          onClick={() => handleNotificationClick(notif)}
-                          className={`flex-1 space-y-1 ${isTappable ? 'group cursor-pointer hover:opacity-85' : ''}`}
+                          key={notif.id}
+                          className="flex items-start gap-2 bg-surface-elevated px-6 py-3"
                         >
-                          <h4 className="font-semibold text-foreground text-sm flex items-center justify-between">
-                            <span className={isTappable ? 'hover:underline decoration-primary/40' : ''}>
-                              {notif.title}
-                            </span>
-                            {!notif.is_read && <Circle size={8} fill="currentColor" className="text-primary" />}
-                          </h4>
-                          <p className="text-sm text-muted">{notif.message}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                            {new Date(notif.created_at).toLocaleDateString()}
-                          </p>
-                          {isTappable && (
-                            <span className="flex items-center gap-1 text-[9px] font-semibold text-muted/60 uppercase tracking-widest group-hover:text-primary transition-colors mt-0.5">
-                              Tap for more
-                              <span aria-hidden="true">›</span>
-                            </span>
+                          {isTappable ? (
+                            <button
+                              type="button"
+                              onClick={() => handleNotificationClick(notif)}
+                              className="press-tint flex min-w-0 flex-1 items-start gap-4 text-left"
+                            >
+                              {content}
+                            </button>
+                          ) : (
+                            <div className="flex min-w-0 flex-1 items-start gap-4">{content}</div>
                           )}
-                        </div>
-
-                        <div className="flex self-start ml-2 shrink-0">
                           {/* Clear/Delete — the row's one action, sized to stand alone. */}
-                          <button
+                          <IconCircle
+                            label="Clear notification"
                             onClick={() => deleteNotification(notif.id)}
-                            className="p-2 text-muted hover:text-rose-500 transition-colors flex justify-center"
-                            title="Clear notification"
+                            className="-mr-2 self-start"
                           >
-                            <Trash2 size={20} />
-                          </button>
+                            <Trash2 size={16} />
+                          </IconCircle>
                         </div>
-                      </div>
                       );
                     })}
                   </>
@@ -179,176 +243,79 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
               })()}
             </div>
           ) : (
-            <div className="p-6 space-y-6">
+            <div className="py-3">
               {notificationSettings ? (
                 <>
-                  <div className="flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border">
-                    <div>
-                      <h4 className="font-semibold text-foreground">Enabled</h4>
-                      <p className="text-sm text-muted">In-app &amp; push reminders</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={notificationSettings.all_enabled}
-                        onChange={() => handleToggleSetting('all_enabled')}
-                      />
-                      <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
+                  <SettingRow
+                    title="Enabled"
+                    description="In-app & push reminders"
+                    checked={notificationSettings.all_enabled}
+                    onChange={() => handleToggleSetting("all_enabled")}
+                  />
 
                   {/* Notify me at (#97) — relocated here from its own top-level
                       Settings row (Slice 13, #99 merge). Same NotifyHourDialog,
                       unchanged storage — just triggered from this panel now. */}
-                  <button
-                    type="button"
+                  <Row
+                    tall
+                    chevron
+                    divider
+                    className="px-6"
                     onClick={() => setShowNotifyHourDialog(true)}
-                    className="w-full flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border text-left hover:bg-surface-raised transition-colors"
-                  >
-                    <div>
-                      <h4 className="font-semibold text-foreground">Notify me at</h4>
-                      <p className="text-sm text-muted">Preferred delivery hour</p>
-                    </div>
-                    <span className="flex items-center gap-2 text-sm text-muted shrink-0">
-                      {formatHourLabel(notificationSettings.notify_hour)}
-                      <ChevronRight className="h-4 w-4 text-subtle" />
-                    </span>
-                  </button>
+                    label={
+                      <span className="block">
+                        <span className="block font-semibold text-foreground">Notify me at</span>
+                        <span className="block text-xs text-muted">Preferred delivery hour</span>
+                      </span>
+                    }
+                    value={formatHourLabel(notificationSettings.notify_hour)}
+                  />
 
-                  {/* Push status (#96 half A) — replaces the old standalone
-                      "Push notifications" Settings row/dialog. Plain status
-                      when live; a single tappable row reusing
-                      PushStatusDialog's enable flow when action is needed.
-                      This is NOT a second switch — the only toggle in this
-                      panel is "Enabled" above. */}
+                  {/* Push status (#96 half A) — plain status when live; a
+                      single tappable row reusing PushStatusDialog's enable
+                      flow when action is needed. This is NOT a second switch. */}
                   {pushStatus && pushStatus.supported && (
                     pushStatus.hasLiveSubscription ? (
-                      <div className="flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border">
-                        <h4 className="font-semibold text-foreground">Push on this device</h4>
+                      <Row
+                        divider
+                        className="min-h-11 px-6"
+                        label={<span className="font-semibold text-foreground">Push on this device</span>}
+                      >
                         <span className="flex items-center gap-1.5 text-xs text-muted">
                           <span className="h-1.5 w-1.5 rounded-full bg-success" /> Active
                         </span>
-                      </div>
+                      </Row>
                     ) : (
-                      <button
-                        type="button"
+                      <Row
+                        tall
+                        chevron
+                        divider
+                        className="px-6"
                         onClick={() => setShowPushStatusDialog(true)}
-                        className="w-full flex items-center justify-between p-4 bg-surface-elevated rounded-[2px] border border-border text-left hover:bg-surface-raised transition-colors"
-                      >
-                        <div>
-                          <h4 className="font-semibold text-foreground">Push on this device</h4>
-                          <p className="text-sm text-accent">Needs attention</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-subtle" />
-                      </button>
+                        label={
+                          <span className="block">
+                            <span className="block font-semibold text-foreground">Push on this device</span>
+                            <span className="block text-sm text-accent">Needs attention</span>
+                          </span>
+                        }
+                      />
                     )
                   )}
 
-                  <div className={`space-y-4 ${!notificationSettings.all_enabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <h4 className="font-semibold text-muted uppercase tracking-wider text-xs">Notification Types</h4>
-                    
-                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
-                      <div className="flex-1 pr-4">
-                        <h5 className="font-medium text-sm text-foreground">Manual Bill Reminders</h5>
-                        <p className="text-xs text-muted">Alerts when a manual bill is due.</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={notificationSettings.manual_bill_reminders}
-                            onChange={() => handleToggleSetting('manual_bill_reminders')}
-                          />
-                          <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
-                      <div className="flex-1 pr-4">
-                        <h5 className="font-medium text-sm text-foreground">Auto-Pay Reminders</h5>
-                        <p className="text-xs text-muted">Alerts for upcoming or missed auto-pay bills.</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            className="sr-only peer" 
-                            checked={notificationSettings.auto_pay_reminders}
-                            onChange={() => handleToggleSetting('auto_pay_reminders')}
-                          />
-                          <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
-                      <div className="flex-1 pr-4">
-                        <h5 className="font-medium text-sm text-foreground">Daily Overdue Reminders</h5>
-                        <p className="text-xs text-muted">Repeat overdue bill alerts daily until paid.</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={notificationSettings.overdue_bill_reminders}
-                            onChange={() => handleToggleSetting('overdue_bill_reminders')}
-                          />
-                          <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
-                      <div>
-                        <h5 className="font-medium text-sm text-foreground">Confirm Pending Pay Reminders</h5>
-                        <p className="text-xs text-muted">Alerts when a scheduled payment needs confirmation.</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={notificationSettings.lodge_payment_reminders}
-                          onChange={() => handleToggleSetting('lodge_payment_reminders')}
-                        />
-                        <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border-b border-border-strong">
-                      <div className="flex-1 pr-4">
-                        <h5 className="font-medium text-sm text-foreground">Payday Reminders</h5>
-                        <p className="text-xs text-muted">Alerts when it&apos;s time to log your pay.</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={notificationSettings.payday_reminders}
-                          onChange={() => handleToggleSetting('payday_reminders')}
-                        />
-                        <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3">
-                      <div className="flex-1 pr-4">
-                        <h5 className="font-medium text-sm text-foreground">Goal Milestone Reminders</h5>
-                        <p className="text-xs text-muted">Alerts when a fund reaches 25/50/75/100% of its target.</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="sr-only peer"
-                          checked={notificationSettings.goal_milestone_reminders}
-                          onChange={() => handleToggleSetting('goal_milestone_reminders')}
-                        />
-                        <div className="w-9 h-5 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                    </div>
+                  <div className={notificationSettings.all_enabled ? "" : "opacity-50 pointer-events-none"}>
+                    <h4 className="px-6 pb-1 pt-5 text-xs font-semibold uppercase tracking-wider text-muted">
+                      Notification types
+                    </h4>
+                    {TYPE_SETTINGS.map((t) => (
+                      <SettingRow
+                        key={t.key}
+                        divider
+                        title={t.title}
+                        description={t.description}
+                        checked={Boolean(notificationSettings[t.key])}
+                        onChange={() => handleToggleSetting(t.key)}
+                      />
+                    ))}
                   </div>
                 </>
               ) : (
@@ -367,7 +334,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
       onSave={(hour) => updateNotificationSettings({ notify_hour: hour })}
     />
 
-    {/* Push status (nested — reuses PushStatusDialog's existing enable flow
+    {/* Push status (nested — reuses PushStatusDialog's enable flow
         for the one case that needs action) */}
     {pushStatus && (
       <PushStatusDialog

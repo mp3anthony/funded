@@ -31,7 +31,7 @@ A pop-up that shows one item (a bill, goal or pay schedule) as tappable rows. Th
 _Avoid_: Edit form, details modal
 
 **Confirm dialog** (planned, #377):
-A small centred question with Cancel and a red action pill, used before anything destructive. Replaces the browser's own confirm box.
+A small centred question with Cancel and a red action pill, used before anything destructive. Replaces the browser's own confirm box. Settings (Delete household, Switch payment mode, Leave household), member (Remove member's second question) and profile photo confirms moved to it in R13; the Payday confirms are still the browser box (planned, #377).
 _Avoid_: Alert, prompt
 
 **Bottom navigation** (planned, #377):

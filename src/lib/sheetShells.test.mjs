@@ -92,9 +92,7 @@ test("Row has an opt-in tall prop", () => {
 // delete entries as they move to ConfirmDialog. Checked per file, not per call.
 const CONFIRM_ALLOWLIST = new Set([
   "app/payday/payday-client.tsx",
-  "components/AvatarUpload.tsx",
   "components/PayHistoryCard.tsx",
-  "components/RemoveMemberModal.tsx",
 ]);
 
 test("no new native confirm() calls (ratchet)", () => {
@@ -105,4 +103,23 @@ test("no new native confirm() calls (ratchet)", () => {
   assert.deepEqual(added, [], `new confirm() in: ${added.join(", ")} (use ConfirmDialog)`);
   const stale = [...CONFIRM_ALLOWLIST].filter((rel) => !offenders.includes(rel));
   assert.deepEqual(stale, [], `remove from allowlist (now clean): ${stale.join(", ")}`);
+});
+
+test("R13 pop-ups sit on the shells", () => {
+  const nc = read("components/NotificationCenter.tsx");
+  assert.ok(/ui\/Row/.test(nc) && /ui\/Chip/.test(nc) && /ui\/IconCircle/.test(nc));
+  assert.ok(nc.includes("Push on this device") && nc.includes("Needs attention"));
+  const ps = read("components/PushStatusDialog.tsx");
+  assert.ok(ps.includes("SingleCard") && ps.includes("Enable push notifications") && ps.includes("Not now"));
+  assert.ok(read("components/ui/SingleCard.tsx").includes("showThrownMessage"));
+  assert.ok(read("components/AvatarUpload.tsx").includes("ConfirmDialog"));
+  assert.ok(read("components/RemoveMemberModal.tsx").includes("ConfirmDialog"));
+  const sc = read("app/settings/settings-client.tsx");
+  assert.ok(!sc.includes("LeaveError"));
+  assert.ok((sc.match(/<ConfirmDialog/g) ?? []).length >= 3);
+  const js = read("components/JoinHouseholdSheet.tsx");
+  assert.ok(js.includes("busy=") && !js.includes("animate-bounce"));
+  assert.ok(read("components/EmailVerifiedModal.tsx").includes('placement="confirm"'));
+  const uc = read("components/UpdatesCard.tsx");
+  assert.ok(uc.includes("rounded-card") && uc.includes("IconCircle"));
 });

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, X } from "lucide-react";
+import IconCircle from "@/components/ui/IconCircle";
 import { useApp } from "@/context/AppContext";
 import { APP_VERSION } from "@/lib/version";
 import { patchNotes, type PatchNoteEntry } from "@/lib/patch-notes";
@@ -113,7 +114,7 @@ export default function UpdatesCard() {
       className="fixed inset-x-0 z-[55] flex justify-center px-4 pointer-events-none"
       style={{ bottom: "calc(var(--nav-clearance) + 12px)" }}
     >
-      <div className="pointer-events-auto w-full max-w-md rounded-[2px] border border-border-strong bg-surface-elevated shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none">
+      <div className="pointer-events-auto w-full max-w-md rounded-card border border-border-strong bg-surface-elevated shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-(--duration-feedback) motion-reduce:animate-none">
         <div className="flex items-center gap-2 pl-4 pr-1 pt-1">
           <Sparkles size={16} className="text-primary shrink-0" />
           <p className="flex-1 min-w-0 text-sm font-bold text-foreground">
@@ -122,14 +123,9 @@ export default function UpdatesCard() {
               v{entry.version} · {entry.date}
             </span>
           </p>
-          <button
-            type="button"
-            onClick={close}
-            aria-label="Close updates"
-            className="shrink-0 flex h-11 w-11 items-center justify-center text-muted hover:text-foreground cursor-pointer touch-manipulation"
-          >
+          <IconCircle label="Close updates" onClick={close}>
             <X size={18} />
-          </button>
+          </IconCircle>
         </div>
         <ul className="flex flex-col gap-1.5 px-4 pb-1">
           {shown.map((line, i) => (
