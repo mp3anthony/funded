@@ -42,7 +42,7 @@
 ## Next session, in order
 
 1. **Plan R16 (#403)** on `redesign/full-app` (check it out, do not branch from main): Impact calculator ("Check impact" pill beside Filter, see `project/pages/bills.md` and the Goals Just tracking use). Planner or orchestrator plan, independent plan review, standing pause (or plan+build in one session if Anthony says so). Reuse the shared shells from R05-R13. If Anthony flips any R07-R15 default, rework that first.
-2. Raise an A1 sign-off with Anthony before R19/R28 are planned; R28 (#415) has no dependencies and can go earlier.
+2. **A1 signed off by Anthony (2026-10-24):** R19 (`pay_history.amount` nullable) and R28 (#415 owner-only `households` UPDATE policy) are approved in principle; the plan still states the exact migration and stays backward compatible with `main`. R33 (#370) is decided at its own plan. R28 has no dependencies and can go earlier.
 3. Non-redesign work is not queued: #383 (change login email) and #145 wait for Anthony. Any new bug goes through Intake as usual; fold it into a slice if the redesign rewrites that code.
 
 ## Where things live
