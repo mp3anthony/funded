@@ -2552,6 +2552,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
         if (rollError) {
           console.error("Error rolling bill on mark-as-paid:", rollError);
+          showToast({ message: "Couldn't mark as paid, try again." });
           return false;
         }
         if (!rolled) {
@@ -2591,6 +2592,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating bill as paid:", error);
+        showToast({ message: "Couldn't mark as paid, try again." });
         return false;
       }
       if (!data) {
@@ -2606,9 +2608,16 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setBills((prev) =>
         prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b))
       );
+      // R15: paying early / one-off gets the same Undo toast as the roll path.
+      showToast({
+        message: "Marked as paid",
+        actionLabel: "Undo",
+        onAction: () => { void markAsUnpaid(mapBillFromDb(data)); },
+      });
       return true;
     } catch (err) {
       console.error("Failed to mark as paid:", err);
+      showToast({ message: "Couldn't mark as paid, try again." });
       return false;
     }
   }

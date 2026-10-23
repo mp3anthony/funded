@@ -21,6 +21,8 @@ import { countsTowardTotals, isDateless } from "@/lib/billCycle";
 import { ITEM_CATEGORIES, rowKey, type AddedItem } from "@/lib/addFlow";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
 import { loadFrequency, saveFrequency, type FrequencyType } from "@/lib/frequencyPreference";
+import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
+import { categorySubtotal, compareRows } from "@/lib/billRow";
 import {
   dueAfterTypeChange,
   expensesHiddenByDue,
@@ -92,16 +94,24 @@ export default function BillsClient() {
   const [displayFrequency, setDisplayFrequency] = useState<FrequencyType>("weekly");
 
   const [isMounted, setIsMounted] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  // R15: categories start open; only the ones a person closed are remembered (on this phone).
+  const [collapsedCategories, setCollapsedCategories] = useState<string[]>([]);
   const [isEditCategoryOrderOpen, setIsEditCategoryOrderOpen] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
   const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
+    const collapse = !collapsedCategories.includes(category);
+    setCollapsedCategories(
+      collapse ? [...collapsedCategories, category] : collapsedCategories.filter((c) => c !== category),
+    );
+    // Persist from what is stored plus this one toggle, so categories opened by a
+    // deep link or a new row are never saved as a choice.
+    const userId = session?.user?.id;
+    if (userId) saveCollapsed(userId, applyToggle(loadCollapsed(userId), category, collapse));
   };
+  // Opens a category in state only (deep link, new row); never changes what is remembered.
+  const openCategory = (category: string) =>
+    setCollapsedCategories((prev) => (prev.includes(category) ? prev.filter((c) => c !== category) : prev));
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -114,6 +124,20 @@ export default function BillsClient() {
     // One-shot sync from localStorage, not a render cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayFrequency(loadFrequency(userId));
+  }, [session?.user?.id]);
+
+  // R15: which categories a person closed is remembered per person on this device.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const saved = loadCollapsed(userId);
+    // A ?billId= link that landed first must keep its category open.
+    const linked = bills.find((b) => b.id.toString() === searchParams?.get("billId"));
+    // One-shot sync from localStorage, not a render cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCollapsedCategories(linked ? saved.filter((c) => c !== (linked.category || "Other")) : saved);
+    // Only on sign-in: bills and the link are read once, as they are at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
   const handleFrequencyChange = (f: FrequencyType) => {
@@ -153,8 +177,7 @@ export default function BillsClient() {
     if (!billId) return;
     const target = bills.find((b) => b.id.toString() === billId);
     if (target) {
-      const cat = target.category || "Other";
-      setExpandedCategories((prev) => ({ ...prev, [cat]: true }));
+      openCategory(target.category || "Other");
     }
   }, [searchParams, bills]);
 
@@ -208,14 +231,11 @@ export default function BillsClient() {
     [bills, expenses, filteredBills, filteredExpenses, contributionRules, paySchedules, displayFrequency, filterActive],
   );
 
-  /* Unified, category-grouped, amount-sorted (largest first within each
-   * category) list of bills and expenses mixed together — the exact
-   * grouping/sorting bills already used, now shared by both (Issue #98,
-   * Slice 2 fix-round: one interleaved list, no tab split). Category
-   * ordering is already shared/unified across bills and expenses, since
-   * both use the same category list (see ITEM_CATEGORIES above) — this
-   * was confirmed/finalized as Issue #98's last sub-slice. There is no
-   * separate expense-category-ordering system, and none is needed. */
+  /* Unified, category-grouped list of bills and expenses mixed together,
+   * A to Z by name within each category (R15; ties: bill first). Category
+   * ordering is shared across bills and expenses, since both use the same
+   * category list (see ITEM_CATEGORIES above). There is no separate
+   * expense-category-ordering system, and none is needed. */
   const groupedItems = useMemo(() => {
     const groups: Record<string, ListRow[]> = {};
 
@@ -231,20 +251,12 @@ export default function BillsClient() {
       groups[cat].push({ kind: "expense", item: expense });
     });
 
-    const amountOf = (row: ListRow) =>
-      row.kind === "bill"
-        ? convertAmount(row.item.amount, row.item.frequency || "monthly", displayFrequency)
-        : row.item.amount;
-
-    // #250: bills with no due date sort last within their category, then by amount.
-    const rank = (row: ListRow) => (row.kind === "bill" && !row.item.dueLabel && isDateless(row.item) ? 1 : 0);
-
     Object.keys(groups).forEach((cat) => {
-      groups[cat].sort((a, b) => rank(a) - rank(b) || amountOf(b) - amountOf(a));
+      groups[cat].sort(compareRows);
     });
 
     return groups;
-  }, [filteredBills, filteredExpenses, displayFrequency]);
+  }, [filteredBills, filteredExpenses]);
 
   const allCategories = useMemo(() => {
     const currentCats = Object.keys(groupedItems);
@@ -291,7 +303,7 @@ export default function BillsClient() {
   // After an add: open the new row's category, then scroll to it and let it glow.
   // rowKey gives the same "bill-<id>" / "expense-<id>" as the row wrapper ids below.
   const handleAdded = (item: AddedItem) => {
-    setExpandedCategories((prev) => ({ ...prev, [item.category || "Other"]: true }));
+    openCategory(item.category || "Other");
     flash(rowKey(item.kind, item.id));
   };
 
@@ -445,7 +457,8 @@ export default function BillsClient() {
               <div key={category} className="flex flex-col">
                 <button
                   onClick={() => toggleCategory(category)}
-                  className="flex items-center gap-3 w-full text-left px-1 focus:outline-none group"
+                  aria-expanded={!collapsedCategories.includes(category)}
+                  className="flex items-center gap-3 w-full min-h-11 text-left px-1 focus:outline-none group"
                 >
                   <span className="font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
                     {category}
@@ -453,18 +466,21 @@ export default function BillsClient() {
                   <span className="text-[11px] font-semibold text-subtle shrink-0">
                     ({categoryItems.length})
                   </span>
+                  <span className="text-[11px] font-semibold text-muted shrink-0 tabular-nums">
+                    {moneyFmt(categorySubtotal(categoryItems, displayFrequency, { convert: convertAmount, countsTowardTotals }))}
+                  </span>
                   <span
                     className="h-0.5 flex-1 rounded-sm"
                     style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
                   />
-                  {expandedCategories[category] ? (
-                    <ChevronUp className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
+                  {collapsedCategories.includes(category) ? (
+                    <ChevronDown className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" aria-hidden="true" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
+                    <ChevronUp className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" aria-hidden="true" />
                   )}
                 </button>
 
-                {expandedCategories[category] && (
+                {!collapsedCategories.includes(category) && (
                   <div className="flex flex-col mt-1">
                     {/* Rows fully unmount on collapse (unlike Funds/Goals'
                         grid-rows collapse), so every expand is a genuine
@@ -498,6 +514,7 @@ export default function BillsClient() {
                             <ExpenseCard
                               expense={row.item}
                               householdMembers={householdMembers}
+                              displayFrequency={displayFrequency}
                             />
                           </div>
                         </div>

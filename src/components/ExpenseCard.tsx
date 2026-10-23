@@ -4,20 +4,27 @@ import React, { useState } from "react";
 import { useApp, type Expense, type Member } from "@/context/AppContext";
 import ExpenseDetailSheet from "./ExpenseDetailSheet";
 import RowPill from "./RowPill";
+import { convertAmount } from "@/lib/utils";
 
 export interface ExpenseCardProps {
   expense: Expense;
   householdMembers: Member[];
+  /** R15: amounts follow the Bills frequency pills so rows add up to the totals. */
+  displayFrequency?: "weekly" | "fortnightly" | "monthly" | "yearly";
 }
 
 /**
  * Issue #98 (Slice 2 of 6): expense row — mirrors BillCard's hairline-row
  * layout, minus the due-date/urgency treatment (expenses have no due date).
- * Renders inline in the same category-grouped, amount-sorted list as bill
+ * Renders inline in the same category-grouped, A-to-Z list as bill
  * rows on /bills; the "Expense" pill is the only visual cue distinguishing
  * it from a bill row (fix-round: unify bills/expenses into one list).
  */
-export default function ExpenseCard({ expense, householdMembers }: ExpenseCardProps) {
+export default function ExpenseCard({
+  expense,
+  householdMembers,
+  displayFrequency = "weekly",
+}: ExpenseCardProps) {
   const { expenseSplits } = useApp();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
@@ -35,7 +42,8 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
     })
     .join(" / ");
 
-  const formattedAmount = Number(expense.amount).toLocaleString("en-US", {
+  // Expenses have no frequency column: the stored amount is weekly (R15, same as the totals).
+  const formattedAmount = convertAmount(Number(expense.amount), "weekly", displayFrequency).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -44,7 +52,7 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
     <>
       <button
         onClick={() => setIsDetailOpen(true)}
-        className="w-full text-left border-t border-border flex items-center gap-3 py-3 group hover:bg-surface/40 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
+        className="w-full text-left border-t border-border flex items-center gap-3 py-3 press-tint transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
       >
         {/* Leading identity cue: single assignee chip for whole-item
             assignment (matches BillCard), or a small overlapping avatar
@@ -52,13 +60,13 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
             assignee, so a single chip would misrepresent it. */}
         {!isPercentageSplit && assignee && (
           <div
-            className="shrink-0 flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
-            title={`Assignee: ${assignee.name}`}
+            className="shrink-0 flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
+            aria-hidden="true"
           >
             {assignee.avatar_url ? (
               <img
                 src={assignee.avatar_url}
-                alt={assignee.name}
+                alt=""
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -67,17 +75,17 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
           </div>
         )}
         {isPercentageSplit && splits.length > 0 && (
-          <div className="shrink-0 flex items-center" title={splitSummary}>
+          <div className="shrink-0 flex items-center" aria-hidden="true">
             {splits.map((s, i) => {
               const member = householdMembers.find((m) => String(m.id) === String(s.member_id));
               return (
                 <div
                   key={s.id}
-                  className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
+                  className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
                   style={i > 0 ? { marginLeft: "-8px" } : undefined}
                 >
                   {member?.avatar_url ? (
-                    <img src={member.avatar_url} alt={member.name} className="h-full w-full object-cover" />
+                    <img src={member.avatar_url} alt="" className="h-full w-full object-cover" />
                   ) : (
                     member?.avatar || member?.name.charAt(0).toUpperCase() || "?"
                   )}
@@ -101,16 +109,10 @@ export default function ExpenseCard({ expense, householdMembers }: ExpenseCardPr
           </span>
         </div>
 
-        {/* Right: amount over tap-for-more hint */}
-        <div className="flex flex-col items-end shrink-0">
-          <span className="font-bold text-primary tracking-tight text-lg">
-            ${formattedAmount}
-          </span>
-          <span className="flex items-center gap-1 text-[9px] font-semibold text-muted/60 uppercase tracking-widest group-hover:text-primary transition-colors mt-0.5">
-            Tap for more
-            <span aria-hidden="true">›</span>
-          </span>
-        </div>
+        {/* Right: amount */}
+        <span className="shrink-0 font-bold text-primary tracking-tight text-lg tabular-nums">
+          ${formattedAmount}
+        </span>
       </button>
 
       <ExpenseDetailSheet
