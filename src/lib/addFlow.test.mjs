@@ -77,6 +77,26 @@ test("rowKey is the row wrapper id (shared by the flow and the Bills page)", () 
   assert.equal(rowKey("expense", 7), "expense-7");
 });
 
+test("stepKeys: a known type drops the Type card", () => {
+  assert.deepEqual(stepKeys("bill", true), ["name", "amount", "frequency", "dueDate"]);
+  assert.deepEqual(stepKeys("expense", true), ["name", "amount"]);
+  assert.deepEqual(stepKeys("bill", false), stepKeys("bill"));
+});
+
+test("initialValues: prefill overrides the defaults it names, nothing else", () => {
+  const v = initialValues({
+    currentMemberId: "m1",
+    isJointFund: false,
+    prefill: { name: "Laptop", amount: "50", category: "Temporary", notes: "6 payments, then it stops." },
+  });
+  assert.equal(v.name, "Laptop");
+  assert.equal(v.amount, "50");
+  assert.equal(v.category, "Temporary");
+  assert.equal(v.notes, "6 payments, then it stops.");
+  assert.equal(v.frequency, "monthly");
+  assert.equal(v.assignee, "m1");
+});
+
 test("initialValues defaults", () => {
   const v = initialValues({ currentMemberId: "m1", isJointFund: true });
   assert.equal(v.type, "bill");

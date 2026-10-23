@@ -2,12 +2,13 @@
 
 import { useState, useMemo, useEffect, useRef, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { X, ChevronDown, ChevronUp, Search, SlidersHorizontal } from "lucide-react";
+import { X, ChevronDown, ChevronUp, Calculator, Search, SlidersHorizontal } from "lucide-react";
 import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
 import AddFlow from "@/components/AddFlow";
 import BillCard from "@/components/BillCard";
 import ExpenseCard from "@/components/ExpenseCard";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
+import ImpactCalculator from "@/components/ImpactCalculator";
 import PageHeader from "@/components/PageHeader";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
@@ -18,7 +19,7 @@ import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { countsTowardTotals, isDateless } from "@/lib/billCycle";
-import { ITEM_CATEGORIES, rowKey, type AddedItem } from "@/lib/addFlow";
+import { ITEM_CATEGORIES, rowKey, type AddedItem, type AddFlowValues } from "@/lib/addFlow";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
 import { loadFrequency, saveFrequency, type FrequencyType } from "@/lib/frequencyPreference";
 import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
@@ -91,6 +92,15 @@ export default function BillsClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isImpactOpen, setIsImpactOpen] = useState(false);
+  // R16: answers "Turn into a bill" hands to the Add flow. Every normal way to open the
+  // flow clears them first (openAdd), so + never inherits them. Not cleared on close, so
+  // the flow does not flip to the Type card while it fades out.
+  const [addPrefill, setAddPrefill] = useState<Partial<AddFlowValues> | undefined>(undefined);
+  const openAdd = () => {
+    setAddPrefill(undefined);
+    setIsAddOpen(true);
+  };
   const [displayFrequency, setDisplayFrequency] = useState<FrequencyType>("weekly");
 
   const [isMounted, setIsMounted] = useState(false);
@@ -167,6 +177,7 @@ export default function BillsClient() {
     // One-shot sync with an external input (the tapped link), guarded by
     // handledAddRef — not a render cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAddPrefill(undefined);
     setIsAddOpen(true);
     const rest = stripAddSheetParam(searchParams);
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
@@ -229,6 +240,22 @@ export default function BillsClient() {
         deps: { convert: convertAmount, countsTowardTotals },
       }),
     [bills, expenses, filteredBills, filteredExpenses, contributionRules, paySchedules, displayFrequency, filterActive],
+  );
+
+  // The Impact calculator compares against the whole household, whatever the filters.
+  const householdTotal = useMemo(
+    () =>
+      splitTotals({
+        bills,
+        expenses,
+        listedBills: bills,
+        listedExpenses: expenses,
+        goalsTotal: sumActiveFixedContributionRules(contributionRules, paySchedules, displayFrequency),
+        filterActive: false,
+        frequency: displayFrequency,
+        deps: { convert: convertAmount, countsTowardTotals },
+      }).total,
+    [bills, expenses, contributionRules, paySchedules, displayFrequency],
   );
 
   /* Unified, category-grouped list of bills and expenses mixed together,
@@ -313,7 +340,7 @@ export default function BillsClient() {
 
       <PageHeader
         title="Bills"
-        onAdd={() => setIsAddOpen(true)}
+        onAdd={openAdd}
         addLabel="Add bill"
         extra={
           <IconCircle
@@ -404,6 +431,10 @@ export default function BillsClient() {
             Filter
             {categoryFilter !== "All" && <span className="sr-only"> (category chosen)</span>}
           </Chip>
+          <Chip onClick={() => setIsImpactOpen(true)} aria-haspopup="dialog">
+            <Calculator size={16} aria-hidden="true" />
+            Check impact
+          </Chip>
           {TYPE_OPTIONS.map((o) => (
             <Chip key={o.value} selected={typeFilter === o.value} onClick={() => handleTypeFilterChange(o.value)}>
               {o.label}
@@ -433,7 +464,7 @@ export default function BillsClient() {
             {bills.length === 0 && expenses.length === 0 ? (
               <>
                 <p className="text-muted text-sm">No bills yet.</p>
-                <Button onClick={() => setIsAddOpen(true)}>Add your first bill</Button>
+                <Button onClick={openAdd}>Add your first bill</Button>
               </>
             ) : (
               <>
@@ -555,10 +586,22 @@ export default function BillsClient() {
         </div>
       </Dialog>
 
+      <ImpactCalculator
+        open={isImpactOpen}
+        onClose={() => setIsImpactOpen(false)}
+        frequency={displayFrequency}
+        currentTotal={householdTotal}
+        onTurnIntoBill={(prefill) => {
+          setAddPrefill(prefill);
+          setIsAddOpen(true);
+        }}
+      />
+
       <AddFlow
         open={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         onAdded={handleAdded}
+        prefill={addPrefill}
       />
 
       <EditCategoryOrderModal

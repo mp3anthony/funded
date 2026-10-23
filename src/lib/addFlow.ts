@@ -122,10 +122,13 @@ export function flowTitle(type: ItemType): string {
 }
 
 /** The essential cards in order. Expenses skip How often and Due date. */
-export function stepKeys(type: ItemType): string[] {
-  return type === "bill"
-    ? ["type", "name", "amount", "frequency", "dueDate"]
-    : ["type", "name", "amount"];
+export function stepKeys(type: ItemType, typeKnown = false): string[] {
+  const keys =
+    type === "bill"
+      ? ["type", "name", "amount", "frequency", "dueDate"]
+      : ["type", "name", "amount"];
+  // A flow opened with the type already decided (R16) skips the "What are you adding?" card.
+  return typeKnown ? keys.filter((k) => k !== "type") : keys;
 }
 
 /** "12.50", "1,200", "$40", " 7 " give a number above 0; anything else gives null. */
@@ -167,6 +170,8 @@ export function optionLabel(options: readonly Option[], value: string): string {
 export function initialValues(args: {
   currentMemberId: string | number;
   isJointFund: boolean;
+  /** Answers already known (R16: "Turn into a bill" from the Impact calculator). */
+  prefill?: Partial<AddFlowValues>;
 }): AddFlowValues {
   return {
     type: "bill",
@@ -183,6 +188,7 @@ export function initialValues(args: {
     expenseSplit: "assignee",
     percentages: {},
     notes: "",
+    ...args.prefill,
   };
 }
 

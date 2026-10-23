@@ -46,6 +46,8 @@ interface AddFlowProps {
   onClose: () => void;
   /** Called once the new row is saved (the page expands its category and highlights it). */
   onAdded?: (item: AddedItem) => void;
+  /** Answers already known (R16 "Turn into a bill"). The type is decided, so that card is skipped. */
+  prefill?: Partial<AddFlowValues>;
 }
 
 /**
@@ -56,7 +58,7 @@ interface AddFlowProps {
  * them and a failed save ("Try again") loses nothing. Rules live in
  * `lib/addFlow.ts`.
  */
-export default function AddFlow({ open, onClose, onAdded }: AddFlowProps) {
+export default function AddFlow({ open, onClose, onAdded, prefill }: AddFlowProps) {
   const uid = useId();
   // One members list for assignee options, split rows and what gets saved
   // (`members` and `householdMembers` are the same list in AppContext).
@@ -65,13 +67,13 @@ export default function AddFlow({ open, onClose, onAdded }: AddFlowProps) {
   const currentId = currentUser.id ? String(currentUser.id) : "";
 
   const [values, setValues] = useState<AddFlowValues>(() =>
-    initialValues({ currentMemberId: currentId, isJointFund })
+    initialValues({ currentMemberId: currentId, isJointFund, prefill })
   );
   // Fresh values each time the flow opens (derived-state reset, no effect).
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);
-    if (open) setValues(initialValues({ currentMemberId: currentId, isJointFund }));
+    if (open) setValues(initialValues({ currentMemberId: currentId, isJointFund, prefill }));
   }
 
   const patch = (p: Partial<AddFlowValues>) => setValues((v) => ({ ...v, ...p }));
@@ -202,7 +204,8 @@ export default function AddFlow({ open, onClose, onAdded }: AddFlowProps) {
     frequency: frequencyStep,
     dueDate: dueDateStep,
   };
-  const steps = stepKeys(values.type).map((k) => byKey[k]);
+  const typeKnown = prefill?.type !== undefined;
+  const steps = stepKeys(values.type, typeKnown).map((k) => byKey[k]);
 
   const extras: FlowStep[] = [
     {
@@ -279,13 +282,15 @@ export default function AddFlow({ open, onClose, onAdded }: AddFlowProps) {
   const summary = ({ edit }: { edit: (key: string) => void }) => (
     <>
       <div className="flex flex-col">
-        <Row
-          tall
-          chevron
-          label="Type"
-          value={optionLabel(TYPE_OPTIONS, values.type)}
-          onClick={() => edit("type")}
-        />
+        {!typeKnown && (
+          <Row
+            tall
+            chevron
+            label="Type"
+            value={optionLabel(TYPE_OPTIONS, values.type)}
+            onClick={() => edit("type")}
+          />
+        )}
         <Row tall chevron label="Name" value={values.name.trim() || "—"} onClick={() => edit("name")} />
         <Row
           tall
@@ -379,7 +384,7 @@ export default function AddFlow({ open, onClose, onAdded }: AddFlowProps) {
       canSubmit={splitOk}
       dirty={hasChanges(
         dirtyValues(values, currentId) as unknown as Record<string, unknown>,
-        initialValues({ currentMemberId: currentId, isJointFund }) as unknown as Record<string, unknown>
+        initialValues({ currentMemberId: currentId, isJointFund, prefill }) as unknown as Record<string, unknown>
       )}
       onSubmit={onSubmit}
     />
