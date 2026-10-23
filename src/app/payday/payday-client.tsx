@@ -15,6 +15,7 @@ import { hasPaydayLinkParams, resolvePaydayLink, stripPaydayLinkParams } from "@
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
 import { payScheduleRowKey } from "@/lib/addPayFlow";
+import { savingGoals } from "@/lib/goalPace";
 
 export default function PaydayClient() {
   const { paySchedules, payHistory, householdMembers, deletePaySchedule, logPay, calculateAveragePay, addToGoal, isJointFund, householdContributions, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay } = useApp();
@@ -185,7 +186,7 @@ export default function PaydayClient() {
       }
 
       // Skip the surplus popup when the household has no goals to add it to (#215).
-      if (avg !== null && amount > avg * 1.10 && funds.length > 0) {
+      if (avg !== null && amount > avg * 1.10 && savingGoals(funds).length > 0) {
         const surplus = amount - avg;
         setSurplusInfo({
           memberId,

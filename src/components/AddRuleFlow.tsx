@@ -10,6 +10,7 @@ import Row from "@/components/ui/Row";
 import StepFlow, { type FlowStep } from "@/components/ui/StepFlow";
 import { isAcceptedMember } from "@/lib/householdLeave";
 import { hasChanges } from "@/lib/stepFlow";
+import { savingGoals } from "@/lib/goalPace";
 import { canPickMember } from "@/lib/addPayFlow";
 import {
   AMOUNT_TYPE_OPTIONS,
@@ -66,7 +67,9 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
   });
   const memberName = householdMembers.find((m) => String(m.id) === memberId)?.name ?? "—";
 
-  // Interim: every goal is offered, including "Just tracking" ones (R17 decides).
+  // R17: new rules only offer Saving goals. A goal pre-picked through `goalId` is still allowed, and
+  // rules already on a Just tracking goal keep working (they show in its sheet).
+  const pickable = savingGoals(funds);
   const goalOk = funds.some((g) => String(g.id) === values.goalId);
   const goalName = funds.find((g) => String(g.id) === values.goalId)?.name ?? "—";
 
@@ -95,7 +98,7 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
     valid: goalOk,
     autoFocus: false,
     content:
-      funds.length === 0 ? (
+      pickable.length === 0 ? (
         <div role="note" className="flex flex-col gap-2">
           <p className="text-[17px] font-semibold text-foreground">Which goal does the extra go to?</p>
           <p className="text-[13px] text-muted">
@@ -109,7 +112,7 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
         <ChoiceField
           id={`${uid}-goal`}
           question="Which goal does the extra go to?"
-          options={funds.map((g) => ({ value: String(g.id), label: g.name }))}
+          options={pickable.map((g) => ({ value: String(g.id), label: g.name }))}
           value={values.goalId}
           placeholder="Choose a goal"
           onChange={(goal) => patch({ goalId: goal })}

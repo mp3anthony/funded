@@ -34,6 +34,8 @@ interface GoalDetailSheetProps {
   onClose: () => void;
   /** The live goal (parents look it up by id so it follows every save). */
   goal: Fund | null;
+  /** Goals page only: a Just tracking goal gets a "Check impact" action that hands off to the calculator. */
+  onCheckImpact?: (goal: Fund) => void;
 }
 
 /** A row value that keeps long text on one line. */
@@ -47,7 +49,7 @@ function Val({ children }: { children: React.ReactNode }) {
  * and a red Delete at the bottom. The old Edit button and edit form are gone.
  * Rules live in `lib/addGoalFlow.ts`.
  */
-export default function GoalDetailSheet({ isOpen, onClose, goal }: GoalDetailSheetProps) {
+export default function GoalDetailSheet({ isOpen, onClose, goal, onCheckImpact }: GoalDetailSheetProps) {
   const uid = useId();
   const inputId = `${uid}-input`;
   const addAmountInputId = `${uid}-add-amount`;
@@ -131,10 +133,20 @@ export default function GoalDetailSheet({ isOpen, onClose, goal }: GoalDetailShe
     `"${goal.name}" will be removed.` +
     (n > 0 ? ` Its ${n} rule${n === 1 ? " is" : "s are"} removed too.` : "");
 
+  // The sheet closes first, then the calculator opens, so the two pop-ups never stack.
+  const checkImpact = () => {
+    onClose();
+    onCheckImpact?.(goal);
+  };
+
   const actions =
     !isTracking && statusLabel !== "Reached" ? (
       <Button fullWidth onClick={openAddAmount}>
         Add amount
+      </Button>
+    ) : isTracking && onCheckImpact ? (
+      <Button fullWidth onClick={checkImpact}>
+        Check impact
       </Button>
     ) : undefined;
 

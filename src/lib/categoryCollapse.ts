@@ -1,5 +1,5 @@
 /**
- * Remembered collapsed categories for the Bills page (R15, #402).
+ * Remembered collapsed categories for the Bills page (R15, #402) and Goals page (R17, #404).
  * Stored per person in this browser only (no database column, on purpose).
  * Stores the COLLAPSED names, so a brand-new category starts open.
  *
@@ -7,14 +7,21 @@
  * under plain `node --test`. Erasable TypeScript syntax only.
  */
 
-function key(userId: string): string {
-  return `funded:collapsedCategories:${userId}`;
+/**
+ * `scope` keeps another page's choices apart (R17: Goals uses "goals", since
+ * Goals and Bills can share a category name like "Other"). The default key is
+ * the Bills one, so existing saves survive.
+ */
+function key(userId: string, scope?: string): string {
+  return scope
+    ? `funded:collapsedCategories:${scope}:${userId}`
+    : `funded:collapsedCategories:${userId}`;
 }
 
 /** Collapsed category names for this person, or [] if none / storage unavailable. */
-export function loadCollapsed(userId: string): string[] {
+export function loadCollapsed(userId: string, scope?: string): string[] {
   try {
-    const raw = globalThis.localStorage?.getItem(key(userId));
+    const raw = globalThis.localStorage?.getItem(key(userId, scope));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === "string") : [];
@@ -33,9 +40,9 @@ export function applyToggle(stored: string[], category: string, collapse: boolea
   return collapse ? [...without, category] : without;
 }
 
-export function saveCollapsed(userId: string, names: string[]): void {
+export function saveCollapsed(userId: string, names: string[], scope?: string): void {
   try {
-    globalThis.localStorage?.setItem(key(userId), JSON.stringify(names));
+    globalThis.localStorage?.setItem(key(userId, scope), JSON.stringify(names));
   } catch {
     // Private mode or blocked storage: the choice just won't be remembered.
   }

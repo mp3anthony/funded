@@ -40,3 +40,15 @@ test('applyToggle changes only the toggled name (deep-link opens are never saved
   assert.deepEqual(applyToggle(['Food', 'Fun'], 'Fun', false), ['Food']);
   assert.deepEqual(applyToggle(['Food'], 'Food', true), ['Food']);
 });
+
+test('scope keeps Goals apart from Bills, and the default key is unchanged', () => {
+  const store = new Map();
+  stubStorage({ getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) });
+  saveCollapsed('u1', ['Other']);
+  saveCollapsed('u1', ['Savings'], 'goals');
+  assert.ok(store.has('funded:collapsedCategories:u1'));
+  assert.ok(store.has('funded:collapsedCategories:goals:u1'));
+  assert.deepEqual(loadCollapsed('u1'), ['Other']);
+  assert.deepEqual(loadCollapsed('u1', 'goals'), ['Savings']);
+  assert.deepEqual(loadCollapsed('u2', 'goals'), []);
+});

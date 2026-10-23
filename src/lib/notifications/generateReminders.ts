@@ -80,6 +80,8 @@ export interface ReminderFund {
   currentAmount?: number | null;
   target_amount?: number | string | null;
   targetAmount?: number | null;
+  /** "paused" = a Just tracking goal (R17): a wish, not savings, so it gets no milestone reminders. */
+  status?: string | null;
 }
 
 /** Round percentage-of-target thresholds a goal/fund can cross. No existing
@@ -355,6 +357,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   // fund even if the balance later dips back below it.
   if (settings.goal_milestone_reminders !== false) {
     for (const fund of funds) {
+      if (fund.status === 'paused') continue;
       const current = Number(fund.currentAmount ?? fund.current_amount ?? 0);
       const target = Number(fund.targetAmount ?? fund.target_amount ?? 0);
       if (!target || target <= 0) continue;

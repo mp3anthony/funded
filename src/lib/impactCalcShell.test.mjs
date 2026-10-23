@@ -33,7 +33,8 @@ test("bills-client: Check impact chip, unfiltered total, prefill passed and clea
   assert.ok(t.includes("Check impact"));
   assert.ok(t.includes("<ImpactCalculator"));
   assert.ok(t.includes("currentTotal={householdTotal}"));
-  assert.ok(/filterActive: false/.test(t));
+  assert.ok(t.includes("useHouseholdTotal(displayFrequency)"));
+  assert.ok(/filterActive: false/.test(read("hooks/useHouseholdTotal.ts")));
   assert.ok(t.includes("prefill={addPrefill}"));
   // Prefill is cleared when the flow is opened normally, not on close (no Type-card flash while it fades).
   assert.ok(t.includes("onAdd={openAdd}"));

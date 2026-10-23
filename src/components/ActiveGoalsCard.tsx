@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, Target, ChevronDown } from "lucide-react";
 import { type Fund } from "@/context/AppContext";
 import ActiveGoalRow from "@/components/ActiveGoalRow";
+import { savingGoals } from "@/lib/goalPace";
 
 interface ActiveGoalsCardProps {
   funds: Fund[];
@@ -43,7 +44,8 @@ export const ActiveGoalsCard = React.memo(function ActiveGoalsCard({
 
   // Get top 3 active goals sorted by progress percentage (highest progress first)
   const activeGoalsList = useMemo(() => {
-    return [...funds]
+    // R17: Just tracking goals are not savings, so they are not listed here.
+    return savingGoals(funds)
       .filter((f) => f.status !== "completed")
       .map((f) => {
         const progress = f.targetAmount > 0 ? (f.currentAmount / f.targetAmount) * 100 : 0;

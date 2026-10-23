@@ -2,6 +2,7 @@
 
 import { TrendingUp, Target, ArrowRight } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { savingGoals } from "@/lib/goalPace";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 
 interface SurplusSuggestionModalProps {
@@ -29,7 +30,8 @@ export default function SurplusSuggestionModal({
   const memberName = member ? member.name : "Member";
 
   // Calculate top 3 goals by progress percentage descending
-  const topGoals = [...funds]
+  // R17: only Saving goals are suggested (never Just tracking ones).
+  const topGoals = savingGoals(funds)
     .map((f) => {
       const progress = f.targetAmount > 0 ? (f.currentAmount / f.targetAmount) * 100 : 0;
       return { ...f, progress };

@@ -21,6 +21,7 @@ import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { countsTowardTotals, isDateless } from "@/lib/billCycle";
 import { ITEM_CATEGORIES, rowKey, type AddedItem, type AddFlowValues } from "@/lib/addFlow";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
+import { useHouseholdTotal } from "@/hooks/useHouseholdTotal";
 import { loadFrequency, saveFrequency, type FrequencyType } from "@/lib/frequencyPreference";
 import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
 import { categorySubtotal, compareRows } from "@/lib/billRow";
@@ -243,20 +244,7 @@ export default function BillsClient() {
   );
 
   // The Impact calculator compares against the whole household, whatever the filters.
-  const householdTotal = useMemo(
-    () =>
-      splitTotals({
-        bills,
-        expenses,
-        listedBills: bills,
-        listedExpenses: expenses,
-        goalsTotal: sumActiveFixedContributionRules(contributionRules, paySchedules, displayFrequency),
-        filterActive: false,
-        frequency: displayFrequency,
-        deps: { convert: convertAmount, countsTowardTotals },
-      }).total,
-    [bills, expenses, contributionRules, paySchedules, displayFrequency],
-  );
+  const householdTotal = useHouseholdTotal(displayFrequency);
 
   /* Unified, category-grouped list of bills and expenses mixed together,
    * A to Z by name within each category (R15; ties: bill first). Category

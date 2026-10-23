@@ -132,7 +132,7 @@ export async function GET(request: Request) {
         .select('id, member_id, household_id, next_pay_date'),
       supabase
         .from('funds')
-        .select('id, name, household_id, current_amount, target_amount'),
+        .select('id, name, household_id, current_amount, target_amount, status'),
       supabase.from('notifications').select('user_id, dedupe_key'),
     ]);
 

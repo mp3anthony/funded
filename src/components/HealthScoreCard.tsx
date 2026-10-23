@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { calculateHealthScore, convertAmount } from "@/lib/utils";
 import { countsTowardTotals } from "@/lib/billCycle";
+import { savingGoals } from "@/lib/goalPace";
 
 /* ── Slice 13 (#99, Part 5): count-up on the 4 stat tiles ──────────
    Animates a displayed number from its previous value to a new target over
@@ -50,7 +51,7 @@ function useCountUp(target: number, durationMs = 1150): number {
 export const HealthScoreCard = React.memo(function HealthScoreCard() {
   const {
     bills,
-    funds,
+    funds: allFunds,
     payHistory,
     householdContributions,
     paySchedules,
@@ -62,6 +63,9 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
     expenseSplits,
     contributionRules
   } = useApp();
+
+  // R17: Just tracking goals are wishes, not savings, so they never count here.
+  const funds = useMemo(() => savingGoals(allFunds), [allFunds]);
 
   const [isHealthExpanded, setIsHealthExpanded] = useState(true);
   const [isContributorsExpanded, setIsContributorsExpanded] = useState(false);

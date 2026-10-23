@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Calendar, ChevronRight, Receipt, Target, X, type LucideIcon } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { savingGoals } from "@/lib/goalPace";
 import { finishSetupHref, missingSetupItems, shouldShowFinishSetup, type SetupItem } from "@/lib/finishSetup";
 
 const ROWS: Record<SetupItem, { label: string; Icon: LucideIcon }> = {
@@ -28,7 +29,8 @@ export default function FinishSetupCard() {
   const missing = missingSetupItems({
     payScheduleCount: paySchedules.length,
     billCount: bills.length,
-    goalCount: funds.length,
+    // R17: a Just tracking goal does not count as a savings goal.
+    goalCount: savingGoals(funds).length,
   });
 
   if (!shouldShowFinishSetup({ isOwner, dismissed: isFinishSetupDismissed, missing })) return null;

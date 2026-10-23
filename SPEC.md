@@ -870,7 +870,7 @@ problem/checklist on the issue.
 - One long-lived branch `redesign/full-app` and one PR opened with the first slice; every slice commits to it. No per-slice version bump or patch note; one bump to `v0.10.0` and one patch-notes entry at the end (R35). Live `main` keeps the old app until that merge, so slices are checked on the branch's Vercel preview (an exception to "no preview testing"); Anthony approves the one final merge.
 - Migrations on this branch stay compatible with the old code live on `main` (preview and production share one Supabase) and are applied when their slice is built.
 - A1 slices, each needing Anthony's sign-off at plan time: R19 (`pay_history.amount` nullable), R28 (owner-only `households` UPDATE policy; today any member can write), R33 (#370 may need a policy or edge-function change), R14 (a per-person frequency preference may need a `user_preferences` column).
-- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals and the Dashboard.
+- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, the health score, goal suggestions and milestone reminders, and the Dashboard goal cards (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
 - Left out on purpose: #383 (change login email), #145 (parked).
 - Full issue: https://github.com/mp3anthony/funded/issues/377
 
