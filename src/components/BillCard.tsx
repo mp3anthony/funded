@@ -29,10 +29,13 @@ const TONE_CLASS: Record<CountdownTone, string> = {
 
 /**
  * Bill row (R15, #402): avatar circle, name, Auto-Pay pill, a countdown line
- * ("Due in 3 days", "2 days overdue", "Paid") and the amount. The whole row is
- * ONE button that opens the detail sheet. An unpaid manual bill also has a
- * round tick at the far right that marks it paid in one tap (a dateless
- * recurring bill asks "When is it next due?" first, same as the detail sheet).
+ * ("Due in 3 days", "2 days overdue", "Paid") and the amount. The main button
+ * opens the detail sheet and reads once for screen readers (the amount is
+ * sr-only text inside it); the visible amount is a decorative second tap
+ * target for the same sheet. An unpaid manual bill also has a round tick left
+ * of the amount, in a fixed 44px slot that every row keeps so names and
+ * amounts line up. The tick marks it paid in one tap (a dateless recurring
+ * bill asks "When is it next due?" first, same as the detail sheet).
  * "Add due date" is its own button under the row, never inside the main one.
  */
 export default function BillCard({
@@ -166,21 +169,31 @@ export default function BillCard({
               </span>
             </span>
 
-            <span
-              className={`inline-flex shrink-0 items-center gap-1 text-lg font-bold tracking-tight tabular-nums ${
-                isPaused ? "text-muted" : "text-primary-ink"
-              }`}
-            >
-              {isPaused && <Pause size={14} className="shrink-0 text-accent-ink" aria-hidden="true" />}
-              ${formattedAmount}
-            </span>
+            {/* Read once: the visible amount below is a decorative tap target. */}
+            <span className="sr-only">${formattedAmount}</span>
           </button>
 
-          {tick && (
-            <IconCircle label={`Mark ${bill.name} as paid`} disabled={saving} onClick={handleTick}>
-              <Check size={18} aria-hidden="true" />
-            </IconCircle>
-          )}
+          {/* Fixed slot on every row so names and amounts line up; empty without a tick. */}
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center">
+            {tick && (
+              <IconCircle label={`Mark ${bill.name} as paid`} disabled={saving} onClick={handleTick}>
+                <Check size={18} aria-hidden="true" />
+              </IconCircle>
+            )}
+          </span>
+
+          <button
+            type="button"
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={() => setIsDetailOpen(true)}
+            className={`press-tint inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-end gap-1 rounded-sm pl-1 text-lg font-semibold tracking-tight tabular-nums whitespace-nowrap ${
+              isPaused ? "text-muted" : "text-foreground"
+            }`}
+          >
+            {isPaused && <Pause size={14} className="shrink-0 text-accent-ink" aria-hidden="true" />}
+            ${formattedAmount}
+          </button>
         </div>
 
         {showAddDueDate && (

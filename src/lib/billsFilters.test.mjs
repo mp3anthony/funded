@@ -9,6 +9,11 @@ import {
   matchesExpenseFilters,
   expensesHiddenByDue,
   splitTotals,
+  DEFAULT_DRAFT,
+  draftFromFilters,
+  normaliseDraft,
+  isDraftDefault,
+  isFilterChipActive,
 } from './billsFilters.ts';
 
 const today = new Date(2026, 9, 20); // 20 Oct 2026, local midnight
@@ -113,4 +118,25 @@ test('filtered total uses listed rows only, paused count 0, no goals', () => {
   assert.equal(t.total, 220);
   assert.equal(t.listedCount, 4);
   assert.equal(t.totalCount, 6);
+});
+
+test('draft: seeded from live filters, Expenses forces Any due, default check', () => {
+  assert.deepEqual(draftFromFilters(NO_FILTERS), DEFAULT_DRAFT);
+  assert.deepEqual(draftFromFilters(s({ type: 'bills', due: 'week', category: 'Loans', search: 'x' })), {
+    type: 'bills', due: 'week', category: 'Loans',
+  });
+  assert.deepEqual(normaliseDraft({ type: 'expenses', due: 'overdue', category: 'All' }), {
+    type: 'expenses', due: 'all', category: 'All',
+  });
+  assert.equal(isDraftDefault(DEFAULT_DRAFT), true);
+  assert.equal(isDraftDefault({ ...DEFAULT_DRAFT, category: 'Loans' }), false);
+  assert.equal(isDraftDefault({ ...DEFAULT_DRAFT, due: 'month' }), false);
+});
+
+test('filter chip dot: Type, Due or Category, never search', () => {
+  assert.equal(isFilterChipActive(NO_FILTERS), false);
+  assert.equal(isFilterChipActive(s({ search: 'rent' })), false);
+  assert.equal(isFilterChipActive(s({ type: 'expenses' })), true);
+  assert.equal(isFilterChipActive(s({ due: 'overdue' })), true);
+  assert.equal(isFilterChipActive(s({ category: 'Loans' })), true);
 });

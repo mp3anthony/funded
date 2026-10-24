@@ -76,6 +76,8 @@ export default function FundsClient() {
 
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // F04: the Category pick is a draft until Apply; re-seeded from the live filter each time the card opens.
+  const [draftCategory, setDraftCategory] = useState("All");
   // R15 pattern: categories start open; only the ones a person closed are remembered (on this phone).
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [isEditCategoryOrderOpen, setIsEditCategoryOrderOpen] = useState(false);
@@ -318,7 +320,13 @@ export default function FundsClient() {
         aria-label="Filters"
         className="scrollbar-none -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
       >
-        <Chip onClick={() => setIsFilterOpen(true)} aria-haspopup="dialog">
+        <Chip
+          onClick={() => {
+            setDraftCategory(categoryFilter);
+            setIsFilterOpen(true);
+          }}
+          aria-haspopup="dialog"
+        >
           <span className="relative inline-flex">
             <SlidersHorizontal size={16} aria-hidden="true" />
             {filterActive && (
@@ -326,7 +334,7 @@ export default function FundsClient() {
             )}
           </span>
           Filter
-          {filterActive && <span className="sr-only"> (category chosen)</span>}
+          {filterActive && <span className="sr-only"> (filters chosen)</span>}
         </Chip>
         <Chip onClick={() => openImpact()} aria-haspopup="dialog">
           <Calculator size={16} aria-hidden="true" />
@@ -392,7 +400,6 @@ export default function FundsClient() {
                       staggerIndex={index}
                       isExpanded={isExpanded}
                       onOpen={() => setSelectedGoalId(String(fund.id))}
-                      onCheckImpact={() => openImpact(fund)}
                     />
                   </div>
                 )),
@@ -407,24 +414,48 @@ export default function FundsClient() {
         title="Filter"
         placement="bottom"
         footer={
-          <Button
-            variant="ghost"
-            fullWidth
-            onClick={() => {
-              setIsFilterOpen(false);
-              setIsEditCategoryOrderOpen(true);
-            }}
-          >
-            Edit order
-          </Button>
+          <div className="flex w-full flex-col gap-2">
+            <Button
+              fullWidth
+              onClick={() => {
+                setCategoryFilter(draftCategory);
+                setIsFilterOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                className="flex-1"
+                disabled={draftCategory === "All"}
+                onClick={() => setDraftCategory("All")}
+              >
+                Reset
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => {
+                  setIsFilterOpen(false);
+                  setIsEditCategoryOrderOpen(true);
+                }}
+              >
+                Edit order
+              </Button>
+            </div>
+          </div>
         }
       >
-        <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
-          {["All", ...allCategories].map((c) => (
-            <Chip key={c} selected={categoryFilter === c} onClick={() => setCategoryFilter(c)}>
-              {c}
-            </Chip>
-          ))}
+        <div>
+          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-subtle">Category</div>
+          <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
+            {["All", ...allCategories].map((c) => (
+              <Chip key={c} selected={draftCategory === c} onClick={() => setDraftCategory(c)}>
+                {c}
+              </Chip>
+            ))}
+          </div>
         </div>
       </Dialog>
 

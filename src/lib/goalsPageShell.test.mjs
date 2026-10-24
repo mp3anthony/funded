@@ -67,13 +67,24 @@ test("GoalRow: ring, pace line, round + hidden when Reached, one tap target", ()
   assert.ok(t.indexOf("</button>") < t.indexOf("<IconCircle"));
 });
 
-test("WishRow: name, cost, Check impact, no ring and no add button", () => {
+test("WishRow: name, cost, no Check impact (the goal sheet has it), no ring and no add button", () => {
   const t = stripComments(read("components/WishRow.tsx"));
-  assert.ok(t.includes("Check impact"));
-  assert.ok(t.includes("<Chip"));
+  assert.ok(!t.includes("Check impact"));
+  assert.ok(!t.includes("onCheckImpact"));
+  assert.ok(!t.includes("<Chip"));
   assert.ok(!t.includes("ProgressRing"));
   assert.ok(!t.includes("IconCircle"));
   assert.ok(!t.includes("Reached"));
+});
+
+test("Goals Filter card: draft with Apply, Reset and Edit order; chip row is only Filter and Check impact", () => {
+  const t = read("app/funds/funds-client.tsx");
+  assert.ok(t.includes("draftCategory"));
+  assert.ok(/>\s*Apply\s*<\/Button>/.test(t));
+  assert.ok(/>\s*Reset\s*<\/Button>/.test(t));
+  assert.ok(t.includes("Edit order"));
+  assert.ok(t.includes("openImpact()"));
+  assert.ok(!t.includes("openImpact(fund)"));
 });
 
 test("GoalDetailSheet: a Just tracking goal gets a Check impact action that closes the sheet first", () => {
@@ -86,7 +97,6 @@ test("GoalDetailSheet: a Just tracking goal gets a Check impact action that clos
 test("Just tracking goals are left out of the places that count money", () => {
   const uses = [
     "lib/dashboardCarousels.ts",
-    "hooks/useFinishSetup.ts",
     "components/SurplusSuggestionModal.tsx",
     "components/AddRuleFlow.tsx",
     "app/payday/payday-client.tsx",

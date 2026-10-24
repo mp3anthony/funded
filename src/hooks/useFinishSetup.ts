@@ -1,7 +1,6 @@
 "use client";
 
 import { useApp } from "@/context/AppContext";
-import { savingGoals } from "@/lib/goalPace";
 import { missingSetupItems, shouldShowFinishSetup, type SetupItem } from "@/lib/finishSetup";
 
 export type FinishSetupState = "card" | "loading" | "none";
@@ -22,8 +21,9 @@ export function useFinishSetup(): { state: FinishSetupState; missing: SetupItem[
   const missing = missingSetupItems({
     payScheduleCount: paySchedules.length,
     billCount: bills.length,
-    // R17: a Just tracking goal does not count as a savings goal.
-    goalCount: savingGoals(funds).length,
+    // F04: any goal counts, Just tracking (Wish list) included, so the card never asks for
+    // a "first goal" from a household that already has one.
+    goalCount: funds.length,
   });
 
   if (shouldShowFinishSetup({ isOwner, dismissed: isFinishSetupDismissed, missing })) {

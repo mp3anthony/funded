@@ -26,14 +26,19 @@ import { loadFrequency, saveFrequency, type FrequencyType } from "@/lib/frequenc
 import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
 import { categorySubtotal, compareRows } from "@/lib/billRow";
 import {
-  dueAfterTypeChange,
+  DEFAULT_DRAFT,
+  draftFromFilters,
   expensesHiddenByDue,
+  isDraftDefault,
   isFilterActive,
+  isFilterChipActive,
   matchesBillFilters,
   matchesExpenseFilters,
   NO_FILTERS,
+  normaliseDraft,
   splitTotals,
   type DueFilter,
+  type FilterDraft,
   type TypeFilter,
 } from "@/lib/billsFilters";
 
@@ -93,6 +98,9 @@ export default function BillsClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // F04: Type, Due and Category are picked in the Filter card as a draft; nothing on the page
+  // changes until Apply. Re-seeded from the live filters every time the card opens.
+  const [draft, setDraft] = useState<FilterDraft>(DEFAULT_DRAFT);
   const [isImpactOpen, setIsImpactOpen] = useState(false);
   // R16: answers "Turn into a bill" hands to the Add flow. Every normal way to open the
   // flow clears them first (openAdd), so + never inherits them. Not cleared on close, so
@@ -293,12 +301,20 @@ export default function BillsClient() {
     return `No ${noun} found`;
   }, [filter, searchQuery, categoryFilter, typeFilter]);
 
-  // Issue #157: expenses have no due date, so the Due chips are disabled while
-  // Type = Expenses and Due resets to Any (see dueAfterTypeChange).
-  const isDueDateDisabled = typeFilter === "expenses";
-  const handleTypeFilterChange = (value: TypeFilter) => {
-    setTypeFilter(value);
-    setFilter((cur) => dueAfterTypeChange(value, cur));
+  // Issue #157: expenses have no due date, so the draft's Due chips are disabled while
+  // Type = Expenses and the draft's Due resets to Any (see normaliseDraft).
+  const filterChipActive = isFilterChipActive(filterState);
+  const isDueDateDisabled = draft.type === "expenses";
+  const openFilterCard = () => {
+    setDraft(draftFromFilters(filterState));
+    setIsFilterOpen(true);
+  };
+  const applyDraft = () => {
+    const d = normaliseDraft(draft);
+    setTypeFilter(d.type);
+    setFilter(d.due);
+    setCategoryFilter(d.category);
+    setIsFilterOpen(false);
   };
 
   const clearFilters = () => {
@@ -409,36 +425,20 @@ export default function BillsClient() {
           aria-label="Filters"
           className="scrollbar-none -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
         >
-          <Chip onClick={() => setIsFilterOpen(true)} aria-haspopup="dialog">
+          <Chip onClick={openFilterCard} aria-haspopup="dialog">
             <span className="relative inline-flex">
               <SlidersHorizontal size={16} aria-hidden="true" />
-              {categoryFilter !== "All" && (
+              {filterChipActive && (
                 <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
               )}
             </span>
             Filter
-            {categoryFilter !== "All" && <span className="sr-only"> (category chosen)</span>}
+            {filterChipActive && <span className="sr-only"> (filters chosen)</span>}
           </Chip>
           <Chip onClick={() => setIsImpactOpen(true)} aria-haspopup="dialog">
             <Calculator size={16} aria-hidden="true" />
             Check impact
           </Chip>
-          {TYPE_OPTIONS.map((o) => (
-            <Chip key={o.value} selected={typeFilter === o.value} onClick={() => handleTypeFilterChange(o.value)}>
-              {o.label}
-            </Chip>
-          ))}
-          <span className="h-5 w-px shrink-0 bg-border-strong" aria-hidden="true" />
-          {DUE_OPTIONS.map((o) => (
-            <Chip
-              key={o.value}
-              selected={filter === o.value}
-              disabled={isDueDateDisabled}
-              onClick={() => setFilter(o.value)}
-            >
-              {o.label}
-            </Chip>
-          ))}
         </div>
         {showExpensesHiddenNote && (
           <p className="px-1 text-[11px] text-muted font-body">Expenses hidden, they have no due date</p>
@@ -553,24 +553,71 @@ export default function BillsClient() {
         title="Filter"
         placement="bottom"
         footer={
-          <Button
-            variant="ghost"
-            fullWidth
-            onClick={() => {
-              setIsFilterOpen(false);
-              setIsEditCategoryOrderOpen(true);
-            }}
-          >
-            Edit order
-          </Button>
+          <div className="flex w-full flex-col gap-2">
+            <Button fullWidth onClick={applyDraft}>
+              Apply
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" className="flex-1" disabled={isDraftDefault(draft)} onClick={() => setDraft(DEFAULT_DRAFT)}>
+                Reset
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => {
+                  setIsFilterOpen(false);
+                  setIsEditCategoryOrderOpen(true);
+                }}
+              >
+                Edit order
+              </Button>
+            </div>
+          </div>
         }
       >
-        <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
-          {["All", ...allCategories].map((c) => (
-            <Chip key={c} selected={categoryFilter === c} onClick={() => setCategoryFilter(c)}>
-              {c}
-            </Chip>
-          ))}
+        <div className="space-y-5">
+          <div>
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-subtle">Type</div>
+            <div role="group" aria-label="Type" className="flex flex-wrap gap-2">
+              {TYPE_OPTIONS.map((o) => (
+                <Chip
+                  key={o.value}
+                  selected={draft.type === o.value}
+                  onClick={() => setDraft((d) => normaliseDraft({ ...d, type: o.value }))}
+                >
+                  {o.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-subtle">Due</div>
+            <div role="group" aria-label="Due" className="flex flex-wrap gap-2">
+              {DUE_OPTIONS.map((o) => (
+                <Chip
+                  key={o.value}
+                  selected={draft.due === o.value}
+                  disabled={isDueDateDisabled}
+                  onClick={() => setDraft((d) => ({ ...d, due: o.value }))}
+                >
+                  {o.label}
+                </Chip>
+              ))}
+            </div>
+            {isDueDateDisabled && (
+              <p className="mt-2 text-[11px] text-muted font-body">Expenses have no due date</p>
+            )}
+          </div>
+          <div>
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-subtle">Category</div>
+            <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
+              {["All", ...allCategories].map((c) => (
+                <Chip key={c} selected={draft.category === c} onClick={() => setDraft((d) => ({ ...d, category: c }))}>
+                  {c}
+                </Chip>
+              ))}
+            </div>
+          </div>
         </div>
       </Dialog>
 

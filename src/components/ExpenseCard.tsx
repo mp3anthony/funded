@@ -50,70 +50,84 @@ export default function ExpenseCard({
 
   return (
     <>
-      <button
-        onClick={() => setIsDetailOpen(true)}
-        className="w-full text-left border-t border-border flex items-center gap-3 py-3 press-tint transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
-      >
-        {/* Leading identity cue: single assignee chip for whole-item
-            assignment (matches BillCard), or a small overlapping avatar
-            stack for a percentage split — no single member "is" the
-            assignee, so a single chip would misrepresent it. */}
-        {!isPercentageSplit && assignee && (
-          <div
-            className="shrink-0 flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
-            aria-hidden="true"
-          >
-            {assignee.avatar_url ? (
-              <img
-                src={assignee.avatar_url}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              assignee.avatar || assignee.name.charAt(0).toUpperCase()
-            )}
-          </div>
-        )}
-        {isPercentageSplit && splits.length > 0 && (
-          <div className="shrink-0 flex items-center" aria-hidden="true">
-            {splits.map((s, i) => {
-              const member = householdMembers.find((m) => String(m.id) === String(s.member_id));
-              return (
-                <div
-                  key={s.id}
-                  className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
-                  style={i > 0 ? { marginLeft: "-8px" } : undefined}
-                >
-                  {member?.avatar_url ? (
-                    <img src={member.avatar_url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    member?.avatar || member?.name.charAt(0).toUpperCase() || "?"
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+      <div className="flex items-center gap-1 border-t border-border">
+        <button
+          type="button"
+          onClick={() => setIsDetailOpen(true)}
+          className="press-tint flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
+        >
+          {/* Leading identity cue: single assignee chip for whole-item
+              assignment (matches BillCard), or a small overlapping avatar
+              stack for a percentage split — no single member "is" the
+              assignee, so a single chip would misrepresent it. */}
+          {!isPercentageSplit && assignee && (
+            <div
+              className="shrink-0 flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
+              aria-hidden="true"
+            >
+              {assignee.avatar_url ? (
+                <img
+                  src={assignee.avatar_url}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                assignee.avatar || assignee.name.charAt(0).toUpperCase()
+              )}
+            </div>
+          )}
+          {isPercentageSplit && splits.length > 0 && (
+            <div className="shrink-0 flex items-center" aria-hidden="true">
+              {splits.map((s, i) => {
+                const member = householdMembers.find((m) => String(m.id) === String(s.member_id));
+                return (
+                  <div
+                    key={s.id}
+                    className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
+                    style={i > 0 ? { marginLeft: "-8px" } : undefined}
+                  >
+                    {member?.avatar_url ? (
+                      <img src={member.avatar_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      member?.avatar || member?.name.charAt(0).toUpperCase() || "?"
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-        {/* Middle: name over category, or the split summary in place of
-            category when split_mode is "percentage" (Issue #98 Slice 3 of 6) */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <span className="font-body font-semibold text-[15px] text-foreground truncate">
-            {expense.name}
-          </span>
-          <span className="flex items-center gap-1.5 mt-0.5">
-            <RowPill label="Expense" variant="accent" />
-            <span className="text-[10px] uppercase font-medium tracking-wider text-muted truncate">
-              {isPercentageSplit && splitSummary ? splitSummary : (expense.category || "Other")}
+          {/* Middle: name over category, or the split summary in place of
+              category when split_mode is "percentage" (Issue #98 Slice 3 of 6) */}
+          <div className="flex flex-col flex-1 min-w-0">
+            <span className="font-body font-semibold text-[15px] text-foreground truncate">
+              {expense.name}
             </span>
-          </span>
-        </div>
+            <span className="flex items-center gap-1.5 mt-0.5">
+              <RowPill label="Expense" variant="accent" />
+              <span className="text-[10px] uppercase font-medium tracking-wider text-muted truncate">
+                {isPercentageSplit && splitSummary ? splitSummary : (expense.category || "Other")}
+              </span>
+            </span>
+          </div>
 
-        {/* Right: amount */}
-        <span className="shrink-0 font-bold text-primary-ink tracking-tight text-lg tabular-nums">
+          {/* Read once: the visible amount below is a decorative tap target. */}
+          <span className="sr-only">${formattedAmount}</span>
+        </button>
+
+        {/* Empty 44px slot where bills keep their tick, so amounts line up with bill rows. */}
+        <span className="h-11 w-11 shrink-0" aria-hidden="true" />
+
+        <button
+          type="button"
+          aria-hidden="true"
+          tabIndex={-1}
+          onClick={() => setIsDetailOpen(true)}
+          className="press-tint inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-end rounded-sm pl-1 text-lg font-semibold tracking-tight tabular-nums whitespace-nowrap text-foreground"
+        >
           ${formattedAmount}
-        </span>
-      </button>
+        </button>
+      </div>
 
       <ExpenseDetailSheet
         isOpen={isDetailOpen}

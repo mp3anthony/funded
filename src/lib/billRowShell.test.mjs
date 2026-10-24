@@ -59,6 +59,21 @@ test("bills-client: A-to-Z order, collapse memory, subtotal, expense frequency",
   assert.ok(/<ExpenseCard[\s\S]*?displayFrequency=\{displayFrequency\}/.test(t));
 });
 
+test("Bills Filter card: draft, Apply, Reset, Edit order; tick sits left of the amount in a fixed slot", () => {
+  const t = read("app/bills/bills-client.tsx");
+  assert.ok(t.includes("applyDraft"));
+  assert.ok(/>\s*Apply\s*<\/Button>/.test(t));
+  assert.ok(/>\s*Reset\s*<\/Button>/.test(t));
+  assert.ok(t.includes("Edit order"));
+  assert.ok(t.includes("draftFromFilters(filterState)"));
+  const b = read("components/BillCard.tsx");
+  assert.ok(b.includes("w-11 shrink-0"));
+  assert.ok(b.indexOf("Mark ${bill.name} as paid") < b.lastIndexOf("${formattedAmount}"));
+  assert.ok(b.includes("sr-only") && b.includes('tabIndex={-1}'));
+  const e = read("components/ExpenseCard.tsx");
+  assert.ok(e.includes("w-11 shrink-0") && e.includes('tabIndex={-1}'));
+});
+
 test("markAsPaid: early-pay path has an Undo toast and the error paths speak", () => {
   const t = read("context/AppContext.tsx");
   const start = t.indexOf("async function markAsPaid(");

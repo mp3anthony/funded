@@ -53,6 +53,35 @@ export function dueAfterTypeChange(type: TypeFilter, currentDue: DueFilter): Due
   return type === "expenses" ? "all" : currentDue;
 }
 
+/** The three choices held in the Filter card until Apply (search is separate). */
+export interface FilterDraft {
+  type: TypeFilter;
+  due: DueFilter;
+  category: string;
+}
+
+export const DEFAULT_DRAFT: FilterDraft = { type: "all", due: "all", category: "All" };
+
+/** Expenses have no due date, so a draft with Type = Expenses always has Due = Any. */
+export function normaliseDraft(d: FilterDraft): FilterDraft {
+  return { ...d, due: dueAfterTypeChange(d.type, d.due) };
+}
+
+/** Seeds the Filter card's draft from the live filters (each time the card opens). */
+export function draftFromFilters(s: FilterState): FilterDraft {
+  return normaliseDraft({ type: s.type, due: s.due, category: s.category });
+}
+
+/** True when the draft is every default (the Reset target). */
+export function isDraftDefault(d: FilterDraft): boolean {
+  return d.type === "all" && d.due === "all" && d.category === "All";
+}
+
+/** The dot on the Filter chip: Type, Due or Category is not default. Search has its own bar. */
+export function isFilterChipActive(s: Pick<FilterState, "type" | "due" | "category">): boolean {
+  return s.type !== "all" || s.due !== "all" || s.category !== "All";
+}
+
 function matchesSearchAndCategory(
   item: { name: string; category?: string | null },
   s: FilterState,

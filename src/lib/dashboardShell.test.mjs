@@ -50,6 +50,12 @@ test("verdict hooks share one input", () => {
   assert.ok(t.includes("export function useVerdict("));
 });
 
+test("Finish setup hook counts any goal, Just tracking included (F04)", () => {
+  const h = read("hooks/useFinishSetup.ts");
+  assert.ok(h.includes("goalCount: funds.length"));
+  assert.ok(!h.includes("savingGoals"));
+});
+
 test("Finish setup hook has a loading state and the card renders only for 'card'", () => {
   const h = read("hooks/useFinishSetup.ts");
   assert.ok(h.includes('"card" | "loading" | "none"'));

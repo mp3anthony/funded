@@ -1,30 +1,26 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { Calculator } from "lucide-react";
 import { type Fund } from "@/context/AppContext";
-import Chip from "@/components/ui/Chip";
 
 const moneyFmt = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 /**
- * Wish list row (R17, #404) for a Just tracking goal: icon, name, cost and a
- * "Check impact" chip. No ring, no pace, no "+", never Reached styling. The row
- * (everything except the chip) is one button that opens the goal sheet.
+ * Wish list row (R17, #404) for a Just tracking goal: icon, name and cost. No ring,
+ * no pace, no "+", never Reached styling. The whole row is one button that opens the goal
+ * sheet, which holds Check impact (F04).
  */
 export default function WishRow({
   fund,
   staggerIndex,
   isExpanded,
   onOpen,
-  onCheckImpact,
 }: {
   fund: Fund;
   staggerIndex: number;
   isExpanded: boolean;
   onOpen: () => void;
-  onCheckImpact: () => void;
 }) {
   const IconComponent = fund.icon;
   const delayMs = Math.min(staggerIndex * 30, 150);
@@ -50,10 +46,6 @@ export default function WishRow({
           <span className="text-[13px] tabular-nums text-muted">{moneyFmt(fund.targetAmount)}</span>
         </span>
       </button>
-      <Chip onClick={onCheckImpact} aria-haspopup="dialog" aria-label={`Check impact of ${fund.name}`}>
-        <Calculator size={16} aria-hidden="true" />
-        Check impact
-      </Chip>
     </div>
   );
 }

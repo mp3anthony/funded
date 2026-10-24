@@ -42,9 +42,10 @@ test("bills-client: Check impact chip, unfiltered total, prefill passed and clea
   assert.ok(t.includes("onClick={openAdd}"));
   assert.ok(!/onClose=\{\(\) => \{\s*setIsAddOpen\(false\);\s*setAddPrefill/.test(t));
   assert.ok(/setAddPrefill\(undefined\);\s*setIsAddOpen\(true\)/.test(t));
-  // The chip sits right after the Filter chip.
-  assert.ok(t.indexOf("Check impact") > t.indexOf("(category chosen)"));
-  assert.ok(t.indexOf("Check impact") < t.indexOf("TYPE_OPTIONS.map"));
+  // The chip sits right after the Filter chip, and the chip row has no Type or Due chips (F04).
+  assert.ok(t.indexOf("Check impact") > t.indexOf("(filters chosen)"));
+  const row = t.slice(t.indexOf('aria-label="Filters"'), t.indexOf("Bills & Expenses Scrollable Container"));
+  assert.ok(!row.includes("TYPE_OPTIONS") && !row.includes("DUE_OPTIONS"));
 });
 
 test("AddFlow: prefill skips the Type card and seeds the dirty baseline", () => {
