@@ -314,8 +314,8 @@ export default function SettingsClient() {
         <Row
           label="Payment mode"
           value={isJointFund ? "Joint Fund" : "Direct Pay"}
-          chevron
-          onClick={() => setShowPaymentModeDialog(true)}
+          chevron={isCurrentUserOwner}
+          onClick={isCurrentUserOwner ? () => setShowPaymentModeDialog(true) : undefined}
         />
         <Row
           label="Timezone"
@@ -569,16 +569,18 @@ export default function SettingsClient() {
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? "Copied" : "Copy"}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleRegenerateCode}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-border-strong text-muted hover:text-foreground hover:bg-surface-raised text-sm font-bold transition-colors"
-                >
-                  <RefreshCw className="h-4 w-4" /> New code
-                </button>
+                {isCurrentUserOwner && (
+                  <button
+                    type="button"
+                    onClick={handleRegenerateCode}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-border-strong text-muted hover:text-foreground hover:bg-surface-raised text-sm font-bold transition-colors"
+                  >
+                    <RefreshCw className="h-4 w-4" /> New code
+                  </button>
+                )}
               </div>
             </>
-          ) : (
+          ) : isCurrentUserOwner ? (
             <button
               type="button"
               onClick={handleRegenerateCode}
@@ -586,6 +588,8 @@ export default function SettingsClient() {
             >
               <RefreshCw className="h-4 w-4" /> Generate code
             </button>
+          ) : (
+            <p className="text-sm text-muted text-center">Ask an owner for a code.</p>
           )}
         </div>
       </Dialog>

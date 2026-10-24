@@ -20,6 +20,7 @@ _Avoid_: Admin, host, creator
 
 **Join code**:
 The temporary six-digit code an existing member shares so someone else can join the household. It expires and can be regenerated.
+Any member can view and copy it; only owners can change it. Only owners also change the household name, payment mode and timezone (the database enforces this, R28 #415).
 _Avoid_: Invite link, invite code, PIN, password
 
 **Onboarding**:

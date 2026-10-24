@@ -34,6 +34,7 @@ import { resolveWarmReloadRace, type SupabaseArrayResult } from "@/lib/warmReloa
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
 import { resolveNewHouseholdTimezone, isValidTimezone } from "@/lib/householdTimezone";
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
+import { assertRowUpdated } from "@/lib/householdOwner";
 
 
 /* ═══════════════════════════════════════════════
@@ -2068,16 +2069,20 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   async function setHouseholdName(name: string) {
+    const previousName = householdName;
     setHouseholdNameState(name);
     try {
       if (dbHouseholdId) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("households")
           .update({ name })
-          .eq("id", dbHouseholdId);
+          .eq("id", dbHouseholdId)
+          .select("id");
         if (error) throw error;
+        assertRowUpdated(data, "Only the household owner can change the name.");
       }
     } catch (err) {
+      setHouseholdNameState(previousName);
       console.error("Failed to update household name:", err);
     }
   }
@@ -2323,15 +2328,19 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       console.log(`updateHouseholdPaymentMode - updating to: ${jointFundVal}. isModeChanging: ${isModeChanging}`);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("households")
         .update({ is_joint_fund: jointFundVal })
-        .eq("id", hId);
+        .eq("id", hId)
+        .select("id");
 
       if (error) {
         console.error("Error updating household payment mode:", error);
         throw error;
       }
+      // R28: a blocked update changes 0 rows with no error. Assert BEFORE
+      // resetBillContributions so a non-owner can't wipe splits.
+      assertRowUpdated(data, "Only the household owner can change the payment mode.");
 
       setIsJointFund(jointFundVal);
 
@@ -2344,15 +2353,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  // #37. Owner-only, matching the ownership-gated pattern used for
-  // leave/delete-household — but unlike delete-household there is no
-  // server-side edge function backing this: households UPDATE RLS
-  // ("Users can update their household", fix_households_rls_recursion.sql)
-  // is deliberately member-wide, not owner-only, so this client-side check
-  // is the actual enforcement (same as the member-management "canManage"
-  // gating in settings-client.tsx — RLS there is member-wide too). The
-  // Settings UI also hides the control from non-owners so this should only
-  // ever be reached by an owner in normal use.
+  // #37. Owner-only. Since R28 (#415) the households UPDATE RLS policy
+  // ("Owners can update their household") enforces this server-side too; the
+  // client check below gives a clear message first. The Settings UI also
+  // hides the control from non-owners so this should only ever be reached by
+  // an owner in normal use.
   async function updateHouseholdTimezone(timezone: string) {
     try {
       const hId = await ensureHousehold();
@@ -2370,15 +2375,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error("That doesn't look like a valid timezone.");
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("households")
         .update({ timezone })
-        .eq("id", hId);
+        .eq("id", hId)
+        .select("id");
 
       if (error) {
         console.error("Error updating household timezone:", error);
         throw error;
       }
+      assertRowUpdated(data, "Only the household owner can change the timezone.");
 
       setHouseholdTimezone(timezone);
     } catch (err) {
@@ -3503,15 +3510,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("households")
         .update({
           join_code: newCode,
           code_expires_at: expiresAt,
         })
-        .eq("id", dbHouseholdId);
+        .eq("id", dbHouseholdId)
+        .select("id");
 
       if (error) throw error;
+      assertRowUpdated(data, "Only the household owner can change the join code.");
 
       setJoinCode(newCode);
       setCodeExpiresAt(expiresAt);
