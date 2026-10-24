@@ -25,11 +25,11 @@ test("payday-client shows a carousel of member cards, with no trash icon, no nat
   assert.ok(t.includes("selectedScheduleId") && t.includes("paySchedules.find("));
 });
 
-test("Compare split pill sits in the header extra slot, Joint Fund only, and opens the Suggest Split panel", () => {
+test("Compare split pill sits in the header extra slot, in both payment modes, and opens the Suggest Split pop-up", () => {
   const t = read("app/payday/payday-client.tsx");
   assert.ok(/extra=\{/.test(t) && t.includes("Compare split"));
-  assert.ok(t.includes("isJointFund ?"));
-  assert.ok(t.includes("<SuggestSplitPanel") && t.includes("startExpanded"));
+  assert.ok(!t.includes("isJointFund"));
+  assert.ok(t.includes("<SuggestSplitSheet") && !t.includes("SuggestSplitPanel"));
 });
 
 test("the add flow can start on a member, and the page highlights that member's card", () => {
@@ -63,14 +63,18 @@ test("MemberPaySheet: DetailSheet, schedules, Joint Fund contribution card, rule
   assert.ok(!t.includes("rounded-[2px]"));
 });
 
-test("Contribution amounts left Settings; the Suggest Split panel moved out of the old sheet", () => {
+test("Contribution amounts left Settings; Suggest Split is now the Compare split pop-up", () => {
   assert.ok(!existsSync(join(SRC, "components/ContributionSettingsSheet.tsx")));
   const settings = read("app/settings/settings-client.tsx");
   assert.ok(!settings.includes("Contribution amounts") && !settings.includes("ContributionSettingsSheet"));
   assert.ok(settings.includes("Automation rules"));
-  const panel = read("components/SuggestSplitPanel.tsx");
-  assert.ok(panel.includes("export default function SuggestSplitPanel") && panel.includes("function computeMemberIncomes("));
-  assert.ok(!panel.includes("rounded-[2px]"));
+  assert.ok(!existsSync(join(SRC, "components/SuggestSplitPanel.tsx")));
+  const sheet = read("components/SuggestSplitSheet.tsx");
+  assert.ok(sheet.includes("export default function SuggestSplitSheet") && sheet.includes("computeMemberIncomes("));
+  assert.ok(sheet.includes("applyDirectPaySplits(") && sheet.includes("setContribution(") && sheet.includes("isJointFund"));
+  assert.ok(sheet.includes("useReducedMotion") && sheet.includes("useCountUp") && sheet.includes("error={error}"));
+  assert.ok(!sheet.includes("rounded-[2px]"));
+  assert.ok(read("lib/suggestSplit.ts").includes("export function computeMemberIncomes"));
 });
 
 test("Getting started tells people to tap a member's card", () => {

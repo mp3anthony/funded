@@ -26,6 +26,7 @@ import {
   nextDueToastMessage,
 } from "@/lib/billCycle";
 import { averagePay, buildPendingPayRows } from "@/lib/payHistory";
+import { directPaySplitRows } from "@/lib/suggestSplit";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { isAcceptedMember } from "@/lib/householdLeave";
@@ -790,6 +791,7 @@ interface AppContextValue {
   householdContributions: HouseholdContribution[];
   fetchHouseholdContributions: (householdId?: string) => Promise<void>;
   setContribution: (memberId: string, amount: number, frequency: "weekly" | "fortnightly" | "monthly") => Promise<void>;
+  applyDirectPaySplits: (billIds: string[], sharesByMember: Record<string, number>) => Promise<void>;
   deleteContribution: (id: string) => Promise<void>;
 
   /* Contribution Rules */
@@ -4613,53 +4615,100 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   async function setContribution(memberId: string, amount: number, frequency: "weekly" | "fortnightly" | "monthly") {
+    // Throws on any failure (R23, #456) so the pop-up can show its red line.
+    const hId = await ensureHousehold();
+
+    // Clean up other frequencies for the same member to avoid orphaned cycles
+    const { error: deleteErr } = await supabase
+      .from("household_contributions")
+      .delete()
+      .eq("member_id", memberId)
+      .neq("frequency", frequency);
+
+    if (deleteErr) {
+      console.error("Error cleaning up other contributions:", deleteErr);
+      throw deleteErr;
+    }
+
+    const dbData = {
+      household_id: hId,
+      member_id: memberId,
+      amount,
+      frequency,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("household_contributions")
+      .upsert(dbData, { onConflict: "household_id,member_id,frequency" })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error upserting household contribution:", error);
+      throw error;
+    }
+
+    if (data) {
+      setHouseholdContributions((prev) => {
+        const filtered = prev.filter(
+          (c) => String(c.member_id) !== String(memberId) || c.frequency === frequency
+        );
+        const exists = filtered.some((c) => c.id === data.id);
+        if (exists) {
+          return filtered.map((c) => (c.id === data.id ? data : c));
+        }
+        return [...filtered, data];
+      });
+    }
+  }
+
+  /**
+   * Direct Pay "Apply" in Compare split (R23, #410): rewrites the split rows of
+   * the listed bills to the household shares (`sharesByMember`: member id to a
+   * 0-1 fraction). Only the listed bills are touched. Throws on any failure.
+   */
+  async function applyDirectPaySplits(billIds: string[], sharesByMember: Record<string, number>) {
+    const hId = await ensureHousehold();
+    let saved = 0;
     try {
-      const hId = await ensureHousehold();
+      for (const billId of billIds) {
+        const bill = bills.find((b) => String(b.id) === String(billId));
+        if (!bill || !bill.assignee_id) continue;
+        const existing = billSplits.filter((s) => String(s.bill_id) === String(billId));
+        const existingStatus: Record<string, string> = {};
+        for (const s of existing) if (s.status) existingStatus[String(s.member_id)] = s.status;
+        const rows = directPaySplitRows(bill, sharesByMember, String(bill.assignee_id), existingStatus);
 
-      // Clean up other frequencies for the same member to avoid orphaned cycles
-      const { error: deleteErr } = await supabase
-        .from("household_contributions")
-        .delete()
-        .eq("member_id", memberId)
-        .neq("frequency", frequency);
+        const { error: deleteError } = await supabase.from("bill_splits").delete().eq("bill_id", billId);
+        if (deleteError) throw deleteError;
 
-      if (deleteErr) {
-        console.error("Error cleaning up other contributions:", deleteErr);
-      }
+        const { data, error: insertError } = await supabase
+          .from("bill_splits")
+          .insert(rows.map((r) => ({ household_id: hId, bill_id: billId, ...r })))
+          .select();
+        if (insertError) throw insertError;
 
-      const dbData = {
-        household_id: hId,
-        member_id: memberId,
-        amount,
-        frequency,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase
-        .from("household_contributions")
-        .upsert(dbData, { onConflict: "household_id,member_id,frequency" })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error upserting household contribution:", error);
-        return;
-      }
-
-      if (data) {
-        setHouseholdContributions((prev) => {
-          const filtered = prev.filter(
-            (c) => String(c.member_id) !== String(memberId) || c.frequency === frequency
-          );
-          const exists = filtered.some((c) => c.id === data.id);
-          if (exists) {
-            return filtered.map((c) => (c.id === data.id ? data : c));
-          }
-          return [...filtered, data];
-        });
+        setBillSplits((prev) => [...prev.filter((s) => String(s.bill_id) !== String(billId)), ...(data ?? [])]);
+        saved += 1;
       }
     } catch (err) {
-      console.error("Failed to set household contribution:", err);
+      console.error("applyDirectPaySplits failed:", err);
+      // Put state back in line with the database before reporting.
+      try {
+        const ids = new Set(bills.map((b) => String(b.id)));
+        const { data } = await supabase.from("bill_splits").select("*");
+        if (data) setBillSplits(data.filter((s: { bill_id: string | number }) => ids.has(String(s.bill_id))));
+      } catch (refetchErr) {
+        console.error("applyDirectPaySplits refetch failed:", refetchErr);
+      }
+      if (saved > 0) {
+        const left = billIds.length - saved;
+        throw new Error(
+          `Saved ${saved} ${saved === 1 ? "bill" : "bills"}, but ${left} ${left === 1 ? "bill was" : "bills were"} not. Try again to finish.`
+        );
+      }
+      throw err;
     }
   }
 
@@ -5255,6 +5304,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     householdContributions,
     fetchHouseholdContributions,
     setContribution,
+    applyDirectPaySplits,
     deleteContribution,
     contributionRules,
     fetchContributionRules,

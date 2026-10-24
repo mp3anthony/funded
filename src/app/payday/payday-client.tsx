@@ -6,10 +6,9 @@ import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/con
 import AddPayFlow from "@/components/AddPayFlow";
 import Carousel from "@/components/ui/Carousel";
 import Button from "@/components/ui/Button";
-import Dialog from "@/components/ui/Dialog";
 import MemberPayCard from "@/components/MemberPayCard";
 import MemberPaySheet from "@/components/MemberPaySheet";
-import SuggestSplitPanel from "@/components/SuggestSplitPanel";
+import SuggestSplitSheet from "@/components/SuggestSplitSheet";
 import LogPayCard, { type LogTarget } from "@/components/LogPayCard";
 import NeedsYouStrip from "@/components/NeedsYouStrip";
 import PayHistorySection from "@/components/PayHistorySection";
@@ -28,7 +27,7 @@ import { todayInZone } from "@/lib/notifications/timezone";
 import { buildNeedsYou, isLoggableYmd, type NeedsYouRow } from "@/lib/needsYou";
 
 export default function PaydayClient() {
-  const { paySchedules, payHistory, householdMembers, logPay, calculateAveragePay, addToGoal, isJointFund, bills, expenses, contributionRules, setContribution, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay, skipDuePay, skipPendingPay, householdTimezone, showToast } = useApp();
+  const { paySchedules, payHistory, householdMembers, logPay, calculateAveragePay, addToGoal, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay, skipDuePay, skipPendingPay, householdTimezone, showToast } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -245,12 +244,9 @@ export default function PaydayClient() {
         title="Payday"
         subtitle="Manage & track incomes"
         extra={
-          // Joint Fund only until R23 makes the split work in Direct Pay.
-          isJointFund ? (
-            <Button variant="ghost" className="min-h-9 px-4 text-[15px]" onClick={() => setIsCompareOpen(true)}>
-              Compare split
-            </Button>
-          ) : undefined
+          <Button variant="ghost" className="min-h-9 px-4 text-[15px]" onClick={() => setIsCompareOpen(true)}>
+            Compare split
+          </Button>
         }
         onAdd={() => openAddSchedule()}
         addLabel="New pay schedule"
@@ -321,19 +317,8 @@ export default function PaydayClient() {
         householdMembers={householdMembers}
       />
 
-      {/* Compare split: the existing Suggest Split panel until R23 redesigns it */}
-      <Dialog open={isCompareOpen} onClose={() => setIsCompareOpen(false)} title="Compare split" placement="bottom">
-        <SuggestSplitPanel
-          startExpanded
-          householdMembers={householdMembers}
-          bills={bills}
-          expenses={expenses}
-          contributionRules={contributionRules}
-          paySchedules={paySchedules}
-          calculateAveragePay={calculateAveragePay}
-          setContribution={setContribution}
-        />
-      </Dialog>
+      {/* Compare split: income, share, then Contribute / Cover (R23, #410) */}
+      <SuggestSplitSheet open={isCompareOpen} onClose={() => setIsCompareOpen(false)} />
 
       {/* Log / Confirm Pay card (due pays and Pending pays) */}
       <LogPayCard
