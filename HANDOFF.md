@@ -55,7 +55,7 @@
 
 ## Next session, in order
 
-1. **Plan R29 (#416)** on `redesign/full-app`. Standing pause after a Planner plan, or plan+build in one session if Anthony says so. If Anthony flips any R07-R27 default, rework that first. Then R29-R36.
+1. **Plan R29 (#416)** on `redesign/full-app`. Standing pause after a Planner plan, or plan+build in one session if Anthony says so. If Anthony flips any R07-R28 default, rework that first. Then R29-R36.
 2. **A1 signed off by Anthony (2026-10-24):** R28 (#415 owner-only `households` UPDATE policy) is approved in principle; the plan still states the exact migration and stays backward compatible with `main`. R33 (#370) is decided at its own plan. R28 has no dependencies and can go earlier. (R19 done.)
 3. Non-redesign work is not queued: #383 (change login email) and #145 wait for Anthony. Any new bug goes through Intake as usual; fold it into a slice if the redesign rewrites that code.
 
