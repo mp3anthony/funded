@@ -498,8 +498,8 @@ body.modal-open main {
 }
 
 /* ── Goal row entrance (Slice 99: motion overhaul) ──
-   Restrained fade + slight rise for goal rows on Funds and the dashboard's
-   ActiveGoalsCard when a list first appears/expands. Matches the dialog
+   Restrained fade + slight rise for goal rows on Funds and Bills
+   when a list first appears/expands. Matches the dialog
    entrance's shape (fade + small translate, standard ease, no bounce) at
    a smaller distance appropriate to a list row rather than a modal card. */
 @keyframes fund-row-in {

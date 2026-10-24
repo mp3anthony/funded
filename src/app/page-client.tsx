@@ -10,8 +10,8 @@ import { useFinishSetup } from "@/hooks/useFinishSetup";
 
 // New premium components
 import FinishSetupCard from "@/components/FinishSetupCard";
-import UpcomingBillsCard from "@/components/UpcomingBillsCard";
-import ActiveGoalsCard from "@/components/ActiveGoalsCard";
+import DashboardBills from "@/components/DashboardBills";
+import DashboardGoals from "@/components/DashboardGoals";
 import DashboardTipStrip from "@/components/DashboardTipStrip";
 import DashboardStats from "@/components/DashboardStats";
 
@@ -70,23 +70,11 @@ export default function HomeClient() {
             Renders nothing until the dismissed flag loads, so stats never flash first. */}
         {finishSetup === "card" ? <FinishSetupCard /> : finishSetup === "none" ? <DashboardStats /> : null}
 
-        {/* Bills & Goals */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-9 lg:gap-8">
-          <div className="lg:col-span-2">
-            <UpcomingBillsCard
-              bills={bills}
-              onBillClick={(bill) => setSelectedBillId(bill.id)}
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <ActiveGoalsCard
-              funds={funds}
-              onGoalClick={(goal) => setSelectedGoalId(goal.id)}
-            />
-          </div>
+        {/* Bills and Goals: swipe-only carousels (R27, #414) */}
+        <div className="space-y-6">
+          <DashboardBills onBillClick={(bill) => setSelectedBillId(bill.id)} />
+          <DashboardGoals onGoalClick={(goal) => setSelectedGoalId(goal.id)} />
         </div>
-
-
       </div>
 
       {/* Bill Detail Sheet */}

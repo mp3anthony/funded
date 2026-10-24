@@ -66,10 +66,30 @@ test("Dashboard order: tip strip, header, then one stats / Finish setup slot", (
   const header = t.indexOf("<PageHeader");
   const slot = t.indexOf("<FinishSetupCard />");
   const stats = t.indexOf("<DashboardStats />");
-  const cards = t.indexOf("<UpcomingBillsCard");
+  const cards = t.indexOf("<DashboardBills");
+  const goals = t.indexOf("<DashboardGoals");
   assert.ok(strip > -1 && strip < header && header < slot && header < stats);
-  assert.ok(slot < cards && stats < cards);
+  assert.ok(slot < cards && stats < cards && cards < goals);
   assert.ok(t.includes('finishSetup === "card"') && t.includes('finishSetup === "none"'));
   assert.ok(!t.includes("onMinimisedChange"));
   assert.ok(t.includes("useVerdict()"));
+});
+
+test("Bills and Goals carousels (R27): swipe-only, tappable cards, View all pills, old cards gone", () => {
+  const b = read("components/DashboardBills.tsx");
+  const g = read("components/DashboardGoals.tsx");
+  for (const t of [b, g]) {
+    assert.ok(t.includes("<Carousel label="));
+    assert.ok(!t.includes("autoRotate"));
+    assert.ok(t.includes("aria-label={sentence}"));
+    assert.ok(t.includes('aria-hidden="true"'));
+    assert.ok(t.includes("SectionHeader"));
+  }
+  assert.ok(b.includes('href="/bills"') && g.includes('href="/funds"'));
+  assert.ok(b.includes("dashboardBills(") && b.includes("dueCountdown("));
+  assert.ok(g.includes("dashboardGoals(") && g.includes("ProgressRing") && g.includes("useReducedMotion"));
+  for (const f of ["UpcomingBillsCard", "ActiveGoalsCard", "ActiveGoalRow"]) {
+    assert.ok(!existsSync(join(SRC, `components/${f}.tsx`)));
+  }
+  assert.ok(!read("context/AppContext.tsx").includes("isUpdatesCardVisible"));
 });

@@ -14,7 +14,7 @@
 // tips drift from what the app actually does.
 export const dashboardTips: string[] = [
   "Tip: Tap a bill on the Bills page to mark it paid, edit it, or split it across household members.",
-  "Tip: Set up auto-pay bills separately from manual ones — auto-pay bills won't clutter your Upcoming Bills reminders.",
+  "Tip: Set up auto-pay bills separately from manual ones — auto-pay bills won't clutter the Bills on your Dashboard.",
   "Tip: Add a savings goal on the Goals page to start tracking progress toward things like a holiday or an emergency fund.",
   "Tip: Log your pay on the Payday page as soon as it lands so your weekly numbers stay accurate.",
   "Tip: You can set your own \"Notify me at\" time in Settings, independent from the rest of your household.",

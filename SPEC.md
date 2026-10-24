@@ -862,7 +862,7 @@ problem/checklist on the issue.
 - Schema: `bills.due_date` is nullable (`DROP NOT NULL`) and new `bills.due_date_prompt_muted BOOLEAN NOT NULL DEFAULT false` (migration `20261018120000_add_bills_due_date_prompt_muted.sql`, applied to prod before merge). A blank due date is stored as null.
 - Mark as Paid asks "When is it next due?" only for a manual, recurring, not paused, not muted bill with no due date. Save date: unpaid on the picked date (today or later, no `last_paid_for`, no Undo). Skip for now: plain Paid (stays Paid until a date is added). Don't ask again: Paid and muted. Paused and one-off dateless bills skip the question. Writes are guarded on `due_date IS NULL` and not paused.
 - 30 days after `created_at` (elapsed time), an unmuted dateless bill shows an orange "Add due date" in the date slot (also replaces "Paid · no due date"); it opens the edit form at the due date. A `dueLabel` ('Paused' / 'One-off') always wins in the date slot.
-- Dateless bills sort last within each category on Bills and last on Upcoming Bills, appear only under the All filter, and still count toward totals.
+- Dateless bills sort last within each category on Bills and last in the Dashboard Bills carousel, appear only under the All filter, and still count toward totals.
 - Full issue: https://github.com/mp3anthony/funded/issues/250
 
 ### Slice 23: Full app redesign (Issue #377)
@@ -875,7 +875,7 @@ problem/checklist on the issue.
 - R19 (#406, A1 signed off 2026-10-24): `pay_history.amount` is nullable (migration `20261024120000_pay_history_amount_nullable`; NULL only for a Pending pay with no known amount, enforced by a CHECK) and the cron route may create Pending pays with the service-role key (see Part A1). Averages are per pay schedule, last 4 confirmed pays, at least 2. Re-run the migration's backfill UPDATE once right after the final merge.
 - A1 slices, each needing Anthony's sign-off at plan time: R19 (`pay_history.amount` nullable), R28 (owner-only `households` UPDATE policy; today any member can write), R33 (#370 may need a policy or edge-function change), R14 (a per-person frequency preference may need a `user_preferences` column).
 - R21 (#408): Payday shows one card per member in the R04 Carousel; a member's sheet holds their pay schedules, Contribution (Joint Fund only; any member can edit it) and rules. "Contribution amounts" and `ContributionSettingsSheet` are gone from Settings; the Suggest Split panel is unchanged, in `SuggestSplitPanel.tsx`, opened from the Payday header "Compare split" pill (Joint Fund only until R23). No schema change.
-- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, the health score, goal suggestions and milestone reminders, and the Dashboard goal cards (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
+- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, the health score, goal suggestions and milestone reminders, and the Dashboard Goals carousel (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
 - Left out on purpose: #383 (change login email), #145 (parked).
 - Full issue: https://github.com/mp3anthony/funded/issues/377
 

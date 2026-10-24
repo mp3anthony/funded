@@ -85,7 +85,7 @@ test("GoalDetailSheet: a Just tracking goal gets a Check impact action that clos
 
 test("Just tracking goals are left out of the places that count money", () => {
   const uses = [
-    "components/ActiveGoalsCard.tsx",
+    "lib/dashboardCarousels.ts",
     "hooks/useFinishSetup.ts",
     "components/SurplusSuggestionModal.tsx",
     "components/AddRuleFlow.tsx",

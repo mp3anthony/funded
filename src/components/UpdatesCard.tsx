@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, X } from "lucide-react";
 import IconCircle from "@/components/ui/IconCircle";
-import { useApp } from "@/context/AppContext";
 import { APP_VERSION } from "@/lib/version";
 import { patchNotes, type PatchNoteEntry } from "@/lib/patch-notes";
 import { pickUpdatesCardEntry, updatesCardPreview, UPDATES_CARD_BULLETS } from "@/lib/updatesCard";
@@ -35,11 +34,9 @@ let pendingEntry: PatchNoteEntry | null = null;
  * trap, so the app stays usable underneath.
  *
  * The version is marked seen the moment the card is shown (not on dismiss),
- * so it appears once per version. While it shows it tells AppContext
- * (`isUpdatesCardVisible`) so other docked surfaces can step aside.
+ * so it appears once per version.
  */
 export default function UpdatesCard() {
-  const { setUpdatesCardVisible } = useApp();
   const pathname = usePathname();
   const [entry, setEntry] = useState<PatchNoteEntry | null>(null);
 
@@ -47,7 +44,6 @@ export default function UpdatesCard() {
     // Remounted while a card was already showing: bring it straight back.
     if (pendingEntry) {
       setEntry(pendingEntry);
-      setUpdatesCardVisible(true);
       return;
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -74,7 +70,6 @@ export default function UpdatesCard() {
       timer = setTimeout(() => {
         pendingEntry = picked;
         setEntry(picked);
-        setUpdatesCardVisible(true);
         markSeen();
       }, SHOW_DELAY_MS);
     } catch {
@@ -84,24 +79,16 @@ export default function UpdatesCard() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [setUpdatesCardVisible]);
-
-  // Clear the flag if this unmounts while showing (e.g. sign-out), so the
-  // flag isn't left set. The pending entry is kept for a remount.
-  useEffect(() => {
-    return () => setUpdatesCardVisible(false);
-  }, [setUpdatesCardVisible]);
+  }, []);
 
   function close() {
     pendingEntry = null;
     setEntry(null);
-    setUpdatesCardVisible(false);
   }
 
   // Already on the Updates page: the card has nothing left to point at.
   useEffect(() => {
     if (pathname === "/patch-notes" && pendingEntry) close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   if (!entry) return null;

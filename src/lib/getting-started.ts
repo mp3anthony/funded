@@ -145,7 +145,7 @@ export const pageGuide: GuidePage[] = [
   {
     name: "Dashboard",
     description:
-      "Your Dashboard. Whether your bills are covered, Upcoming Bills, Savings Goals and Recent Activity at a glance.",
+      "Your Dashboard. Whether your bills are covered, your next manual bills and your Saving goals, one card at a time.",
   },
   {
     name: "Payday",

@@ -732,9 +732,6 @@ interface AppContextValue {
   /* Finish setting up card (#333): null = not loaded yet / load failed, so the card stays hidden */
   isFinishSetupDismissed: boolean | null;
   dismissFinishSetup: () => Promise<void>;
-  /* Updates card (#260) visibility, so docked surfaces can step aside */
-  isUpdatesCardVisible: boolean;
-  setUpdatesCardVisible: (visible: boolean) => void;
 
   /* Expenses (Issue #98, Slice 2 of 6; split logic added Slice 3 of 6) */
   expenses: Expense[];
@@ -1157,8 +1154,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [contributionRules, setContributionRules] = useState<ContributionRule[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toast, setToast] = useState<AppToast | null>(null);
-  // True while the Updates card (#260) is on screen; no Dashboard surface reads it since the tip strip moved to the top (R26).
-  const [isUpdatesCardVisible, setUpdatesCardVisible] = useState(false);
   const toastSeqRef = useRef(0);
   // Finish setting up card dismissal (#333), keyed by user id so a same-tab
   // account switch can't show the previous user's flag.
@@ -5215,8 +5210,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     dismissToast,
     isFinishSetupDismissed: finishSetup && finishSetup.userId === session?.user?.id ? finishSetup.dismissed : null,
     dismissFinishSetup,
-    isUpdatesCardVisible,
-    setUpdatesCardVisible,
     expenses,
     addExpense,
     updateExpense,

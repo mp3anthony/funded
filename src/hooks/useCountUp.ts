@@ -10,14 +10,13 @@ import { useEffect, useRef, useState } from "react";
    on mount, animating up from 0).
 
    Factored out here so goal amounts/percentages (Funds page, dashboard's
-   ActiveGoalsCard, GoalDetailSheet) can share the exact same feel without
+   goal carousel, GoalDetailSheet) can share the exact same feel without
    duplicating the tick logic.
 
    `animateOnMount` opts into the original tile behaviour (count
    up from 0 on first mount too) — appropriate for a single focal reveal
    like GoalDetailSheet's headline amount, which remounts fresh each time
-   the sheet opens. It defaults to false because for list rows (Funds page,
-   ActiveGoalsCard) animating every row from 0 on first mount reads as
+   the sheet opens. It defaults to false because for list rows (Funds page) animating every row from 0 on first mount reads as
    page-load choreography, which Operate-mode surfaces should avoid — there
    the first run just settles at the target, and only a later change (e.g.
    Add Amount) counts up/down from the previous value. */

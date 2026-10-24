@@ -1,0 +1,104 @@
+/**
+ * Which bills and goals the Dashboard carousels show (R27, #414).
+ *
+ * Deliberately has ZERO imports so `dashboardCarousels.test.mjs` can run it under plain
+ * `node --test` (sibling imports need a file extension there, which the app's bundler
+ * rejects). The goal helpers from `goalPace.ts` are therefore passed in as `deps`.
+ * Erasable TypeScript syntax only. Dates are "YYYY-MM-DD" strings.
+ */
+
+export const DASHBOARD_BILLS_MAX = 5;
+export const DASHBOARD_GOALS_MAX = 3;
+
+export interface CarouselBill {
+  id: string | number;
+  name: string;
+  status: string;
+  payment_type?: string | null;
+  is_paused?: boolean | null;
+  due_date?: string | null;
+  dueLabel?: string | null;
+}
+
+/**
+ * Manual, unpaid, not paused, no Paused / One-off label. Dated bills by due date (overdue
+ * first, oldest first), bills with no due date last (A to Z). At most 5. `todayYmd` is
+ * accepted for the caller's countdown and does not change the order (overdue sorts first
+ * by plain date order).
+ */
+export function dashboardBills<T extends CarouselBill>(bills: readonly T[], todayYmd?: string): T[] {
+  void todayYmd;
+  const day = (b: T) => (b.due_date && String(b.due_date).trim() ? String(b.due_date).slice(0, 10) : "");
+  return bills
+    .filter(
+      (b) =>
+        (b.payment_type ?? "").toLowerCase() !== "auto" &&
+        b.is_paused !== true &&
+        !b.dueLabel &&
+        b.status !== "Paid"
+    )
+    .sort((a, b) => {
+      const da = day(a);
+      const db = day(b);
+      if (!da && !db) return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      if (!da) return 1;
+      if (!db) return -1;
+      if (da !== db) return da < db ? -1 : 1;
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    })
+    .slice(0, DASHBOARD_BILLS_MAX);
+}
+
+export interface CarouselGoal {
+  id: string | number;
+  name?: string;
+  currentAmount: number;
+  targetAmount: number;
+  status?: string | null;
+}
+
+/** The `goalPace.ts` helpers this file needs, injected so it stays import-free. */
+export interface GoalDeps<G extends CarouselGoal, R, S> {
+  savingGoals: (funds: readonly G[]) => G[];
+  isReached: (g: G) => boolean;
+  sortByProgress: (goals: readonly G[]) => G[];
+  weeklyFromRules: (goalId: string | number, rules: readonly R[], schedules: readonly S[]) => number;
+}
+
+export interface DashboardGoal<G> {
+  goal: G;
+  /** Whole-percent progress, 0 to 100. */
+  percent: number;
+  /** "+$X a week" or "No contribution set". */
+  weeklyText: string;
+  hasContribution: boolean;
+}
+
+function dollars(n: number): string {
+  const r = Math.round(n * 100) / 100;
+  return `$${Number.isInteger(r) ? r : r.toFixed(2)}`;
+}
+
+/** Up to 3 Saving goals that are not Reached, most progress first, each with its weekly contribution text. */
+export function dashboardGoals<G extends CarouselGoal, R, S>(
+  funds: readonly G[],
+  rules: readonly R[],
+  schedules: readonly S[],
+  deps: GoalDeps<G, R, S>
+): DashboardGoal<G>[] {
+  const open = deps.savingGoals(funds).filter((g) => !deps.isReached(g));
+  return deps
+    .sortByProgress(open)
+    .slice(0, DASHBOARD_GOALS_MAX)
+    .map((goal) => {
+      const weekly = deps.weeklyFromRules(goal.id, rules, schedules);
+      const percent =
+        goal.targetAmount > 0 ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) : 0;
+      return {
+        goal,
+        percent,
+        weeklyText: weekly > 0 ? `+${dollars(weekly)} a week` : "No contribution set",
+        hasContribution: weekly > 0,
+      };
+    });
+}
