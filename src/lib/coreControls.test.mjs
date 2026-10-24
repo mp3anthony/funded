@@ -95,7 +95,6 @@ test("cn resolves radius tokens against rounded-full", () => {
 // Square-corner ratchet: only these files may still contain rounded-[2px].
 // Slices delete entries as they restyle a file; R35 empties the list.
 const SQUARE_ALLOWLIST = new Set([
-    "app/login/page.tsx",
     "components/SurplusSuggestionModal.tsx",
 ]);
 
