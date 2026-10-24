@@ -8,9 +8,11 @@ interface PayHistoryCardProps {
   history: PayHistory;
   onConfirmPending?: (history: PayHistory) => void;
   hideMemberInfo?: boolean;
+  /** The member's line colour on the history chart (R22): a dot before their name. */
+  dotColour?: string;
 }
 
-export default function PayHistoryCard({ history, onConfirmPending, hideMemberInfo }: PayHistoryCardProps) {
+export default function PayHistoryCard({ history, onConfirmPending, hideMemberInfo, dotColour }: PayHistoryCardProps) {
   const { householdMembers, deletePayHistory, funds, contributionRules } = useApp();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -96,7 +98,10 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
         {/* Top Row: Member & Amount */}
         {!hideMemberInfo ? (
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              {dotColour && (
+                <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dotColour }} />
+              )}
               <span className="truncate font-body font-semibold text-[15px] text-foreground">{memberName}</span>
             </div>
             <span className={`font-bold ${amountClass} text-base whitespace-nowrap`}>

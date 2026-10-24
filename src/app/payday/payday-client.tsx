@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
 import AddPayFlow from "@/components/AddPayFlow";
 import Carousel from "@/components/ui/Carousel";
@@ -13,7 +12,7 @@ import MemberPaySheet from "@/components/MemberPaySheet";
 import SuggestSplitPanel from "@/components/SuggestSplitPanel";
 import LogPayCard, { type LogTarget } from "@/components/LogPayCard";
 import NeedsYouStrip from "@/components/NeedsYouStrip";
-import PayHistoryCard from "@/components/PayHistoryCard";
+import PayHistorySection from "@/components/PayHistorySection";
 import SurplusSuggestionModal from "@/components/SurplusSuggestionModal";
 import PayScheduleDetailSheet from "@/components/PayScheduleDetailSheet";
 import PageHeader from "@/components/PageHeader";
@@ -53,13 +52,6 @@ export default function PaydayClient() {
     newPayAmount: number;
     surplusAmount: number;
   } | null>(null);
-
-  const [minimizedMembers, setMinimizedMembers] = useState<Record<string, boolean>>({});
-  const [selectedContributor, setSelectedContributor] = useState<string>("All");
-
-  const toggleMemberHistory = (memberId: string) => {
-    setMinimizedMembers(prev => ({ ...prev, [memberId]: !(prev[memberId] ?? true) }));
-  };
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
@@ -242,35 +234,6 @@ export default function PaydayClient() {
     setLogTarget({ kind: "confirm", history });
   };
 
-  // Filter FIRST (by selected contributor), then cap at 10, then group by member.
-  const groupedHistory = React.useMemo(() => {
-    const source = selectedContributor === "All"
-      ? payHistory
-      : payHistory.filter((h) => String(h.member_id) === String(selectedContributor));
-    const limited = source.slice(0, 10);
-    const groups: Record<string, PayHistory[]> = {};
-    limited.forEach((history) => {
-      const id = String(history.member_id);
-      if (!groups[id]) {
-        groups[id] = [];
-      }
-      groups[id].push(history);
-    });
-    return groups;
-  }, [payHistory, selectedContributor]);
-
-  // Dropdown options derived from the FULL payHistory (not the capped/grouped view).
-  const contributorOptions = React.useMemo(() => {
-    const uniqueIds = Array.from(new Set(payHistory.map((h) => String(h.member_id))));
-    return uniqueIds
-      .map((id) => householdMembers.find((m) => String(m.id) === id))
-      .filter((m): m is NonNullable<typeof m> => Boolean(m))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [payHistory, householdMembers]);
-
-  const visibleGroups = Object.entries(groupedHistory);
-  const isEmpty = visibleGroups.length === 0;
-
   // One card per member (R21, #408). Accepted members, plus anyone who already has pay.
   const cards = React.useMemo(() => memberCards(householdMembers, paySchedules), [householdMembers, paySchedules]);
   const acceptedCount = householdMembers.filter(isAcceptedMember).length;
@@ -327,129 +290,8 @@ export default function PaydayClient() {
         )}
       </div>
 
-      {/* Recent Pay History */}
-      <div>
-        <SectionHeader title="Recent Pay History" />
-
-        {payHistory.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-muted text-sm">No history logged yet.</p>
-            <p className="text-subtle text-xs mt-1 font-body">
-              Logged payday transactions will appear here.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Contributor filter — hairline underline select */}
-            <div className="px-1 mb-4 max-w-xs">
-              <div className="space-y-1.5">
-                <label htmlFor="contributor-filter" className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
-                  Contributor
-                </label>
-                <div className="relative">
-                  <select
-                    id="contributor-filter"
-                    value={selectedContributor}
-                    onChange={(e) => setSelectedContributor(e.target.value)}
-                    className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
-                  >
-                    <option value="All">All Contributors</option>
-                    {contributorOptions.map((m) => (
-                      <option key={String(m.id)} value={String(m.id)}>{m.name}</option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
-                    <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {isEmpty && selectedContributor !== "All" ? (
-              <div className="py-10 text-center">
-                <p className="text-muted text-sm">
-                  No pays logged for {householdMembers.find((m) => String(m.id) === String(selectedContributor))?.name || "this contributor"} yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {visibleGroups.map(([memberId, histories]) => {
-                  const member = householdMembers.find((m) => String(m.id) === String(memberId));
-                  const memberName = member ? member.name : "Unknown Member";
-                  // True means collapsed (minimized). Defaults to collapsed; force-expanded when filtered to one member.
-                  const isMinimized = selectedContributor === "All" ? (minimizedMembers[memberId] ?? true) : false;
-
-                  // Editorial subsection header: 13px label + count + lime fade-rule.
-                  const headerInner = (
-                    <>
-                      <span className="font-bold text-[13px] text-foreground shrink-0 group-hover:text-primary transition-colors">
-                        {memberName}&apos;s History
-                      </span>
-                      <span className="text-[11px] font-semibold text-subtle shrink-0">
-                        ({histories.length})
-                      </span>
-                      <span
-                        className="h-0.5 flex-1 rounded-sm"
-                        style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
-                      />
-                    </>
-                  );
-
-                  return (
-                    <div key={memberId} className="flex flex-col">
-                      {selectedContributor === "All" ? (
-                        <button
-                          onClick={() => toggleMemberHistory(memberId)}
-                          className="group flex items-center gap-3 w-full text-left px-1 focus:outline-none"
-                        >
-                          {headerInner}
-                          <ChevronDown
-                            className="h-4 w-4 text-subtle group-hover:text-foreground transition-transform duration-(--duration-structural) ease-(--ease-enter) shrink-0"
-                            style={{ transform: isMinimized ? "rotate(0deg)" : "rotate(180deg)" }}
-                          />
-                        </button>
-                      ) : (
-                        <div className="group flex items-center gap-3 w-full px-1">
-                          {headerInner}
-                        </div>
-                      )}
-
-                      {/* Content — expand/collapse via grid-template-rows
-                          (Slice 99), matching the dashboard's collapsible
-                          sections (HealthScoreCard/ActiveGoalsCard) so it
-                          grows/shrinks smoothly instead of popping in and
-                          out of the layout. */}
-                      <div
-                        className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
-                        style={{ gridTemplateRows: isMinimized ? "0fr" : "1fr" }}
-                      >
-                        <div
-                          className="overflow-hidden min-h-0"
-                          aria-hidden={isMinimized}
-                          inert={isMinimized ? true : undefined}
-                        >
-                          <div className="flex flex-col mt-1">
-                            {histories.map((history) => (
-                              <PayHistoryCard
-                                key={history.id}
-                                history={history}
-                                onConfirmPending={handleConfirmPendingClick}
-                                hideMemberInfo={true}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {/* History: chart and list (R22, #409) */}
+      <PayHistorySection todayYmd={todayYmd} onConfirmPending={handleConfirmPendingClick} />
 
       {/* A member's sheet (pay schedules, contribution, rules) */}
       <MemberPaySheet
