@@ -44,7 +44,6 @@ test("the old edit sheets are gone and nothing names them", () => {
     "app/payday/payday-client.tsx",
     "app/settings/settings-client.tsx",
     "components/AddPayFlow.tsx",
-    "components/RulesSettingsSheet.tsx",
     ...SHEETS,
     ...CARDS,
   ]) {
@@ -74,7 +73,7 @@ test("the sheets sit on DetailSheet and the cards on SingleCard, one Row per fie
 });
 
 test("no Edit button, native confirm or alert, square corner or useEffect in the new pieces", () => {
-  for (const rel of [...SHEETS, ...CARDS, "components/RulesSettingsSheet.tsx"]) {
+  for (const rel of [...SHEETS, ...CARDS]) {
     const raw = read(rel);
     const code = stripComments(raw);
     assert.ok(!/onEdit/.test(code), `${rel} must not take onEdit`);
@@ -180,9 +179,9 @@ test("callers hand the sheets the live item by id", () => {
   assert.ok(pay.includes("paySchedules.find(") && pay.includes("selectedScheduleId"));
 });
 
-test("the Settings rules list opens the rule sheet and keeps AddRuleFlow", () => {
-  const t = read("components/RulesSettingsSheet.tsx");
-  assert.ok(t.includes("<RuleDetailSheet") && t.includes("<AddRuleFlow") && t.includes("ruleRowText("));
+test("the Settings rules list is gone (R29): rules live in the goal and member sheets", () => {
+  assert.ok(!existsSync(join(SRC, "components/RulesSettingsSheet.tsx")));
+  assert.ok(read("components/AddRuleFlow.tsx").includes("/funds?add=1"), "no-goals line links to Add a goal");
 });
 
 test("the add flows reuse the shared canPickMember", () => {

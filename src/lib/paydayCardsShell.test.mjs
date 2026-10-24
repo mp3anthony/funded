@@ -67,7 +67,7 @@ test("Contribution amounts left Settings; Suggest Split is now the Compare split
   assert.ok(!existsSync(join(SRC, "components/ContributionSettingsSheet.tsx")));
   const settings = read("app/settings/settings-client.tsx");
   assert.ok(!settings.includes("Contribution amounts") && !settings.includes("ContributionSettingsSheet"));
-  assert.ok(settings.includes("Automation rules"));
+  assert.ok(!settings.includes("Automation rules"));
   assert.ok(!existsSync(join(SRC, "components/SuggestSplitPanel.tsx")));
   const sheet = read("components/SuggestSplitSheet.tsx");
   assert.ok(sheet.includes("export default function SuggestSplitSheet") && sheet.includes("computeMemberIncomes("));

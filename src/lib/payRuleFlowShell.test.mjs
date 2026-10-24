@@ -66,16 +66,6 @@ test("Payday page opens AddPayFlow and highlights the new schedule's member card
   assert.ok(!t.includes("AddPayScheduleSheet"), "the edit-only sheet is gone");
 });
 
-test("Rules sheet opens AddRuleFlow for new rules and RuleDetailSheet for the rest", () => {
-  const t = read("components/RulesSettingsSheet.tsx");
-  assert.ok(t.includes('import AddRuleFlow from "./AddRuleFlow"'));
-  assert.ok(t.includes('import RuleDetailSheet from "./RuleDetailSheet"'));
-  assert.ok(t.includes("busy={isAddOpen || activeRuleId !== null}"), "underlying sheet must ignore Escape while a layer is open");
-  assert.ok(t.includes("<RuleDetailSheet") && t.includes("<AddRuleFlow"));
-  assert.ok(!t.includes("addRule(") && !t.includes("confirm("), "adding lives in AddRuleFlow, deleting in RuleDetailSheet");
-  assert.ok(read("components/AddRuleFlow.tsx").includes("/funds?add=1"), "no-goals line links to Add a goal");
-});
-
 test("addPaySchedule and addRule return the id, updateRule throws, isOwner exists", () => {
   const t = read("context/AppContext.tsx");
   assert.ok(t.includes('"id" | "household_id" | "created_at">) => Promise<string>;'));

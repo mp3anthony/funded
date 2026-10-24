@@ -1,25 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   User,
-  Mail,
   Users,
   Check,
   Copy,
   RefreshCw,
-  Save,
-  Sun,
-  Moon,
-  Monitor,
+  Plus,
+  ChevronRight,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { supabase } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
-import PaymentModeToggle from "@/components/PaymentModeToggle";
-import RulesSettingsSheet from "@/components/RulesSettingsSheet";
+import PaymentModeSheet from "@/components/PaymentModeSheet";
 import BugReportSheet from "@/components/BugReportSheet";
 import PageHeader from "@/components/PageHeader";
 import AvatarUpload from "@/components/AvatarUpload";
@@ -29,12 +24,64 @@ import NotificationCenter from "@/components/NotificationCenter";
 import TimezoneDialog from "@/components/TimezoneDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
+import Card from "@/components/ui/Card";
+import Chip from "@/components/ui/Chip";
+import Button from "@/components/ui/Button";
+import IconCircle from "@/components/ui/IconCircle";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import SingleCard from "@/components/ui/SingleCard";
 import Field from "@/components/ui/Field";
 import Input from "@/components/ui/Input";
+import { cn } from "@/lib/utils";
 import { type Member } from "@/types";
 import { leaveModeFor, eligibleNewOwners, isAcceptedMember, isDeleteConfirmed } from "@/lib/householdLeave";
+
+/** Longest household name the box takes. */
+const HOUSEHOLD_NAME_MAX = 60;
+
+const THEME_OPTIONS: { value: "light" | "dark" | "system"; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+
+/* Issue #97 (Slice 9): per-user notify hour display label. */
+function formatNotifyHourLabel(hour: number): string {
+  const period = hour < 12 ? "AM" : "PM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:00 ${period}`;
+}
+
+/** Small read-only tag on a member row (Owner / Member / Pending). */
+function RolePill({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "primary" | "accent" }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+        tone === "primary" && "border-primary/30 bg-primary/10 text-primary",
+        tone === "accent" && "border-accent/30 bg-accent/10 text-accent",
+        tone === "neutral" && "border-border bg-surface-elevated text-muted"
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+/** Round avatar: photo, else initials. */
+function AvatarCircle({ url, name, initials, size }: { url?: string | null; name: string; initials: string; size: "md" | "lg" }) {
+  return (
+    <span
+      className={cn(
+        "shrink-0 overflow-hidden rounded-full flex items-center justify-center font-bold bg-surface-elevated text-muted",
+        size === "lg" ? "h-14 w-14 text-lg" : "h-9 w-9 text-[11px]"
+      )}
+    >
+      {url ? <img src={url} alt={name} className="h-full w-full object-cover" /> : initials}
+    </span>
+  );
+}
 
 /* ── Page Component ──────────────────────────── */
 export default function SettingsClient() {
@@ -42,13 +89,12 @@ export default function SettingsClient() {
   const {
     members,
     isJointFund,
-    updateHouseholdPaymentMode,
     householdTimezone,
     updateHouseholdTimezone,
-    contributionRules,
-    funds,
     householdName,
+    setHouseholdName,
     session,
+    showToast,
     updateMember,
     updateMemberAvatar,
     theme,
@@ -63,21 +109,17 @@ export default function SettingsClient() {
     deleteHousehold,
   } = useApp();
 
-  /* Payment mode confirm flow */
-  const [tempMode, setTempMode] = useState<boolean | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
-
   /* Reused sheets */
-  const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
 
   /* Inline editorial dialogs */
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showAppearanceDialog, setShowAppearanceDialog] = useState(false);
   const [showJoinCodeDialog, setShowJoinCodeDialog] = useState(false);
   const [showPaymentModeDialog, setShowPaymentModeDialog] = useState(false);
   const [showTimezoneDialog, setShowTimezoneDialog] = useState(false);
+  const [showNameCard, setShowNameCard] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
 
   /* Member management modals */
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
@@ -108,51 +150,45 @@ export default function SettingsClient() {
   }, [searchParams, pathname, router]);
 
   /* Derived display values */
-  const activeRulesCount = contributionRules.filter((r) => r.is_active).length;
-
   const currentMember = members.find(
     (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
   );
   const isCurrentUserOwner = currentMember?.role === "owner";
   const roleLabel = currentMember?.role === "owner" ? "Owner" : "Member";
 
-  /* Profile form */
+  /* Profile form: the nickname is the only editable field (the email is the login, read-only). */
+  const defaultName = session?.user?.user_metadata?.full_name || session?.user?.email?.split("@")[0] || "";
+  const savedName = currentMember ? currentMember.name : defaultName;
+  const profileEmail = currentMember?.email || session?.user?.email || "";
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
+  const isDirty = fullName.trim() !== "" && fullName.trim() !== savedName;
+  // Each time Profile opens (identity card or ?modal=profile), seed the box from the saved name
+  // and clear old messages (derived-state reset, no effect).
+  const [profileWasOpen, setProfileWasOpen] = useState(false);
+  if (showProfileModal !== profileWasOpen) {
+    setProfileWasOpen(showProfileModal);
+    if (showProfileModal) {
+      setFullName(savedName);
+      setProfileError(null);
+      setProfileSaved(false);
+    }
+  }
+
+  /* Join code dialog */
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (currentMember) {
-      setFullName(currentMember.name);
-      setEmail(currentMember.email);
-    } else if (session?.user) {
-      setFullName(session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "");
-      setEmail(session.user.email || "");
-    }
-  }, [currentMember, session]);
-
-  useEffect(() => {
-    if (currentMember) {
-      setIsDirty(fullName !== currentMember.name || email !== currentMember.email);
-    } else if (session?.user) {
-      const defaultName = session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "";
-      const defaultEmail = session.user.email || "";
-      setIsDirty(fullName !== defaultName || email !== defaultEmail);
-    }
-  }, [fullName, email, currentMember, session]);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   /* ── Handlers ──────────────────────────────── */
   async function handleProfileSave() {
     setProfileError(null);
     try {
       if (currentMember) {
-        await updateMember(currentMember.id, { name: fullName, email: email });
+        await updateMember(currentMember.id, { name: fullName.trim() });
       }
       setProfileSaved(true);
-      setIsDirty(false);
       setTimeout(() => setProfileSaved(false), 2000);
     } catch (err) {
       // updateMember rethrows (#251); it already logged, so just don't claim success.
@@ -161,16 +197,14 @@ export default function SettingsClient() {
     }
   }
 
-  function handleModeChangeClick(newMode: boolean) {
-    if (newMode === isJointFund) return;
-    setTempMode(newMode);
-    setShowPaymentModeDialog(false);
-    setShowConfirm(true);
+  function openNameCard() {
+    setNameDraft(householdName);
+    setShowNameCard(true);
   }
 
-  function handleCancelModeChange() {
-    setTempMode(null);
-    setShowConfirm(false);
+  function openJoinCodeDialog() {
+    setCodeError(null);
+    setShowJoinCodeDialog(true);
   }
 
   function handleCopyJoinCode() {
@@ -182,10 +216,14 @@ export default function SettingsClient() {
   }
 
   async function handleRegenerateCode() {
+    setCodeError(null);
+    setIsRegenerating(true);
     try {
       await regenerateJoinCode();
     } catch (err) {
-      alert((err as Error)?.message || "Failed to generate code.");
+      setCodeError((err as Error)?.message || "Failed to generate code.");
+    } finally {
+      setIsRegenerating(false);
     }
   }
 
@@ -224,110 +262,85 @@ export default function SettingsClient() {
     }
   }
 
-  const themeOptions: { value: "light" | "dark" | "system"; label: string; icon: React.ReactNode }[] = [
-    { value: "light", label: "Light", icon: <Sun className="h-[18px] w-[18px]" /> },
-    { value: "dark", label: "Dark", icon: <Moon className="h-[18px] w-[18px]" /> },
-    { value: "system", label: "System", icon: <Monitor className="h-[18px] w-[18px]" /> },
-  ];
-  const currentThemeLabel = theme.charAt(0).toUpperCase() + theme.slice(1);
-
-  /* Issue #97 (Slice 9): per-user notify hour display label. */
-  function formatNotifyHourLabel(hour: number): string {
-    const period = hour < 12 ? "AM" : "PM";
-    const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-    return `${displayHour}:00 ${period}`;
-  }
+  /* Notifications row: green dot + "Daily at 9:00 AM" when push is live, amber "Off" otherwise. */
+  const pushLive = Boolean(pushStatus?.hasLiveSubscription);
+  const pushKnown = pushStatus !== null;
 
   /* ── Render ────────────────────────────────── */
   return (
-    <div className="flex-1 w-full max-w-2xl mx-auto px-6 pt-4 pb-10 md:pt-6">
+    <div className="flex-1 w-full max-w-2xl mx-auto px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12">
       <PageHeader title="Settings" showAvatar={false} onBack={() => router.push("/")} />
 
-      {/* ── Identity anchor ─────────────────────── */}
-      <div className="flex items-center gap-4 pt-2 pb-8">
-        <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center font-bold text-lg text-primary-fg bg-gradient-to-br from-primary to-success">
-          {currentMember?.avatar_url ? (
-            <img src={currentMember.avatar_url} alt={currentMember.name} className="h-full w-full object-cover" />
-          ) : (
-            currentMember?.avatar || (currentMember?.name || fullName || "?").slice(0, 2).toUpperCase()
-          )}
-        </div>
-        <div className="min-w-0">
+      {/* ── Identity card ───────────────────────── */}
+      <Card onClick={() => setShowProfileModal(true)} className="flex items-center gap-4 p-4 mt-2 mb-8">
+        <AvatarCircle
+          size="lg"
+          url={currentMember?.avatar_url}
+          name={savedName || "You"}
+          initials={currentMember?.avatar || (savedName || "?").slice(0, 2).toUpperCase()}
+        />
+        <div className="min-w-0 flex-1">
           <h2 className="font-bold text-xl text-foreground truncate">
-            {currentMember?.name || fullName || "Your account"}
+            {savedName || "Your account"}
           </h2>
-          <div className="text-xs text-muted mt-1 tracking-wide truncate">
+          <div className="text-xs text-muted mt-1 truncate">
             {householdName || "Household"} · {roleLabel}
           </div>
         </div>
-      </div>
+        <ChevronRight className="h-[17px] w-[17px] shrink-0 text-subtle" aria-hidden="true" />
+      </Card>
 
-      {/* ── Account ─────────────────────────────── */}
+      {/* ── Preferences ─────────────────────────── */}
       <section className="pb-2">
-        <SectionHeader title="Account" />
-        <Row label="Profile & identity" chevron onClick={() => setShowProfileModal(true)} />
-      </section>
-
-      {/* ── App ─────────────────────────────────── */}
-      <section className="pt-6 pb-2">
-        <SectionHeader title="App" />
-        <Row label="Notifications" chevron onClick={() => setIsNotificationCenterOpen(true)}>
-          <span className="flex flex-col items-end gap-0.5">
-            <span className="text-[13px] text-muted">
-              {notificationSettings ? formatNotifyHourLabel(notificationSettings.notify_hour) : "—"}
-            </span>
-            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-subtle">
+        <SectionHeader title="Preferences" />
+        <Row label="Notifications" chevron tall onClick={() => setIsNotificationCenterOpen(true)}>
+          <span className="flex items-center gap-2 text-[13px] text-muted">
+            {pushKnown && (
               <span
-                className={`h-1.5 w-1.5 rounded-full ${pushStatus?.hasLiveSubscription ? "bg-success" : "bg-subtle"} transition-colors duration-(--duration-structural) ease-(--ease-enter)`}
+                aria-hidden="true"
+                className={cn(
+                  "h-2 w-2 rounded-full transition-colors duration-(--duration-structural) ease-(--ease-enter)",
+                  pushLive ? "bg-success" : "bg-accent"
+                )}
               />
-              {pushStatus?.hasLiveSubscription ? "Active" : "Inactive"}
-            </span>
+            )}
+            {!pushKnown || !notificationSettings
+              ? "—"
+              : pushLive
+                ? `Daily at ${formatNotifyHourLabel(notificationSettings.notify_hour)}`
+                : "Off, tap to turn on"}
           </span>
         </Row>
-        <Row
-          label="Appearance"
-          value={currentThemeLabel}
-          chevron
-          onClick={() => setShowAppearanceDialog(true)}
-        />
-      </section>
-
-      {/* ── Household ────────────────────────────── */}
-      <section className="pt-6 pb-2">
-        <SectionHeader title="Household" />
-        {isJointFund && (
-          <Row label="Automation rules" chevron onClick={() => setIsRulesOpen(true)}>
-            {activeRulesCount > 0 ? (
-              <span className="text-xs font-semibold text-primary">{activeRulesCount} active</span>
-            ) : (
-              <span className="text-[13px] text-muted">Off</span>
-            )}
-          </Row>
-        )}
-        <Row label="Join code" chevron onClick={() => setShowJoinCodeDialog(true)}>
-          {joinCode ? (
-            <span className="text-sm font-bold text-primary tracking-widest">{joinCode}</span>
-          ) : (
-            <span className="text-[13px] text-muted">None</span>
-          )}
-        </Row>
-        <Row
-          label="Payment mode"
-          value={isJointFund ? "Joint Fund" : "Direct Pay"}
-          chevron={isCurrentUserOwner}
-          onClick={isCurrentUserOwner ? () => setShowPaymentModeDialog(true) : undefined}
-        />
-        <Row
-          label="Timezone"
-          value={(householdTimezone || "Australia/Sydney").replace(/_/g, " ")}
-          chevron={isCurrentUserOwner}
-          onClick={isCurrentUserOwner ? () => setShowTimezoneDialog(true) : undefined}
-        />
+        <div className="py-2.5">
+          <div className="mb-2 text-[15px] text-foreground/85">Appearance</div>
+          <div className="grid grid-cols-3 gap-2" role="group" aria-label="Appearance">
+            {THEME_OPTIONS.map((opt) => (
+              <Chip
+                key={opt.value}
+                selected={theme === opt.value}
+                onClick={() => setTheme(opt.value)}
+                className="w-full justify-center px-2"
+              >
+                {opt.label}
+              </Chip>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── Members ──────────────────────────────── */}
       <section className="pt-6 pb-2">
-        <SectionHeader title="Members" count={members.length} />
+        <SectionHeader
+          title="Members"
+          count={members.length}
+          trailing={
+            isCurrentUserOwner ? (
+              <IconCircle label="Invite member" onClick={openJoinCodeDialog} className="-my-2.5">
+                <Plus size={18} aria-hidden="true" />
+              </IconCircle>
+            ) : undefined
+          }
+        />
         {members.map((member) => {
           const isCurrentUser =
             String(member.email).toLowerCase() === String(session?.user?.email).toLowerCase();
@@ -339,86 +352,83 @@ export default function SettingsClient() {
             <Row
               key={member.id}
               divider
+              tall
               chevron={canManage}
               onClick={canManage ? () => setMemberToEdit(member) : undefined}
               label={
                 <span className="flex items-center gap-3 min-w-0">
-                  <span className="h-9 w-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center text-[11px] font-bold bg-surface-elevated text-muted data-[owner=true]:bg-gradient-to-br data-[owner=true]:from-primary data-[owner=true]:to-success data-[owner=true]:text-primary-fg"
-                    data-owner={isOwner}
-                  >
-                    {member.avatar_url ? (
-                      <img src={member.avatar_url} alt={member.name} className="h-full w-full object-cover" />
-                    ) : (
-                      member.avatar
-                    )}
-                  </span>
-                  <span className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold text-foreground truncate">{member.name}</span>
-                    <span className="text-[10px] uppercase tracking-wider text-subtle mt-0.5">
-                      {isOwner ? "Owner" : "Member"}
-                      {member.invitation_status === "pending" ? " · Pending" : ""}
-                    </span>
-                  </span>
+                  <AvatarCircle size="md" url={member.avatar_url} name={member.name} initials={member.avatar} />
+                  <span className="text-sm font-semibold text-foreground truncate">{member.name}</span>
                 </span>
               }
-            />
+            >
+              <span className="flex items-center gap-1.5">
+                {member.invitation_status === "pending" && <RolePill label="Pending" tone="accent" />}
+                <RolePill label={isOwner ? "Owner" : "Member"} tone={isOwner ? "primary" : "neutral"} />
+              </span>
+            </Row>
           );
         })}
-        <button
-          type="button"
-          onClick={() => setShowJoinCodeDialog(true)}
-          className="w-full text-left py-3 text-[13px] font-semibold text-primary"
-        >
-          + Invite member
-        </button>
       </section>
 
-      {/* ── Updates + Getting started + Report an issue + Leave household + version ── */}
-      <section className="pt-8">
-        <Link
-          href="/patch-notes"
-          className="block w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
-        >
-          Updates
-        </Link>
-        <Link
-          href="/getting-started"
-          className="block w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
-        >
-          Getting started
-        </Link>
-        <button
-          type="button"
-          onClick={() => setIsBugReportOpen(true)}
-          className="w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
-        >
-          Report an issue
-        </button>
-        {/* Interim Log out row (R03, #390): the avatar menu is gone; R29 places this for good. */}
-        <button
-          type="button"
-          onClick={async () => {
-            await supabase.auth.signOut();
-            router.push("/login");
-          }}
-          className="w-full text-left py-3 min-h-[44px] border-t border-border text-sm font-medium text-primary"
-        >
-          Log out
-        </button>
-        <button
-          type="button"
-          onClick={openLeaveDialog}
-          className="w-full text-left py-3 min-h-[44px] border-t border-primary/20 text-sm font-medium text-destructive"
-        >
-          {leaveMode === "delete-only" ? "Delete household" : "Leave household"}
-        </button>
-        <div className="text-center pt-8 pb-2">
-          <span className="text-[10px] tracking-wider text-subtle/70">
-            funded. v{APP_VERSION}
-          </span>
-          <div className="text-[10px] text-subtle/50 mt-1">© 2026 HazardousSchematics.com</div>
-        </div>
+      {/* ── Household ────────────────────────────── */}
+      <section className="pt-6 pb-2">
+        <SectionHeader title="Household" />
+        <Row
+          label="Household name"
+          value={<span className="block max-w-[11rem] truncate">{householdName || "—"}</span>}
+          tall
+          chevron={isCurrentUserOwner}
+          onClick={isCurrentUserOwner ? openNameCard : undefined}
+        />
+        <Row
+          label="Payment mode"
+          value={isJointFund ? "Joint Fund" : "Direct Pay"}
+          tall
+          chevron={isCurrentUserOwner}
+          onClick={isCurrentUserOwner ? () => setShowPaymentModeDialog(true) : undefined}
+        />
+        <Row
+          label="Timezone"
+          value={(householdTimezone || "Australia/Sydney").replace(/_/g, " ")}
+          tall
+          chevron={isCurrentUserOwner}
+          onClick={isCurrentUserOwner ? () => setShowTimezoneDialog(true) : undefined}
+        />
+        {!isCurrentUserOwner && <p className="pt-1 text-xs text-subtle">Owner only: ask an owner to change these.</p>}
       </section>
+
+      {/* ── Help card: Updates, Getting started, Report an issue ── */}
+      <Card className="mt-6 px-4">
+        <Row label="Updates" value={`v${APP_VERSION}`} href="/patch-notes" chevron tall />
+        <Row label="Getting started" href="/getting-started" chevron tall divider />
+        <Row label="Report an issue" onClick={() => setIsBugReportOpen(true)} chevron tall divider />
+      </Card>
+
+      {/* ── Log out, then Leave household in its own red card ── */}
+      <Card
+        onClick={async () => {
+          try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            router.push("/login");
+          } catch (err) {
+            console.error("Log out failed:", err);
+            showToast({ message: "Couldn't log out. Check your connection and try again." });
+          }
+        }}
+        className="mt-6 flex min-h-11 items-center px-4 py-3 text-[15px] font-medium text-foreground"
+      >
+        Log out
+      </Card>
+      <Card
+        onClick={openLeaveDialog}
+        className="mt-10 flex min-h-11 items-center border-destructive/40 px-4 py-3 text-[15px] font-semibold text-destructive"
+      >
+        {leaveMode === "delete-only" ? "Delete household" : "Leave household"}
+      </Card>
+
+      <div className="pt-8 pb-2 text-center text-[10px] text-subtle/60">© 2026 HazardousSchematics.com</div>
 
       {/* ══════════════ Dialogs & sheets ══════════════ */}
 
@@ -444,9 +454,7 @@ export default function SettingsClient() {
                   <Check className="h-4 w-4" /> Saved
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5">
-                  <Save className="h-4 w-4" /> Save
-                </span>
+                "Save"
               )}
             </DialogButton>
           </>
@@ -466,81 +474,59 @@ export default function SettingsClient() {
             )}
           </div>
 
-          <div>
-            <label htmlFor="settings-name" className="block text-[11px] uppercase tracking-wider text-subtle mb-2">
-              Nickname
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-              <input
-                id="settings-name"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full pl-9 pr-3 py-3 rounded-xl bg-background border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-              />
-            </div>
-          </div>
+          <Field id="settings-name" label="Nickname">
+            <Input
+              id="settings-name"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </Field>
 
-          <div>
-            <label htmlFor="settings-email" className="block text-[11px] uppercase tracking-wider text-subtle mb-2">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted pointer-events-none" />
-              <input
-                id="settings-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3 py-3 rounded-xl bg-background border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all"
-              />
-            </div>
-          </div>
+          <Field
+            id="settings-email"
+            label="Email"
+            description="Your email is your login, so it can't be changed here."
+          >
+            <p id="settings-email" className="text-[15px] text-foreground break-all">
+              {profileEmail}
+            </p>
+          </Field>
         </div>
       </Dialog>
 
-      {/* Appearance */}
-      <Dialog
-        open={showAppearanceDialog}
-        onClose={() => setShowAppearanceDialog(false)}
-        title="Appearance"
-        icon={<Sun className="h-5 w-5 text-primary" />}
+      {/* Household name (owner-only; the Row above only opens this for owners) */}
+      <SingleCard
+        open={showNameCard}
+        onClose={() => setShowNameCard(false)}
+        title="Household name"
+        submitLabel="Save"
+        canSubmit={nameDraft.trim() !== "" && nameDraft.trim() !== householdName}
+        onSubmit={() => setHouseholdName(nameDraft)}
+        successToast="Household name updated"
+        showThrownMessage
       >
-        <div className="flex flex-col gap-2">
-          {themeOptions.map((opt) => {
-            const active = theme === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  setTheme(opt.value);
-                  setShowAppearanceDialog(false);
-                }}
-                className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl border transition-colors ${
-                  active
-                    ? "border-primary/60 bg-primary/10 text-foreground"
-                    : "border-border text-muted hover:text-foreground hover:bg-surface-raised"
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  {opt.icon}
-                  <span className="text-sm font-semibold">{opt.label}</span>
-                </span>
-                {active && <Check className="h-4 w-4 text-primary" />}
-              </button>
-            );
-          })}
-        </div>
-      </Dialog>
+        <Field id="household-name" label="Name">
+          <Input
+            id="household-name"
+            type="text"
+            value={nameDraft}
+            maxLength={HOUSEHOLD_NAME_MAX}
+            onChange={(e) => setNameDraft(e.target.value)}
+            autoComplete="off"
+            autoFocus
+          />
+        </Field>
+      </SingleCard>
 
-      {/* Join code */}
+      {/* Join code (opened by the owner "+" on Members) */}
       <Dialog
         open={showJoinCodeDialog}
         onClose={() => setShowJoinCodeDialog(false)}
         title="Join code"
         icon={<Users className="h-5 w-5 text-primary" />}
+        busy={isRegenerating}
+        error={codeError}
       >
         <div className="flex flex-col items-center gap-5">
           <p className="text-sm text-muted text-center">
@@ -548,7 +534,7 @@ export default function SettingsClient() {
           </p>
           {joinCode ? (
             <>
-              <div className="w-full flex items-center justify-center bg-background border border-border-strong rounded-xl py-4">
+              <div className="w-full flex items-center justify-center bg-background border border-border-strong rounded-card py-4">
                 <span className="text-2xl font-bold text-primary tracking-[0.3em]">{joinCode}</span>
               </div>
               {codeExpiresAt && (
@@ -557,93 +543,29 @@ export default function SettingsClient() {
                 </div>
               )}
               <div className="flex gap-3 w-full">
-                <button
-                  type="button"
-                  onClick={handleCopyJoinCode}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-colors ${
-                    copied
-                      ? "border-success/40 bg-success/10 text-success"
-                      : "border-border-strong text-muted hover:text-foreground hover:bg-surface-raised"
-                  }`}
-                >
+                <Button variant="ghost" onClick={handleCopyJoinCode} className="flex-1">
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? "Copied" : "Copy"}
-                </button>
+                </Button>
                 {isCurrentUserOwner && (
-                  <button
-                    type="button"
-                    onClick={handleRegenerateCode}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-border-strong text-muted hover:text-foreground hover:bg-surface-raised text-sm font-bold transition-colors"
-                  >
-                    <RefreshCw className="h-4 w-4" /> New code
-                  </button>
+                  <Button variant="ghost" onClick={handleRegenerateCode} disabled={isRegenerating} className="flex-1">
+                    <RefreshCw className="h-4 w-4" /> {isRegenerating ? "Working…" : "New code"}
+                  </Button>
                 )}
               </div>
             </>
           ) : isCurrentUserOwner ? (
-            <button
-              type="button"
-              onClick={handleRegenerateCode}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-fg text-sm font-bold hover:brightness-110 active:scale-95 transition-all"
-            >
-              <RefreshCw className="h-4 w-4" /> Generate code
-            </button>
+            <Button fullWidth onClick={handleRegenerateCode} disabled={isRegenerating}>
+              <RefreshCw className="h-4 w-4" /> {isRegenerating ? "Working…" : "Generate code"}
+            </Button>
           ) : (
             <p className="text-sm text-muted text-center">Ask an owner for a code.</p>
           )}
         </div>
       </Dialog>
 
-      {/* Payment mode */}
-      <Dialog
-        open={showPaymentModeDialog}
-        onClose={() => setShowPaymentModeDialog(false)}
-        title="Payment mode"
-        icon={<Users className="h-5 w-5 text-primary" />}
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-muted">
-            Currently <span className="text-foreground font-semibold">{isJointFund ? "Joint Fund" : "Direct Pay"}</span>. Switching resets every bill&apos;s contributor splits.
-          </p>
-          <div className="flex justify-center py-2">
-            <PaymentModeToggle
-              currentMode={tempMode !== null ? tempMode : isJointFund}
-              onModeChange={handleModeChangeClick}
-              compact={false}
-            />
-          </div>
-        </div>
-      </Dialog>
-
-      {/* Payment mode change confirmation (R13: ConfirmDialog) */}
-      <ConfirmDialog
-        open={showConfirm}
-        title="Switch payment mode?"
-        confirmLabel="Switch"
-        showThrownMessage
-        successToast="Payment mode changed"
-        errorMessage="Failed to update payment mode. Please try again."
-        onConfirm={async () => {
-          // tempMode stays set until onDone/cancel so the text does not flip mid-save.
-          if (tempMode !== null) await updateHouseholdPaymentMode(tempMode);
-        }}
-        onDone={() => {
-          setTempMode(null);
-          setShowConfirm(false);
-        }}
-        onCancel={handleCancelModeChange}
-        message={
-          <div className="flex flex-col gap-3">
-            <div className="text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
-            <p>
-              Switching to <span className="text-primary font-semibold">{tempMode ? "Joint Fund" : "Direct Pay"}</span> will reset every bill&apos;s contributor splits.
-            </p>
-            <p className="text-xs leading-relaxed text-muted">
-              You&apos;ll need to reconfigure who pays what. This can&apos;t be undone.
-            </p>
-          </div>
-        }
-      />
+      {/* Payment mode (owner-only): two cards, warning and red pill appear on picking the other */}
+      <PaymentModeSheet open={showPaymentModeDialog} onClose={() => setShowPaymentModeDialog(false)} />
 
       {/* Leave household (#251): regular member, or owner while another owner remains */}
       <ConfirmDialog
@@ -812,13 +734,6 @@ export default function SettingsClient() {
         onClose={() => setMemberToEdit(null)}
         member={memberToEdit}
         onRemoveTrigger={(m) => setMemberToRemove(m)}
-      />
-      <RulesSettingsSheet
-        isOpen={isRulesOpen}
-        onClose={() => setIsRulesOpen(false)}
-        householdMembers={members}
-        rules={contributionRules}
-        goals={funds}
       />
       <BugReportSheet
         isOpen={isBugReportOpen}

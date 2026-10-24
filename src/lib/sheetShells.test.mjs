@@ -115,7 +115,8 @@ test("R13 pop-ups sit on the shells", () => {
   assert.ok(read("components/RemoveMemberModal.tsx").includes("ConfirmDialog"));
   const sc = read("app/settings/settings-client.tsx");
   assert.ok(!sc.includes("LeaveError"));
-  assert.ok((sc.match(/<ConfirmDialog/g) ?? []).length >= 3);
+  assert.ok((sc.match(/<ConfirmDialog/g) ?? []).length >= 2);
+  assert.ok(read("components/PaymentModeSheet.tsx").includes("useSheetSave("), "Switch payment mode saves through the shared hook");
   const js = read("components/JoinHouseholdSheet.tsx");
   assert.ok(js.includes("busy=") && !js.includes("animate-bounce"));
   assert.ok(read("components/EmailVerifiedModal.tsx").includes('placement="confirm"'));

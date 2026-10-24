@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,8 @@ interface RowProps {
    *  settings sections separate rows with whitespace, not borders. */
   divider?: boolean;
   onClick?: () => void;
+  /** Navigational row: renders a real link (same look as a tappable row). Wins over onClick. */
+  href?: string;
   /** Taller tap target (44px) for tappable rows inside pop-ups. */
   tall?: boolean;
   className?: string;
@@ -36,10 +39,11 @@ export default function Row({
   chevron,
   divider,
   onClick,
+  href,
   tall,
   className,
 }: RowProps) {
-  const interactive = typeof onClick === "function";
+  const interactive = typeof onClick === "function" || typeof href === "string";
 
   const content = (
     <>
@@ -61,6 +65,14 @@ export default function Row({
     tall && interactive && "min-h-11",
     className
   );
+
+  if (typeof href === "string") {
+    return (
+      <Link href={href} className={cn(base, "text-left press-tint")}>
+        {content}
+      </Link>
+    );
+  }
 
   if (interactive) {
     return (

@@ -53,7 +53,7 @@ export const missions: GuideMission[] = [
     title: "Invite someone with a join code",
     steps: [
       "Open Settings: tap your avatar at the top right.",
-      "Tap Join code, or + Invite member under Members.",
+      "Under Members, tap the + at the right of the heading (owners only).",
       "Share the six-character code. It lasts 24 hours. If it runs out, tap New code.",
     ],
     note: "Living solo? Skip this one.",
@@ -165,7 +165,7 @@ export const pageGuide: GuidePage[] = [
   {
     name: "Settings",
     description:
-      "Tap your avatar at the top right. Profile, notifications, appearance, household settings, members, the join code and Log out.",
+      "Tap your avatar at the top right. Your profile, notifications, appearance, members, household settings, Updates, Report an issue, Log out and Leave household.",
   },
   {
     name: "Bell",

@@ -18,9 +18,13 @@ _Avoid_: User (for a person in a household), roommate, partner
 A member with owner rights. The person who created the household starts as the owner, and owners can make other accepted members owners, or demote them, so a household can have several owners, but the last remaining owner cannot demote themselves (make someone else an owner first). Owners manage other members, choose the household timezone, and are the only ones who can delete the household.
 _Avoid_: Admin, host, creator
 
+**Household name**:
+The name the household shows in Settings and on the identity card. Owners change it from Settings > Household > Household name (blank names are refused; the database allows only owners).
+_Avoid_: Family name, group name
+
 **Join code**:
 The temporary six-digit code an existing member shares so someone else can join the household. It expires and can be regenerated.
-Any member can view and copy it; only owners can change it. Only owners also change the household name, payment mode and timezone (the database enforces this, R28 #415).
+Any member can view and copy it; only owners can change it, and only owners see the "+" on Members that opens it. Only owners also change the household name, payment mode and timezone (the database enforces this, R28 #415).
 _Avoid_: Invite link, invite code, PIN, password
 
 **Onboarding**:

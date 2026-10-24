@@ -702,7 +702,7 @@ interface AppContextValue {
   isOnboarded: boolean;
   completeOnboarding: () => void;
   householdName: string;
-  setHouseholdName: (name: string, userId?: string | null) => void;
+  setHouseholdName: (name: string) => Promise<void>;
   createHousehold: (name: string) => Promise<string>;
   isJointFund: boolean;
   updateHouseholdPaymentMode: (isJointFund: boolean) => Promise<void>;
@@ -2068,7 +2068,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function setHouseholdName(name: string) {
+  async function setHouseholdName(rawName: string) {
+    const name = rawName.trim();
+    if (!name) throw new Error("Household name can't be empty.");
     const previousName = householdName;
     setHouseholdNameState(name);
     try {
@@ -2084,6 +2086,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     } catch (err) {
       setHouseholdNameState(previousName);
       console.error("Failed to update household name:", err);
+      throw err;
     }
   }
 
