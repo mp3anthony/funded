@@ -3362,13 +3362,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // The goal's rules go in one statement right after it (#440), so a failure part-way
       // cannot leave some of them behind. A failure here is logged only: the goal is gone,
       // and a rule pointing at nothing moves no money.
-      const { error: ruleError } = await supabase
+      const { data: removed, error: ruleError } = await supabase
         .from("contribution_rules")
         .delete()
         .eq("action_type", "goal")
-        .eq("action_target_id", String(id));
+        .eq("action_target_id", String(id))
+        .select();
       if (ruleError) console.error("Failed to delete rules of deleted goal:", ruleError);
-      else setContributionRules((prev) => prev.filter((r) => !(r.action_type === "goal" && String(r.action_target_id) === String(id))));
+      else if (removed && removed.length > 0) setContributionRules((prev) => prev.filter((r) => !(r.action_type === "goal" && String(r.action_target_id) === String(id))));
     } catch (err) {
       console.error("Failed to delete goal:", err);
       throw err;

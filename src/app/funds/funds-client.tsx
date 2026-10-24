@@ -178,7 +178,10 @@ export default function FundsClient() {
 
   const saving = useMemo(() => savingGoals(funds), [funds]);
   const listedSaving = useMemo(
-    () => saving.filter((f) => !filterActive || (f.category || "Other") === categoryFilter),
+    () =>
+      saving.filter(
+        (f) => !filterActive || (f.category === "Wish List" ? "Other" : f.category || "Other") === categoryFilter,
+      ),
     [saving, filterActive, categoryFilter],
   );
   // The Wish list is its own group (Kind is the only switch), so the category Filter does not apply to it.
@@ -192,7 +195,8 @@ export default function FundsClient() {
   const groupedSaving = useMemo(() => {
     const groups: Record<string, Fund[]> = {};
     listedSaving.forEach((fund) => {
-      const cat = fund.category || "Other";
+      // A retired "Wish List" category on an old Saving row reads as Other until its data is updated.
+      const cat = !fund.category || fund.category === "Wish List" ? "Other" : fund.category;
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(fund);
     });
