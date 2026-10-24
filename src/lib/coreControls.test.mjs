@@ -97,7 +97,6 @@ test("cn resolves radius tokens against rounded-full", () => {
 const SQUARE_ALLOWLIST = new Set([
     "app/login/page.tsx",
     "components/ContributionSettingsSheet.tsx",
-    "components/EnterPayAmountModal.tsx",
     "components/FinishSetupCard.tsx",
     "components/Onboarding.tsx",
     "components/OnboardingStep.tsx",

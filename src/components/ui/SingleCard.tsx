@@ -21,8 +21,15 @@ interface SingleCardProps {
   errorMessage?: string;
   /** Show the thrown error's own message (server messages). */
   showThrownMessage?: boolean;
-  /** Ghost pill under the main one: "Different amount", "Didn't get paid", "Skip". */
-  secondaryAction?: { label: string; onClick: () => void };
+  /** Ghost pill(s) under the main one: "Different amount", "Didn't get paid", "Skip". An array stacks several. */
+  secondaryAction?: SecondaryAction | SecondaryAction[];
+  /** Lock the card (no Escape or backdrop close) while something stacked on top of it is saving. */
+  busy?: boolean;
+}
+
+interface SecondaryAction {
+  label: string;
+  onClick: () => void;
 }
 
 /**
@@ -41,6 +48,7 @@ export default function SingleCard({
   errorMessage,
   showThrownMessage,
   secondaryAction,
+  busy = false,
 }: SingleCardProps) {
   const formId = useId();
   const { status, error, run, reset } = useSheetSave({
@@ -58,6 +66,11 @@ export default function SingleCard({
   }
 
   const saving = status === "saving";
+  const secondary = secondaryAction
+    ? Array.isArray(secondaryAction)
+      ? secondaryAction
+      : [secondaryAction]
+    : [];
 
   return (
     <Dialog
@@ -65,7 +78,7 @@ export default function SingleCard({
       onClose={onClose}
       title={title}
       placement="bottom"
-      busy={saving}
+      busy={saving || busy}
       error={error}
       footer={
         <div className="flex w-full flex-col gap-2">
@@ -77,16 +90,17 @@ export default function SingleCard({
           >
             {primaryPillLabel(status, submitLabel)}
           </Button>
-          {secondaryAction && (
+          {secondary.map((action) => (
             <Button
+              key={action.label}
               variant="ghost"
               fullWidth
               disabled={saving}
-              onClick={secondaryAction.onClick}
+              onClick={action.onClick}
             >
-              {secondaryAction.label}
+              {action.label}
             </Button>
-          )}
+          ))}
         </div>
       }
     >

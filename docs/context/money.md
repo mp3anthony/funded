@@ -96,17 +96,21 @@ A member's recurring pay, with a next pay date, a frequency, and either a fixed 
 _Avoid_: Income source, pay plan, salary
 
 **Log Pay**:
-Recording that a scheduled pay has arrived, once its pay date has come. For variable pay the action reads "Enter Pay Amount" because the amount is typed in.
+Recording that a scheduled pay has arrived, once its pay date has come. Built in R20 (#407): the pay shows in the Payday "Needs you" strip ("Log pay" for fixed pay, "Enter amount" for variable); tapping it opens one small card. A known amount asks "Did $1,850 land?" with the pill "Yes, it landed", plus "Different amount" (swaps the card to an Amount box and optional Notes) and "Didn't get paid". With no known amount the card asks "How much did <name> get?". Anyone in the household can log anyone's pay. The date logged is today in the household timezone.
 _Avoid_: Add income, record pay, deposit
 
 **Pending pay**:
 A pay the app logged automatically because its date passed without anyone logging it, waiting for a member to confirm or correct the amount.
-Built in R19 (#406): a Pending pay is added to history only once its pay day has ended unlogged (logging on the day writes straight to history), by the Payday page on load and by the reminder cron even if nobody opens the app. A fixed-pay Pending is prefilled with the schedule amount; a variable-pay Pending has no amount (`pay_history.amount` is NULL, shown as "Amount needed"; only a Pending pay may have a NULL amount). Tapping it opens the confirm pop-up, and a daily notification repeats until it is confirmed. Deleting the newest pay of a schedule rolls its next pay date back; deleting an older one does not. Pending pays sitting in the Payday "Needs you" strip is still planned (R20 to R24).
+Built in R19 (#406): a Pending pay is added to history only once its pay day has ended unlogged (logging on the day writes straight to history), by the Payday page on load and by the reminder cron even if nobody opens the app. A fixed-pay Pending is prefilled with the schedule amount; a variable-pay Pending has no amount (`pay_history.amount` is NULL, shown as "Amount needed"; only a Pending pay may have a NULL amount). A Pending pay sits in the Payday "Needs you" strip (R20, #407) with a "Confirm" pill that opens the same card as Log Pay ("Did $1,850 land?", or an Amount box when there is no amount), and a daily notification repeats until it is confirmed. Confirming a Pending pay does not run contribution rules or the surplus suggestion (follow-up filed). Deleting the newest pay of a schedule rolls its next pay date back; deleting an older one does not.
 _Avoid_: Unconfirmed income, draft pay, missed pay
 
-**Needs you** (planned, #377):
-The strip at the top of Payday, shown only when something needs action: a pay whose date has come (Log Pay / Enter Pay Amount) or a Pending pay to confirm. Most urgent first, hidden when empty.
+**Needs you** (built in R20, #407):
+The strip at the top of Payday, shown only when something needs action: a pay whose date has come (Log pay / Enter amount) or a Pending pay to confirm. Oldest pay date first, a Pending pay before a due pay on the same day, hidden when empty. Shows every member's pay, not only the viewer's. Rules live in `src/lib/needsYou.ts`.
 _Avoid_: Inbox, to-do
+
+**Didn't get paid** (built in R20, #407):
+The ghost pill on the Log / Confirm Pay card, for a pay that did not arrive. It asks "Skip this pay?" (red pill "Skip pay"), then toasts "Pay skipped". Skipping a due pay moves the schedule on to its next date and logs nothing. Skipping a Pending pay deletes that row and leaves the schedule date alone, so the reminder job cannot recreate it. Nothing is kept as a "skipped" record: it is not in history and not in the average pay.
+_Avoid_: Cancel pay, missed pay, void
 
 **Average pay** (built in R19, #406; display planned):
 For a variable-pay schedule (per schedule, not per member), the average of its last 4 confirmed pays, ignoring Pending pays; needs at least 2 confirmed, else "Not enough pays yet". Rule lives in `src/lib/payHistory.ts` (`averagePay`). The "Estimate from your last 4 pays" display is still planned. Replaced the old last-3-pays rule, which counted Pending $0 rows.

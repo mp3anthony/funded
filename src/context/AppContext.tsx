@@ -775,7 +775,12 @@ interface AppContextValue {
   updatePaySchedule: (id: string, data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
   deletePaySchedule: (id: string) => Promise<void>;
   logPay: (payScheduleId: string, amount: number, date: string, notes: string | null, status?: 'pending' | 'confirmed') => Promise<PayHistory | null>;
+  /** Throws when the save fails (R20, #407). */
   confirmAndUpdatePay: (historyId: string, newAmount: number, notes?: string | null) => Promise<void>;
+  /** "Didn't get paid" on a due pay: moves the schedule to its next date and logs nothing. Throws on failure. */
+  skipDuePay: (payScheduleId: string) => Promise<void>;
+  /** "Didn't get paid" on a Pending pay: deletes that row only, leaving the schedule date alone. Throws on failure. */
+  skipPendingPay: (historyId: string) => Promise<void>;
   autoLogMissedPays: () => Promise<void>;
   deletePayHistory: (id: string) => Promise<void>;
   /** Average of that schedule's last 4 confirmed pays; null with fewer than 2 (R19, #406). */
@@ -4415,7 +4420,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("confirmAndUpdatePay - failed to update pay history:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -4425,6 +4430,52 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to confirm and update pay:", err);
+      throw err;
+    }
+  }
+
+  async function skipDuePay(payScheduleId: string) {
+    try {
+      const schedule = paySchedules.find((s) => String(s.id) === String(payScheduleId));
+      if (!schedule) throw new Error("Pay schedule not found");
+      const next = nextPayDateAfterLog(schedule.next_pay_date, schedule.frequency);
+
+      // Conditional on the date we saw, like the auto-log claim: if another
+      // phone already moved it on, skipping again would jump a second cycle.
+      const { data, error } = await supabase
+        .from("pay_schedules")
+        .update({ next_pay_date: next })
+        .eq("id", schedule.id)
+        .eq("next_pay_date", schedule.next_pay_date)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
+      }
+      setPaySchedules((prev) => prev.map((s) => (s.id === schedule.id ? data[0] : s)));
+    } catch (err) {
+      console.error("Failed to skip pay:", err);
+      throw err;
+    }
+  }
+
+  async function skipPendingPay(historyId: string) {
+    try {
+      // Delete the row only. The schedule date stays where it is, so the cron cannot make this pay again.
+      const { data, error } = await supabase
+        .from("pay_history")
+        .delete()
+        .eq("id", historyId)
+        .eq("status", "pending")
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
+      }
+      setPayHistory((prev) => prev.filter((h) => h.id !== historyId));
+    } catch (err) {
+      console.error("Failed to skip pending pay:", err);
+      throw err;
     }
   }
 
@@ -5196,6 +5247,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     deletePaySchedule,
     logPay,
     confirmAndUpdatePay,
+    skipDuePay,
+    skipPendingPay,
     autoLogMissedPays,
     deletePayHistory,
     calculateAveragePay,

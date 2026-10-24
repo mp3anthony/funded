@@ -27,7 +27,7 @@ test("payday-client logs in household time and averages per schedule before logg
   const t = stripComments(read("app/payday/payday-client.tsx"));
   assert.ok(!t.includes("toISOString().split"));
   assert.ok(t.includes("todayInZone("));
-  assert.ok(t.includes("calculateAveragePay(String(activeVariableSchedule.id))"));
+  assert.ok(t.includes("calculateAveragePay(String(schedule.id))"));
   assert.ok(t.indexOf("calculateAveragePay(") < t.indexOf("await logPay("));
 });
 

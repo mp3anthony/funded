@@ -164,7 +164,7 @@ test("addToGoal and deleteRule throw instead of swallowing", () => {
 
 test("the surplus allocation tells the person when it fails", () => {
   const t = read("app/payday/payday-client.tsx");
-  assert.ok(fnBody(t, "const handleAllocateSurplus", "setSurplusInfo(null)").includes("alert("));
+  assert.ok(fnBody(t, "const handleAllocateSurplus", "setSurplusInfo(null)").includes("showToast("));
 });
 
 test("callers hand the sheets the live item by id", () => {
