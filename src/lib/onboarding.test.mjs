@@ -12,9 +12,9 @@ import {
   summaryCell,
 } from './onboarding.ts';
 
-test('wizard has 6 steps and skips payday, bill, goal', () => {
-  assert.equal(TOTAL_STEPS, 6);
-  assert.deepEqual([...SKIPPABLE_STEPS], [3, 4, 5]);
+test('wizard tail has 4 steps and skips payday, bill, goal', () => {
+  assert.equal(TOTAL_STEPS, 4);
+  assert.deepEqual([...SKIPPABLE_STEPS], [1, 2, 3]);
 });
 
 test('payday: date required', () => {
@@ -49,23 +49,22 @@ test('goal: name and target above zero', () => {
   assert.equal(isGoalValid({ name: 'Holiday', target: '' }), false);
 });
 
-test('footer: no Back on step 1, no Skip on required steps', () => {
+test('footer: no Back on step 1, Back on later steps', () => {
   assert.equal(footerFor(1, { saved: false }).showBack, false);
-  assert.equal(footerFor(1, { saved: false }).showSkip, false);
   assert.equal(footerFor(2, { saved: false }).showBack, true);
-  assert.equal(footerFor(2, { saved: false }).showSkip, false);
+  assert.equal(footerFor(3, { saved: false }).showBack, true);
 });
 
-test('footer: Skip only on unsaved steps 3 to 5', () => {
-  for (const step of [3, 4, 5]) {
+test('footer: Skip only on unsaved steps 1 to 3', () => {
+  for (const step of [1, 2, 3]) {
     assert.equal(footerFor(step, { saved: false }).showSkip, true);
     assert.equal(footerFor(step, { saved: true }).showSkip, false);
     assert.equal(footerFor(step, { saved: false }).primary, 'next');
   }
 });
 
-test('footer: step 6 is Enter App with no Back or Skip', () => {
-  assert.deepEqual(footerFor(6, { saved: true }), { showBack: false, showSkip: false, primary: 'enter' });
+test('footer: last step is Enter App with no Back or Skip', () => {
+  assert.deepEqual(footerFor(4, { saved: true }), { showBack: false, showSkip: false, primary: 'enter' });
 });
 
 test('summary cell: skipped, variable, amount', () => {

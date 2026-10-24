@@ -1,24 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp, useCurrentUser } from "@/context/AppContext";
 import { supabase } from "@/lib/supabase";
-import {
-  Home,
-  Calendar,
-  Receipt,
-  Sparkles,
-  ArrowRight,
-  ArrowLeft,
-  Check,
-  Wallet,
-  Building2,
-  Target,
-} from "lucide-react";
-import Logo from "./Logo";
+import { Calendar, Receipt, ArrowRight, ArrowLeft, Check, Target } from "lucide-react";
 import JoinHouseholdSheet from "./JoinHouseholdSheet";
 import OnboardingStep from "./OnboardingStep";
+import OnboardingWelcome from "./OnboardingWelcome";
+import OnboardingCreateFlow from "./OnboardingCreateFlow";
 import {
   TOTAL_STEPS,
   isPaydayValid,
@@ -39,24 +29,6 @@ const labelClass =
   "block text-xs font-semibold tracking-wider uppercase text-subtle";
 const fieldsetClass = "space-y-4 min-w-0 border-0 p-0 m-0";
 
-/* Plain-language "why we ask" copy for the two required steps. */
-const HOUSEHOLD_WHY = (
-  <p>A household is where your bills, pay and goals live. You can invite others to it later with a join code.</p>
-);
-const PAYMENT_MODE_WHY = (
-  <>
-    <p>
-      <span className="font-bold text-foreground">Direct Pay:</span> no shared account; each person pays their share of
-      each bill directly. Suits flatmates or couples with separate money.
-    </p>
-    <p>
-      <span className="font-bold text-foreground">Joint Fund:</span> everyone puts money into one shared account and
-      bills are paid from it. Suits households with a joint account.
-    </p>
-    <p>You can change this later in Settings.</p>
-  </>
-);
-
 function money(n: number) {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -76,36 +48,29 @@ function SavedNote({ where }: { where: string }) {
 }
 
 export default function Onboarding() {
-  const {
-    addPaySchedule,
-    addBill,
-    addFund,
-    completeOnboarding,
-    createHousehold,
-    updateHouseholdPaymentMode,
-  } = useApp();
+  const { addPaySchedule, addBill, addFund, completeOnboarding, createHousehold, householdName, isJointFund } = useApp();
   const currentUser = useCurrentUser();
   const router = useRouter();
 
+  // Welcome and the create flow come first; the tail (payday, bill, goal, done)
+  // only starts once the household exists.
+  const [phase, setPhase] = useState<"welcome" | "create" | "tail">("welcome");
   const [currentStep, setCurrentStep] = useState(1);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
-
-  /* Step 1 — Household */
-  const [localHouseholdName, setLocalHouseholdName] = useState("");
-  const [flowMode, setFlowMode] = useState<"choose" | "create">("choose");
   const [isJoinSheetOpen, setIsJoinSheetOpen] = useState(false);
-  // True once createHousehold succeeded. Guards Back then Next from calling it
-  // again: re-creating would take createHousehold's adopt-existing path, which
+  // True once createHousehold succeeded. Guards against calling it a second
+  // time: re-creating would take createHousehold's adopt-existing path, which
   // flips isOnboarded and unmounts the wizard mid-flow.
-  const [householdCreated, setHouseholdCreated] = useState(false);
+  const householdCreatedRef = useRef(false);
 
-  /* Step 2 — Payment Mode */
-  const [paymentMode, setPaymentMode] = useState(false); // false = Direct Pay, true = Joint Fund
+  async function createFromFlow(name: string, jointFund: boolean) {
+    if (householdCreatedRef.current) return;
+    await createHousehold(name, jointFund);
+    householdCreatedRef.current = true;
+  }
 
-  /* Step 3 — Payday */
+  /* Step 1 — Payday */
   const [paydayDate, setPaydayDate] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payFrequency, setPayFrequency] = useState<"weekly" | "fortnightly" | "monthly">("monthly");
@@ -114,7 +79,7 @@ export default function Onboarding() {
   // Omitted here on purpose — at this point in onboarding the current user
   // is the only household member, so member stays implicit as currentUser.id.
 
-  /* Step 4 — First Bill (name, amount, frequency, due date only) */
+  /* Step 2 — First Bill (name, amount, frequency, due date only) */
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billFrequency, setBillFrequency] = useState("monthly");
@@ -124,7 +89,7 @@ export default function Onboarding() {
   // All omitted on purpose — confusing on day one, editable later. Saved as
   // category "Other", Manual, assignee currentUser.id, no splits.
 
-  /* Step 5 — First Goal */
+  /* Step 3 — First Goal */
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
 
@@ -138,11 +103,11 @@ export default function Onboarding() {
   }>({ payday: null, bill: null, goal: null });
 
   const stepSaved =
-    currentStep === 3
+    currentStep === 1
       ? saved.payday !== null
-      : currentStep === 4
+      : currentStep === 2
         ? saved.bill !== null
-        : currentStep === 5
+        : currentStep === 3
           ? saved.goal !== null
           : false;
 
@@ -153,35 +118,7 @@ export default function Onboarding() {
   }
 
   async function handleNext() {
-    if (currentStep === 1 && !householdCreated) {
-      if (!localHouseholdName.trim()) return;
-      setIsCreating(true);
-      setCreateError(null);
-      try {
-        await createHousehold(localHouseholdName.trim());
-        setHouseholdCreated(true);
-      } catch (err) {
-        setCreateError(errMsg(err));
-        return;
-      } finally {
-        setIsCreating(false);
-      }
-    }
-
-    if (currentStep === 2) {
-      setIsSaving(true);
-      setStepError(null);
-      try {
-        await updateHouseholdPaymentMode(paymentMode);
-      } catch (err) {
-        setStepError(errMsg(err));
-        return;
-      } finally {
-        setIsSaving(false);
-      }
-    }
-
-    if (currentStep === 3 && !saved.payday) {
+    if (currentStep === 1 && !saved.payday) {
       setIsSaving(true);
       setStepError(null);
       try {
@@ -202,7 +139,7 @@ export default function Onboarding() {
       }
     }
 
-    if (currentStep === 4 && !saved.bill) {
+    if (currentStep === 2 && !saved.bill) {
       setIsSaving(true);
       setStepError(null);
       try {
@@ -232,7 +169,7 @@ export default function Onboarding() {
       }
     }
 
-    if (currentStep === 5 && !saved.goal) {
+    if (currentStep === 3 && !saved.goal) {
       setIsSaving(true);
       setStepError(null);
       try {
@@ -267,40 +204,50 @@ export default function Onboarding() {
 
   /* ── Can proceed? ──────────────────────────── */
   function canProceed(): boolean {
-    if (currentStep === 1) return householdCreated || (flowMode === "create" && localHouseholdName.trim().length > 0);
-    if (currentStep === 2) return true; // Payment mode has default selected
     if (stepSaved) return true; // Already written; Next just advances
-    if (currentStep === 3) return isPaydayValid({ date: paydayDate, isFixed: isFixedPay, amount: payAmount });
-    if (currentStep === 4) return isBillValid({ name: billName, amount: billAmount, dueDate: billDueDate });
-    if (currentStep === 5) return isGoalValid({ name: goalName, target: goalTarget });
+    if (currentStep === 1) return isPaydayValid({ date: paydayDate, isFixed: isFixedPay, amount: payAmount });
+    if (currentStep === 2) return isBillValid({ name: billName, amount: billAmount, dueDate: billDueDate });
+    if (currentStep === 3) return isGoalValid({ name: goalName, target: goalTarget });
     return true;
   }
 
   const footer = footerFor(currentStep, { saved: stepSaved });
-  // Step 1 before a path is chosen has no Next (the path rows are the buttons).
-  const showNext = currentStep > 1 || householdCreated || flowMode === "create";
-
   /* ── Step icons for progress ───────────────── */
-  const stepIcons = [Home, Wallet, Calendar, Receipt, Target, Check];
+  const stepIcons = [Calendar, Receipt, Target, Check];
 
   const summaryCells: { label: string; text: string; muted: boolean }[] = [
     { label: "Payday", ...summarise(summaryCell(saved.payday)) },
     { label: "First Bill", ...summarise(summaryCell(saved.bill)) },
     { label: "Goal", ...summarise(summaryCell(saved.goal)) },
-    { label: "Mode", text: paymentMode ? "Joint Fund" : "Direct Pay", muted: false },
+    { label: "Mode", text: isJointFund ? "Joint Fund" : "Direct Pay", muted: false },
   ];
 
   function summarise(cell: SummaryCell) {
     return { text: summaryText(cell), muted: cell.kind === "skipped" };
   }
 
+  if (phase === "welcome") {
+    return (
+      <>
+        <OnboardingWelcome onCreate={() => setPhase("create")} onJoin={() => setIsJoinSheetOpen(true)} />
+        <JoinHouseholdSheet isOpen={isJoinSheetOpen} onClose={() => setIsJoinSheetOpen(false)} />
+      </>
+    );
+  }
+
+  if (phase === "create") {
+    return (
+      <OnboardingCreateFlow
+        onCreate={createFromFlow}
+        onDone={() => setPhase("tail")}
+        onExit={() => setPhase("welcome")}
+      />
+    );
+  }
+
   return (
     <>
       <div className="fixed inset-0 z-[100] overflow-y-auto bg-background">
-        {/* Decorative blobs */}
-        <div className="pointer-events-none fixed top-0 left-0 w-72 h-72 bg-primary/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-        <div className="pointer-events-none fixed bottom-0 right-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
-
         {/* Scrolls when a step is taller than the screen; centres when it isn't. */}
         <div
           className="relative min-h-full flex items-center justify-center px-4"
@@ -355,163 +302,8 @@ export default function Onboarding() {
 
               {/* Step content */}
               <div className="px-6 sm:px-8 pb-6 pt-2 min-h-[280px] flex flex-col">
-                {/* ── Step 1: Household ── */}
+                {/* ── Step 1: Payday ── */}
                 {currentStep === 1 && (
-                  <OnboardingStep
-                    title={flowMode === "choose" ? "Welcome" : "Create your Household"}
-                    intro={
-                      flowMode === "choose"
-                        ? "Choose how you want to get started with Funded."
-                        : "Give your household a name."
-                    }
-                    why={HOUSEHOLD_WHY}
-                    error={createError}
-                  >
-                    {flowMode === "choose" && (
-                      <>
-                        <div className="flex justify-center h-[52px]">
-                          <Logo size="large" showWordmark={true} />
-                        </div>
-                        {/* Hairline path rows */}
-                        <div className="border-y border-border divide-y divide-border">
-                          <button
-                            type="button"
-                            onClick={() => setFlowMode("create")}
-                            className="w-full flex items-center gap-4 py-4 text-left transition-colors hover:bg-surface-raised cursor-pointer group"
-                          >
-                            <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0 group-active:bg-primary/10 transition-colors">
-                              <Home className="h-4 w-4" />
-                            </span>
-                            <span className="flex-1 min-w-0">
-                              <span className="block font-bold text-sm text-foreground group-hover:text-primary transition-colors">
-                                Create a Household
-                              </span>
-                              <span className="block text-[10px] text-muted mt-0.5">
-                                Start fresh, configure payday schedules &amp; add bills
-                              </span>
-                            </span>
-                            <ArrowRight className="h-4 w-4 text-subtle group-hover:text-primary transition-colors shrink-0" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsJoinSheetOpen(true)}
-                            className="w-full flex items-center gap-4 py-4 text-left transition-colors hover:bg-surface-raised cursor-pointer group"
-                          >
-                            <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0 group-active:bg-primary/10 transition-colors">
-                              <Sparkles className="h-4 w-4" />
-                            </span>
-                            <span className="flex-1 min-w-0">
-                              <span className="block font-bold text-sm text-foreground group-hover:text-primary transition-colors">
-                                Join via Code
-                              </span>
-                              <span className="block text-[10px] text-muted mt-0.5">
-                                Join an existing household using a 6-digit code
-                              </span>
-                            </span>
-                            <ArrowRight className="h-4 w-4 text-subtle group-hover:text-primary transition-colors shrink-0" />
-                          </button>
-                        </div>
-                      </>
-                    )}
-
-                    {flowMode === "create" && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label htmlFor="ob-household" className={labelClass}>
-                            Household Name
-                          </label>
-                          <input
-                            id="ob-household"
-                            type="text"
-                            placeholder="e.g. The Smiths"
-                            value={localHouseholdName}
-                            onChange={(e) => setLocalHouseholdName(e.target.value)}
-                            readOnly={householdCreated}
-                            className={`${inputClass} ${householdCreated ? "opacity-60" : ""}`}
-                          />
-                        </div>
-                        {householdCreated ? (
-                          <SavedNote where="Settings" />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setFlowMode("choose")}
-                            className="text-xs text-muted hover:text-foreground transition-colors underline block mx-auto pt-2 cursor-pointer"
-                          >
-                            Back to selection
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </OnboardingStep>
-                )}
-
-                {/* ── Step 2: Payment Mode ── */}
-                {currentStep === 2 && (
-                  <OnboardingStep
-                    title="Payment Mode"
-                    intro="How your household settles bill splits."
-                    why={PAYMENT_MODE_WHY}
-                    error={stepError}
-                  >
-                    <div className="space-y-3">
-                      {/* Direct Pay */}
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMode(false)}
-                        className={`w-full flex items-start gap-3 p-4 rounded-[2px] border text-left transition-all cursor-pointer ${
-                          paymentMode === false
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0">
-                          <Wallet className="h-4 w-4" />
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block font-bold text-sm text-foreground">
-                            Direct Pay
-                          </span>
-                          <span className="block text-[10px] text-muted mt-0.5">
-                            Transfer directly per bill split.
-                          </span>
-                        </span>
-                        {paymentMode === false && (
-                          <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        )}
-                      </button>
-
-                      {/* Joint Fund */}
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMode(true)}
-                        className={`w-full flex items-start gap-3 p-4 rounded-[2px] border text-left transition-all cursor-pointer ${
-                          paymentMode === true
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0">
-                          <Building2 className="h-4 w-4" />
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block font-bold text-sm text-foreground">
-                            Joint Fund
-                          </span>
-                          <span className="block text-[10px] text-muted mt-0.5">
-                            Shared household bank account.
-                          </span>
-                        </span>
-                        {paymentMode === true && (
-                          <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        )}
-                      </button>
-                    </div>
-                  </OnboardingStep>
-                )}
-
-                {/* ── Step 3: Payday ── */}
-                {currentStep === 3 && (
                   <OnboardingStep
                     title="Your Payday"
                     intro="When do you next get paid? We'll track it for you."
@@ -584,8 +376,8 @@ export default function Onboarding() {
                   </OnboardingStep>
                 )}
 
-                {/* ── Step 4: First Bill ── */}
-                {currentStep === 4 && (
+                {/* ── Step 2: First Bill ── */}
+                {currentStep === 2 && (
                   <OnboardingStep
                     title="First Bill"
                     intro="Enter your first recurring bill so we can start tracking it."
@@ -658,8 +450,8 @@ export default function Onboarding() {
                   </OnboardingStep>
                 )}
 
-                {/* ── Step 5: First Goal ── */}
-                {currentStep === 5 && (
+                {/* ── Step 3: First Goal ── */}
+                {currentStep === 3 && (
                   <OnboardingStep
                     title="First Goal"
                     intro="Something to save towards, like a holiday or an emergency fund."
@@ -702,8 +494,8 @@ export default function Onboarding() {
                   </OnboardingStep>
                 )}
 
-                {/* ── Step 6: Setup Complete ── */}
-                {currentStep === 6 && (
+                {/* ── Step 4: Setup Complete ── */}
+                {currentStep === 4 && (
                   <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6">
                     {/* Lime-glow check */}
                     <div className="inline-flex items-center justify-center h-20 w-20 rounded-[2px] bg-primary/15 border border-primary/40 text-primary shadow-lg shadow-primary/25">
@@ -714,7 +506,7 @@ export default function Onboarding() {
                         Setup Complete
                       </h2>
                       <p className="text-sm text-muted max-w-xs mx-auto">
-                        <span className="font-bold text-foreground">{localHouseholdName || "Your household"}</span> is ready to go.
+                        <span className="font-bold text-foreground">{householdName || "Your household"}</span> is ready to go.
                       </p>
                     </div>
 
@@ -744,7 +536,7 @@ export default function Onboarding() {
                       <button
                         type="button"
                         onClick={() => {
-                          // Finish onboarding first, else the wizard remounts at step 1 on return.
+                          // Finish onboarding first, else the wizard remounts at Welcome on return.
                           completeOnboarding();
                           router.push("/getting-started");
                         }}
@@ -792,16 +584,14 @@ export default function Onboarding() {
                         Skip for now
                       </button>
                     )}
-                    {showNext && (
-                      <button
-                        onClick={handleNext}
-                        disabled={!canProceed() || isSaving || isCreating}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-[2px] bg-primary text-primary-fg text-sm font-bold shadow-lg shadow-primary/25 hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                      >
-                        {isSaving ? "Saving..." : "Next"}
-                        <ArrowRight className="h-4 w-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={handleNext}
+                      disabled={!canProceed() || isSaving}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-[2px] bg-primary text-primary-fg text-sm font-bold shadow-lg shadow-primary/25 hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                    >
+                      {isSaving ? "Saving..." : "Next"}
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               )}
@@ -809,18 +599,6 @@ export default function Onboarding() {
           </div>
         </div>
       </div>
-      <JoinHouseholdSheet isOpen={isJoinSheetOpen} onClose={() => setIsJoinSheetOpen(false)} />
-      {isCreating && (
-        <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-6 animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)">
-            <Logo size="large" showWordmark={true} />
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm font-bold text-foreground capitalize tracking-wider animate-pulse">
-              Creating your Household...
-            </p>
-          </div>
-        </div>
-      )}
     </>
   );
 }

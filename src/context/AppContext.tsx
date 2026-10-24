@@ -703,7 +703,7 @@ interface AppContextValue {
   completeOnboarding: () => void;
   householdName: string;
   setHouseholdName: (name: string) => Promise<void>;
-  createHousehold: (name: string) => Promise<string>;
+  createHousehold: (name: string, isJointFund?: boolean) => Promise<string>;
   isJointFund: boolean;
   updateHouseholdPaymentMode: (isJointFund: boolean) => Promise<void>;
   householdTimezone: string;
@@ -1828,7 +1828,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Household Creation and Name Actions ────── */
-  async function createHousehold(name: string): Promise<string> {
+  async function createHousehold(name: string, newIsJointFund = false): Promise<string> {
     try {
       const { data: { session: currentSession }, error: authError } = await supabase.auth.getSession();
       const activeUser = currentSession?.user || session?.user;
@@ -2001,7 +2001,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           user_id: activeUser.id,
           join_code: joinCodeValue,
           code_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          timezone
+          timezone,
+          is_joint_fund: newIsJointFund
         })
         .select()
         .single();
@@ -2043,7 +2044,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // Update state
       setDbHouseholdId(household.id);
       setHouseholdNameState(household.name);
-      setIsJointFund(false);
+      setIsJointFund(newIsJointFund);
       setJoinCode(household.join_code || null);
       setCodeExpiresAt(household.code_expires_at || null);
       setHouseholdTimezone(household.timezone || "Australia/Sydney");

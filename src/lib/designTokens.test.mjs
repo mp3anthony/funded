@@ -42,6 +42,7 @@ test("no lime hover fills (press feedback uses :active)", () => {
 test("Syne (font-heading) is only used on page headers", () => {
   const allowed = new Set([
     "components/PageHeader.tsx",
+    "components/OnboardingWelcome.tsx",
     "app/login/page.tsx",
     "app/confirm-email/page.tsx",
     "app/reset-password/update/page.tsx",

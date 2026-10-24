@@ -12,8 +12,8 @@ interface OnboardingStepProps {
 }
 
 /**
- * Shared body for onboarding steps 1 to 5 (#248): title, one-line intro, an
- * optional "why" box, an optional error, then the step's own fields. Step 6
+ * Shared body for the onboarding tail steps 1 to 3 (#248): title, one-line intro, an
+ * optional "why" box, an optional error, then the step's own fields. The last step
  * (Setup Complete) keeps its own centred layout inside the same card frame.
  */
 export default function OnboardingStep({ title, intro, why, error, children }: OnboardingStepProps) {

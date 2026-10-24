@@ -44,7 +44,7 @@ export const missions: GuideMission[] = [
     title: "Start a household",
     steps: [
       "Open Funded and tap Need an account? Sign Up. Confirm your email from the link we send, then sign in.",
-      "Choose Create a Household and give it a name.",
+      "Choose Create a household and give it a name.",
       "Pick a payment mode. Direct Pay: everyone pays their share of each bill directly. Joint Fund: bills come out of one shared account that everyone puts money into. You can change this later in Settings.",
       "Add your next payday, your first bill and a first goal, or tap Skip for now on any of them and add them later with the + buttons or from the Finish setting up card on your Dashboard. Then tap Enter App.",
     ],
@@ -62,7 +62,7 @@ export const missions: GuideMission[] = [
     title: "Join a household with a code",
     steps: [
       "For the second person: sign up and confirm your email, the same as mission 1.",
-      "Don't create a household. Choose Join via Code instead.",
+      "Don't create a household. Choose Join with a code instead.",
       "Type the code you were sent and tap Join.",
     ],
     note: "You can only be in one household at a time.",

@@ -1,13 +1,15 @@
 /**
- * Pure helpers for the onboarding wizard (#248). Import-free so node:test can
- * run them directly (see onboarding.test.mjs).
+ * Pure helpers for the onboarding wizard tail (#248, R31 #418). Import-free so
+ * node:test can run them directly (see onboarding.test.mjs). The household name
+ * and payment mode screens are the full-screen create flow (onboardingCreate.ts);
+ * this tail runs after the household exists, until the Setup hub replaces it (R32).
  */
 
-/** Steps 1 to 6: household, payment mode, payday, bill, goal, Setup Complete. */
-export const TOTAL_STEPS = 6;
+/** Steps 1 to 4: payday, bill, goal, Setup Complete. */
+export const TOTAL_STEPS = 4;
 
 /** Steps with "Skip for now": payday, first bill, first goal. */
-export const SKIPPABLE_STEPS: readonly number[] = [3, 4, 5];
+export const SKIPPABLE_STEPS: readonly number[] = [1, 2, 3];
 
 /** Fixed pay needs an amount above zero; variable pay needs none. A date is always required. */
 export function isPaydayValid(p: { date: string; isFixed: boolean; amount: string }): boolean {
@@ -32,14 +34,15 @@ export function isGoalValid(g: { name: string; target: string }): boolean {
 export interface FooterState {
   showBack: boolean;
   showSkip: boolean;
-  /** "next" = Next button, "enter" = Enter App (step 6). */
+  /** "next" = Next button, "enter" = Enter App (last step). */
   primary: "next" | "enter";
 }
 
 /**
  * What the wizard footer shows. `saved` says whether this step's data is
  * already written, which hides Skip so a revisited step can't be saved twice.
- * Step 6 has no Back: everything before it is already saved.
+ * Step 1 has no Back (the household already exists), and neither does the last
+ * step: everything before it is already saved.
  */
 export function footerFor(step: number, state: { saved: boolean }): FooterState {
   if (step >= TOTAL_STEPS) return { showBack: false, showSkip: false, primary: "enter" };
