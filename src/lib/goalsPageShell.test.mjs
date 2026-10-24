@@ -67,12 +67,12 @@ test("GoalRow: ring, pace line, round + hidden when Reached, one tap target", ()
   assert.ok(t.indexOf("</button>") < t.indexOf("<IconCircle"));
 });
 
-test("WishRow: name, cost, no Check impact (the goal sheet has it), no ring and no add button", () => {
+test("WishRow: name, cost, no Check impact (the goal sheet has it), an empty ring and no add button", () => {
   const t = stripComments(read("components/WishRow.tsx"));
   assert.ok(!t.includes("Check impact"));
   assert.ok(!t.includes("onCheckImpact"));
   assert.ok(!t.includes("<Chip"));
-  assert.ok(!t.includes("ProgressRing"));
+  assert.ok(t.includes("ProgressRing percent={0}"));
   assert.ok(!t.includes("IconCircle"));
   assert.ok(!t.includes("Reached"));
 });
