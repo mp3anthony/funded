@@ -2055,7 +2055,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // must not clear isOnboarded and send them back here (#75 item 3).
       resolvedHouseholdUserIdRef.current = activeUser.id;
       // Do NOT setIsOnboarded(true) here — that would unmount the onboarding
-      // wizard mid-flow (#78). completeOnboarding() on step 6's "Enter App" is
+      // wizard mid-flow (#78). completeOnboarding() on the hub's "Enter app" is
       // the only thing that should flip this.
 
       // This path never calls loadHouseholdRelatedData, so load the card flag here (#333).
