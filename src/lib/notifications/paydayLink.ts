@@ -6,11 +6,12 @@
  *
  *   /payday?scheduleId=<id>&payDate=<YYYY-MM-DD>  ← "Payday — Log Your Pay"
  *   /payday?historyId=<pay_history id>            ← "Payment Requires Confirmation"
+ *                                                    (the Confirm Pending Pay reminder, type lodge_payment)
  *
- * The payday link carries the pay date as well as the schedule because the
- * Payday page auto-logs missed pays as `pending` on load (advancing the
- * schedule), so a late tap has to find the pending pay for that exact date
- * instead of the (now moved-on) schedule.
+ * The payday link carries the pay date as well as the schedule because missed
+ * pays become `pending` (on Payday page load, and from the reminder cron, R19
+ * #406), advancing the schedule, so a late tap has to find the pending pay for
+ * that exact date instead of the (now moved-on) schedule.
  */
 export const PAYDAY_LINK_PARAMS = {
   scheduleId: 'scheduleId',

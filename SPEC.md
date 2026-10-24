@@ -34,7 +34,10 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   migration — but stated explicitly because the consequence is data exposure.)
 * **Service-role key is server-only.** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS
   entirely. Its current uses are the cron route
-  (`src/app/api/cron/push-reminders/route.ts:37`) and the household edge functions
+  (`src/app/api/cron/push-reminders/route.ts:37`; besides reminders it rolls
+  paid bills and, since R19 #406, may also create Pending pays: a `pay_history`
+  insert and a `pay_schedules.next_pay_date` advance for paydays that passed
+  unlogged) and the household edge functions
   (`join-household`, `delete-household`, `leave-household`; the last moves
   `households.user_id` to a remaining owner or nulls it, ADR 0005/0006). Any new use, or any code path
   that reads it outside a server-side route, requires approval first. If it
@@ -869,6 +872,7 @@ problem/checklist on the issue.
 - Seven pages agreed: Dashboard, Payday, Bills, Goals, Settings, Pop-ups, Onboarding and sign-in. The sub-issues of #377 are the slices R01 to R36, built in the order listed on the issue. This replaces the onboarding shape in Slice 18 (a hub instead of three skip screens; the household is created only once name and Payment mode are both chosen) and moves the Finish setting up card (Slice 19) into the Dashboard stats slot.
 - One long-lived branch `redesign/full-app` and one PR opened with the first slice; every slice commits to it. No per-slice version bump or patch note; one bump to `v0.10.0` and one patch-notes entry at the end (R35). Live `main` keeps the old app until that merge, so slices are checked on the branch's Vercel preview (an exception to "no preview testing"); Anthony approves the one final merge.
 - Migrations on this branch stay compatible with the old code live on `main` (preview and production share one Supabase) and are applied when their slice is built.
+- R19 (#406, A1 signed off 2026-10-24): `pay_history.amount` is nullable (migration `20261024120000_pay_history_amount_nullable`; NULL only for a Pending pay with no known amount, enforced by a CHECK) and the cron route may create Pending pays with the service-role key (see Part A1). Averages are per pay schedule, last 4 confirmed pays, at least 2. Re-run the migration's backfill UPDATE once right after the final merge.
 - A1 slices, each needing Anthony's sign-off at plan time: R19 (`pay_history.amount` nullable), R28 (owner-only `households` UPDATE policy; today any member can write), R33 (#370 may need a policy or edge-function change), R14 (a per-person frequency preference may need a `user_preferences` column).
 - Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, the health score, goal suggestions and milestone reminders, and the Dashboard goal cards (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
 - Left out on purpose: #383 (change login email), #145 (parked).

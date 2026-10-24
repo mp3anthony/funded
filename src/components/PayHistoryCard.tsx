@@ -55,14 +55,20 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
     console.error("Failed to format pay date:", history.pay_date);
   }
 
-  // Format amount
+  // Format amount. A Pending pay can have no amount yet (R19, #406).
+  const hasAmount = history.amount !== null && history.amount !== undefined;
   const formattedAmount = Number(history.amount).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+  const amountLabel = hasAmount ? `$${formattedAmount}` : "Amount needed";
+  const amountClass = hasAmount ? "text-primary" : "text-muted";
 
   const handleDelete = async () => {
-    if (confirm(`Delete this payment of $${formattedAmount} logged on ${formattedDate}?`)) {
+    const question = hasAmount
+      ? `Delete this payment of $${formattedAmount} logged on ${formattedDate}?`
+      : `Delete this pending pay from ${formattedDate}?`;
+    if (confirm(question)) {
       setIsDeleting(true);
       try {
         await deletePayHistory(history.id);
@@ -93,13 +99,13 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
             <div className="min-w-0">
               <span className="truncate font-body font-semibold text-[15px] text-foreground">{memberName}</span>
             </div>
-            <span className="font-bold text-primary text-base whitespace-nowrap">
-              ${formattedAmount}
+            <span className={`font-bold ${amountClass} text-base whitespace-nowrap`}>
+              {amountLabel}
             </span>
           </div>
         ) : (
-          <div className="font-bold text-primary text-lg whitespace-nowrap">
-            ${formattedAmount}
+          <div className={`font-bold ${amountClass} text-lg whitespace-nowrap`}>
+            {amountLabel}
           </div>
         )}
 

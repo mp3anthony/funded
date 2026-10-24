@@ -25,6 +25,7 @@ import {
   nextDueDatePatch,
   nextDueToastMessage,
 } from "@/lib/billCycle";
+import { averagePay, buildPendingPayRows } from "@/lib/payHistory";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { isAcceptedMember } from "@/lib/householdLeave";
@@ -124,7 +125,8 @@ export interface PayHistory {
   household_id: string;
   member_id: string;
   pay_schedule_id: string | null;
-  amount: number;
+  /** NULL only for a Pending pay whose amount is not known yet (R19, #406). */
+  amount: number | null;
   pay_date: string; // YYYY-MM-DD
   notes: string | null;
   created_at: string;
@@ -773,11 +775,11 @@ interface AppContextValue {
   updatePaySchedule: (id: string, data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
   deletePaySchedule: (id: string) => Promise<void>;
   logPay: (payScheduleId: string, amount: number, date: string, notes: string | null, status?: 'pending' | 'confirmed') => Promise<PayHistory | null>;
-  confirmPay: (historyId: string) => Promise<void>;
   confirmAndUpdatePay: (historyId: string, newAmount: number, notes?: string | null) => Promise<void>;
   autoLogMissedPays: () => Promise<void>;
   deletePayHistory: (id: string) => Promise<void>;
-  calculateAveragePay: (memberId: string) => number | null;
+  /** Average of that schedule's last 4 confirmed pays; null with fewer than 2 (R19, #406). */
+  calculateAveragePay: (scheduleId: string) => number | null;
 
   /* Household Contributions */
   householdContributions: HouseholdContribution[];
@@ -4394,30 +4396,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function confirmPay(historyId: string) {
-    try {
-      const { data, error } = await supabase
-        .from("pay_history")
-        .update({ status: "confirmed" })
-        .eq("id", historyId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("confirmPay - failed to update pay history status:", error);
-        return;
-      }
-
-      if (data) {
-        setPayHistory((prev) =>
-          prev.map((h) => (h.id === historyId ? data : h))
-        );
-      }
-    } catch (err) {
-      console.error("Failed to confirm pay:", err);
-    }
-  }
-
   async function confirmAndUpdatePay(historyId: string, newAmount: number, notes?: string | null) {
     try {
       const updateData: any = {
@@ -4452,7 +4430,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function autoLogMissedPays() {
     try {
-      const todayYmd = toLocalYmd(new Date());
+      // Household-local day, so it agrees with the reminder cron (R19, #406).
+      const todayYmd = todayInZone(householdTimezone || "Australia/Sydney");
 
       const hId = await ensureHousehold();
 
@@ -4462,34 +4441,39 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         const { missed, next } = missedPayCatchUp(schedule.next_pay_date, schedule.frequency, todayYmd);
         if (missed.length === 0) continue; // Not missed
 
-        const missedRecords: any[] = missed.map((payDateStr) => ({
-          household_id: hId,
-          member_id: schedule.member_id,
-          pay_schedule_id: schedule.id,
-          amount: schedule.is_fixed_amount ? (schedule.amount || 0) : 0,
-          pay_date: payDateStr,
-          notes: schedule.is_fixed_amount
-            ? "Automatically logged missed pay"
-            : "Automatically logged missed pay — amount needs review",
-          status: "pending",
-        }));
+        // Claim first: move the date on only if nobody else has (the cron or
+        // another phone), so the same missed pays are never inserted twice.
+        const { data: claimed, error: claimErr } = await supabase
+          .from("pay_schedules")
+          .update({ next_pay_date: next })
+          .eq("id", schedule.id)
+          .eq("next_pay_date", schedule.next_pay_date)
+          .select("id");
+
+        if (claimErr) {
+          console.error(`Failed to claim missed pays for schedule ${schedule.id}:`, claimErr);
+          continue;
+        }
+        if (!claimed || claimed.length === 0) continue; // someone else got there first
 
         const { error: insertErr } = await supabase
           .from("pay_history")
-          .insert(missedRecords);
+          .insert(buildPendingPayRows(schedule, missed, hId));
 
         if (insertErr) {
           console.error(`Failed to insert missed pay history for schedule ${schedule.id}:`, insertErr);
-          continue;
-        }
-
-        const { error: updateErr } = await supabase
-          .from("pay_schedules")
-          .update({ next_pay_date: next })
-          .eq("id", schedule.id);
-
-        if (updateErr) {
-          console.error(`Failed to update next_pay_date for schedule ${schedule.id}:`, updateErr);
+          // Put the date back so the next load tries again.
+          const { error: revertErr } = await supabase
+            .from("pay_schedules")
+            .update({ next_pay_date: schedule.next_pay_date })
+            .eq("id", schedule.id)
+            .eq("next_pay_date", next);
+          if (revertErr) {
+            console.error(
+              `Missed pays lost: schedule ${schedule.id} next_pay_date moved from ${schedule.next_pay_date} to ${next} but the insert and the revert both failed:`,
+              revertErr,
+            );
+          }
         }
       }
 
@@ -4513,8 +4497,18 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
       setPayHistory((prev) => prev.filter((h) => h.id !== id));
 
-      // Rollback next pay date of the associated pay schedule if linked
-      if (historyItem.pay_schedule_id) {
+      // Roll the schedule's next pay date back only when this was its newest
+      // pay; deleting an older one must not drag the date backwards (R19, #406).
+      const isNewestForSchedule =
+        !!historyItem.pay_schedule_id &&
+        !payHistory.some(
+          (h) =>
+            h.id !== id &&
+            h.pay_schedule_id === historyItem.pay_schedule_id &&
+            (h.pay_date > historyItem.pay_date ||
+              (h.pay_date === historyItem.pay_date && (h.created_at ?? "") > (historyItem.created_at ?? ""))),
+        );
+      if (isNewestForSchedule) {
         const schedule = paySchedules.find((s) => s.id === historyItem.pay_schedule_id);
         if (schedule) {
           const prevPayDate = historyItem.pay_date;
@@ -4540,16 +4534,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  function calculateAveragePay(memberId: string): number | null {
-    const memberHistory = payHistory.filter(
-      (h) => String(h.member_id) === String(memberId)
-    );
-    if (memberHistory.length < 3) return null;
-
-    const sorted = [...memberHistory].sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-    const last3 = sorted.slice(0, 3);
-    const sum = last3.reduce((s, entry) => s + Number(entry.amount), 0);
-    return sum / 3;
+  function calculateAveragePay(scheduleId: string): number | null {
+    return averagePay(scheduleId, payHistory);
   }
 
   async function fetchHouseholdContributions(householdId?: string) {
@@ -5209,7 +5195,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     updatePaySchedule,
     deletePaySchedule,
     logPay,
-    confirmPay,
     confirmAndUpdatePay,
     autoLogMissedPays,
     deletePayHistory,

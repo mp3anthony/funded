@@ -10,7 +10,8 @@ import { buildPaydayConfirmUrl, buildPaydayLogPayUrl } from './paydayLink';
  *
  * `related_entity_id` means something different per reminder type:
  *   - manual_bill / auto_pay → bill id
- *   - lodge_payment          → pay_history id
+ *   - lodge_payment          → pay_history id (a Pending pay; the dedupe_key
+ *                              ends in the day, so it repeats daily, R19 #406)
  *   - payday_log_pay         → pay schedule id
  *   - goal_milestone         → fund id
  *

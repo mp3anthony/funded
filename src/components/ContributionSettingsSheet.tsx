@@ -310,16 +310,12 @@ type MemberSplitInput = MemberIncomeResult | MemberBlockedResult;
  * - No pay schedules at all → blocked ("missing pay schedule").
  * - Each fixed-amount schedule contributes its own amount, converted to
  *   monthly, summed individually.
- * - All of a member's variable schedules are pooled rather than converted
- *   one-by-one: calculateAveragePay(member) is scoped to the member, not to
- *   any single schedule, so it returns the same blended average no matter
- *   which schedule asks for it. Calling it once per variable schedule would
- *   count that same average multiple times. Instead it's called exactly
- *   once per member (if the member has any variable schedules at all). No
- *   average yet (fewer than 3 logged pays) → blocked ("not enough pay
- *   history yet"). Otherwise the average is converted to monthly exactly
- *   once, using the frequency of whichever variable schedule was created
- *   most recently, and added to the member's income once.
+ * - Each variable schedule has its own average (R19, #406:
+ *   calculateAveragePay(scheduleId) = the last 4 confirmed pays of that
+ *   schedule, at least 2). Each average is converted to monthly using that
+ *   schedule's own frequency and the results are summed. If any variable
+ *   schedule has no average yet, the member is blocked ("not enough pay
+ *   history yet"), since their income would otherwise be understated.
  * - A member's "own pay frequency" (used later to apply a recommendation at
  *   their own cadence) is their single schedule's frequency, or — for a
  *   member with more than one schedule (e.g. two jobs) — the frequency of
@@ -331,7 +327,7 @@ type MemberSplitInput = MemberIncomeResult | MemberBlockedResult;
 function computeMemberIncomes(
   members: Member[],
   paySchedules: PaySchedule[],
-  calculateAveragePay: (memberId: string) => number | null
+  calculateAveragePay: (scheduleId: string) => number | null
 ): MemberSplitInput[] {
   return members.map((member) => {
     const schedules = paySchedules.filter((s) => String(s.member_id) === String(member.id));
@@ -348,20 +344,14 @@ function computeMemberIncomes(
       monthlyIncome += convertAmount(schedule.amount ?? 0, schedule.frequency, "monthly");
     }
 
-    // calculateAveragePay is scoped to the member (not per-schedule) — it
-    // returns the same blended average regardless of which variable schedule
-    // asks for it. Call it once per member, not once per variable schedule,
-    // or a member with 2+ variable schedules gets the same average counted
-    // multiple times and their income (and split %) is silently inflated.
-    if (variableSchedules.length > 0) {
-      const avg = calculateAveragePay(String(member.id));
+    // One average per variable schedule (R19, #406), each at its own
+    // frequency. Any schedule without an average yet blocks the member.
+    for (const schedule of variableSchedules) {
+      const avg = calculateAveragePay(String(schedule.id));
       if (avg === null) {
         return { member, blocked: true, reason: "not enough pay history yet" };
       }
-      const mostRecentVariable = [...variableSchedules].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )[0];
-      monthlyIncome += convertAmount(avg, mostRecentVariable.frequency, "monthly");
+      monthlyIncome += convertAmount(avg, schedule.frequency, "monthly");
     }
 
     let ownFrequency: PayFrequency;
@@ -384,7 +374,7 @@ interface SuggestSplitPanelProps {
   expenses: Expense[];
   contributionRules: ContributionRule[];
   paySchedules: PaySchedule[];
-  calculateAveragePay: (memberId: string) => number | null;
+  calculateAveragePay: (scheduleId: string) => number | null;
   setContribution: (memberId: string, amount: number, frequency: PayFrequency) => Promise<void>;
 }
 
@@ -481,7 +471,7 @@ function SuggestSplitPanel({
                     <span className="font-semibold">{b.member.name}</span>{" "}
                     {b.reason === "missing pay schedule"
                       ? "hasn't set up a pay schedule yet."
-                      : "doesn't have enough pay history yet (needs at least 3 logged pays)."}
+                      : "doesn't have enough pays yet (needs at least 2 confirmed pays)."}
                   </li>
                 ))}
               </ul>

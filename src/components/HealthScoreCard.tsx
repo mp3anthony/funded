@@ -6,6 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { calculateHealthScore, convertAmount } from "@/lib/utils";
 import { countsTowardTotals } from "@/lib/billCycle";
 import { savingGoals } from "@/lib/goalPace";
+import { latestLoggedAmount } from "@/lib/payHistory";
 
 /* ── Slice 13 (#99, Part 5): count-up on the 4 stat tiles ──────────
    Animates a displayed number from its previous value to a new target over
@@ -127,11 +128,8 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
         // log a different actual pay (back pay, bonus, short pay) via the
         // same "Log Pay" flow as a variable schedule. Fall back to the
         // static schedule.amount only when no history has been logged yet.
-        const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
-        if (historyItems.length > 0) {
-          historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-          amount = historyItems[0].amount;
-        }
+        // R19: newest row that has an amount (a Pending pay can have none yet).
+        amount = latestLoggedAmount(schedule.id, payHistory) ?? amount;
         return sum + convertAmount(amount, schedule.frequency, "weekly");
       }, 0);
     }
@@ -143,11 +141,8 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
       // #161: same fix as weeklyIncome above — check pay_history regardless
       // of is_fixed_amount, falling back to schedule.amount only when no
       // history exists yet.
-      const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
-      if (historyItems.length > 0) {
-        historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-        amount = historyItems[0].amount;
-      }
+      // R19: newest row that has an amount (a Pending pay can have none yet).
+      amount = latestLoggedAmount(schedule.id, payHistory) ?? amount;
       return sum + convertAmount(amount, schedule.frequency, "weekly");
     }, 0);
   }, [paySchedules, payHistory]);
@@ -326,11 +321,8 @@ export const HealthScoreCard = React.memo(function HealthScoreCard() {
                     // #161: same fix as weeklyIncome/weeklyActualIncome above —
                     // check pay_history regardless of is_fixed_amount, falling
                     // back to schedule.amount only when no history exists yet.
-                    const historyItems = payHistory.filter(h => h.pay_schedule_id === schedule.id);
-                    if (historyItems.length > 0) {
-                      historyItems.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-                      amount = historyItems[0].amount;
-                    }
+                    // R19: newest row that has an amount (a Pending pay can have none yet).
+                    amount = latestLoggedAmount(schedule.id, payHistory) ?? amount;
                     return sum + convertAmount(amount, schedule.frequency, "weekly");
                   }, 0);
                 } else if (memberBillSplits.length > 0) {

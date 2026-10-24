@@ -50,6 +50,8 @@ export const RecentActivityCard = React.memo(function RecentActivityCard({
 
     // 2. Pay History Logs
     payHistory.forEach((p) => {
+      // A Pending pay is not income yet, and may have no amount (R19, #406).
+      if (p.status === "pending" || p.amount === null) return;
       const member = members.find((m) => String(m.id) === String(p.member_id));
       const memberName = member ? member.name : "Household member";
 

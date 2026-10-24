@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateReminders, type ReminderSettings } from '@/lib/notifications/generateReminders';
 import { todayInZone, zonedDateAtHour } from '@/lib/notifications/timezone';
-import { computeRollover } from '@/lib/billCycle';
+import { computeRollover, missedPayCatchUp } from '@/lib/billCycle';
+import { buildPendingPayRows } from '@/lib/payHistory';
 
 // Note: route handlers already run on the Node.js runtime by default, which
 // web-push requires. An explicit `export const runtime` is omitted because it
@@ -64,6 +65,13 @@ export const maxDuration = 60;
  * marks any unread bill reminders (`manual_bill` / `auto_pay`) for paused
  * bills read each run, so other household members' rows clear within one
  * cron run. Rows are only marked read, never deleted (A2).
+ *
+ * Pending pays (R19, #406): any pay schedule whose pay date has passed
+ * unlogged gets a Pending `pay_history` row per missed date and its
+ * `next_pay_date` moved on, even if nobody opens the app (the same catch-up the
+ * Payday page does on load). The schedule is claimed first (update conditional
+ * on the old `next_pay_date`) so the app and this cron can never both insert
+ * the same pays. The Confirm Pending Pay reminder is then generated below.
  *
  * Runs with no user session, so it uses a service_role Supabase client that
  * bypasses RLS. Per-user failures are logged and skipped so one bad row can
@@ -129,7 +137,7 @@ export async function GET(request: Request) {
         .eq('status', 'pending'),
       supabase
         .from('pay_schedules')
-        .select('id, member_id, household_id, next_pay_date'),
+        .select('id, member_id, household_id, next_pay_date, frequency, is_fixed_amount, amount'),
       supabase
         .from('funds')
         .select('id, name, household_id, current_amount, target_amount, status'),
@@ -229,6 +237,58 @@ export async function GET(request: Request) {
       }
     } catch (sweepErr) {
       console.error('[push-reminders] paused sweep failed:', sweepErr);
+    }
+
+    // ── Pending pays for missed paydays (R19, #406) ──
+    // Claim first, then insert; not atomic, so a failed insert is reverted and
+    // a failed revert is logged loudly (the missed pays would be lost).
+    let pendingCreated = 0;
+    for (const s of allPaySchedules) {
+      try {
+        if (!s.next_pay_date) continue;
+        const tz = householdTz.get(String(s.household_id)) || 'Australia/Sydney';
+        const { missed, next } = missedPayCatchUp(s.next_pay_date, s.frequency, todayInZone(tz));
+        if (missed.length === 0) continue;
+
+        const oldDate = s.next_pay_date;
+        const { data: claimed, error: claimError } = await supabase
+          .from('pay_schedules')
+          .update({ next_pay_date: next })
+          .eq('id', s.id)
+          .eq('next_pay_date', oldDate)
+          .select('id');
+        if (claimError) {
+          console.error(`[push-reminders] pay claim failed for schedule ${s.id}:`, claimError);
+          continue;
+        }
+        if (!claimed || claimed.length === 0) continue; // the app got there first
+
+        const { data: created, error: insertError } = await supabase
+          .from('pay_history')
+          .insert(buildPendingPayRows(s, missed, s.household_id))
+          .select('id, member_id, household_id, pay_date, status');
+        if (insertError) {
+          console.error(`[push-reminders] pending pay insert failed for schedule ${s.id}:`, insertError);
+          const { error: revertError } = await supabase
+            .from('pay_schedules')
+            .update({ next_pay_date: oldDate })
+            .eq('id', s.id)
+            .eq('next_pay_date', next);
+          if (revertError) {
+            console.error(
+              `[push-reminders] MISSED PAYS LOST: schedule ${s.id} next_pay_date moved from ${oldDate} to ${next}, the insert failed and the revert failed:`,
+              revertError,
+            );
+          }
+          continue;
+        }
+
+        s.next_pay_date = next;
+        for (const row of created ?? []) pendingPayHistory.push(row);
+        pendingCreated += created?.length ?? 0;
+      } catch (payErr) {
+        console.error(`[push-reminders] pending pay catch-up failed for schedule ${s.id}:`, payErr);
+      }
     }
 
     // ── Group in memory ──────────────────────────
@@ -380,6 +440,7 @@ export async function GET(request: Request) {
       inserted: insertedTotal,
       rolled: rolledTotal,
       pausedSwept,
+      pendingCreated,
     });
   } catch (error) {
     console.error('[push-reminders] fatal error:', error);

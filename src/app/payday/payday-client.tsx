@@ -16,9 +16,10 @@ import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
 import { payScheduleRowKey } from "@/lib/addPayFlow";
 import { savingGoals } from "@/lib/goalPace";
+import { todayInZone } from "@/lib/notifications/timezone";
 
 export default function PaydayClient() {
-  const { paySchedules, payHistory, householdMembers, deletePaySchedule, logPay, calculateAveragePay, addToGoal, isJointFund, householdContributions, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay } = useApp();
+  const { paySchedules, payHistory, householdMembers, deletePaySchedule, logPay, calculateAveragePay, addToGoal, isJointFund, householdContributions, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay, householdTimezone } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -165,9 +166,11 @@ export default function PaydayClient() {
   const handleConfirmPay = async (amount: number, notes: string | null) => {
     if (activeVariableSchedule) {
       const memberId = activeVariableSchedule.member_id;
-      const avg = calculateAveragePay(memberId);
+      // Average of this schedule's last confirmed pays, taken BEFORE this pay is logged (R19, #406).
+      const avg = calculateAveragePay(String(activeVariableSchedule.id));
 
-      const logDate = new Date().toISOString().split("T")[0];
+      // Household-local day, not UTC (an evening log in NZ used to get yesterday's date, #315).
+      const logDate = todayInZone(householdTimezone || "Australia/Sydney");
       const newHistory = await logPay(activeVariableSchedule.id, amount, logDate, notes || "Pay logged");
 
       if (newHistory) {

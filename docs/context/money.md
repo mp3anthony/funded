@@ -101,15 +101,15 @@ _Avoid_: Add income, record pay, deposit
 
 **Pending pay**:
 A pay the app logged automatically because its date passed without anyone logging it, waiting for a member to confirm or correct the amount.
-Planned change (#377; until it ships, today's behaviour above stands): a Pending pay is added to history only once its pay day has ended unlogged (logging on the day writes straight to history). A fixed-pay Pending is prefilled with the schedule amount; a variable-pay Pending has no amount (null, today it is stored as $0). Tapping it opens the confirm pop-up, and a daily notification repeats until it is confirmed. Pending pays sit in the Payday "Needs you" strip.
+Built in R19 (#406): a Pending pay is added to history only once its pay day has ended unlogged (logging on the day writes straight to history), by the Payday page on load and by the reminder cron even if nobody opens the app. A fixed-pay Pending is prefilled with the schedule amount; a variable-pay Pending has no amount (`pay_history.amount` is NULL, shown as "Amount needed"; only a Pending pay may have a NULL amount). Tapping it opens the confirm pop-up, and a daily notification repeats until it is confirmed. Deleting the newest pay of a schedule rolls its next pay date back; deleting an older one does not. Pending pays sitting in the Payday "Needs you" strip is still planned (R20 to R24).
 _Avoid_: Unconfirmed income, draft pay, missed pay
 
 **Needs you** (planned, #377):
 The strip at the top of Payday, shown only when something needs action: a pay whose date has come (Log Pay / Enter Pay Amount) or a Pending pay to confirm. Most urgent first, hidden when empty.
 _Avoid_: Inbox, to-do
 
-**Average pay** (planned, #377):
-For a variable-pay schedule, the average of its last 4 confirmed pays, ignoring Pending pays; needs at least 2 confirmed, else "Not enough pays yet". Shown as "Estimate from your last 4 pays". Replaces today's last-3-pays rule, which counts Pending $0 rows.
+**Average pay** (built in R19, #406; display planned):
+For a variable-pay schedule (per schedule, not per member), the average of its last 4 confirmed pays, ignoring Pending pays; needs at least 2 confirmed, else "Not enough pays yet". Rule lives in `src/lib/payHistory.ts` (`averagePay`). The "Estimate from your last 4 pays" display is still planned. Replaced the old last-3-pays rule, which counted Pending $0 rows.
 _Avoid_: Typical pay, expected pay
 
 **Surplus**:
@@ -134,7 +134,7 @@ Planned change (#377): Automation rules and Contribution amounts leave Settings;
 _Avoid_: Auto-save rule, transfer rule
 
 **Suggest Split** (moves to Payday, planned, #377):
-The income-proportional calculator: each member's share is their monthly-normalised income divided by household income, times total monthly bills. Today a panel in Settings; planned as an animated pop-up opened from Payday (income, then share %, then dollars). Joint Fund ends "Contribute $X a week" and Apply sets the member's contribution; Direct Pay ends "Cover X% of each bill" and Apply fills bill splits for bills still on the default. Apply is always a tap. A variable-pay member without enough confirmed pays blocks it, as today. Detail in `project/pages/payday.md` of the design doc.
+The income-proportional calculator: each member's share is their monthly-normalised income divided by household income, times total monthly bills. Today a panel in Settings; planned as an animated pop-up opened from Payday (income, then share %, then dollars). Joint Fund ends "Contribute $X a week" and Apply sets the member's contribution; Direct Pay ends "Cover X% of each bill" and Apply fills bill splits for bills still on the default. Apply is always a tap. A variable-pay member blocks it if any of their variable schedules lacks an average (fewer than 2 confirmed pays); each schedule's average is converted at its own frequency and summed (R19). Detail in `project/pages/payday.md` of the design doc.
 _Avoid_: Fair split, auto-split
 
 **Household total**:
