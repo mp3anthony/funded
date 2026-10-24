@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useId } from "react";
 import { flushSync } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
+import { Calculator, ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
 import { useApp, type Fund } from "@/context/AppContext";
 import AddFlow from "@/components/AddFlow";
 import AddGoalFlow from "@/components/AddGoalFlow";
@@ -44,7 +44,9 @@ const GOAL_CATEGORY_REMAP: Record<string, string> = {
   "Transport": "Vacation & Travel",
   "Debt Payoff": "Debt & Finance",
   "Interest Free Payment": "Debt & Finance",
-  "Short-Term": "Wish List",
+  "Short-Term": "Other",
+  // "Wish List" is no longer a category: Kind (Just tracking) is the only switch.
+  "Wish List": "Other",
 };
 
 /** Goals keep their own remembered open/closed choices (a Bills category can share a name). */
@@ -173,18 +175,14 @@ export default function FundsClient() {
   // ── Derived values ────────────────────────────────────────────────
   // Only Saving goals count towards the total and the pace; Just tracking goals live in the Wish list.
   const filterActive = categoryFilter !== "All";
-  const matchesFilter = (f: Fund) => !filterActive || (f.category || "Other") === categoryFilter;
 
   const saving = useMemo(() => savingGoals(funds), [funds]);
   const listedSaving = useMemo(
     () => saving.filter((f) => !filterActive || (f.category || "Other") === categoryFilter),
     [saving, filterActive, categoryFilter],
   );
-  const listedWish = useMemo(
-    () => sortByCost(funds.filter((f) => isTracking(f) && matchesFilter(f))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [funds, filterActive, categoryFilter],
-  );
+  // The Wish list is its own group (Kind is the only switch), so the category Filter does not apply to it.
+  const listedWish = useMemo(() => sortByCost(funds.filter(isTracking)), [funds]);
 
   const totals = useMemo(() => savingTotals(listedSaving), [listedSaving]);
   // Count the headline total up/down when it changes (adding money, deleting a goal)
@@ -206,7 +204,8 @@ export default function FundsClient() {
 
   const allCategories = useMemo(() => {
     const currentCats = Array.from(new Set(funds.map((f) => f.category || "Other")));
-    return Array.from(new Set([...categoryOrder, ...GOAL_CATEGORIES, ...currentCats]));
+    // "Wish List" is a retired category name some old rows still carry; it is not a choice any more.
+    return Array.from(new Set([...categoryOrder, ...GOAL_CATEGORIES, ...currentCats])).filter((c) => c !== "Wish List");
   }, [funds, categoryOrder]);
 
   const today = useMemo(() => todayInZone(householdTimezone || "Australia/Sydney"), [householdTimezone]);
@@ -220,8 +219,8 @@ export default function FundsClient() {
     document.getElementById(addAmountInputId)?.focus();
   };
 
-  const openImpact = (fund: Fund) => {
-    setImpactInitial({ name: fund.name, amount: fund.targetAmount });
+  const openImpact = (fund?: Fund) => {
+    setImpactInitial(fund ? { name: fund.name, amount: fund.targetAmount } : undefined);
     setIsImpactOpen(true);
   };
 
@@ -324,6 +323,10 @@ export default function FundsClient() {
           </span>
           Filter
           {filterActive && <span className="sr-only"> (category chosen)</span>}
+        </Chip>
+        <Chip onClick={() => openImpact()} aria-haspopup="dialog">
+          <Calculator size={16} aria-hidden="true" />
+          Check impact
         </Chip>
       </div>
 

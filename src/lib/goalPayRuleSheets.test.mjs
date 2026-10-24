@@ -108,7 +108,6 @@ test("the goal sheet: rules section, stacked layers, delete takes its rules", ()
     "goalUpdate(draft, goal)",
     "goalStatusLabel",
     "rulesForGoal(",
-    "deleteRule(",
     "deleteGoal(goal.id)",
     "busy={editing !== null || addAmountOpen || addRuleOpen || activeRuleId !== null}",
   ]) assert.ok(t.includes(needle), `GoalDetailSheet missing ${needle}`);

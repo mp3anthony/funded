@@ -3312,7 +3312,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         deadline: goalData.deadline ? parseDateForDb(goalData.deadline) : null,
         status: goalData.status || 'not_started',
         member_id: goalData.member_id || null,
-        owner_id: session?.user?.id || null,
+        // owner_id is set once, when the goal is added; an edit must not hand it to whoever edits (#442).
       };
 
       const { data, error } = await supabase
@@ -3358,6 +3358,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         );
       }
       setFunds((prev) => prev.filter((f) => f.id !== id));
+
+      // The goal's rules go in one statement right after it (#440), so a failure part-way
+      // cannot leave some of them behind. A failure here is logged only: the goal is gone,
+      // and a rule pointing at nothing moves no money.
+      const { error: ruleError } = await supabase
+        .from("contribution_rules")
+        .delete()
+        .eq("action_type", "goal")
+        .eq("action_target_id", String(id));
+      if (ruleError) console.error("Failed to delete rules of deleted goal:", ruleError);
+      else setContributionRules((prev) => prev.filter((r) => !(r.action_type === "goal" && String(r.action_target_id) === String(id))));
     } catch (err) {
       console.error("Failed to delete goal:", err);
       throw err;

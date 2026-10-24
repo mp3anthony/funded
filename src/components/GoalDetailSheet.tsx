@@ -53,7 +53,7 @@ export default function GoalDetailSheet({ isOpen, onClose, goal, onCheckImpact }
   const uid = useId();
   const inputId = `${uid}-input`;
   const addAmountInputId = `${uid}-add-amount`;
-  const { contributionRules, householdMembers, updateGoal, deleteGoal, deleteRule } = useApp();
+  const { contributionRules, householdMembers, updateGoal, deleteGoal } = useApp();
 
   // The field card: which field, and the draft of every field (seeded from the live goal when it opens).
   const [editing, setEditing] = useState<GoalField | null>(null);
@@ -115,18 +115,8 @@ export default function GoalDetailSheet({ isOpen, onClose, goal, onCheckImpact }
     await updateGoal(goal.id, goalUpdate(draft, goal));
   };
 
-  // The goal goes first; its rules are then removed best effort (a leftover rule points at nothing and does nothing).
-  const deleteWithRules = async () => {
-    const rules = goalRules;
-    await deleteGoal(goal.id);
-    for (const r of rules) {
-      try {
-        await deleteRule(r.id);
-      } catch (err) {
-        console.error("Failed to delete rule of deleted goal:", err);
-      }
-    }
-  };
+  // `deleteGoal` removes the goal's rules too.
+  const deleteWithRules = () => deleteGoal(goal.id);
 
   const n = goalRules.length;
   const deleteMessage =

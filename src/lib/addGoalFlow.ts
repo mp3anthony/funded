@@ -16,7 +16,6 @@ export interface Option {
 export const GOAL_CATEGORIES: string[] = [
   "Home & Living",
   "Vacation & Travel",
-  "Wish List",
   "Education",
   "Debt & Finance",
   "Savings",
@@ -53,9 +52,8 @@ export interface AddedGoal {
   category: string;
 }
 
-/** Category a goal starts in, per kind (swapped only while the person has not chosen one). */
-const SAVING_DEFAULT = "Savings";
-const TRACKING_DEFAULT = "Wish List";
+/** Category a new goal starts in. Kind (Saving / Just tracking) is the only switch; category is separate. */
+const DEFAULT_CATEGORY = "Savings";
 
 export function initialValues(): AddGoalValues {
   return {
@@ -64,21 +62,13 @@ export function initialValues(): AddGoalValues {
     target: "",
     saved: "",
     deadline: "",
-    category: SAVING_DEFAULT,
+    category: DEFAULT_CATEGORY,
   };
 }
 
-/**
- * Switching Saving <-> Just tracking. The category follows the kind
- * (Savings <-> Wish List) only while it still holds the other kind's default,
- * so a category the person picked is never overwritten.
- */
+/** Switching Saving <-> Just tracking changes the kind only; the category is left as chosen. */
 export function applyKindChange(v: AddGoalValues, kind: GoalKind): AddGoalValues {
-  if (kind === v.kind) return v;
-  let category = v.category;
-  if (kind === "tracking" && category === SAVING_DEFAULT) category = TRACKING_DEFAULT;
-  else if (kind === "saving" && category === TRACKING_DEFAULT) category = SAVING_DEFAULT;
-  return { ...v, kind, category };
+  return kind === v.kind ? v : { ...v, kind };
 }
 
 /** The essential cards in order. Just tracking skips "Already saved". */

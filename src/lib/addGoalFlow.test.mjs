@@ -64,17 +64,17 @@ test("buildGoalPayload", () => {
     }
   );
   const t = buildGoalPayload(
-    withValues({ kind: "tracking", name: "TV", target: "900", saved: "300", category: "Wish List" })
+    withValues({ kind: "tracking", name: "TV", target: "900", saved: "300", category: "Other" })
   );
   assert.equal(t.currentAmount, 0);
   assert.equal(t.status, "paused");
   assert.equal(t.deadline, null);
 });
 
-test("applyKindChange swaps the category default only while untouched", () => {
+test("applyKindChange changes the kind only, never the category", () => {
   const toTracking = applyKindChange(initialValues(), "tracking");
   assert.equal(toTracking.kind, "tracking");
-  assert.equal(toTracking.category, "Wish List");
+  assert.equal(toTracking.category, "Savings");
   assert.equal(applyKindChange(toTracking, "saving").category, "Savings");
   const picked = withValues({ category: "Education" });
   assert.equal(applyKindChange(picked, "tracking").category, "Education");
@@ -94,8 +94,8 @@ test("initialValues", () => {
 });
 
 test("GOAL_CATEGORIES and KIND_OPTIONS", () => {
-  assert.equal(GOAL_CATEGORIES.length, 8);
-  assert.ok(GOAL_CATEGORIES.includes("Wish List") && GOAL_CATEGORIES.includes("Savings"));
+  assert.equal(GOAL_CATEGORIES.length, 7);
+  assert.ok(!GOAL_CATEGORIES.includes("Wish List") && GOAL_CATEGORIES.includes("Savings"));
   assert.deepEqual(KIND_OPTIONS.map((o) => o.value), ["saving", "tracking"]);
 });
 
