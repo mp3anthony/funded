@@ -1,75 +1,29 @@
-// Unit tests for src/lib/onboarding.ts (#248).
+// Unit tests for src/lib/onboarding.ts (Setup hub helpers, R32 #419).
 // Run with `npm run test` (node --test, Node's built-in TS type stripping).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  TOTAL_STEPS,
-  SKIPPABLE_STEPS,
-  isPaydayValid,
-  isBillValid,
-  isGoalValid,
-  footerFor,
-  summaryCell,
-} from './onboarding.ts';
+import { HUB_ROWS, emptyHubDone, markDone, rowDone } from './onboarding.ts';
 
-test('wizard tail has 4 steps and skips payday, bill, goal', () => {
-  assert.equal(TOTAL_STEPS, 4);
-  assert.deepEqual([...SKIPPABLE_STEPS], [1, 2, 3]);
+test('hub has pay, bill, goal rows in order', () => {
+  assert.deepEqual(HUB_ROWS.map((r) => r.key), ['pay', 'bill', 'goal']);
+  assert.deepEqual(HUB_ROWS.map((r) => r.label), ['Add your pay', 'Add a bill', 'Add a goal']);
 });
 
-test('payday: date required', () => {
-  assert.equal(isPaydayValid({ date: '', isFixed: false, amount: '' }), false);
+test('nothing is ticked at first', () => {
+  const done = emptyHubDone();
+  for (const r of HUB_ROWS) assert.equal(rowDone(done, r.key), false);
 });
 
-test('payday: variable pay needs no amount', () => {
-  assert.equal(isPaydayValid({ date: '2026-10-20', isFixed: false, amount: '' }), true);
+test('markDone ticks one row and leaves the others', () => {
+  const done = markDone(emptyHubDone(), 'bill');
+  assert.equal(rowDone(done, 'bill'), true);
+  assert.equal(rowDone(done, 'pay'), false);
+  assert.equal(rowDone(done, 'goal'), false);
 });
 
-test('payday: fixed pay needs an amount above zero', () => {
-  assert.equal(isPaydayValid({ date: '2026-10-20', isFixed: true, amount: '' }), false);
-  assert.equal(isPaydayValid({ date: '2026-10-20', isFixed: true, amount: '0' }), false);
-  assert.equal(isPaydayValid({ date: '2026-10-20', isFixed: true, amount: '-5' }), false);
-  assert.equal(isPaydayValid({ date: '2026-10-20', isFixed: true, amount: 'abc' }), false);
-  assert.equal(isPaydayValid({ date: '2026-10-20', isFixed: true, amount: '2500' }), true);
-});
-
-test('bill: name, amount above zero and due date all required', () => {
-  const ok = { name: 'Rent', amount: '300', dueDate: '2026-11-01' };
-  assert.equal(isBillValid(ok), true);
-  assert.equal(isBillValid({ ...ok, name: '   ' }), false);
-  assert.equal(isBillValid({ ...ok, amount: '' }), false);
-  assert.equal(isBillValid({ ...ok, amount: '0' }), false);
-  assert.equal(isBillValid({ ...ok, dueDate: '' }), false);
-});
-
-test('goal: name and target above zero', () => {
-  assert.equal(isGoalValid({ name: 'Holiday', target: '1000' }), true);
-  assert.equal(isGoalValid({ name: ' ', target: '1000' }), false);
-  assert.equal(isGoalValid({ name: 'Holiday', target: '0' }), false);
-  assert.equal(isGoalValid({ name: 'Holiday', target: '' }), false);
-});
-
-test('footer: no Back on step 1, Back on later steps', () => {
-  assert.equal(footerFor(1, { saved: false }).showBack, false);
-  assert.equal(footerFor(2, { saved: false }).showBack, true);
-  assert.equal(footerFor(3, { saved: false }).showBack, true);
-});
-
-test('footer: Skip only on unsaved steps 1 to 3', () => {
-  for (const step of [1, 2, 3]) {
-    assert.equal(footerFor(step, { saved: false }).showSkip, true);
-    assert.equal(footerFor(step, { saved: true }).showSkip, false);
-    assert.equal(footerFor(step, { saved: false }).primary, 'next');
-  }
-});
-
-test('footer: last step is Enter App with no Back or Skip', () => {
-  assert.deepEqual(footerFor(4, { saved: true }), { showBack: false, showSkip: false, primary: 'enter' });
-});
-
-test('summary cell: skipped, variable, amount', () => {
-  assert.deepEqual(summaryCell(null), { kind: 'skipped' });
-  assert.deepEqual(summaryCell({ isFixed: false, amount: 0 }), { kind: 'variable' });
-  assert.deepEqual(summaryCell({ isFixed: true, amount: 2500 }), { kind: 'amount', amount: 2500 });
-  assert.deepEqual(summaryCell({ amount: 40 }), { kind: 'amount', amount: 40 });
+test('markDone does not mutate and is idempotent', () => {
+  const start = emptyHubDone();
+  const once = markDone(start, 'pay');
+  assert.equal(start.pay, false);
+  assert.deepEqual(markDone(once, 'pay'), once);
 });

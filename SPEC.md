@@ -814,11 +814,11 @@ problem/checklist on the issue.
 **Problem:** the old wizard forced payday and a full bill on day one, could write duplicates on Back then Next, lost its place on small screens and had no goal step.
 
 **Decisions (grilled 2026-10-11, slice 1 of 2; slice 2 is #333):**
-- 6 steps: household, payment mode, payday, first bill, first goal, Setup Complete. Household and payment mode are required; payday, bill and goal have "Skip for now" (writes nothing).
+- (Superseded by R31/R32, #418/#419.) Welcome, then Household name and Payment mode (required), then the optional Setup hub: rows Add your pay, Add a bill, Add a goal open the normal add flows and tick when saved; "Enter app" is always available. Originally 6 steps with a Setup Complete screen and "Skip for now".
 - First bill step is name, amount, frequency (default monthly) and due date only; saved as category Other, Manual, assigned to the current user, no splits. Goal step is name and target only (category Savings, status not started, no deadline).
-- Plain-language "why" boxes on steps 1 and 2. Shared step layout (`OnboardingStep`); pure rules in `src/lib/onboarding.ts`.
-- Back never writes twice: `createHousehold` runs once (guarded), a saved payday/bill/goal step goes read-only when revisited, and the Setup Complete summary reads what was actually saved ("Skipped" for skipped items).
-- Setup Complete ends with a "You can find the Getting started guide here" link; it calls `completeOnboarding()` before navigating to `/getting-started`.
+- Hub rules in `src/lib/onboarding.ts`; the hub is `OnboardingHub`.
+- Back never writes twice: `createHousehold` runs once (guarded); the hub saves through the normal add flows.
+- The hub has a "Getting started guide" link under Enter app; it calls `completeOnboarding()` before navigating to `/getting-started`.
 - `addFund` now throws on a failed insert (like `addBill`), so the goal step and Create Goal window can show the failure.
 - Empty Payday, Bills and Goals pages say "Tap + beside the page title to add your first ...".
 - Join path unchanged. No schema change. A reload mid-onboarding lands in the app with Direct Pay and the optional steps unset; the Dashboard card in #333 covers that.

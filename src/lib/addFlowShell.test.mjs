@@ -86,11 +86,3 @@ test("highlight styles exist", () => {
   const css = read("app/globals.css");
   assert.ok(css.includes("@keyframes row-highlight") && css.includes(".row-highlight"));
 });
-
-test("Onboarding still saves its first bill through addBill with the same payload keys", () => {
-  const t = read("components/Onboarding.tsx");
-  assert.ok(t.includes("addBill("));
-  for (const k of ["name:", "amount", "category:", "invoiceDate:", "dueDate:", "paymentType:", "assignee:", "notes:", "frequency:"]) {
-    assert.ok(t.includes(k), `Onboarding payload lost ${k}`);
-  }
-});

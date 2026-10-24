@@ -96,8 +96,6 @@ test("cn resolves radius tokens against rounded-full", () => {
 // Slices delete entries as they restyle a file; R35 empties the list.
 const SQUARE_ALLOWLIST = new Set([
     "app/login/page.tsx",
-    "components/Onboarding.tsx",
-    "components/OnboardingStep.tsx",
     "components/SurplusSuggestionModal.tsx",
 ]);
 

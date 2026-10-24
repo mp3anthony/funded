@@ -46,7 +46,7 @@ export const missions: GuideMission[] = [
       "Open Funded and tap Need an account? Sign Up. Confirm your email from the link we send, then sign in.",
       "Choose Create a household and give it a name.",
       "Pick a payment mode. Direct Pay: everyone pays their share of each bill directly. Joint Fund: bills come out of one shared account that everyone puts money into. You can change this later in Settings.",
-      "Add your next payday, your first bill and a first goal, or tap Skip for now on any of them and add them later with the + buttons or from the Finish setting up card on your Dashboard. Then tap Enter App.",
+      "On the Set up the basics screen, add your next payday, a first bill and a first goal, or leave any of them for later: add them with the + buttons or from the Finish setting up card on your Dashboard. Then tap Enter app.",
     ],
   },
   {
