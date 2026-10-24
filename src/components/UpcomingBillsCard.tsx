@@ -101,7 +101,7 @@ export const UpcomingBillsCard = React.memo(function UpcomingBillsCard({
 
       {/* Content — expand/collapse via grid-template-rows (Slice 99),
           matching the dashboard's other collapsible sections (e.g.
-          HealthScoreCard/ActiveGoalsCard) so it grows/shrinks smoothly
+          ActiveGoalsCard) so it grows/shrinks smoothly
           instead of popping in and out of the layout. */}
       <div
         className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"

@@ -6,8 +6,7 @@ import {
   parsePayments,
   totalCost,
   planLength,
-  weeklyIncome,
-  coverage,
+  impactFromVerdict,
   billPrefill,
 } from "./impactCalc.ts";
 
@@ -55,85 +54,80 @@ test("planLength: each frequency, singular and plural, null when ongoing", () =>
   assert.equal(planLength("monthly", null), null);
 });
 
-test("weeklyIncome: Joint Fund counts contributions only", () => {
-  const out = weeklyIncome({
-    isJointFund: true,
-    contributions: [
-      { amount: 40, frequency: "monthly" },
-      { amount: 5, frequency: "weekly" },
-    ],
-    schedules: [{ id: "s1", amount: 1000, frequency: "weekly" }],
-    history: [],
-    convert,
+const verdictLike = (o = {}) => ({
+  tone: "ok",
+  headline: "Bills covered",
+  detail: "$50 a week left after bills.",
+  shortBy: 0,
+  halves: { income: { status: "ok", gap: 50 }, cover: { status: "ok", gap: 50 } },
+  ...o,
+});
+const shortLike = (by, o = {}) =>
+  verdictLike({
+    tone: "bad",
+    headline: `Short $${by} a week`,
+    detail: `Pay is $${by} a week short of bills.`,
+    shortBy: by,
+    halves: { income: { status: "short", gap: -by }, cover: { status: "ok", gap: 0 } },
+    ...o,
   });
-  assert.equal(out, 15);
-});
 
-test("weeklyIncome: Direct Pay uses the latest logged amount, else the saved one, null as 0", () => {
-  const schedules = [
-    { id: "s1", amount: 100, frequency: "weekly" },
-    { id: "s2", amount: 80, frequency: "weekly" },
-    { id: "s3", amount: null, frequency: "weekly" },
-  ];
-  const history = [
-    { pay_schedule_id: "s1", amount: 120, pay_date: "2026-10-01" },
-    { pay_schedule_id: "s1", amount: 150, pay_date: "2026-10-15" },
-    { pay_schedule_id: "s1", amount: null, pay_date: "2026-10-20" }, // no amount: ignored
-    { pay_schedule_id: "other", amount: 999, pay_date: "2026-10-30" },
-  ];
-  const out = weeklyIncome({ isJointFund: false, contributions: [], schedules, history, convert });
-  assert.equal(out, 150 + 80 + 0);
-});
-
-test("coverage: neutral with no income", () => {
-  const c = coverage({ weeklyIncome: 0, weeklyBills: 50, extraWeekly: 10 });
+test("impactFromVerdict: neutral with no pay", () => {
+  const unset = verdictLike({
+    tone: "neutral",
+    headline: "Set up your pay",
+    halves: { income: { status: "unset", gap: 0 }, cover: { status: "ok", gap: 0 } },
+  });
+  const c = impactFromVerdict(unset, unset);
   assert.equal(c.tone, "neutral");
   assert.equal(c.headline, "Add your pay to check this");
   assert.equal(c.flips, false);
 });
 
-test("coverage: still covered", () => {
-  const c = coverage({ weeklyIncome: 500, weeklyBills: 400, extraWeekly: 50 });
+test("impactFromVerdict: neutral for unset contributions keeps the verdict's words", () => {
+  const unset = verdictLike({
+    tone: "neutral",
+    headline: "Set up contributions",
+    detail: "Set what each member puts in on Payday.",
+    halves: { income: { status: "ok", gap: 10 }, cover: { status: "unset", gap: 0 } },
+  });
+  const c = impactFromVerdict(unset, unset);
+  assert.equal(c.tone, "neutral");
+  assert.equal(c.headline, "Set up contributions");
+});
+
+test("impactFromVerdict: still covered", () => {
+  const c = impactFromVerdict(verdictLike(), verdictLike({ detail: "$10 a week left after bills." }));
   assert.equal(c.tone, "ok");
   assert.equal(c.headline, "Still covered");
+  assert.equal(c.detail, "$10 a week left after bills.");
   assert.equal(c.flips, false);
 });
 
-test("coverage: tips a covered household into short (flips)", () => {
-  const c = coverage({ weeklyIncome: 500, weeklyBills: 480, extraWeekly: 32 });
+test("impactFromVerdict: tips a covered household into short (flips)", () => {
+  const c = impactFromVerdict(verdictLike(), shortLike(12));
   assert.equal(c.tone, "bad");
   assert.equal(c.headline, "Short $12 a week");
+  assert.equal(c.detail, "You have $50 a week to spare now, so this tips you over.");
   assert.equal(c.flips, true);
 });
 
-test("coverage: already short stays short, no flip", () => {
-  const c = coverage({ weeklyIncome: 500, weeklyBills: 520, extraWeekly: 10 });
-  assert.equal(c.tone, "bad");
-  assert.equal(c.headline, "Short $30 a week");
-  assert.equal(c.flips, false);
+test("impactFromVerdict: flip caused by the cover half uses the verdict's own line", () => {
+  const after = shortLike(8, {
+    detail: "Contributions are $8 a week short of bills.",
+    halves: { income: { status: "ok", gap: 5 }, cover: { status: "short", gap: -8 } },
+  });
+  const c = impactFromVerdict(verdictLike(), after);
+  assert.equal(c.flips, true);
+  assert.equal(c.detail, "Contributions are $8 a week short of bills.");
 });
 
-test("coverage: rounds once to whole dollars, so text never disagrees", () => {
-  // Short by 40 cents rounds to 0: covered.
-  const a = coverage({ weeklyIncome: 500, weeklyBills: 480, extraWeekly: 20.4 });
-  assert.equal(a.tone, "ok");
-  assert.equal(a.headline, "Still covered");
-  assert.equal(a.detail, "$0 a week left after bills.");
-  // Exactly 50 cents short still rounds to 0: covered. 60 cents short rounds to $1: short, and it tips over.
-  assert.equal(coverage({ weeklyIncome: 500, weeklyBills: 480, extraWeekly: 20.5 }).headline, "Still covered");
-  const b = coverage({ weeklyIncome: 500, weeklyBills: 480, extraWeekly: 20.6 });
-  assert.equal(b.headline, "Short $1 a week");
-  assert.equal(b.flips, true);
-  // 11.6 spare then 12.4 short: rounds to $12 spare and $1 short (never a mismatched pair).
-  const c = coverage({ weeklyIncome: 500, weeklyBills: 488.4, extraWeekly: 12.8 });
-  assert.equal(c.headline, "Short $1 a week");
-  assert.equal(c.detail, "You have $12 a week to spare now, so this tips you over.");
-  // Already short by 40 cents (rounds to 0 now) and a little more: the flip follows the rounded numbers.
-  const d = coverage({ weeklyIncome: 500, weeklyBills: 500.4, extraWeekly: 0 });
-  assert.equal(d.headline, "Still covered");
-  assert.equal(d.flips, false);
-  // Already short by $20 stays short, no flip.
-  assert.equal(coverage({ weeklyIncome: 500, weeklyBills: 520.4, extraWeekly: 5 }).flips, false);
+test("impactFromVerdict: already short stays short, no flip", () => {
+  const c = impactFromVerdict(shortLike(30), shortLike(40));
+  assert.equal(c.tone, "bad");
+  assert.equal(c.headline, "Short $40 a week");
+  assert.equal(c.detail, "Already short $30 a week, this makes it worse.");
+  assert.equal(c.flips, false);
 });
 
 test("billPrefill: fixed count is a Temporary bill with a note", () => {

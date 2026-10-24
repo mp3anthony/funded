@@ -170,7 +170,7 @@ export interface BillSplit {
  * Issue #98 (Slice 1 of 6): variable, no-due-date spend (groceries, fuel, etc.), tracked
  * separately from `bills`. Schema/migration-only for now — no UI or business logic reads this
  * yet; later sub-slices of #98 add the add/edit UI (2), Direct Pay split logic (3), the
- * weekly-draw calc integration (4), health score integration (5), and #70 category ordering (6).
+ * weekly-draw calc integration (4), verdict integration (5), and #70 category ordering (6).
  */
 export interface Expense {
   id: string;
@@ -987,8 +987,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // proves otherwise. AppShell's gate (src/components/AppShell.tsx:182) is the
   // app's single loading gate, so any render where this is wrongly false hands
   // every dashboard component empty arrays to compute against — the cold-open
-  // "Fully Funded" flash in #73 (empty state scores exactly 85, clearing the
-  // >= 80 threshold). The previous initialiser was
+  // false "all good" flash in #73 (an empty state used to score 85, the old
+  // Health score). The previous initialiser was
   // `!initialIsOnboarded && !!initialSession`, which evaluated to false for
   // every user unconditionally — not conditionally on onboarding. This
   // function's defaults are `initialSession = null, initialIsOnboarded = false`
@@ -1458,8 +1458,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // again (the very failure that put the user on "create or join" in the first
   // place) it returned early with the resolution ref now set: isOnboarded stayed
   // true, isDataLoading cleared, and the dashboard rendered with bills, funds,
-  // paydays and members all still [] — which computes to exactly 85 in
-  // calculateHealthScore and displays "Fully Funded" (#73's false positive).
+  // paydays and members all still [] — which the old Health score read as
+  // "Fully Funded" (#73's false positive; the verdict shows grey there).
   //
   // Takes userId explicitly rather than reading session: the adopt paths get a
   // fresher user from supabase.auth.getSession() than this render's closure.
@@ -1668,7 +1668,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // Both slices go through resolveWarmReloadRace (#348), same as the
   // loadData slices: an empty-but-successful read only replaces loaded pay
   // data after one confirming re-fetch, so a warm reload can't briefly wipe
-  // it (Dashboard "Add your payday", wrong Household Health). A genuine
+  // it (Dashboard "Add your payday", wrong Dashboard verdict). A genuine
   // delete-to-empty still lands: the re-fetch is also empty and is committed.
   // `assumeEmptyPreviousState` is passed through from loadHouseholdRelatedData
   // for the household-switch case (see the comment there).
@@ -1936,9 +1936,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         //    Onboarding, and nothing raises it again (loadData's own raise at
         //    :882 is skipped once dbHouseholdId and isOnboarded are both truthy).
         //    AppShell's gates therefore opened over bills/funds/paydays/members
-        //    still [], which computes to exactly 85 in calculateHealthScore
-        //    (src/lib/utils.ts:88) and clears the >= 80 "Fully Funded" threshold
-        //    (src/components/HealthScoreCard.tsx:34). Committing after the await
+        //    still [], which the old Health score read as "Fully Funded" (#73).
+        //    Committing after the await
         //    removes the window outright instead of covering it with a wheel.
         //
         // 2. loadHouseholdRelatedData has no try/catch and its Promise.all
@@ -3618,8 +3617,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           // Committing dbHouseholdId and isOnboarded(true) regardless of the
           // lookup is what made the old code incoherent: it dropped AppShell's
           // Onboarding gate for a household with no name, no join code and no
-          // related data — the empty-arrays dashboard that computes to exactly
-          // 85 in calculateHealthScore and reads "Fully Funded" (#73). Leaving
+          // related data — the empty-arrays dashboard that used to read
+          // "Fully Funded" (#73). Leaving
           // state untouched keeps the user where they were, which is also why
           // this message is actually visible on the Onboarding path, unlike the
           // refusal below.
@@ -3637,9 +3636,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // reasons as createHousehold's adopt branch (:1255-1311). Briefly: a
         // setIsOnboarded(true) before the await flushes mid-flight while
         // isDataLoading is false, opening AppShell's gates over empty arrays,
-        // which computes to exactly 85 in calculateHealthScore
-        // (src/lib/utils.ts:88) and reads "Fully Funded"
-        // (src/components/HealthScoreCard.tsx:34); and loadHouseholdRelatedData
+        // which used to read "Fully Funded" (#73); and loadHouseholdRelatedData
         // can throw, which committing-first made permanent. Committing after does
         // NOT make a failed hydration side-effect-free — the helper's first
         // Promise.all (:991) can commit bills/funds/paydays/members/billSplits

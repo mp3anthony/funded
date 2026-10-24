@@ -17,6 +17,10 @@ type PageHeaderProps = {
   showAvatar?: boolean;
   /** Drill-down pages: shows a back circle left of the title. */
   onBack?: () => void;
+  /** A small mark left of the title (the Dashboard verdict's status dot). */
+  leading?: React.ReactNode;
+  /** Read out before the title by screen readers only ("Dashboard" for the verdict header). */
+  srTitle?: string;
   /** Extra controls rendered before the "+" circle (later slices). */
   extra?: React.ReactNode;
 } & AddProps;
@@ -26,6 +30,8 @@ export default function PageHeader({
   subtitle,
   showAvatar = true,
   onBack,
+  leading,
+  srTitle,
   extra,
   onAdd,
   addLabel,
@@ -35,9 +41,13 @@ export default function PageHeader({
       <div className="flex min-w-0 items-start gap-2">
         {onBack && <BackCircle onClick={onBack} className="-ml-1" />}
         <div className="min-w-0">
-          <h1 className="font-heading font-extrabold text-[28px] sm:text-[32px] leading-tight tracking-tight text-foreground truncate">
-            {title}
-          </h1>
+          <div className="flex min-w-0 items-center gap-3">
+            {leading}
+            <h1 className="font-heading font-extrabold text-[28px] sm:text-[32px] leading-tight tracking-tight text-foreground truncate">
+              {srTitle && <span className="sr-only">{srTitle}: </span>}
+              {title}
+            </h1>
+          </div>
           {subtitle && <p className="text-xs text-muted mt-1 font-body">{subtitle}</p>}
         </div>
       </div>

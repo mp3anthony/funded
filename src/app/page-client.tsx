@@ -1,29 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { useApp, useCurrentUser } from "@/context/AppContext";
+import { useApp } from "@/context/AppContext";
 import BillDetailSheet from "@/components/BillDetailSheet";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
 import PageHeader from "@/components/PageHeader";
+import { useVerdict } from "@/hooks/useVerdict";
 
 // New premium components
 import FinishSetupCard from "@/components/FinishSetupCard";
-import HealthScoreCard from "@/components/HealthScoreCard";
 import UpcomingBillsCard from "@/components/UpcomingBillsCard";
 import ActiveGoalsCard from "@/components/ActiveGoalsCard";
 import DashboardTipsTicker from "@/components/DashboardTipsTicker";
 
 
+// R25: the verdict's status dot. Lime = covered, red = short, grey = nothing to compare yet.
+const DOT = {
+  ok: { className: "bg-primary", glow: "#c8ff00" },
+  bad: { className: "bg-destructive", glow: "#ff3d57" },
+  neutral: { className: "bg-subtle", glow: "#8a8a8a" },
+} as const;
+
 export default function HomeClient() {
   const {
     bills,
     funds,
-    payHistory,
     billSplits,
     members: householdMembers,
     isUpdatesCardVisible,
   } = useApp();
-  const currentUser = useCurrentUser();
+  const verdict = useVerdict();
+  const dot = DOT[verdict.tone];
 
   /* ── Local UI States for Sheets ──────────────── */
   // R10: keep the id and look the bill up each render, so the sheet follows every
@@ -49,14 +56,22 @@ export default function HomeClient() {
 
   return (
     <div className="flex-1 w-full max-w-2xl lg:max-w-4xl mx-auto px-6 pt-4 pb-10">
-      <PageHeader title="Dashboard" />
+      <PageHeader
+        title={verdict.headline}
+        srTitle="Dashboard"
+        subtitle={verdict.detail}
+        leading={
+          <span
+            aria-hidden="true"
+            className={`h-3 w-3 shrink-0 rounded-full ${dot.className} transition-colors duration-(--duration-structural) ease-(--ease-enter)`}
+            style={{ boxShadow: `0 0 12px ${dot.glow}A6` }}
+          />
+        }
+      />
 
       {/* Editorial sections */}
       <div className="space-y-9 pt-2">
         <FinishSetupCard />
-
-        {/* Health Score — page anchor */}
-        <HealthScoreCard />
 
         {/* Bills & Goals */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-9 lg:gap-8">

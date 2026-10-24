@@ -48,6 +48,6 @@ test("reminders use the daily key and the cron route creates Pending pays", () =
 
 test("components cope with a NULL pay amount", () => {
   assert.ok(read("components/PayHistoryCard.tsx").includes("Amount needed"));
-  assert.ok(read("components/HealthScoreCard.tsx").includes("latestLoggedAmount("));
+  assert.ok(read("hooks/useVerdict.ts").includes("latestLoggedAmount("));
   assert.ok(read("components/RecentActivityCard.tsx").includes('p.status === "pending"'));
 });

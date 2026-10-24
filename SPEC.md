@@ -107,7 +107,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   `if (res.data)` is not sufficient: `[]` is truthy, and a successful RLS query
   with no token applied returns zero rows and no error. See issue #74.
 
-  **The canary:** an unexplained "Fully Funded" means something has handed the dashboard empty arrays. See `docs/lessons.md` (Testing).
+  **The canary:** an unexplained grey "Set up your pay" (formerly "Fully Funded") means something has handed the dashboard empty arrays. See `docs/lessons.md` (Testing).
 * **Layout — fixed-position/overflow:** never nest a `position: fixed` element
   inside a container with `overflow: hidden`. Breaks on iOS Safari in particular.
   Note-level rather than locked because this class of change carries
@@ -827,7 +827,7 @@ problem/checklist on the issue.
 ### Slice 19: Finish setting up card (Issue #333)
 
 **Decisions (grilled 2026-10-11, planned 2026-10-12):**
-- Dashboard card, first in the page flow above Household Health. Owners only (joiners share the household's setup); a joiner later promoted sees it if something is missing.
+- Dashboard card, first in the page flow, above the Bills and Goals cards. Owners only (joiners share the household's setup); a joiner later promoted sees it if something is missing.
 - Household-wide "missing": payday = no pay schedule, bill = no bills (expenses don't count, paused bills do), goal = no goals. A deleted item brings its row back unless the card was dismissed.
 - Rows open the add form on the target page via `?add=1` on Payday, Bills and Goals (param stripped once used).
 - X hides it for good: `user_preferences.finish_setup_dismissed_at` (nullable timestamptz, one-way, never cleared; covered by the existing own-row policy, no RLS change). Per person, so a new household stays dismissed. Unknown or failed load keeps the card hidden.
@@ -850,7 +850,7 @@ problem/checklist on the issue.
 ### Slice 21: Paused bills and Counts toward totals (Issue #267)
 
 **Decisions (grilled 2026-10-11, planned and reviewed 2026-10-18):**
-- One rule for every bill total: `countsTowardTotals` in `src/lib/billCycle.ts` (false for paused bills and bills showing a neutral `dueLabel`; dateless bills count). Used by the Bills Total Bar, `calculateHealthScore`, Household Health (weekly bills, surplus, contributors split) and Suggest Split. Never inline `is_paused`/`dueLabel` checks in a total.
+- One rule for every bill total: `countsTowardTotals` in `src/lib/billCycle.ts` (false for paused bills and bills showing a neutral `dueLabel`; dateless bills count). Used by the Bills Total Bar, the Dashboard verdict, the Impact calculator and Suggest Split. Never inline `is_paused`/`dueLabel` checks in a total.
 - Paused bills of any payment type carry `dueLabel: 'Paused'` (`displayedDueDate` checks paused before payment type), so a paused manual bill shows "Paused" and appears only under the All filter.
 - Row look: orange pause icon, greyed amount, "Paused" in the date slot. Muted line under the Total Bar: "N paused or finished, not counted" (only when N > 0; ignores search/category/type/due filters).
 - No schema, migration or RLS change.

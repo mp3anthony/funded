@@ -53,7 +53,7 @@ _Avoid_: Mode (payment mode is a different thing), skin, colour scheme
 ### The pages
 
 **Dashboard**:
-The home page. One screen, no scroll (planned, #377): a tip strip, a verdict header, the stats carousel (or the Finish setting up card for owners while setup is unfinished), a Bills carousel and a Goals carousel. Today it shows the Finish setting up card, Household Health, Upcoming Bills and Savings Goals. Recent Activity was never built and is dropped from this entry.
+The home page. One screen, no scroll (planned, #377): a tip strip, a verdict header, the stats carousel (or the Finish setting up card for owners while setup is unfinished), a Bills carousel and a Goals carousel. Today (R25 built) the header is the verdict (a status dot, "Bills covered" or "Short $X a week", and one muted line), followed by the Finish setting up card, Upcoming Bills and Savings Goals; the stats carousel and the carousels for Bills and Goals come at R26 and R27. Recent Activity was never built and is dropped from this entry.
 _Avoid_: Home screen, overview, summary
 
 **Bills page**:

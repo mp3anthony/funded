@@ -275,7 +275,7 @@ export default function FundsClient() {
         </button>
 
         {/* Expand/collapse via grid-template-rows (Slice 99, same technique as the
-            dashboard's HealthScoreCard) so rows grow/shrink smoothly. */}
+            dashboard's other collapsible cards) so rows grow/shrink smoothly. */}
         <div
           className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
           style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}

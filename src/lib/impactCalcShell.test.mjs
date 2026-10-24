@@ -21,7 +21,8 @@ test("ImpactCalculator: Dialog shell, Nothing is saved, Turn into a bill, reset 
   assert.ok(t.includes("Nothing is saved"));
   assert.ok(t.includes("Turn into a bill"));
   assert.ok(t.includes("billPrefill("));
-  assert.ok(t.includes("coverage("));
+  assert.ok(t.includes("impactFromVerdict("));
+  assert.ok(t.includes("useVerdict(extraWeekly)"));
   assert.ok(t.includes("prevOpen"));
   assert.ok(t.includes("initial?"));
   // It closes itself before handing over, so dialogs never stack.

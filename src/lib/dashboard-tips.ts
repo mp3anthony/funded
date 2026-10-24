@@ -20,7 +20,7 @@ export const dashboardTips: string[] = [
   "Tip: Log your pay on the Payday page as soon as it lands so your weekly numbers stay accurate.",
   "Tip: You can set your own \"Notify me at\" time in Settings, independent from the rest of your household.",
   "Tip: Everyday variable spending — groceries, fuel — belongs as an expense, not a bill. Add one from the Bills page.",
-  "Tip: The Household Health card on your dashboard gives you an at-a-glance read on how funded you are this week.",
+  "Tip: The line at the top of your dashboard tells you if your bills are covered this week, or how short you are.",
   "Tip: Split a shared bill or expense by percentage across household members in a couple of taps.",
   "Tip: Found an issue? Report it straight from Settings — add a title, description, and an optional screenshot.",
   "Tip: Not sure you paid a bill? Open it — it shows the month you last paid for, and Undo payment fixes a mis-tap.",

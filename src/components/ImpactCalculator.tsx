@@ -1,23 +1,21 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { useApp } from "@/context/AppContext";
+import { useVerdict } from "@/hooks/useVerdict";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
 import Dialog from "@/components/ui/Dialog";
 import Field from "@/components/ui/Field";
 import Input from "@/components/ui/Input";
-import { countsTowardTotals } from "@/lib/billCycle";
 import { FREQUENCY_OPTIONS, parseAmount } from "@/lib/addFlow";
 import type { FrequencyType } from "@/lib/frequencyPreference";
 import {
   billPrefill,
-  coverage,
+  impactFromVerdict,
   extraCosts,
   parsePayments,
   planLength,
   totalCost,
-  weeklyIncome,
   type BillPrefill,
 } from "@/lib/impactCalc";
 import { convertAmount, cn } from "@/lib/utils";
@@ -70,7 +68,6 @@ export default function ImpactCalculator({
   initial,
 }: ImpactCalculatorProps) {
   const uid = useId();
-  const { bills, isJointFund, householdContributions, paySchedules, payHistory } = useApp();
 
   const [inputs, setInputs] = useState<Inputs>(() => freshInputs(initial));
   // Fresh inputs each time it opens (derived-state reset, no effect).
@@ -81,29 +78,12 @@ export default function ImpactCalculator({
   }
   const patch = (p: Partial<Inputs>) => setInputs((v) => ({ ...v, ...p }));
 
-  const income = useMemo(
-    () =>
-      weeklyIncome({
-        isJointFund,
-        contributions: householdContributions,
-        schedules: paySchedules,
-        history: payHistory,
-        convert: convertAmount,
-      }),
-    [isJointFund, householdContributions, paySchedules, payHistory],
-  );
-  const weeklyBills = useMemo(
-    () =>
-      bills.reduce(
-        (sum, b) =>
-          countsTowardTotals(b) ? sum + convertAmount(b.amount || 0, b.frequency || "monthly", "weekly") : sum,
-        0,
-      ),
-    [bills],
-  );
-
   const amount = parseAmount(inputs.amount);
   const payments = inputs.ongoing ? null : parsePayments(inputs.payments);
+  // The verdict as it stands and with the plan added (R25).
+  const extraWeekly = amount === null ? 0 : convertAmount(amount, inputs.frequency, "weekly");
+  const verdictNow = useVerdict();
+  const verdictWith = useVerdict(extraWeekly);
   const ready = amount !== null && (inputs.ongoing || payments !== null);
 
   const result = useMemo(() => {
@@ -114,9 +94,9 @@ export default function ImpactCalculator({
       total: totalCost(amount, payments),
       length: planLength(inputs.frequency, payments),
       newTotal: currentTotal + convertAmount(amount, inputs.frequency, frequency),
-      coverage: coverage({ weeklyIncome: income, weeklyBills, extraWeekly: costs.weekly }),
+      coverage: impactFromVerdict(verdictNow, verdictWith),
     };
-  }, [amount, payments, inputs.ongoing, inputs.frequency, currentTotal, frequency, income, weeklyBills]);
+  }, [amount, payments, inputs.ongoing, inputs.frequency, currentTotal, frequency, verdictNow, verdictWith]);
 
   const turnIntoBill = () => {
     if (!ready) return;

@@ -77,51 +77,22 @@ export function billPrefill(args: {
   };
 }
 
-/* ── Weekly income and coverage ───────────────────────────── */
+/* ── Coverage (the Dashboard verdict, before and after the plan) ───────── */
 
-interface ContributionLike {
-  amount: number;
-  frequency: string;
-}
-interface ScheduleLike {
-  id: string;
-  amount: number | null;
-  frequency: string;
-}
-interface HistoryLike {
-  pay_schedule_id: string | null;
-  amount: number | null;
-  pay_date: string;
-}
-
-/**
- * Weekly income the way the Dashboard counts it today: Joint Fund = what members
- * contribute; Direct Pay = each pay schedule at its latest logged amount (else its
- * saved amount). R25 (Dashboard verdict) may replace this; keep the two in step.
- */
-export function weeklyIncome(args: {
-  isJointFund: boolean;
-  contributions: ContributionLike[];
-  schedules: ScheduleLike[];
-  history: HistoryLike[];
-  convert: Convert;
-}): number {
-  const { convert } = args;
-  if (args.isJointFund) {
-    return args.contributions.reduce((sum, c) => sum + convert(c.amount, c.frequency, "weekly"), 0);
-  }
-  return args.schedules.reduce((sum, s) => {
-    let amount = s.amount ?? 0;
-    const latest = args.history
-      .filter((h) => h.pay_schedule_id === s.id && h.amount !== null)
-      .sort((a, b) => b.pay_date.localeCompare(a.pay_date))[0];
-    if (latest) amount = latest.amount as number;
-    return sum + convert(amount, s.frequency, "weekly");
-  }, 0);
+/** The slice of a Verdict (lib/verdict.ts) the calculator reads. */
+export interface VerdictLike {
+  tone: "ok" | "bad" | "neutral";
+  headline: string;
+  detail: string;
+  shortBy: number;
+  halves: {
+    income: { status: string; gap: number };
+    cover: { status: string; gap: number };
+  };
 }
 
 export interface Coverage {
-  /** neutral = no income to compare against; ok = still covered; bad = short. */
+  /** neutral = nothing to compare against; ok = still covered; bad = short. */
   tone: "neutral" | "ok" | "bad";
   /** "Still covered" / "Short $12 a week" / "Add your pay to check this". */
   headline: string;
@@ -135,43 +106,30 @@ const dollars = (n: number) =>
   `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 /**
- * Would the weekly bills still be covered by weekly income once the plan is added?
- * `weeklyBills` is the household's current weekly bills (paused and finished left out).
+ * What the plan does to the Dashboard verdict. `before` is the verdict as it stands,
+ * `after` is the same verdict with the plan's weekly cost added (`extraWeekly`).
  */
-export function coverage(args: { weeklyIncome: number; weeklyBills: number; extraWeekly: number }): Coverage {
-  const { weeklyIncome: income, weeklyBills: bills, extraWeekly: extra } = args;
-  if (!(income > 0)) {
-    return {
-      tone: "neutral",
-      headline: "Add your pay to check this",
-      detail: "Set up pay on Payday and this will say whether you stay covered.",
-      flips: false,
-    };
+export function impactFromVerdict(before: VerdictLike, after: VerdictLike): Coverage {
+  if (after.tone === "neutral") {
+    if (after.halves.income.status === "unset") {
+      return {
+        tone: "neutral",
+        headline: "Add your pay to check this",
+        detail: "Set up pay on Payday and this will say whether you stay covered.",
+        flips: false,
+      };
+    }
+    return { tone: "neutral", headline: after.headline, detail: after.detail, flips: false };
   }
-  // Whole dollars once, up front, so the headline and the detail never disagree.
-  // `+ 0` turns a rounded -0 into 0, so a shortfall under 50 cents counts as covered.
-  const before = Math.round(income - bills) + 0;
-  const after = Math.round(income - bills - extra) + 0;
-  if (after >= 0) {
-    return {
-      tone: "ok",
-      headline: "Still covered",
-      detail: `${dollars(after)} a week left after bills.`,
-      flips: false,
-    };
+  if (after.tone === "ok") {
+    return { tone: "ok", headline: "Still covered", detail: after.detail, flips: false };
   }
-  if (before >= 0) {
-    return {
-      tone: "bad",
-      headline: `Short ${dollars(after)} a week`,
-      detail: `You have ${dollars(before)} a week to spare now, so this tips you over.`,
-      flips: true,
-    };
+  const flips = before.tone === "ok";
+  let detail = after.detail;
+  if (flips && after.halves.cover.status !== "short") {
+    detail = `You have ${dollars(before.halves.income.gap)} a week to spare now, so this tips you over.`;
+  } else if (before.tone === "bad") {
+    detail = `Already short ${dollars(before.shortBy)} a week, this makes it worse.`;
   }
-  return {
-    tone: "bad",
-    headline: `Short ${dollars(after)} a week`,
-    detail: `Already short ${dollars(before)} a week, this makes it worse.`,
-    flips: false,
-  };
+  return { tone: "bad", headline: after.headline, detail, flips };
 }
