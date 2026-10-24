@@ -7,7 +7,7 @@ const BUG_REPORT_LABEL = 'from-app';
 const BUG_REPORT_LABEL_COLOR = 'C8FF00'; // matches this app's --color-primary fluoro-green accent
 
 /**
- * In-app bug reporting (Slice 15, #114). Authenticates the caller via their
+ * In-app issue reporting (Slice 15, #114; "bug" became "issue" in #261). Authenticates the caller via their
  * Supabase session, then creates a real GitHub issue on this repo using a
  * server-only PAT (`GITHUB_BUG_REPORT_TOKEN`) — never exposed to the client.
  *
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     if (!githubToken) {
       console.error('GITHUB_BUG_REPORT_TOKEN is not configured on the server');
       return NextResponse.json(
-        { error: 'Bug reporting is not configured on the server. Please try again later.' },
+        { error: 'Issue reporting is not configured on the server. Please try again later.' },
         { status: 500 }
       );
     }
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             name: BUG_REPORT_LABEL,
             color: BUG_REPORT_LABEL_COLOR,
-            description: 'Filed from the in-app bug report form',
+            description: 'Filed from the in-app issue report form',
           }),
         }
       );
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       const errText = await issueResponse.text().catch(() => '');
       console.error('GitHub issue creation failed:', issueResponse.status, errText);
       return NextResponse.json(
-        { error: `Failed to file the bug report with GitHub (status ${issueResponse.status}).` },
+        { error: `Failed to file the issue report with GitHub (status ${issueResponse.status}).` },
         { status: 502 }
       );
     }
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     await issueResponse.json();
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Bug report API error:', error);
+    console.error('Issue report API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

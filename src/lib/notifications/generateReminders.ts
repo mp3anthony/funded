@@ -1,5 +1,6 @@
 import { diffDaysYmd } from './timezone';
 import { billSendsReminders, displayedDueDate } from '@/lib/billCycle';
+import { lodgePaymentDedupeKey, pendingPayPhrase } from '@/lib/payHistory';
 
 export type ReminderType =
   | 'manual_bill'
@@ -80,6 +81,8 @@ export interface ReminderFund {
   currentAmount?: number | null;
   target_amount?: number | string | null;
   targetAmount?: number | null;
+  /** "paused" = a Just tracking goal (R17): a wish, not savings, so it gets no milestone reminders. */
+  status?: string | null;
 }
 
 /** Round percentage-of-target thresholds a goal/fund can cross. No existing
@@ -302,6 +305,8 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   }
 
   // ── Confirm Pending Pay ──────────────────────────────
+  // R19 (#406): keyed per day, so a Pending pay nags once a day until it is
+  // confirmed or deleted (the old key fired once, ever).
   if (settings.lodge_payment_reminders && currentMemberId) {
     for (const hist of payHistory) {
       if (hist.status === 'pending' && hist.member_id === currentMemberId) {
@@ -310,9 +315,9 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
           household_id: householdId,
           type: 'lodge_payment',
           title: 'Payment Requires Confirmation',
-          message: `You have an unconfirmed payment logged on ${hist.pay_date}.`,
+          message: `You haven't logged ${pendingPayPhrase(hist.pay_date ?? '', todayYmd)}.`,
           related_entity_id: hist.id,
-          dedupe_key: `${hist.id}-lodge_payment`,
+          dedupe_key: lodgePaymentDedupeKey(hist.id, todayYmd),
         });
       }
     }
@@ -355,6 +360,7 @@ export function generateReminders(input: ReminderInput): ReminderRow[] {
   // fund even if the balance later dips back below it.
   if (settings.goal_milestone_reminders !== false) {
     for (const fund of funds) {
+      if (fund.status === 'paused') continue;
       const current = Number(fund.currentAmount ?? fund.current_amount ?? 0);
       const target = Number(fund.targetAmount ?? fund.target_amount ?? 0);
       if (!target || target <= 0) continue;

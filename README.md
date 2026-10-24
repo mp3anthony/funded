@@ -217,18 +217,23 @@ funded-nextjs/
 │   ├── components/           # Reusable UI components (about 55, plus ui/)
 │   │   ├── AppShell.tsx      # Auth guard, onboarding gate, bottom nav shell
 │   │   ├── Onboarding.tsx    # 6-step onboarding wizard
-│   │   ├── BottomNav.tsx     # Mobile bottom navigation bar
+│   │   ├── BottomNav.tsx     # Floating 4-slot pill nav (slots in lib/navSlots.ts)
+│   │   ├── PageHeader.tsx    # Shared page header: title, back circle, + circle, bell, avatar
+│   │   ├── HeaderActions.tsx # Bell (unread only) and avatar for the page header
+│   │   ├── ShellInboxContext.tsx # Lets the header bell open the AppShell notification inbox
 │   │   ├── NotificationCenter.tsx # In-app notification centre (alerts, settings)
 │   │   ├── *Sheet / *Modal / *Dialog.tsx  # Bottom sheets and dialogs (bills, goals, pay, members, bug report, push, timezone)
 │   │   ├── *Card.tsx         # Dashboard and list cards (health score, upcoming bills, goals, activity, bills, expenses)
-│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast)
+│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast, Button, IconCircle/BackCircle/CloseCircle, Chip, Card, Input/Select/Textarea, Carousel)
 │   ├── context/
 │   │   └── AppContext.tsx    # Global state provider (auth, data, CRUD)
-│   ├── hooks/                # Small shared hooks
+│   ├── hooks/                # Small shared hooks (viewport vars, keyboard-open for the nav fade)
 │   ├── lib/
 │   │   ├── supabase.ts       # Supabase client initialisation
 │   │   ├── storage.ts        # Avatar upload/delete/get utilities
 │   │   ├── utils.ts          # Shared helpers (health score, date, frequency conversion)
+│   │   ├── navSlots.ts       # Bottom-nav slots and path-to-slot lookup (tests in navSlots.test.mjs, appShell.test.mjs)
+│   │   ├── carousel.ts       # Carousel maths: snap targets, active slide, auto-rotate rule (tests in carouselLogic.test.mjs, carousel.test.mjs)
 │   │   ├── billCycle.ts      # Bill rollover logic (tests in billCycle.test.mjs)
 │   │   ├── finishSetup.ts    # Finish setting up card rules and the `?add=1` link param that opens a page's add sheet (tests in finishSetup.test.mjs)
 │   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
@@ -297,9 +302,8 @@ Fonts are loaded via `next/font/google` for optimal performance (no external CDN
 
 | Font | CSS Variable | Use |
 |------|-------------|-----|
-| **Syne** (400–800) | `--font-heading` | Display headings, wordmark |
-| **Instrument Sans** (400–600) | `--font-body` | Body text, inputs, UI labels |
-| **JetBrains Mono** (400–600) | `--font-mono` | Numeric values, monospace data |
+| **Syne** (400–800) | `--font-heading` | Page-header titles only (the `h1`) |
+| **Instrument Sans** (variable, 400–700) | `--font-body` | Everything else, including all numbers (tabular figures set on `body`) |
 
 ### Colour tokens
 

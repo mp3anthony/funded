@@ -3,22 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 
 /* ── Shared count-up hook (Slice 99: motion overhaul) ──────────────
-   Same animation the dashboard's HealthScoreCard stat tiles use
+   Same animation the dashboard's old stat tiles used
    (Slice 13, #99 Part 5): animates a displayed number from its previous
    value to a new target over `durationMs` on an ease-out-cubic curve, via
    requestAnimationFrame. Re-triggers whenever `target` changes (including
    on mount, animating up from 0).
 
    Factored out here so goal amounts/percentages (Funds page, dashboard's
-   ActiveGoalsCard, GoalDetailSheet) can share the exact same feel without
-   duplicating the tick logic — HealthScoreCard keeps its own local copy
-   untouched since it already shipped and works.
+   goal carousel, GoalDetailSheet) can share the exact same feel without
+   duplicating the tick logic.
 
-   `animateOnMount` opts into HealthScoreCard's original behaviour (count
+   `animateOnMount` opts into the original tile behaviour (count
    up from 0 on first mount too) — appropriate for a single focal reveal
    like GoalDetailSheet's headline amount, which remounts fresh each time
-   the sheet opens. It defaults to false because for list rows (Funds page,
-   ActiveGoalsCard) animating every row from 0 on first mount reads as
+   the sheet opens. It defaults to false because for list rows (Funds page) animating every row from 0 on first mount reads as
    page-load choreography, which Operate-mode surfaces should avoid — there
    the first run just settles at the target, and only a later change (e.g.
    Add Amount) counts up/down from the previous value. */

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/Button";
 import Dialog from "@/components/ui/Dialog";
+import Field from "@/components/ui/Field";
+import Input from "@/components/ui/Input";
 import { nextDueDatePatch } from "@/lib/billCycle";
 
 interface NextDueDateDialogProps {
@@ -23,6 +26,10 @@ interface NextDueDateDialogProps {
  * "Save date" pays this cycle and makes the bill due on the picked date;
  * "Skip for now" just marks it Paid; "Don't ask again for this bill" marks it
  * Paid and never asks again. Closing writes nothing.
+ *
+ * R12 (#399): bottom card with pill buttons. The callbacks are fire-and-forget
+ * (the parent runs the write and owns `busy`), so this stays a plain Dialog
+ * rather than a SingleCard.
  */
 export default function NextDueDateDialog({
   open,
@@ -36,61 +43,49 @@ export default function NextDueDateDialog({
 }: NextDueDateDialogProps) {
   const [picked, setPicked] = useState("");
   const isValid = nextDueDatePatch(picked, todayYmd) !== null;
-
-  const secondaryClass =
-    "w-full min-h-[44px] rounded-[2px] px-4 py-2.5 bg-surface-elevated text-foreground border border-border font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 disabled:pointer-events-none";
+  const showInvalid = picked !== "" && !isValid;
 
   return (
     <Dialog
       open={open}
-      onClose={() => {
-        if (!busy) onCancel();
-      }}
+      onClose={onCancel}
       title="When is it next due?"
+      placement="bottom"
+      busy={busy}
       footer={
-        <div className="w-full flex flex-col space-y-3">
-          <button
-            type="button"
-            onClick={() => onSave(picked)}
-            disabled={!isValid || busy}
-            className="w-full min-h-[44px] rounded-[2px] py-3.5 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-heading font-bold uppercase tracking-wider text-xs hover:bg-emerald-500 hover:text-foreground transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:pointer-events-none"
-          >
+        <div className="flex w-full flex-col gap-2">
+          <Button fullWidth onClick={() => onSave(picked)} disabled={!isValid || busy}>
             Save date
-          </button>
-          <button type="button" onClick={onSkip} disabled={busy} className={secondaryClass}>
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onSkip} disabled={busy}>
             Skip for now
-          </button>
-          <button type="button" onClick={onMute} disabled={busy} className={secondaryClass}>
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onMute} disabled={busy}>
             Don&apos;t ask again for this bill
-          </button>
+          </Button>
         </div>
       }
     >
-      <div className="space-y-4">
-        <p className="text-sm text-muted font-mono break-words">{billName}</p>
+      <div className="flex flex-col gap-4">
+        <p className="break-words text-sm text-muted">{billName}</p>
         <p className="text-sm text-foreground">
           This bill has no due date. Pick when it&apos;s next due and Funded will track it from there.
         </p>
-        <div className="flex flex-col space-y-2">
-          <label
-            htmlFor="next-due-date"
-            className="font-heading text-sm font-semibold text-subtle uppercase tracking-wider"
-          >
-            Next due date
-          </label>
-          <input
+        <Field
+          id="next-due-date"
+          label="Next due date"
+          description={showInvalid ? "Pick today or a later date." : undefined}
+        >
+          <Input
             id="next-due-date"
             type="date"
             min={todayYmd}
             value={picked}
             onChange={(e) => setPicked(e.target.value)}
             disabled={busy}
-            className="w-full min-w-0 min-h-[44px] rounded-[2px] border border-border bg-surface-raised px-4 py-2.5 font-mono text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            aria-describedby={showInvalid ? "next-due-date-desc" : undefined}
           />
-          {picked && !isValid && (
-            <p className="text-xs text-muted font-mono">Pick today or a later date.</p>
-          )}
-        </div>
+        </Field>
       </div>
     </Dialog>
   );

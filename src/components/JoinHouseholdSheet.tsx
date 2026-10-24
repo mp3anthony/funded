@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ShieldAlert, Check, Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import Input from "@/components/ui/Input";
 
 interface JoinHouseholdSheetProps {
   isOpen: boolean;
@@ -34,9 +35,8 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
 
   if (!isOpen) return null;
 
-  // While joining or showing success, block all close paths (Escape,
-  // backdrop, X) — Dialog always allows Escape/backdrop otherwise, so we
-  // pass a no-op onClose and hide the X for the in-flight window.
+  // While joining or showing success, `busy` blocks all close paths
+  // (Escape, backdrop, X).
   const inFlight = isJoining || isSuccess;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,10 +90,13 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
   return (
     <Dialog
       open={isOpen}
-      onClose={inFlight ? () => {} : onClose}
-      hideClose={inFlight}
+      onClose={onClose}
+      placement="bottom"
+      busy={inFlight}
+      error={errorMsg}
+      hideClose={isSuccess}
       maxWidthClass="max-w-sm"
-      title={isSuccess ? "Successfully Joined!" : "Join a Household"}
+      title={isSuccess ? "Successfully joined!" : "Join a household"}
       icon={
         isSuccess ? (
           <Check size={20} className="text-primary" />
@@ -117,18 +120,17 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
               type="submit"
               form="join-household-form"
               disabled={isJoining || codeValue.length !== 6}
-              className="uppercase tracking-wider"
             >
-              {isJoining ? "Joining..." : "Join"}
+              {isJoining ? "Joining…" : errorMsg ? "Try again" : "Join"}
             </DialogButton>
           </>
         )
       }
     >
       {isSuccess ? (
-        <div className="flex flex-col items-center justify-center py-6 space-y-4 animate-in zoom-in-95 duration-(--duration-base) ease-(--ease-standard)">
-          <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/30 shadow-[0_0_20px_rgba(200,255,0,0.2)]">
-            <Check size={32} className="animate-bounce" />
+        <div className="flex flex-col items-center justify-center py-6 space-y-4 animate-in zoom-in-95 duration-(--duration-feedback) ease-(--ease-enter)">
+          <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/30">
+            <Check size={32} />
           </div>
           <p className="text-xs text-muted text-center font-body max-w-xs">
             Setting up your workspace dashboard...
@@ -141,27 +143,17 @@ export default function JoinHouseholdSheet({ isOpen, onClose }: JoinHouseholdShe
           </p>
 
           {/* Input Code */}
-          <div className="space-y-2">
-            <div className="relative">
-              <input
-                ref={inputRef}
-                type="text"
-                inputMode="text"
-                placeholder="ABC-123"
-                value={getDisplayValue()}
-                onChange={handleInputChange}
-                disabled={isJoining}
-                className="w-full bg-background border border-border rounded-[2px] px-4 py-3 text-center font-mono text-xl font-bold tracking-widest text-primary focus:ring-2 focus:ring-primary/40 focus:border-primary outline-none transition-all uppercase placeholder:text-zinc-700"
-              />
-            </div>
-
-            {errorMsg && (
-              <div className="flex items-center gap-2 text-xs font-semibold text-destructive font-body justify-center bg-destructive/10 p-2.5 rounded-[2px] border border-destructive/20">
-                <ShieldAlert size={14} className="shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-          </div>
+          <Input
+            ref={inputRef}
+            type="text"
+            inputMode="text"
+            aria-label="Invitation code"
+            placeholder="ABC-123"
+            value={getDisplayValue()}
+            onChange={handleInputChange}
+            disabled={isJoining}
+            className="py-3 text-center text-xl font-bold tracking-widest text-primary uppercase"
+          />
         </form>
       )}
     </Dialog>

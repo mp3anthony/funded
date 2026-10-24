@@ -7,8 +7,8 @@
 // before the refreshed auth token has been attached to it, and hand back an
 // empty-but-error-free result even though the real row set is non-empty.
 // `[]` is truthy, so writing that straight into state overwrites real,
-// already-loaded data — this is what made the Household Health rank flap to
-// "Fully Funded" and back on a warm reload with no real data change.
+// already-loaded data — this is what made the Dashboard verdict flap
+// (then the Health score) and back on a warm reload with no real data change.
 //
 // Agreed fix (Option 4): trust an empty result immediately UNLESS the
 // previous in-memory state for that same slice was non-empty.

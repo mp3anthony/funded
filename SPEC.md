@@ -34,7 +34,10 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   migration — but stated explicitly because the consequence is data exposure.)
 * **Service-role key is server-only.** `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS
   entirely. Its current uses are the cron route
-  (`src/app/api/cron/push-reminders/route.ts:37`) and the household edge functions
+  (`src/app/api/cron/push-reminders/route.ts:37`; besides reminders it rolls
+  paid bills and, since R19 #406, may also create Pending pays: a `pay_history`
+  insert and a `pay_schedules.next_pay_date` advance for paydays that passed
+  unlogged) and the household edge functions
   (`join-household`, `delete-household`, `leave-household`; the last moves
   `households.user_id` to a remaining owner or nulls it, ADR 0005/0006). Any new use, or any code path
   that reads it outside a server-side route, requires approval first. If it
@@ -104,7 +107,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   `if (res.data)` is not sufficient: `[]` is truthy, and a successful RLS query
   with no token applied returns zero rows and no error. See issue #74.
 
-  **The canary:** an unexplained "Fully Funded" means something has handed the dashboard empty arrays. See `docs/lessons.md` (Testing).
+  **The canary:** an unexplained grey "Set up your pay" (formerly "Fully Funded") means something has handed the dashboard empty arrays. See `docs/lessons.md` (Testing).
 * **Layout — fixed-position/overflow:** never nest a `position: fixed` element
   inside a container with `overflow: hidden`. Breaks on iOS Safari in particular.
   Note-level rather than locked because this class of change carries
@@ -622,7 +625,7 @@ for the static page itself if separated out.
 - The first-open popup is replaced by the Updates card: a compact, non-blocking
   card above the bottom nav, shown once per version, with the newest entry's
   first 2 bullets, "+N more" and a "See updates" link. It stays until the
-  person taps X or the link, and hides the dashboard tips ticker while shown.
+  person taps X or the link, and nothing else on the Dashboard depends on it.
   This supersedes the popup wording above, which is left as history.
   Link back: issues #311, #260.
 
@@ -654,6 +657,11 @@ question of how the app→GitHub path works without continuous polling.
   or readable from the client.
 - A failed submission (network/API error) shows a clear in-app failure
   state, not a silent no-op.
+- **Amendment (#261, R12):** the member-facing wording is "issue", not
+  "bug" (Settings > Report an issue). The form is a two-card step flow
+  (Title, Description) with an optional Screenshot row. The route path
+  (`/api/bug-report`), `GITHUB_BUG_REPORT_TOKEN` and the `from-app` label
+  are unchanged.
 
 **Testing:** New server route + external API call + new secret — the
 secret-handling and failure-path deserve a manual look even though the form
@@ -819,7 +827,7 @@ problem/checklist on the issue.
 ### Slice 19: Finish setting up card (Issue #333)
 
 **Decisions (grilled 2026-10-11, planned 2026-10-12):**
-- Dashboard card, first in the page flow above Household Health. Owners only (joiners share the household's setup); a joiner later promoted sees it if something is missing.
+- Dashboard card, first in the page flow, above the Bills and Goals cards. Owners only (joiners share the household's setup); a joiner later promoted sees it if something is missing.
 - Household-wide "missing": payday = no pay schedule, bill = no bills (expenses don't count, paused bills do), goal = no goals. A deleted item brings its row back unless the card was dismissed.
 - Rows open the add form on the target page via `?add=1` on Payday, Bills and Goals (param stripped once used).
 - X hides it for good: `user_preferences.finish_setup_dismissed_at` (nullable timestamptz, one-way, never cleared; covered by the existing own-row policy, no RLS change). Per person, so a new household stays dismissed. Unknown or failed load keeps the card hidden.
@@ -842,7 +850,7 @@ problem/checklist on the issue.
 ### Slice 21: Paused bills and Counts toward totals (Issue #267)
 
 **Decisions (grilled 2026-10-11, planned and reviewed 2026-10-18):**
-- One rule for every bill total: `countsTowardTotals` in `src/lib/billCycle.ts` (false for paused bills and bills showing a neutral `dueLabel`; dateless bills count). Used by the Bills Total Bar, `calculateHealthScore`, Household Health (weekly bills, surplus, contributors split) and Suggest Split. Never inline `is_paused`/`dueLabel` checks in a total.
+- One rule for every bill total: `countsTowardTotals` in `src/lib/billCycle.ts` (false for paused bills and bills showing a neutral `dueLabel`; dateless bills count). Used by the Bills Total Bar, the Dashboard verdict, the Impact calculator and Suggest Split. Never inline `is_paused`/`dueLabel` checks in a total.
 - Paused bills of any payment type carry `dueLabel: 'Paused'` (`displayedDueDate` checks paused before payment type), so a paused manual bill shows "Paused" and appears only under the All filter.
 - Row look: orange pause icon, greyed amount, "Paused" in the date slot. Muted line under the Total Bar: "N paused or finished, not counted" (only when N > 0; ignores search/category/type/due filters).
 - No schema, migration or RLS change.
@@ -854,7 +862,7 @@ problem/checklist on the issue.
 - Schema: `bills.due_date` is nullable (`DROP NOT NULL`) and new `bills.due_date_prompt_muted BOOLEAN NOT NULL DEFAULT false` (migration `20261018120000_add_bills_due_date_prompt_muted.sql`, applied to prod before merge). A blank due date is stored as null.
 - Mark as Paid asks "When is it next due?" only for a manual, recurring, not paused, not muted bill with no due date. Save date: unpaid on the picked date (today or later, no `last_paid_for`, no Undo). Skip for now: plain Paid (stays Paid until a date is added). Don't ask again: Paid and muted. Paused and one-off dateless bills skip the question. Writes are guarded on `due_date IS NULL` and not paused.
 - 30 days after `created_at` (elapsed time), an unmuted dateless bill shows an orange "Add due date" in the date slot (also replaces "Paid · no due date"); it opens the edit form at the due date. A `dueLabel` ('Paused' / 'One-off') always wins in the date slot.
-- Dateless bills sort last within each category on Bills and last on Upcoming Bills, appear only under the All filter, and still count toward totals.
+- Dateless bills sort last within each category on Bills and last in the Dashboard Bills carousel, appear only under the All filter, and still count toward totals.
 - Full issue: https://github.com/mp3anthony/funded/issues/250
 
 ### Slice 23: Full app redesign (Issue #377)
@@ -864,8 +872,10 @@ problem/checklist on the issue.
 - Seven pages agreed: Dashboard, Payday, Bills, Goals, Settings, Pop-ups, Onboarding and sign-in. The sub-issues of #377 are the slices R01 to R36, built in the order listed on the issue. This replaces the onboarding shape in Slice 18 (a hub instead of three skip screens; the household is created only once name and Payment mode are both chosen) and moves the Finish setting up card (Slice 19) into the Dashboard stats slot.
 - One long-lived branch `redesign/full-app` and one PR opened with the first slice; every slice commits to it. No per-slice version bump or patch note; one bump to `v0.10.0` and one patch-notes entry at the end (R35). Live `main` keeps the old app until that merge, so slices are checked on the branch's Vercel preview (an exception to "no preview testing"); Anthony approves the one final merge.
 - Migrations on this branch stay compatible with the old code live on `main` (preview and production share one Supabase) and are applied when their slice is built.
+- R19 (#406, A1 signed off 2026-10-24): `pay_history.amount` is nullable (migration `20261024120000_pay_history_amount_nullable`; NULL only for a Pending pay with no known amount, enforced by a CHECK) and the cron route may create Pending pays with the service-role key (see Part A1). Averages are per pay schedule, last 4 confirmed pays, at least 2. Re-run the migration's backfill UPDATE once right after the final merge.
 - A1 slices, each needing Anthony's sign-off at plan time: R19 (`pay_history.amount` nullable), R28 (owner-only `households` UPDATE policy; today any member can write), R33 (#370 may need a policy or edge-function change), R14 (a per-person frequency preference may need a `user_preferences` column).
-- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals and the Dashboard.
+- R21 (#408): Payday shows one card per member in the R04 Carousel; a member's sheet holds their pay schedules, Contribution (Joint Fund only; any member can edit it) and rules. "Contribution amounts" and `ContributionSettingsSheet` are gone from Settings; the Suggest Split panel is unchanged, in `SuggestSplitPanel.tsx`, opened from the Payday header "Compare split" pill (Joint Fund only until R23). No schema change.
+- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, the health score, goal suggestions and milestone reminders, and the Dashboard Goals carousel (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
 - Left out on purpose: #383 (change login email), #145 (parked).
 - Full issue: https://github.com/mp3anthony/funded/issues/377
 

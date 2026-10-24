@@ -2,6 +2,7 @@
 
 import { TrendingUp, Target, ArrowRight } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { savingGoals } from "@/lib/goalPace";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
 
 interface SurplusSuggestionModalProps {
@@ -29,7 +30,8 @@ export default function SurplusSuggestionModal({
   const memberName = member ? member.name : "Member";
 
   // Calculate top 3 goals by progress percentage descending
-  const topGoals = [...funds]
+  // R17: only Saving goals are suggested (never Just tracking ones).
+  const topGoals = savingGoals(funds)
     .map((f) => {
       const progress = f.targetAmount > 0 ? (f.currentAmount / f.targetAmount) * 100 : 0;
       return { ...f, progress };
@@ -50,7 +52,7 @@ export default function SurplusSuggestionModal({
       icon={<TrendingUp size={20} className="text-primary" />}
       maxWidthClass="max-w-sm"
       footer={
-        <DialogButton variant="ghost" onClick={onClose} className="uppercase tracking-wider">
+        <DialogButton variant="ghost" onClick={onClose}>
           Skip Allocation
         </DialogButton>
       }
@@ -58,8 +60,8 @@ export default function SurplusSuggestionModal({
       <div className="space-y-5">
           {/* Title details */}
           <div className="space-y-1">
-            <h4 className="font-heading font-bold text-lg text-foreground leading-tight">
-              {memberName} earned <span className="text-primary font-mono">${formattedSurplus}</span> over average!
+            <h4 className="font-bold text-lg text-foreground leading-tight">
+              {memberName} earned <span className="text-primary">${formattedSurplus}</span> over average!
             </h4>
             <p className="text-xs text-muted font-body">
               Would you like to add this extra income to one of your goals?
@@ -68,7 +70,7 @@ export default function SurplusSuggestionModal({
 
           {/* Allocations Options list */}
           <div className="space-y-3">
-            <span className="text-[10px] font-bold text-subtle uppercase tracking-wider block font-mono">
+            <span className="text-[10px] font-bold text-subtle uppercase tracking-wider block">
               Add Surplus To A Goal:
             </span>
 
@@ -88,12 +90,12 @@ export default function SurplusSuggestionModal({
                       <span className="text-xs font-bold text-foreground block truncate">
                         {goal.name}
                       </span>
-                      <span className="text-[10px] text-muted font-mono block">
+                      <span className="text-[10px] text-muted block">
                         Progress: {goal.progress.toFixed(0)}%
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 font-mono text-xs font-bold text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-[2px] group-hover:bg-primary group-hover:text-primary-fg transition-all">
+                  <div className="flex items-center gap-1 text-xs font-bold text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-[2px] group-active:bg-primary group-active:text-primary-fg transition-all">
                     <span>+${formattedSurplus}</span>
                     <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>

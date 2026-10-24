@@ -5,9 +5,9 @@ Funded is a household bills and goals budgeting app, installed on a phone, where
 ## Contexts
 
 - [Household](./docs/context/household.md) — the household, its members, join codes and how bills are settled (Joint Fund or Direct Pay)
-- [Money](./docs/context/money.md) — bills, expenses, pay, goals, contribution rules and the health score
+- [Money](./docs/context/money.md) — bills, expenses, pay, goals, contribution rules and the Dashboard verdict
 - [Notifications](./docs/context/notifications.md) — reminders, inbox, push, notify hour and where a tap leads
-- [App shell](./docs/context/app-shell.md) — the installed app, its pages, toasts, patch notes and bug reports
+- [App shell](./docs/context/app-shell.md) — the installed app, its pages, toasts, patch notes and issue reports
 
 ## Relationships
 
@@ -15,7 +15,7 @@ Funded is a household bills and goals budgeting app, installed on a phone, where
 - **Money → Notifications**: bills, pending pay and goals generate reminders, and a reminder's dedupe key follows the bill, pay or goal and its cycle.
 - **Household → Notifications**: the household timezone and each member's notify hour decide when a reminder is delivered.
 - **Notifications → App shell**: a notification's tap destination is a page or popup in the app, and the inbox is opened from the shell's bell.
-- **Money → App shell**: Household Health, Upcoming Bills and Savings Goals appear on the Dashboard, and the Goals page is where goals live, never "Funds".
+- **Money → App shell**: the verdict and the Bills and Goals carousels appear on the Dashboard, and the Goals page is where goals live, never "Funds".
 
 Glossary convention: a planned term (agreed but not built) stays in its glossary tagged "(planned, #ticket)" while a GitHub issue exists for it. Remove the tag when it ships; delete the entry if the ticket is dropped.
 

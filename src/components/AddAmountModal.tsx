@@ -1,98 +1,88 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { Fund } from "@/context/AppContext";
-import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import { useState } from "react";
+import { useApp, type Fund } from "@/context/AppContext";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
+import Input from "@/components/ui/Input";
+import SingleCard from "@/components/ui/SingleCard";
+import { parseAmount } from "@/lib/addGoalFlow";
 
 interface AddAmountModalProps {
   isOpen: boolean;
   onClose: () => void;
   goal: Fund | null;
-  onConfirm: (amount: number) => void;
+  /** Id of the amount box, so the opener can focus it inside the same tap (iOS keyboard). */
+  inputId: string;
 }
 
-export default function AddAmountModal({
-  isOpen,
-  onClose,
-  goal,
-  onConfirm,
-}: AddAmountModalProps) {
+const QUICK_AMOUNTS = [10, 25, 50, 100];
+
+/**
+ * "Add to {goal}" as a one-field card (R11, #398). It adds to the goal itself, so a
+ * failed save keeps the card open with a red line and "Try again" (fixes #435).
+ */
+export default function AddAmountModal({ isOpen, onClose, goal, inputId }: AddAmountModalProps) {
+  const { addToGoal } = useApp();
   const [amountStr, setAmountStr] = useState("");
 
-  useEffect(() => {
-    if (isOpen) {
-      setAmountStr("");
-    }
-  }, [isOpen]);
+  // Keep the goal's name while the card closes so the title never goes blank.
+  const [shownName, setShownName] = useState(goal?.name ?? "");
+  if (goal && goal.name !== shownName) setShownName(goal.name);
 
-  if (!isOpen || !goal) return null;
+  // Fresh amount each time the card opens (derived-state reset, no effect).
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    if (isOpen) setAmountStr("");
+  }
 
-  const handleInputChange = (val: string) => {
-    let raw = val;
-    if (raw.startsWith("$")) {
-      raw = raw.substring(1);
-    }
-    // Only allow digits and one decimal point
-    const parts = raw.split(".");
-    let numeric = parts[0].replace(/[^0-9]/g, "");
-    if (parts.length > 1) {
-      numeric += "." + parts[1].replace(/[^0-9]/g, "").substring(0, 2);
-    }
-    setAmountStr(numeric);
-  };
-
-  const handleConfirm = () => {
-    const numericAmt = parseFloat(amountStr);
-    if (!isNaN(numericAmt) && numericAmt > 0) {
-      onConfirm(numericAmt);
-      onClose();
-    }
-  };
-
-  const isValid = !isNaN(parseFloat(amountStr)) && parseFloat(amountStr) > 0;
+  const amount = parseAmount(amountStr);
+  const showError = amountStr.trim() !== "" && amount === null;
 
   return (
-    <Dialog
-      open={isOpen}
+    <SingleCard
+      open={isOpen && goal !== null}
       onClose={onClose}
-      title={`Add to ${goal.name}`}
-      maxWidthClass="max-w-sm"
-      footer={
-        <>
-          <DialogButton variant="ghost" onClick={onClose}>
-            Cancel
-          </DialogButton>
-          <DialogButton variant="primary" onClick={handleConfirm} disabled={!isValid}>
-            Confirm
-          </DialogButton>
-        </>
-      }
+      title={`Add to ${shownName}`}
+      submitLabel="Add"
+      canSubmit={amount !== null}
+      onSubmit={async () => {
+        if (!goal || amount === null) return false;
+        await addToGoal(goal.id, amount);
+      }}
+      successToast={`Added to ${shownName}`}
     >
-      {/* Input Field */}
-      <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="$0.00"
-              value={amountStr ? `$${amountStr}` : ""}
-              onChange={(e) => handleInputChange(e.target.value)}
-              className="w-full bg-background border border-border rounded-[2px] px-4 py-3 font-mono text-center text-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted"
-              autoFocus
-            />
-
-            {/* Quick-Add Options */}
-            <div className="grid grid-cols-4 gap-2">
-              {[10, 25, 50, 100].map((amt) => (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => setAmountStr(amt.toFixed(2))}
-                  className="rounded-[2px] border border-border bg-white/5 py-2 font-mono text-xs text-foreground hover:bg-white/10 active:scale-95 transition-all"
-                >
-                  +${amt}
-                </button>
-              ))}
-            </div>
+      <Field
+        id={inputId}
+        label="How much are you adding?"
+        question
+        error={showError ? "Enter an amount above $0" : undefined}
+      >
+        <div className="relative">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">
+            $
+          </span>
+          <Input
+            id={inputId}
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amountStr}
+            onChange={(e) => setAmountStr(e.target.value)}
+            enterKeyHint="done"
+            autoComplete="off"
+            className="pl-8"
+            aria-invalid={showError || undefined}
+          />
+        </div>
+      </Field>
+      <div className="flex flex-wrap gap-2">
+        {QUICK_AMOUNTS.map((amt) => (
+          <Button key={amt} variant="ghost" className="px-4" onClick={() => setAmountStr(String(amt))}>
+            +${amt}
+          </Button>
+        ))}
       </div>
-    </Dialog>
+    </SingleCard>
   );
 }

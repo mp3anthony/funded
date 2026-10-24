@@ -2,39 +2,65 @@
 
 import { useState, useMemo, useEffect, useRef, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, X, ChevronDown, ChevronUp } from "lucide-react";
+import { X, ChevronDown, ChevronUp, Calculator, Search, SlidersHorizontal } from "lucide-react";
 import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
-import AddBillSheet from "@/components/AddBillSheet";
-import AddExpenseSheet from "@/components/AddExpenseSheet";
+import AddFlow from "@/components/AddFlow";
 import BillCard from "@/components/BillCard";
 import ExpenseCard from "@/components/ExpenseCard";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
+import ImpactCalculator from "@/components/ImpactCalculator";
 import PageHeader from "@/components/PageHeader";
-import FrequencyToggle from "@/components/FrequencyToggle";
+import Button from "@/components/ui/Button";
+import Chip from "@/components/ui/Chip";
+import Dialog from "@/components/ui/Dialog";
+import IconCircle from "@/components/ui/IconCircle";
+import Input from "@/components/ui/Input";
 import { convertAmount, sumActiveFixedContributionRules } from "@/lib/utils";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { countsTowardTotals, isDateless } from "@/lib/billCycle";
+import { ITEM_CATEGORIES, rowKey, type AddedItem, type AddFlowValues } from "@/lib/addFlow";
+import { useRowHighlight } from "@/hooks/useRowHighlight";
+import { useHouseholdTotal } from "@/hooks/useHouseholdTotal";
+import { loadFrequency, saveFrequency, type FrequencyType } from "@/lib/frequencyPreference";
+import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
+import { categorySubtotal, compareRows } from "@/lib/billRow";
+import {
+  dueAfterTypeChange,
+  expensesHiddenByDue,
+  isFilterActive,
+  matchesBillFilters,
+  matchesExpenseFilters,
+  NO_FILTERS,
+  splitTotals,
+  type DueFilter,
+  type TypeFilter,
+} from "@/lib/billsFilters";
 
-type FrequencyType = "weekly" | "fortnightly" | "monthly" | "yearly";
+const FREQUENCY_OPTIONS: { value: FrequencyType; label: string }[] = [
+  { value: "weekly", label: "Weekly" },
+  { value: "fortnightly", label: "Fortnightly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
+];
+const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "bills", label: "Bills" },
+  { value: "expenses", label: "Expenses" },
+];
+const DUE_OPTIONS: { value: DueFilter; label: string }[] = [
+  { value: "all", label: "Any due" },
+  { value: "week", label: "This week" },
+  { value: "month", label: "This month" },
+  { value: "overdue", label: "Overdue" },
+];
+const moneyFmt = (n: number) =>
+  `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 // A single row in the unified list — a bill or an expense, grouped and
 // sorted together (Issue #98, Slice 2 fix-round: Anthony asked for one
 // interleaved list instead of a Bills/Expenses tab split).
 type ListRow = { kind: "bill"; item: Bill } | { kind: "expense"; item: Expense };
-
-// Shared by bills and expenses — both use the same category list and the
-// same saved ordering (Issue #98, final sub-slice: confirmed there is no
-// separate expense-category system, so this is intentionally one list).
-const ITEM_CATEGORIES = [
-  "Household Bills",
-  "Living Costs",
-  "Debt & Finance",
-  "Loans",
-  "Subscriptions",
-  "Temporary",
-  "Other",
-];
 
 // Legacy category names → current scheme
 const CATEGORY_REMAP: Record<string, string> = {
@@ -56,31 +82,79 @@ export default function BillsClient() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isAddBillSheetOpen, setIsAddBillSheetOpen] = useState(false);
-  const [isAddExpenseSheetOpen, setIsAddExpenseSheetOpen] = useState(false);
-  const [filter, setFilter] = useState<"all" | "week" | "month" | "overdue">("all");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const { highlightKey, flash } = useRowHighlight();
+  const [filter, setFilter] = useState<DueFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("All");
   // Issue #157: isolate bills from expenses in the unified list. Only
   // affects which rows are listed — the Total Bar deliberately ignores it,
   // same as Category and Due Date.
-  const [typeFilter, setTypeFilter] = useState<"all" | "bills" | "expenses">("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isImpactOpen, setIsImpactOpen] = useState(false);
+  // R16: answers "Turn into a bill" hands to the Add flow. Every normal way to open the
+  // flow clears them first (openAdd), so + never inherits them. Not cleared on close, so
+  // the flow does not flip to the Type card while it fades out.
+  const [addPrefill, setAddPrefill] = useState<Partial<AddFlowValues> | undefined>(undefined);
+  const openAdd = () => {
+    setAddPrefill(undefined);
+    setIsAddOpen(true);
+  };
   const [displayFrequency, setDisplayFrequency] = useState<FrequencyType>("weekly");
 
   const [isMounted, setIsMounted] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  // R15: categories start open; only the ones a person closed are remembered (on this phone).
+  const [collapsedCategories, setCollapsedCategories] = useState<string[]>([]);
   const [isEditCategoryOrderOpen, setIsEditCategoryOrderOpen] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
   const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
+    const collapse = !collapsedCategories.includes(category);
+    setCollapsedCategories(
+      collapse ? [...collapsedCategories, category] : collapsedCategories.filter((c) => c !== category),
+    );
+    // Persist from what is stored plus this one toggle, so categories opened by a
+    // deep link or a new row are never saved as a choice.
+    const userId = session?.user?.id;
+    if (userId) saveCollapsed(userId, applyToggle(loadCollapsed(userId), category, collapse));
   };
+  // Opens a category in state only (deep link, new row); never changes what is remembered.
+  const openCategory = (category: string) =>
+    setCollapsedCategories((prev) => (prev.includes(category) ? prev.filter((c) => c !== category) : prev));
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // R14: the "amounts as" choice is remembered per person on this device.
+  // Read after mount so server and first client render agree (weekly).
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    // One-shot sync from localStorage, not a render cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDisplayFrequency(loadFrequency(userId));
+  }, [session?.user?.id]);
+
+  // R15: which categories a person closed is remembered per person on this device.
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const saved = loadCollapsed(userId);
+    // A ?billId= link that landed first must keep its category open.
+    const linked = bills.find((b) => b.id.toString() === searchParams?.get("billId"));
+    // One-shot sync from localStorage, not a render cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCollapsedCategories(linked ? saved.filter((c) => c !== (linked.category || "Other")) : saved);
+    // Only on sign-in: bills and the link are read once, as they are at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
+  const handleFrequencyChange = (f: FrequencyType) => {
+    setDisplayFrequency(f);
+    if (session?.user?.id) saveFrequency(session.user.id, f);
+  };
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -90,7 +164,7 @@ export default function BillsClient() {
       .catch(() => {});
   }, [session?.user?.id]);
 
-  // Finish setting up card (#333): /bills?add=1 opens the Add Bill sheet once,
+  // Finish setting up card (#333): /bills?add=1 opens the Add flow once,
   // then the param is stripped so refresh/back never re-opens it.
   const handledAddRef = useRef(false);
   useEffect(() => {
@@ -104,7 +178,8 @@ export default function BillsClient() {
     // One-shot sync with an external input (the tapped link), guarded by
     // handledAddRef — not a render cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsAddBillSheetOpen(true);
+    setAddPrefill(undefined);
+    setIsAddOpen(true);
     const rest = stripAddSheetParam(searchParams);
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [searchParams, pathname, router]);
@@ -114,48 +189,17 @@ export default function BillsClient() {
     if (!billId) return;
     const target = bills.find((b) => b.id.toString() === billId);
     if (target) {
-      const cat = target.category || "Other";
-      setExpandedCategories((prev) => ({ ...prev, [cat]: true }));
+      openCategory(target.category || "Other");
     }
   }, [searchParams, bills]);
 
-  const getFrequencyLabel = (freq: FrequencyType) => {
-    switch (freq) {
-      case "weekly": return "Weekly";
-      case "fortnightly": return "Fortnightly";
-      case "monthly": return "Monthly";
-      case "yearly": return "Yearly";
-      default: return "Weekly";
-    }
-  };
+  const filterState = useMemo(
+    () => ({ type: typeFilter, due: filter, category: categoryFilter, search: searchQuery }),
+    [typeFilter, filter, categoryFilter, searchQuery],
+  );
+  const filterActive = isFilterActive(filterState);
 
-  // Issue #98, Slice 4 of 6: this Total Bar is the actual user-facing
-  // figure for the selected display frequency (households use it for the joint
-  // account / Direct Pay splits) — it now covers bills + expenses + active fixed-$
-  // goal-contribution rules, not just bills, per the issue's core scope
-  // decision. Expenses have no `frequency` column by design (schema decision:
-  // "no recurring-frequency semantics") — an expense's flat `amount` is
-  // implicitly a WEEKLY figure, the same convention the sub-slice 1 migration
-  // preserved as-is when it moved the 4 real groceries/fuel rows out of
-  // `bills` (they were weekly bills before the move, and their dollar amounts
-  // were carried over unchanged). Percentage-of-surplus contribution rules
-  // are deliberately excluded — see sumActiveFixedContributionRules' own
-  // comment for why (can't know a future payday's surplus in advance).
-  // Bills are filtered by `countsTowardTotals` (billCycle.ts), the one rule for every bill total.
-  const totalBills = useMemo(() => {
-    // #267: only bills that count toward totals (not paused, not a finished one-off).
-    const billsTotal = bills.reduce((sum, b) => {
-      if (!countsTowardTotals(b)) return sum;
-      return sum + convertAmount(b.amount, b.frequency || "monthly", displayFrequency);
-    }, 0);
-    const expensesTotal = expenses.reduce((sum, e) => {
-      return sum + convertAmount(e.amount, "weekly", displayFrequency);
-    }, 0);
-    const rulesTotal = sumActiveFixedContributionRules(contributionRules, paySchedules, displayFrequency);
-    return billsTotal + expensesTotal + rulesTotal;
-  }, [bills, expenses, contributionRules, paySchedules, displayFrequency]);
-
-  // #267: how many bills the Total Bar leaves out. Ignores search/category/type/due filters, like the Total Bar.
+  // #267: how many bills the Total leaves out. Ignores filters, like the unfiltered total.
   const notCountedCount = useMemo(
     () => bills.filter((b) => !countsTowardTotals(b)).length,
     [bills],
@@ -164,98 +208,49 @@ export default function BillsClient() {
   const filteredBills = useMemo(() => {
     const today = isMounted ? new Date() : new Date("2026-07-05");
     today.setHours(0, 0, 0, 0);
+    return bills.filter((b) => matchesBillFilters(b, filterState, today, { isDateless }));
+  }, [bills, filterState, isMounted]);
 
-    if (typeFilter === "expenses") return [];
+  /* Expenses share the same search/category filters as bills (Issue #98).
+   * Issue #164: expenses have no due date, so any Due filter other than "All"
+   * hides them (the page says so with a one-line note when Type is All). */
+  const filteredExpenses = useMemo(
+    () => expenses.filter((e) => matchesExpenseFilters(e, filterState)),
+    [expenses, filterState],
+  );
 
-    return bills.filter((b) => {
-      if (searchQuery.trim() !== "") {
-        const query = searchQuery.toLowerCase();
-        if (!b.name.toLowerCase().includes(query)) return false;
-      }
+  const showExpensesHiddenNote = useMemo(
+    () => expensesHiddenByDue(expenses, filterState),
+    [expenses, filterState],
+  );
 
-      if (categoryFilter !== "All" && b.category !== categoryFilter) {
-        return false;
-      }
+  // Household total (bills + expenses + active fixed goal contributions) or, with
+  // any filter/search on, the Filtered total of the listed rows. Expenses have no
+  // frequency column: their amount is implicitly weekly. Percentage rules are
+  // excluded (see sumActiveFixedContributionRules).
+  const totals = useMemo(
+    () =>
+      splitTotals({
+        bills,
+        expenses,
+        listedBills: filteredBills,
+        listedExpenses: filteredExpenses,
+        goalsTotal: sumActiveFixedContributionRules(contributionRules, paySchedules, displayFrequency),
+        filterActive,
+        frequency: displayFrequency,
+        deps: { convert: convertAmount, countsTowardTotals },
+      }),
+    [bills, expenses, filteredBills, filteredExpenses, contributionRules, paySchedules, displayFrequency, filterActive],
+  );
 
-      // #288: bills showing a label (Paused / One-off) have no date, so they only appear under All.
-      // #250: same for bills with no due date.
-      if (b.dueLabel || isDateless(b)) return filter === "all";
+  // The Impact calculator compares against the whole household, whatever the filters.
+  const householdTotal = useHouseholdTotal(displayFrequency);
 
-      const d = b.due_date ? new Date(b.due_date + "T00:00:00") : new Date(b.dueDate);
-      if (isNaN(d.getTime())) return false;
-      d.setHours(0, 0, 0, 0);
-
-      const diffTime = d.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / 86_400_000);
-
-      if (filter === "week") return diffDays >= 0 && diffDays <= 7;
-      if (filter === "month") return diffDays >= 0 && diffDays <= 30;
-      if (filter === "overdue") return d.getTime() < today.getTime() && b.status !== "Paid";
-      return true;
-    });
-  }, [bills, filter, searchQuery, categoryFilter, typeFilter]);
-
-  /* Expenses share the same search/category filters as bills now that
-   * they're in one list (Issue #98, Slice 2 fix-round).
-   *
-   * Issue #164: the Due Date filter ("This Week"/"This Month"/"Overdue")
-   * can't be applied to expenses — the `expenses` table (see
-   * supabase/migrations/20260904120000_add_expenses_table.sql) deliberately
-   * has no due_date, frequency, or is_recurring column; those were dropped
-   * on purpose as "bill-only concepts that don't apply to variable spend".
-   * The only date on an expense is `created_at`, which is when the row was
-   * logged, not a due date or a recurring cadence — using it to answer
-   * "is this due this week?" would invent a semantic the data doesn't
-   * actually carry (e.g. a grocery expense logged three months ago would
-   * wrongly vanish from "This Week" even though it recurs weekly). So
-   * expenses are deliberately excluded whenever a due-date filter other
-   * than "All" is active, rather than guessing at a fake due date.
-   *
-   * That exclusion is silent otherwise, so `hasExpensesHiddenByDateFilter`
-   * below drives an explanatory UI note instead of expenses just
-   * disappearing with no indication why. */
-  const filteredExpenses = useMemo(() => {
-    if (filter !== "all") return [];
-    if (typeFilter === "bills") return [];
-
-    return expenses.filter((e) => {
-      if (searchQuery.trim() !== "") {
-        const query = searchQuery.toLowerCase();
-        if (!e.name.toLowerCase().includes(query)) return false;
-      }
-      if (categoryFilter !== "All" && e.category !== categoryFilter) {
-        return false;
-      }
-      return true;
-    });
-  }, [expenses, filter, searchQuery, categoryFilter, typeFilter]);
-
-  // Issue #164: true when the Due Date filter is the reason expenses aren't
-  // showing (i.e. there ARE expenses that match search/category, they're
-  // just excluded because expenses have no due date to filter by) — used to
-  // show an explanatory note instead of a silent disappearance.
-  const hasExpensesHiddenByDateFilter = useMemo(() => {
-    if (filter === "all") return false;
-    return expenses.some((e) => {
-      if (searchQuery.trim() !== "") {
-        const query = searchQuery.toLowerCase();
-        if (!e.name.toLowerCase().includes(query)) return false;
-      }
-      if (categoryFilter !== "All" && e.category !== categoryFilter) {
-        return false;
-      }
-      return true;
-    });
-  }, [expenses, filter, searchQuery, categoryFilter]);
-
-  /* Unified, category-grouped, amount-sorted (largest first within each
-   * category) list of bills and expenses mixed together — the exact
-   * grouping/sorting bills already used, now shared by both (Issue #98,
-   * Slice 2 fix-round: one interleaved list, no tab split). Category
-   * ordering is already shared/unified across bills and expenses, since
-   * both use the same category list (see ITEM_CATEGORIES above) — this
-   * was confirmed/finalized as Issue #98's last sub-slice. There is no
-   * separate expense-category-ordering system, and none is needed. */
+  /* Unified, category-grouped list of bills and expenses mixed together,
+   * A to Z by name within each category (R15; ties: bill first). Category
+   * ordering is shared across bills and expenses, since both use the same
+   * category list (see ITEM_CATEGORIES above). There is no separate
+   * expense-category-ordering system, and none is needed. */
   const groupedItems = useMemo(() => {
     const groups: Record<string, ListRow[]> = {};
 
@@ -271,20 +266,12 @@ export default function BillsClient() {
       groups[cat].push({ kind: "expense", item: expense });
     });
 
-    const amountOf = (row: ListRow) =>
-      row.kind === "bill"
-        ? convertAmount(row.item.amount, row.item.frequency || "monthly", displayFrequency)
-        : row.item.amount;
-
-    // #250: bills with no due date sort last within their category, then by amount.
-    const rank = (row: ListRow) => (row.kind === "bill" && !row.item.dueLabel && isDateless(row.item) ? 1 : 0);
-
     Object.keys(groups).forEach((cat) => {
-      groups[cat].sort((a, b) => rank(a) - rank(b) || amountOf(b) - amountOf(a));
+      groups[cat].sort(compareRows);
     });
 
     return groups;
-  }, [filteredBills, filteredExpenses, displayFrequency]);
+  }, [filteredBills, filteredExpenses]);
 
   const allCategories = useMemo(() => {
     const currentCats = Object.keys(groupedItems);
@@ -306,57 +293,91 @@ export default function BillsClient() {
     return `No ${noun} found`;
   }, [filter, searchQuery, categoryFilter, typeFilter]);
 
-  // Issue #157: expenses have no due date, so Due Date is disabled while
-  // Type = Expenses. Resetting it to "All" in the same change stops a stale
-  // "This Week"/"Overdue" silently hiding every expense behind a greyed-out
-  // control. Switching back to All/Bills leaves it on "All".
+  // Issue #157: expenses have no due date, so the Due chips are disabled while
+  // Type = Expenses and Due resets to Any (see dueAfterTypeChange).
   const isDueDateDisabled = typeFilter === "expenses";
-  const handleTypeFilterChange = (value: "all" | "bills" | "expenses") => {
+  const handleTypeFilterChange = (value: TypeFilter) => {
     setTypeFilter(value);
-    if (value === "expenses") setFilter("all");
+    setFilter((cur) => dueAfterTypeChange(value, cur));
   };
 
-  // Issue #164: plain-English explanation shown whenever the Due Date
-  // filter is hiding expenses that would otherwise be in the list, so the
-  // disappearance isn't silent/unexplained.
-  const dateFilterHidesExpensesMessage =
-    filter === "week"
-      ? "Expenses aren't shown when filtering by “This Week” — expenses don't have a due date, so this filter only applies to bills."
-      : filter === "month"
-      ? "Expenses aren't shown when filtering by “This Month” — expenses don't have a due date, so this filter only applies to bills."
-      : filter === "overdue"
-      ? "Expenses aren't shown here — there's no overdue concept for expenses since they don't have a due date."
-      : null;
+  const clearFilters = () => {
+    setTypeFilter(NO_FILTERS.type);
+    setFilter(NO_FILTERS.due);
+    setCategoryFilter(NO_FILTERS.category);
+    setSearchQuery(NO_FILTERS.search);
+  };
+
+  const closeSearch = () => {
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  };
 
   const hasItems = Object.keys(groupedItems).length > 0;
+
+  // After an add: open the new row's category, then scroll to it and let it glow.
+  // rowKey gives the same "bill-<id>" / "expense-<id>" as the row wrapper ids below.
+  const handleAdded = (item: AddedItem) => {
+    openCategory(item.category || "Other");
+    flash(rowKey(item.kind, item.id));
+  };
 
   return (
     // 1. Drastically reduced padding and spacing to fix the "oversized" feel
     <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6 space-y-4">
 
-      {/* 2. Clean Header - Action slot added to hold the Add button next to avatar */}
       <PageHeader
         title="Bills"
-        subtitle="All household costs, organised by category."
-        action={
-          <button
-            onClick={() => setIsAddBillSheetOpen(true)}
-            className="flex items-center gap-2 bg-secondary hover:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200 cursor-pointer animate-in fade-in duration-(--duration-base) ease-(--ease-standard)"
+        onAdd={openAdd}
+        addLabel="Add bill"
+        extra={
+          <IconCircle
+            label="Search"
+            aria-expanded={isSearchOpen}
+            onClick={() => (isSearchOpen ? closeSearch() : setIsSearchOpen(true))}
           >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Bill</span>
-          </button>
+            <Search size={18} aria-hidden="true" />
+          </IconCircle>
         }
       />
 
-      {/* 3. Total Bar */}
+      {isSearchOpen && (
+        <div className="relative -mt-2">
+          <Input
+            type="search"
+            autoFocus
+            placeholder="Search"
+            aria-label="Search bills and expenses"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pr-12"
+          />
+          <button
+            type="button"
+            aria-label={searchQuery ? "Clear search" : "Close search"}
+            onClick={() => (searchQuery ? setSearchQuery("") : closeSearch())}
+            className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {/* Total */}
       <div className="px-1">
-        <div className="text-3xl font-bold text-primary tracking-tight font-mono">
-          ${totalBills.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div className="text-xs font-bold uppercase tracking-wider text-subtle">
+          {filterActive ? "Filtered total" : "Household total"}
         </div>
-        <div className="text-xs font-bold uppercase tracking-wider text-subtle mt-1">
-          {getFrequencyLabel(displayFrequency)} Total
-        </div>
+        <div className="mt-1 text-3xl font-bold text-primary tracking-tight">{moneyFmt(totals.total)}</div>
+        <p className="mt-1 text-xs text-muted font-body">
+          Bills {moneyFmt(totals.bills)} · Expenses {moneyFmt(totals.expenses)}
+          {!filterActive && <> · Goals {moneyFmt(totals.goals)}</>}
+        </p>
+        {filterActive && (
+          <p className="mt-0.5 text-[11px] text-muted font-body">
+            {totals.listedCount} of {totals.totalCount} items
+          </p>
+        )}
         {notCountedCount > 0 && (
           <p className="text-[11px] text-muted font-body mt-0.5">
             {notCountedCount} paused or finished, not counted
@@ -364,172 +385,80 @@ export default function BillsClient() {
         )}
       </div>
 
-      {/* 4. Filters & Search */}
-      <div className="flex flex-col gap-3 px-1">
-
-        {/* Filters Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted capitalize tracking-wider ml-1">
-              Type
-            </label>
-            <div className="relative">
-              <select
-                value={typeFilter}
-                onChange={(e) => handleTypeFilterChange(e.target.value as "all" | "bills" | "expenses")}
-                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
-              >
-                <option value="all">All</option>
-                <option value="bills">Bills</option>
-                <option value="expenses">Expenses</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
-                <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
-              Category
-            </label>
-            <div className="relative">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
-              >
-                <option value="All">All</option>
-                <option value="Subscriptions">Subscriptions</option>
-                <option value="Living Costs">Living Costs</option>
-                <option value="Household Bills">Household Bills</option>
-                <option value="Debt & Finance">Debt & Finance</option>
-                <option value="Loans">Loans</option>
-                <option value="Temporary">Temporary</option>
-                <option value="Other">Other</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
-                <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Issue #157: whole field (label, select, chevron) dims while
-              disabled so it reads as unavailable, not just unfocused. */}
-          <div
-            className={`space-y-1.5 transition-opacity ${isDueDateDisabled ? "opacity-50" : ""}`}
-            title={isDueDateDisabled ? "Expenses don't have a due date" : undefined}
+      {/* Frequency pills (remembered per person) */}
+      <div
+        role="group"
+        aria-label="Show amounts as"
+        className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
+      >
+        {FREQUENCY_OPTIONS.map((o) => (
+          <Chip
+            key={o.value}
+            selected={displayFrequency === o.value}
+            onClick={() => handleFrequencyChange(o.value)}
           >
-            <label
-              htmlFor="bills-due-date-filter"
-              className="text-[10px] font-bold text-muted capitalize tracking-wider ml-1"
-            >
-              Due Date
-            </label>
-            <div className="relative">
-              <select
-                id="bills-due-date-filter"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as "all" | "week" | "month" | "overdue")}
-                disabled={isDueDateDisabled}
-                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer disabled:cursor-not-allowed pr-5"
-              >
-                <option value="all">All</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="overdue">Overdue</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
-                <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted capitalize tracking-wider ml-1">
-              Amounts As
-            </label>
-            <div className="relative">
-              <select
-                value={displayFrequency}
-                onChange={(e) => setDisplayFrequency(e.target.value as FrequencyType)}
-                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
-              >
-                <option value="weekly">Weekly</option>
-                <option value="fortnightly">Fortnightly</option>
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
-                <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative w-full">
-          <input
-            type="text"
-            placeholder="Search bills & expenses by name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent border-b border-border pl-1 pr-8 py-2 font-body text-sm placeholder:text-muted focus:outline-none focus:border-primary text-foreground"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground transition-colors p-1"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+            {o.label}
+          </Chip>
+        ))}
       </div>
 
-      {/* Issue #164: explanatory note when the Due Date filter is hiding
-          expenses that would otherwise be in this list, instead of them
-          silently disappearing with no indication why. */}
-      {/* Issue #157: only shown when Type = All. With Type = Bills, expenses
-          are hidden by the user's own Type choice, not the date filter, so
-          the note would be misleading; with Type = Expenses, Due Date is
-          disabled and reset to "All", so it can't apply. */}
-      {typeFilter === "all" && hasExpensesHiddenByDateFilter && dateFilterHidesExpensesMessage && (
-        <div className="px-1">
-          <p className="text-[11px] text-muted font-body italic">
-            {dateFilterHidesExpensesMessage}
-          </p>
+      {/* Filters: one scrolling row */}
+      <div className="flex flex-col gap-2">
+        <div
+          role="group"
+          aria-label="Filters"
+          className="scrollbar-none -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
+        >
+          <Chip onClick={() => setIsFilterOpen(true)} aria-haspopup="dialog">
+            <span className="relative inline-flex">
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              {categoryFilter !== "All" && (
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+              )}
+            </span>
+            Filter
+            {categoryFilter !== "All" && <span className="sr-only"> (category chosen)</span>}
+          </Chip>
+          <Chip onClick={() => setIsImpactOpen(true)} aria-haspopup="dialog">
+            <Calculator size={16} aria-hidden="true" />
+            Check impact
+          </Chip>
+          {TYPE_OPTIONS.map((o) => (
+            <Chip key={o.value} selected={typeFilter === o.value} onClick={() => handleTypeFilterChange(o.value)}>
+              {o.label}
+            </Chip>
+          ))}
+          <span className="h-5 w-px shrink-0 bg-border-strong" aria-hidden="true" />
+          {DUE_OPTIONS.map((o) => (
+            <Chip
+              key={o.value}
+              selected={filter === o.value}
+              disabled={isDueDateDisabled}
+              onClick={() => setFilter(o.value)}
+            >
+              {o.label}
+            </Chip>
+          ))}
         </div>
-      )}
+        {showExpensesHiddenNote && (
+          <p className="px-1 text-[11px] text-muted font-body">Expenses hidden, they have no due date</p>
+        )}
+      </div>
 
       {/* Bills & Expenses Scrollable Container */}
       <div className="space-y-3">
-        <div className="flex items-center justify-end px-1">
-          <button
-            onClick={() => setIsEditCategoryOrderOpen(true)}
-            className="text-[10px] font-heading font-bold text-muted hover:text-foreground uppercase tracking-wider transition-colors"
-          >
-            Edit Order
-          </button>
-        </div>
         {!hasItems ? (
-          <div className="py-10 text-center">
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
             {bills.length === 0 && expenses.length === 0 ? (
               <>
-                <p className="text-muted font-mono text-sm">No bills yet.</p>
-                <p className="text-subtle text-xs mt-1 font-body">Tap + beside the page title to add your first bill.</p>
+                <p className="text-muted text-sm">No bills yet.</p>
+                <Button onClick={openAdd}>Add your first bill</Button>
               </>
             ) : (
-              <p className="text-muted font-mono text-sm">{emptyStateMessage}</p>
+              <>
+                <p className="text-muted text-sm">{emptyStateMessage}</p>
+                <Button variant="ghost" onClick={clearFilters}>Clear filters</Button>
+              </>
             )}
           </div>
         ) : (
@@ -547,26 +476,30 @@ export default function BillsClient() {
               <div key={category} className="flex flex-col">
                 <button
                   onClick={() => toggleCategory(category)}
-                  className="flex items-center gap-3 w-full text-left px-1 focus:outline-none group"
+                  aria-expanded={!collapsedCategories.includes(category)}
+                  className="flex items-center gap-3 w-full min-h-11 text-left px-1 focus:outline-none group"
                 >
-                  <span className="font-heading font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
+                  <span className="font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
                     {category}
                   </span>
-                  <span className="font-mono text-[11px] font-semibold text-subtle shrink-0">
+                  <span className="text-[11px] font-semibold text-subtle shrink-0">
                     ({categoryItems.length})
+                  </span>
+                  <span className="text-[11px] font-semibold text-muted shrink-0 tabular-nums">
+                    {moneyFmt(categorySubtotal(categoryItems, displayFrequency, { convert: convertAmount, countsTowardTotals }))}
                   </span>
                   <span
                     className="h-0.5 flex-1 rounded-sm"
                     style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
                   />
-                  {expandedCategories[category] ? (
-                    <ChevronUp className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
+                  {collapsedCategories.includes(category) ? (
+                    <ChevronDown className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" aria-hidden="true" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" />
+                    <ChevronUp className="h-4 w-4 text-subtle group-hover:text-foreground transition-colors shrink-0" aria-hidden="true" />
                   )}
                 </button>
 
-                {expandedCategories[category] && (
+                {!collapsedCategories.includes(category) && (
                   <div className="flex flex-col mt-1">
                     {/* Rows fully unmount on collapse (unlike Funds/Goals'
                         grid-rows collapse), so every expand is a genuine
@@ -578,19 +511,31 @@ export default function BillsClient() {
                       const rowStyle = { "--row-delay": `${delayMs}ms` } as CSSProperties;
                       return row.kind === "bill" ? (
                         <div key={`bill-${row.item.id}`} className="fund-row-in" style={rowStyle}>
-                          <BillCard
-                            bill={row.item}
-                            splits={billSplits.filter(s => s.bill_id === row.item.id)}
-                            householdMembers={householdMembers}
-                            displayFrequency={displayFrequency}
-                          />
+                          {/* Inner wrapper: the add highlight must not override fund-row-in. */}
+                          <div
+                            id={`bill-${row.item.id}`}
+                            className={highlightKey === `bill-${row.item.id}` ? "row-highlight" : undefined}
+                          >
+                            <BillCard
+                              bill={row.item}
+                              splits={billSplits.filter(s => s.bill_id === row.item.id)}
+                              householdMembers={householdMembers}
+                              displayFrequency={displayFrequency}
+                            />
+                          </div>
                         </div>
                       ) : (
                         <div key={`expense-${row.item.id}`} className="fund-row-in" style={rowStyle}>
-                          <ExpenseCard
-                            expense={row.item}
-                            householdMembers={householdMembers}
-                          />
+                          <div
+                            id={`expense-${row.item.id}`}
+                            className={highlightKey === `expense-${row.item.id}` ? "row-highlight" : undefined}
+                          >
+                            <ExpenseCard
+                              expense={row.item}
+                              householdMembers={householdMembers}
+                              displayFrequency={displayFrequency}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -602,22 +547,49 @@ export default function BillsClient() {
         )}
       </div>
 
-      <AddBillSheet
-        isOpen={isAddBillSheetOpen}
-        onClose={() => setIsAddBillSheetOpen(false)}
-        onSwitchToExpense={() => {
-          setIsAddBillSheetOpen(false);
-          setIsAddExpenseSheetOpen(true);
+      <Dialog
+        open={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter"
+        placement="bottom"
+        footer={
+          <Button
+            variant="ghost"
+            fullWidth
+            onClick={() => {
+              setIsFilterOpen(false);
+              setIsEditCategoryOrderOpen(true);
+            }}
+          >
+            Edit order
+          </Button>
+        }
+      >
+        <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
+          {["All", ...allCategories].map((c) => (
+            <Chip key={c} selected={categoryFilter === c} onClick={() => setCategoryFilter(c)}>
+              {c}
+            </Chip>
+          ))}
+        </div>
+      </Dialog>
+
+      <ImpactCalculator
+        open={isImpactOpen}
+        onClose={() => setIsImpactOpen(false)}
+        frequency={displayFrequency}
+        currentTotal={householdTotal}
+        onTurnIntoBill={(prefill) => {
+          setAddPrefill(prefill);
+          setIsAddOpen(true);
         }}
       />
 
-      <AddExpenseSheet
-        isOpen={isAddExpenseSheetOpen}
-        onClose={() => setIsAddExpenseSheetOpen(false)}
-        onSwitchToBill={() => {
-          setIsAddExpenseSheetOpen(false);
-          setIsAddBillSheetOpen(true);
-        }}
+      <AddFlow
+        open={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onAdded={handleAdded}
+        prefill={addPrefill}
       />
 
       <EditCategoryOrderModal

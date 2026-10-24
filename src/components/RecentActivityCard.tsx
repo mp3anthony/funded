@@ -50,6 +50,8 @@ export const RecentActivityCard = React.memo(function RecentActivityCard({
 
     // 2. Pay History Logs
     payHistory.forEach((p) => {
+      // A Pending pay is not income yet, and may have no amount (R19, #406).
+      if (p.status === "pending" || p.amount === null) return;
       const member = members.find((m) => String(m.id) === String(p.member_id));
       const memberName = member ? member.name : "Household member";
 
@@ -105,7 +107,7 @@ export const RecentActivityCard = React.memo(function RecentActivityCard({
       {/* Header */}
       <div className="flex items-center gap-2 mb-5">
         <Activity className="h-4 w-4 text-primary" />
-        <h3 className="font-heading font-bold text-base text-foreground tracking-wide">
+        <h3 className="font-bold text-base text-foreground tracking-wide">
           Recent Activity
         </h3>
       </div>
@@ -157,7 +159,7 @@ export const RecentActivityCard = React.memo(function RecentActivityCard({
                       {act.description}
                     </span>
                   </div>
-                  <span className="font-mono text-[10px] text-muted shrink-0 uppercase tracking-wider">
+                  <span className="text-[10px] text-muted shrink-0 uppercase tracking-wider">
                     {getRelativeTime(act.dateStr)}
                   </span>
                 </div>

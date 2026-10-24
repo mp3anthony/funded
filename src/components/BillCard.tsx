@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
-import { Pause } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Check, Pause } from "lucide-react";
 import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
 import { convertAmount } from "@/lib/utils";
 import BillDetailSheet from "./BillDetailSheet";
-import AddBillSheet from "./AddBillSheet";
+import NextDueDateDialog from "./NextDueDateDialog";
 import RowPill from "./RowPill";
-import { isDateless, dueDateHint } from "@/lib/billCycle";
+import IconCircle from "@/components/ui/IconCircle";
+import { isDateless, dueDateHint, shouldAskNextDueDate } from "@/lib/billCycle";
+import { dueCountdown, showTick, type CountdownTone } from "@/lib/billRow";
+import { todayInZone } from "@/lib/notifications/timezone";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export interface BillCardProps {
@@ -17,17 +20,36 @@ export interface BillCardProps {
   displayFrequency?: "weekly" | "fortnightly" | "monthly" | "yearly";
 }
 
+const TONE_CLASS: Record<CountdownTone, string> = {
+  neutral: "text-muted",
+  overdue: "text-destructive",
+  paid: "text-success",
+  muted: "text-muted",
+};
+
+/**
+ * Bill row (R15, #402): avatar circle, name, Auto-Pay pill, a countdown line
+ * ("Due in 3 days", "2 days overdue", "Paid") and the amount. The whole row is
+ * ONE button that opens the detail sheet. An unpaid manual bill also has a
+ * round tick at the far right that marks it paid in one tap (a dateless
+ * recurring bill asks "When is it next due?" first, same as the detail sheet).
+ * "Add due date" is its own button under the row, never inside the main one.
+ */
 export default function BillCard({
   bill,
   splits = [],
   householdMembers,
   displayFrequency = "weekly",
 }: BillCardProps) {
-  const { deleteBill } = useApp();
+  const { markAsPaid, markDatelessBillPaid, householdTimezone } = useApp();
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  // #250: open the edit form scrolled to the due date (from "Add due date").
-  const [editFocusDueDate, setEditFocusDueDate] = useState(false);
+  // #250: "Add due date" opens the detail sheet straight on its Due date card.
+  const [startField, setStartField] = useState<"dueDate" | undefined>(undefined);
+  // R15: the tick's in-flight write, and the in-row "When is it next due?" question.
+  const [saving, setSaving] = useState(false);
+  const [askingNextDue, setAskingNextDue] = useState(false);
+  // Blocks a fast double tap before the disabled state has re-rendered.
+  const inFlightRef = useRef(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -45,6 +67,7 @@ export default function BillCard({
 
   const handleCloseDetail = () => {
     setIsDetailOpen(false);
+    setStartField(undefined);
     if (highlightBillId === bill.id.toString()) {
       const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
       params.delete("billId");
@@ -57,36 +80,16 @@ export default function BillCard({
   const assigneeId = bill.assignee_id || (assigneeSplit?.member_id);
   const assignee = householdMembers.find((m) => String(m.id) === String(assigneeId));
 
-  // #267: paused bills look paused (orange pause icon, greyed amount, "Paused" in the date slot).
+  // #267: paused bills look paused (orange pause icon, greyed amount, "Paused" in the countdown slot).
   const isPaused = bill.is_paused === true;
 
   // #250: a bill with no due date (and no label) skips all date maths.
   const dateless = !bill.dueLabel && isDateless(bill);
-  const today = new Date();
-  const hint = dateless ? dueDateHint(bill, today.getTime()) : "none";
+  const hint = dateless ? dueDateHint(bill, new Date().getTime()) : "none";
+  const todayYmd = todayInZone(householdTimezone || "Australia/Sydney");
+  const countdown = dueCountdown(bill, todayYmd, hint);
 
-  // Determine urgency
-  let isUrgent = false; // #288 / #250: labelled and dateless bills have no date to be urgent about.
-  if (!bill.dueLabel && !dateless) {
-    const due = new Date(bill.dueDate);
-    const daysDiff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 3600 * 24));
-    isUrgent = daysDiff <= 3; // True if due in 3 days, today, or overdue
-  }
-
-  // Numeric due date (DD/MM/YYYY) from the raw due_date; fall back to the display string.
-  // String-split rather than new Date() to avoid any timezone shift on the day.
-  const rawDue = bill.due_date;
-  const dueDateDisplay =
-    rawDue && /^\d{4}-\d{2}-\d{2}/.test(rawDue)
-      ? (() => {
-          const [y, m, d] = rawDue.slice(0, 10).split("-");
-          return `${d}/${m}/${y}`;
-        })()
-      : bill.dueDate;
-
-  // Payment-type pill (Auto-Pay / Manual) — mirrors BillDetailSheet's badge
   const isAutoPay = bill.payment_type?.toLowerCase() === "auto";
-  const paymentTypeStr = isAutoPay ? "Auto-Pay" : "Manual";
 
   // Convert amount based on selected frequency
   const convertedAmount = convertAmount(bill.amount, bill.frequency || "monthly", displayFrequency);
@@ -97,111 +100,114 @@ export default function BillCard({
     maximumFractionDigits: 2,
   });
 
-  // Calculate secondary label logic moved to BillDetailSheet
-  const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete "${bill.name}"?`)) {
-      try {
-        await deleteBill(bill.id);
-        setIsDetailOpen(false);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        alert("Failed to delete bill: " + errMsg);
-      }
+  const openDueDateCard = () => {
+    setStartField("dueDate");
+    setIsDetailOpen(true);
+  };
+
+  // Runs one write with the double-tap guard; the row's tick is disabled meanwhile.
+  async function run(write: () => Promise<boolean>): Promise<boolean> {
+    if (inFlightRef.current) return false;
+    inFlightRef.current = true;
+    setSaving(true);
+    try {
+      return await write();
+    } finally {
+      inFlightRef.current = false;
+      setSaving(false);
     }
+  }
+
+  const handleTick = () => {
+    if (inFlightRef.current) return;
+    if (shouldAskNextDueDate(bill)) {
+      setAskingNextDue(true);
+      return;
+    }
+    void run(() => markAsPaid(bill));
   };
 
-  const openEdit = (focusDueDate: boolean) => {
-    setEditFocusDueDate(focusDueDate);
-    setIsEditOpen(true);
+  const answerNextDue = async (write: () => Promise<boolean>) => {
+    // Close only on success; on failure keep the dialog (and the picked date) open.
+    if (await run(write)) setAskingNextDue(false);
   };
 
-  const dateText = bill.dueLabel
-    ?? (dateless
-      ? hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"
-      : `DUE ${dueDateDisplay}`);
-
-  const dateSlotClass = "font-mono text-[10px] uppercase font-medium tracking-wider transition-colors";
   const showAddDueDate = hint === "add-due-date";
-
-  // #250: the row's tap target is a full-cover button BEHIND the content
-  // (content is pointer-events-none), so the orange "Add due date" can be its own
-  // sibling button on top (z-10) without nesting a button in a button.
-  const dateSlot = showAddDueDate ? (
-    <button
-      type="button"
-      onClick={() => openEdit(true)}
-      aria-label={`Add due date for ${bill.name}`}
-      className={`${dateSlotClass} relative z-10 pointer-events-auto font-bold text-accent pt-[17px] -mt-[17px] pb-3 -mb-3 pr-3 cursor-pointer`}
-    >
-      Add due date
-    </button>
-  ) : (
-    <span className={`${dateSlotClass} ${isUrgent ? "text-[#ff4500]" : "text-muted"}`}>{dateText}</span>
-  );
-
-  const rowContent = (
-    <>
-      {/* Leading assignee chip — small identity cue at hairline-row scale */}
-      {assignee && (
-        <div
-          className="shrink-0 flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-surface-elevated text-[11px] font-bold text-foreground border border-primary"
-          title={`Assignee: ${assignee.name}`}
-        >
-          {assignee.avatar_url ? (
-            <img
-              src={assignee.avatar_url}
-              alt={assignee.name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            assignee.avatar || assignee.name.charAt(0).toUpperCase()
-          )}
-        </div>
-      )}
-
-      {/* Middle: name over due date */}
-      <div className="flex flex-col flex-1 min-w-0">
-        <span className="font-body font-semibold text-[15px] text-foreground truncate">
-          {bill.name}
-        </span>
-        <span className="flex items-center gap-1.5 mt-0.5">
-          <RowPill label={paymentTypeStr} variant={isAutoPay ? "primary" : "success"} />
-          {dateSlot}
-        </span>
-      </div>
-
-      {/* Right: amount over tap-for-more hint */}
-      <div className="flex flex-col items-end shrink-0">
-        <span
-          className={`inline-flex items-center gap-1 font-mono font-extrabold tracking-tight text-lg ${
-            isPaused ? "text-muted" : "text-primary"
-          }`}
-        >
-          {isPaused && <Pause size={14} className="text-accent shrink-0" aria-hidden="true" />}
-          ${formattedAmount}
-        </span>
-        <span className="flex items-center gap-1 text-[9px] font-semibold text-muted/60 uppercase tracking-widest group-hover:text-primary transition-colors mt-0.5">
-          Tap for more
-          <span aria-hidden="true">›</span>
-        </span>
-      </div>
-    </>
-  );
+  const tick = showTick(bill);
 
   return (
     <>
-      {/* overflow-hidden keeps the Add due date tap area inside this row */}
-      <div className="relative overflow-hidden border-t border-border group hover:bg-surface/40 transition-colors rounded-sm">
-        <button
-          type="button"
-          onClick={() => setIsDetailOpen(true)}
-          aria-label={`${bill.name}, $${formattedAmount}, ${dateText}`}
-          className="absolute inset-0 w-full rounded-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
-        />
-        <div className="relative pointer-events-none flex items-center gap-3 py-3 text-left">
-          {rowContent}
+      <div className="border-t border-border">
+        <div className="flex items-center gap-1">
+          {/* One button, one reading: avatar is decorative, the rest is its text. */}
+          <button
+            type="button"
+            onClick={() => setIsDetailOpen(true)}
+            className="press-tint flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
+          >
+            {assignee && (
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary bg-surface-elevated text-[11px] font-bold text-foreground"
+              >
+                {assignee.avatar_url ? (
+                  <img src={assignee.avatar_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  assignee.avatar || assignee.name.charAt(0).toUpperCase()
+                )}
+              </span>
+            )}
+
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-body text-[15px] font-semibold text-foreground">{bill.name}</span>
+              <span className="mt-0.5 flex items-center gap-1.5">
+                {isAutoPay && <RowPill label="Auto-Pay" variant="primary" />}
+                <span className={`text-[11px] font-medium ${TONE_CLASS[countdown.tone]}`}>{countdown.text}</span>
+              </span>
+            </span>
+
+            <span
+              className={`inline-flex shrink-0 items-center gap-1 text-lg font-bold tracking-tight tabular-nums ${
+                isPaused ? "text-muted" : "text-primary"
+              }`}
+            >
+              {isPaused && <Pause size={14} className="shrink-0 text-accent" aria-hidden="true" />}
+              ${formattedAmount}
+            </span>
+          </button>
+
+          {tick && (
+            <IconCircle label={`Mark ${bill.name} as paid`} disabled={saving} onClick={handleTick}>
+              <Check size={18} aria-hidden="true" />
+            </IconCircle>
+          )}
         </div>
+
+        {showAddDueDate && (
+          <button
+            type="button"
+            onClick={openDueDateCard}
+            aria-label={`Add due date for ${bill.name}`}
+            className={`-mt-1 mb-1 min-h-11 text-left text-[11px] font-bold text-accent cursor-pointer ${
+              assignee ? "pl-11" : ""
+            }`}
+          >
+            Add due date
+          </button>
+        )}
       </div>
+
+      <NextDueDateDialog
+        open={askingNextDue}
+        billName={bill.name}
+        todayYmd={todayYmd}
+        busy={saving}
+        onCancel={() => setAskingNextDue(false)}
+        onSave={(ymd) => void answerNextDue(() => markDatelessBillPaid(bill, { nextDue: ymd }))}
+        // Skip is the plain Mark as paid.
+        onSkip={() => void answerNextDue(() => markAsPaid(bill))}
+        onMute={() => void answerNextDue(() => markDatelessBillPaid(bill, { mute: true }))}
+      />
 
       <BillDetailSheet
         isOpen={isDetailOpen}
@@ -209,22 +215,7 @@ export default function BillCard({
         bill={bill}
         splits={splits}
         householdMembers={householdMembers}
-        onEdit={(opts) => {
-          setIsDetailOpen(false);
-          openEdit(opts?.focusDueDate === true);
-        }}
-        onDelete={handleDelete}
-      />
-
-      <AddBillSheet
-        isOpen={isEditOpen}
-        onClose={() => {
-          setIsEditOpen(false);
-          setEditFocusDueDate(false);
-        }}
-        existingBill={bill}
-        existingSplits={splits}
-        focusDueDate={editFocusDueDate}
+        startField={startField}
       />
     </>
   );

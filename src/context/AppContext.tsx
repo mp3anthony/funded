@@ -25,6 +25,8 @@ import {
   nextDueDatePatch,
   nextDueToastMessage,
 } from "@/lib/billCycle";
+import { averagePay, buildPendingPayRows } from "@/lib/payHistory";
+import { directPaySplitRows } from "@/lib/suggestSplit";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { isAcceptedMember } from "@/lib/householdLeave";
@@ -97,6 +99,11 @@ export interface Fund {
   owner_id?: string | null;
 }
 
+/** What addFund takes: the database assigns the id, so it is optional (Onboarding still passes a placeholder). */
+export type NewFund = Omit<Fund, "id" | "bgLight" | "barColor" | "accentText" | "icon"> & {
+  id?: string | number;
+};
+
 export interface Payday {
   id: string | number;
   date: string; // ISO YYYY-MM-DD
@@ -119,7 +126,8 @@ export interface PayHistory {
   household_id: string;
   member_id: string;
   pay_schedule_id: string | null;
-  amount: number;
+  /** NULL only for a Pending pay whose amount is not known yet (R19, #406). */
+  amount: number | null;
   pay_date: string; // YYYY-MM-DD
   notes: string | null;
   created_at: string;
@@ -162,7 +170,7 @@ export interface BillSplit {
  * Issue #98 (Slice 1 of 6): variable, no-due-date spend (groceries, fuel, etc.), tracked
  * separately from `bills`. Schema/migration-only for now — no UI or business logic reads this
  * yet; later sub-slices of #98 add the add/edit UI (2), Direct Pay split logic (3), the
- * weekly-draw calc integration (4), health score integration (5), and #70 category ordering (6).
+ * weekly-draw calc integration (4), verdict integration (5), and #70 category ordering (6).
  */
 export interface Expense {
   id: string;
@@ -703,17 +711,19 @@ interface AppContextValue {
   /* Bills */
   bills: Bill[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addBill: (billData: any, splitsData?: any[]) => Promise<void>;
+  addBill: (billData: any, splitsData?: any[]) => Promise<string>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateBill: (billId: string | number, billData: any, splitsData: any[]) => Promise<void>;
+  /** R10: omit `splitsData` to leave the bill's splits alone; omit `dueDate`/`invoiceDate` to leave the saved dates alone. */
+  updateBill: (billId: string | number, billData: any, splitsData?: any[]) => Promise<void>;
   togglePaid: (id: string | number) => void;
-  markAsPaid: (bill: Bill) => Promise<void>;
+  /** R10: the four bill actions resolve true when saved, false when not (a failure, or the bill had already changed). */
+  markAsPaid: (bill: Bill) => Promise<boolean>;
   /** #250: Mark as Paid for a bill with no due date, answering the next-due question. */
   markDatelessBillPaid: (bill: Bill, choice: { nextDue: string } | { mute: true }) => Promise<boolean>;
-  markAsUnpaid: (bill: Bill) => Promise<void>;
-  undoPayment: (bill: Bill) => Promise<void>;
-  togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
-  deleteBill: (id: string | number) => void;
+  markAsUnpaid: (bill: Bill) => Promise<boolean>;
+  undoPayment: (bill: Bill) => Promise<boolean>;
+  togglePauseBill: (id: string | number, isPaused: boolean) => Promise<boolean>;
+  deleteBill: (id: string | number) => Promise<void>;
 
   /* Toast (#205) — rendered once by AppShell */
   toast: AppToast | null;
@@ -722,14 +732,11 @@ interface AppContextValue {
   /* Finish setting up card (#333): null = not loaded yet / load failed, so the card stays hidden */
   isFinishSetupDismissed: boolean | null;
   dismissFinishSetup: () => Promise<void>;
-  /* Updates card (#260) visibility, so the dashboard tips ticker can step aside */
-  isUpdatesCardVisible: boolean;
-  setUpdatesCardVisible: (visible: boolean) => void;
 
   /* Expenses (Issue #98, Slice 2 of 6; split logic added Slice 3 of 6) */
   expenses: Expense[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addExpense: (expenseData: any) => Promise<void>;
+  addExpense: (expenseData: any) => Promise<string>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateExpense: (expenseId: string, expenseData: any) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
@@ -746,7 +753,7 @@ interface AppContextValue {
 
   /* Funds */
   funds: Fund[];
-  addFund: (fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) => Promise<void>;
+  addFund: (fund: NewFund) => Promise<string>;
   updateGoal: (id: string | number, goalData: any) => Promise<void>;
   deleteGoal: (id: string | number) => Promise<void>;
   updateFund: (id: string | number, fundData: any) => Promise<void>;
@@ -762,26 +769,32 @@ interface AppContextValue {
   /* Payday Schedule & History */
   paySchedules: PaySchedule[];
   payHistory: PayHistory[];
-  addPaySchedule: (data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
+  addPaySchedule: (data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<string>;
   updatePaySchedule: (id: string, data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
   deletePaySchedule: (id: string) => Promise<void>;
   logPay: (payScheduleId: string, amount: number, date: string, notes: string | null, status?: 'pending' | 'confirmed') => Promise<PayHistory | null>;
-  confirmPay: (historyId: string) => Promise<void>;
+  /** Throws when the save fails (R20, #407). */
   confirmAndUpdatePay: (historyId: string, newAmount: number, notes?: string | null) => Promise<void>;
+  /** "Didn't get paid" on a due pay: moves the schedule to its next date and logs nothing. Throws on failure. */
+  skipDuePay: (payScheduleId: string) => Promise<void>;
+  /** "Didn't get paid" on a Pending pay: deletes that row only, leaving the schedule date alone. Throws on failure. */
+  skipPendingPay: (historyId: string) => Promise<void>;
   autoLogMissedPays: () => Promise<void>;
   deletePayHistory: (id: string) => Promise<void>;
-  calculateAveragePay: (memberId: string) => number | null;
+  /** Average of that schedule's last 4 confirmed pays; null with fewer than 2 (R19, #406). */
+  calculateAveragePay: (scheduleId: string) => number | null;
 
   /* Household Contributions */
   householdContributions: HouseholdContribution[];
   fetchHouseholdContributions: (householdId?: string) => Promise<void>;
   setContribution: (memberId: string, amount: number, frequency: "weekly" | "fortnightly" | "monthly") => Promise<void>;
+  applyDirectPaySplits: (billIds: string[], sharesByMember: Record<string, number>) => Promise<void>;
   deleteContribution: (id: string) => Promise<void>;
 
   /* Contribution Rules */
   contributionRules: ContributionRule[];
   fetchContributionRules: (householdId?: string) => Promise<void>;
-  addRule: (ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) => Promise<void>;
+  addRule: (ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) => Promise<string>;
   updateRule: (id: string, ruleData: Partial<Omit<ContributionRule, "id" | "household_id" | "created_at">>) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;
   toggleRuleActive: (id: string) => Promise<void>;
@@ -971,8 +984,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // proves otherwise. AppShell's gate (src/components/AppShell.tsx:182) is the
   // app's single loading gate, so any render where this is wrongly false hands
   // every dashboard component empty arrays to compute against — the cold-open
-  // "Fully Funded" flash in #73 (empty state scores exactly 85, clearing the
-  // >= 80 threshold). The previous initialiser was
+  // false "all good" flash in #73 (an empty state used to score 85, the old
+  // Health score). The previous initialiser was
   // `!initialIsOnboarded && !!initialSession`, which evaluated to false for
   // every user unconditionally — not conditionally on onboarding. This
   // function's defaults are `initialSession = null, initialIsOnboarded = false`
@@ -1141,8 +1154,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [contributionRules, setContributionRules] = useState<ContributionRule[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toast, setToast] = useState<AppToast | null>(null);
-  // True while the Updates card (#260) is on screen; the dashboard tips ticker hides then.
-  const [isUpdatesCardVisible, setUpdatesCardVisible] = useState(false);
   const toastSeqRef = useRef(0);
   // Finish setting up card dismissal (#333), keyed by user id so a same-tab
   // account switch can't show the previous user's flag.
@@ -1442,8 +1453,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // again (the very failure that put the user on "create or join" in the first
   // place) it returned early with the resolution ref now set: isOnboarded stayed
   // true, isDataLoading cleared, and the dashboard rendered with bills, funds,
-  // paydays and members all still [] — which computes to exactly 85 in
-  // calculateHealthScore and displays "Fully Funded" (#73's false positive).
+  // paydays and members all still [] — which the old Health score read as
+  // "Fully Funded" (#73's false positive; the verdict shows grey there).
   //
   // Takes userId explicitly rather than reading session: the adopt paths get a
   // fresher user from supabase.auth.getSession() than this render's closure.
@@ -1652,7 +1663,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // Both slices go through resolveWarmReloadRace (#348), same as the
   // loadData slices: an empty-but-successful read only replaces loaded pay
   // data after one confirming re-fetch, so a warm reload can't briefly wipe
-  // it (Dashboard "Add your payday", wrong Household Health). A genuine
+  // it (Dashboard "Add your payday", wrong Dashboard verdict). A genuine
   // delete-to-empty still lands: the re-fetch is also empty and is committed.
   // `assumeEmptyPreviousState` is passed through from loadHouseholdRelatedData
   // for the household-switch case (see the comment there).
@@ -1920,9 +1931,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         //    Onboarding, and nothing raises it again (loadData's own raise at
         //    :882 is skipped once dbHouseholdId and isOnboarded are both truthy).
         //    AppShell's gates therefore opened over bills/funds/paydays/members
-        //    still [], which computes to exactly 85 in calculateHealthScore
-        //    (src/lib/utils.ts:88) and clears the >= 80 "Fully Funded" threshold
-        //    (src/components/HealthScoreCard.tsx:34). Committing after the await
+        //    still [], which the old Health score read as "Fully Funded" (#73).
+        //    Committing after the await
         //    removes the window outright instead of covering it with a wheel.
         //
         // 2. loadHouseholdRelatedData has no try/catch and its Promise.all
@@ -2140,6 +2150,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newSplits && newSplits.length > 0) {
         setBillSplits((prev) => [...prev, ...newSplits]);
       }
+      // R07: the Add flow highlights the new row by this id.
+      return String(newBill.id);
     } catch (err) {
       console.error("Failed to add bill:", err);
       throw err;
@@ -2147,7 +2159,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async function updateBill(billId: string | number, billData: any, splitsData: any[]) {
+  async function updateBill(billId: string | number, billData: any, splitsData?: any[]) {
     console.log('updateBill - Start - billId:', billId);
     console.log('updateBill - billData input:', billData);
     console.log('updateBill - splitsData input:', splitsData);
@@ -2165,8 +2177,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         name: billData.name,
         amount: billData.amount,
         // #250: a blank due date is stored as null (parseDateForDb("") returns "").
-        due_date: billData.dueDate || billData.due_date ? parseDateForDb(billData.dueDate || billData.due_date) : null,
-        invoice_date: billData.invoiceDate || billData.invoice_date ? parseDateForDb(billData.invoiceDate || billData.invoice_date) : null,
+        // R10: a date is written only when the caller passes the key, so saving a
+        // name or note no longer rewrites a rolled-forward autopay date.
+        ...("dueDate" in billData || "due_date" in billData
+          ? { due_date: billData.dueDate || billData.due_date ? parseDateForDb(billData.dueDate || billData.due_date) : null }
+          : {}),
+        ...("invoiceDate" in billData || "invoice_date" in billData
+          ? { invoice_date: billData.invoiceDate || billData.invoice_date ? parseDateForDb(billData.invoiceDate || billData.invoice_date) : null }
+          : {}),
         payment_type: billData.paymentType || billData.payment_type || "manual",
         assignee_id: billData.assignee || billData.assignee_id || null,
         category: billData.category || "Uncategorized",
@@ -2201,23 +2219,28 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         console.log('updateBill - successfully updated bills table row:', updatedBill);
       }
 
-      // Step 2: Delete Existing Splits
-      console.log('updateBill - deleting splits for bill_id:', billId);
-      const { error: deleteError } = await supabase
-        .from("bill_splits")
-        .delete()
-        .eq("bill_id", billId);
+      // R10: `splitsData` undefined = leave the bill's splits exactly as they are.
+      const touchSplits = splitsData !== undefined;
 
-      if (deleteError) {
-        console.error("updateBill - Error deleting existing bill splits:", deleteError);
-        throw deleteError;
-      } else {
-        console.log('updateBill - splits deleted successfully');
+      // Step 2: Delete Existing Splits
+      if (touchSplits) {
+        console.log('updateBill - deleting splits for bill_id:', billId);
+        const { error: deleteError } = await supabase
+          .from("bill_splits")
+          .delete()
+          .eq("bill_id", billId);
+
+        if (deleteError) {
+          console.error("updateBill - Error deleting existing bill splits:", deleteError);
+          throw deleteError;
+        } else {
+          console.log('updateBill - splits deleted successfully');
+        }
       }
 
       let newSplits = [];
       // Step 3: Insert New Splits
-      if (splitsData && splitsData.length > 0) {
+      if (touchSplits && splitsData && splitsData.length > 0) {
         const dbSplitsData = splitsData.map((split) => {
           if (!split.member_id || split.amount === undefined || isNaN(Number(split.amount))) {
             console.warn("updateBill - invalid split data detected:", split);
@@ -2257,10 +2280,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           prev.map((b) => (b.id === billId ? mapBillFromDb(updatedBill) : b))
         );
       }
-      setBillSplits((prev) => {
-        const filtered = prev.filter((s) => String(s.bill_id) !== String(billId));
-        return [...filtered, ...newSplits];
-      });
+      if (touchSplits) {
+        setBillSplits((prev) => {
+          const filtered = prev.filter((s) => String(s.bill_id) !== String(billId));
+          return [...filtered, ...newSplits];
+        });
+      }
 
     } catch (err) {
       console.error("updateBill - Fatal error during execution:", err);
@@ -2488,8 +2513,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // The roll patch also records last_paid_for = the old due date (#211), in the
   // same guarded update. Pay-early / one-off / paused write status only.
   // Deliberately NOT routed through updateBill (it rewrites dates, splits and category).
-  async function markAsPaid(bill: Bill) {
-    if (bill.payment_type?.toLowerCase() === "auto") return;
+  async function markAsPaid(bill: Bill): Promise<boolean> {
+    if (bill.payment_type?.toLowerCase() === "auto") return false;
     try {
       // Fresh row, not UI state: the roll must start from the DB's due date
       // and today's household date.
@@ -2511,7 +2536,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (current && !sameDueDate(current.due_date, bill.due_date)) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       const today = todayInZone(householdTimezone || "Australia/Sydney");
@@ -2530,13 +2555,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
         if (rollError) {
           console.error("Error rolling bill on mark-as-paid:", rollError);
-          return;
+          showToast({ message: "Couldn't mark as paid, try again." });
+          return false;
         }
         if (!rolled) {
           // Someone else moved it first — show what's actually there.
           await refreshBillFromDb(bill.id);
           showToast({ message: "This bill was already updated — check it and try again." });
-          return;
+          return false;
         }
 
         // Before the bills state changes (so the reminder effect never sees
@@ -2553,7 +2579,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
             ? { actionLabel: "Undo", onAction: () => { void undoPaidRoll(bill.id, undoPatch, rolledDue, oldDue); } }
             : {}),
         });
-        return;
+        return true;
       }
 
       // Paying early / one-off / paused: status only, guarded on the cycle
@@ -2569,12 +2595,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating bill as paid:", error);
-        return;
+        showToast({ message: "Couldn't mark as paid, try again." });
+        return false;
       }
       if (!data) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       // Mark the paid cycle's reminders read (never delete, #209) before the
@@ -2584,8 +2611,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setBills((prev) =>
         prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b))
       );
+      // R15: paying early / one-off gets the same Undo toast as the roll path.
+      showToast({
+        message: "Marked as paid",
+        actionLabel: "Undo",
+        onAction: () => { void markAsUnpaid(mapBillFromDb(data)); },
+      });
+      return true;
     } catch (err) {
       console.error("Failed to mark as paid:", err);
+      showToast({ message: "Couldn't mark as paid, try again." });
+      return false;
     }
   }
 
@@ -2711,8 +2747,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // row and we just re-read the bill so the UI shows the rolled state.
   // Must never touch last_paid_for (#211): the previous record survives an
   // unpaid tap.
-  async function markAsUnpaid(bill: Bill) {
-    if (bill.payment_type?.toLowerCase() === "auto") return;
+  async function markAsUnpaid(bill: Bill): Promise<boolean> {
+    if (bill.payment_type?.toLowerCase() === "auto") return false;
     try {
       const { data, error } = await supabase
         .from("bills")
@@ -2724,10 +2760,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating bill as unpaid:", error);
-        return;
+        return false;
       }
 
       let row = data;
+      // No row matched: the bill is no longer Paid (the cron rolled it). The re-read below
+      // shows the rolled state, and that counts as done (nothing was left to undo).
       if (!row) {
         const { data: current, error: readError } = await supabase
           .from("bills")
@@ -2736,7 +2774,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           .maybeSingle();
         if (readError) {
           console.error("Error re-reading bill after unpaid no-op:", readError);
-          return;
+          return false;
         }
         row = current;
       }
@@ -2747,8 +2785,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           prev.map((b) => (b.id === bill.id ? mapBillFromDb(fresh) : b))
         );
       }
+      return true;
     } catch (err) {
       console.error("Failed to mark as unpaid:", err);
+      return false;
     }
   }
 
@@ -2758,8 +2798,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // due_date, last_paid_for and status we read (and not paused); if anything
   // changed, nothing is written. Writes no notifications (SPEC A2) and is NOT
   // routed through updateBill.
-  async function undoPayment(bill: Bill) {
-    if (bill.payment_type?.toLowerCase() === "auto") return;
+  // R10: resolves true when undone, false otherwise. A real failure shows no toast
+  // (the detail sheet shows a red line); the "already updated" cases keep theirs.
+  async function undoPayment(bill: Bill): Promise<boolean> {
+    if (bill.payment_type?.toLowerCase() === "auto") return false;
     try {
       const { data: current, error: readError } = await supabase
         .from("bills")
@@ -2768,8 +2810,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .maybeSingle();
       if (readError) {
         console.error("Error reading bill before undo payment:", readError);
-        showToast({ message: "Couldn't undo — please try again." });
-        return;
+        return false;
       }
 
       const patch = current ? computeUndoPayment(current) : null;
@@ -2781,7 +2822,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       ) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       let query = supabase
@@ -2796,13 +2837,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error undoing payment:", error);
-        showToast({ message: "Couldn't undo — please try again." });
-        return;
+        return false;
       }
       if (!data) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "Couldn't undo — this bill has already changed." });
-        return;
+        return false;
       }
 
       setBills((prev) => prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b)));
@@ -2810,9 +2850,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       const m = Number(dueYmd.slice(5, 7));
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       showToast({ message: `Payment undone — due ${monthNames[m - 1]} ${Number(dueYmd.slice(8, 10))} again` });
+      return true;
     } catch (err) {
       console.error("Failed to undo payment:", err);
-      showToast({ message: "Couldn't undo — please try again." });
+      return false;
     }
   }
 
@@ -2822,7 +2863,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // to the first date on/after today (`computeResumeRoll`, missed cycles are
   // skipped) in the same guarded write as the un-pause. Deliberately NOT
   // routed through updateBill.
-  async function togglePauseBill(id: string | number, isPaused: boolean) {
+  // R10: resolves true when the bills write succeeded (not tied to marking reminders read),
+  // false otherwise. Success toasts ("Bill paused", "Resumed — next due …", "Bill resumed") live here.
+  async function togglePauseBill(id: string | number, isPaused: boolean): Promise<boolean> {
     try {
       if (isPaused) {
         const { data, error } = await supabase
@@ -2834,17 +2877,22 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
         if (error) {
           console.error("Error toggling pause status:", error);
-          return;
+          return false;
         }
 
         if (data) {
           // Before the bills state changes (same ordering reason as markAsPaid).
-          await markBillRemindersRead(id);
+          try {
+            await markBillRemindersRead(id);
+          } catch (readErr) {
+            console.error("Error marking reminders read on pause:", readErr);
+          }
           setBills((prev) =>
             prev.map((bill) => (bill.id === id ? mapBillFromDb(data) : bill))
           );
+          showToast({ message: "Bill paused" });
         }
-        return;
+        return true;
       }
 
       // Resume
@@ -2855,12 +2903,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .maybeSingle();
       if (readError) {
         console.error("Error reading bill before resume:", readError);
-        showToast({ message: "Couldn't resume — please try again." });
-        return;
+        return false;
       }
       if (!current || !current.is_paused) {
         await refreshBillFromDb(id);
-        return;
+        return true;
       }
 
       const today = todayInZone(householdTimezone || "Australia/Sydney");
@@ -2876,12 +2923,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error resuming bill:", error);
-        return;
+        return false;
       }
       if (!data) {
         await refreshBillFromDb(id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       if (patch?.due_date) {
@@ -2892,9 +2939,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         showToast({ message: `Resumed — next due ${monthNames[Number(dueYmd.slice(5, 7)) - 1]} ${Number(dueYmd.slice(8, 10))}` });
       } else {
         setBills((prev) => prev.map((b) => (b.id === id ? mapBillFromDb(data) : b)));
+        showToast({ message: "Bill resumed" });
       }
+      return true;
     } catch (err) {
       console.error("Failed to toggle pause status:", err);
+      return false;
     }
   }
 
@@ -3006,6 +3056,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newSplits.length > 0) {
         setExpenseSplits((prev) => [...prev, ...newSplits.map(mapExpenseSplitFromDb)]);
       }
+      // R07: the Add flow highlights the new row by this id.
+      return String(newExpense.id);
     } catch (err) {
       console.error("Failed to add expense:", err);
       throw err;
@@ -3046,19 +3098,23 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // "assignee" (cleans up now-orphaned rows) or "percentage" (about to
       // be replaced with the fresh set below). Mirrors updateBill's
       // delete-then-reinsert pattern for bill_splits.
-      const { error: deleteError } = await supabase
-        .from("expense_splits")
-        .delete()
-        .eq("expense_id", expenseId);
+      // R10: `expenseData.splits` undefined = leave the split rows exactly as they are.
+      const touchSplits = expenseData.splits !== undefined;
+      if (touchSplits) {
+        const { error: deleteError } = await supabase
+          .from("expense_splits")
+          .delete()
+          .eq("expense_id", expenseId);
 
-      if (deleteError) {
-        console.error("Error deleting existing expense splits:", deleteError);
-        throw deleteError;
+        if (deleteError) {
+          console.error("Error deleting existing expense splits:", deleteError);
+          throw deleteError;
+        }
       }
 
       let newSplits = [];
       const splitsInput: Array<{ member_id: string; percentage: number }> = expenseData.splits || [];
-      if (isPercentage && splitsInput.length > 0) {
+      if (touchSplits && isPercentage && splitsInput.length > 0) {
         const hId = await ensureHousehold();
         const dbSplitsData = splitsInput.map((split) => ({
           household_id: hId,
@@ -3084,10 +3140,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setExpenses((prev) =>
         prev.map((e) => (e.id === expenseId ? mapExpenseFromDb(updatedExpense) : e))
       );
-      setExpenseSplits((prev) => {
-        const filtered = prev.filter((s) => String(s.expense_id) !== String(expenseId));
-        return [...filtered, ...newSplits.map(mapExpenseSplitFromDb)];
-      });
+      if (touchSplits) {
+        setExpenseSplits((prev) => {
+          const filtered = prev.filter((s) => String(s.expense_id) !== String(expenseId));
+          return [...filtered, ...newSplits.map(mapExpenseSplitFromDb)];
+        });
+      }
     } catch (err) {
       console.error("Failed to update expense:", err);
       throw err;
@@ -3197,7 +3255,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Funds Actions ──────────────────────────── */
-  async function addFund(fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) {
+  async function addFund(fund: NewFund): Promise<string> {
     try {
       const hId = await ensureHousehold();
 
@@ -3224,12 +3282,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error;
       }
 
-      if (data) {
-        setFunds((prev) => [...prev, mapFundFromDb(data)]);
-      }
+      if (!data) throw new Error("The goal was not saved. Please try again.");
+      setFunds((prev) => [...prev, mapFundFromDb(data)]);
+      return String(data.id);
     } catch (err) {
       console.error("Failed to add fund:", err);
-      throw err; // callers (AddGoalSheet, Onboarding) keep their UI open on failure
+      throw err; // callers (AddGoalFlow, Onboarding) keep their UI open on failure
     }
   }
 
@@ -3255,7 +3313,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating goal/fund:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -3265,6 +3323,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update goal:", err);
+      throw err; // callers (GoalDetailSheet) keep their UI open and show the failure
     }
   }
 
@@ -3299,8 +3358,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function addToGoal(id: string | number, amount: number) {
     try {
-      const fund = funds.find((f) => f.id === id);
-      if (!fund) return;
+      const fund = funds.find((f) => String(f.id) === String(id));
+      if (!fund) throw new Error("That goal is no longer there.");
 
       const newCurrentAmount = fund.currentAmount + amount;
 
@@ -3313,16 +3372,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error adding to goal:", error);
-        return;
+        throw error;
       }
 
       if (data) {
         setFunds((prev) =>
-          prev.map((f) => (f.id === id ? mapFundFromDb(data) : f))
+          prev.map((f) => (String(f.id) === String(id) ? mapFundFromDb(data) : f))
         );
       }
     } catch (err) {
       console.error("Failed to add money to goal:", err);
+      throw err; // callers (AddAmountModal, rule allocation, surplus) show or catch the failure
     }
   }
 
@@ -3552,8 +3612,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           // Committing dbHouseholdId and isOnboarded(true) regardless of the
           // lookup is what made the old code incoherent: it dropped AppShell's
           // Onboarding gate for a household with no name, no join code and no
-          // related data — the empty-arrays dashboard that computes to exactly
-          // 85 in calculateHealthScore and reads "Fully Funded" (#73). Leaving
+          // related data — the empty-arrays dashboard that used to read
+          // "Fully Funded" (#73). Leaving
           // state untouched keeps the user where they were, which is also why
           // this message is actually visible on the Onboarding path, unlike the
           // refusal below.
@@ -3571,9 +3631,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // reasons as createHousehold's adopt branch (:1255-1311). Briefly: a
         // setIsOnboarded(true) before the await flushes mid-flight while
         // isDataLoading is false, opening AppShell's gates over empty arrays,
-        // which computes to exactly 85 in calculateHealthScore
-        // (src/lib/utils.ts:88) and reads "Fully Funded"
-        // (src/components/HealthScoreCard.tsx:34); and loadHouseholdRelatedData
+        // which used to read "Fully Funded" (#73); and loadHouseholdRelatedData
         // can throw, which committing-first made permanent. Committing after does
         // NOT make a failed hydration side-effect-free — the helper's first
         // Promise.all (:991) can commit bills/funds/paydays/members/billSplits
@@ -4183,7 +4241,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Payday Schedule & History Actions ───────── */
-  async function addPaySchedule(data: Omit<PaySchedule, "id" | "household_id" | "created_at">) {
+  async function addPaySchedule(data: Omit<PaySchedule, "id" | "household_id" | "created_at">): Promise<string> {
     try {
       const hId = await ensureHousehold();
       const insertData = {
@@ -4206,9 +4264,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error;
       }
 
-      if (newSchedule) {
-        setPaySchedules((prev) => [...prev, newSchedule]);
-      }
+      if (!newSchedule) throw new Error("The pay schedule was not saved.");
+      setPaySchedules((prev) => [...prev, newSchedule]);
+      return String(newSchedule.id);
     } catch (err) {
       console.error("Failed to add pay schedule:", err);
       throw err;
@@ -4337,30 +4395,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function confirmPay(historyId: string) {
-    try {
-      const { data, error } = await supabase
-        .from("pay_history")
-        .update({ status: "confirmed" })
-        .eq("id", historyId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("confirmPay - failed to update pay history status:", error);
-        return;
-      }
-
-      if (data) {
-        setPayHistory((prev) =>
-          prev.map((h) => (h.id === historyId ? data : h))
-        );
-      }
-    } catch (err) {
-      console.error("Failed to confirm pay:", err);
-    }
-  }
-
   async function confirmAndUpdatePay(historyId: string, newAmount: number, notes?: string | null) {
     try {
       const updateData: any = {
@@ -4380,7 +4414,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("confirmAndUpdatePay - failed to update pay history:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -4390,12 +4424,59 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to confirm and update pay:", err);
+      throw err;
+    }
+  }
+
+  async function skipDuePay(payScheduleId: string) {
+    try {
+      const schedule = paySchedules.find((s) => String(s.id) === String(payScheduleId));
+      if (!schedule) throw new Error("Pay schedule not found");
+      const next = nextPayDateAfterLog(schedule.next_pay_date, schedule.frequency);
+
+      // Conditional on the date we saw, like the auto-log claim: if another
+      // phone already moved it on, skipping again would jump a second cycle.
+      const { data, error } = await supabase
+        .from("pay_schedules")
+        .update({ next_pay_date: next })
+        .eq("id", schedule.id)
+        .eq("next_pay_date", schedule.next_pay_date)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
+      }
+      setPaySchedules((prev) => prev.map((s) => (s.id === schedule.id ? data[0] : s)));
+    } catch (err) {
+      console.error("Failed to skip pay:", err);
+      throw err;
+    }
+  }
+
+  async function skipPendingPay(historyId: string) {
+    try {
+      // Delete the row only. The schedule date stays where it is, so the cron cannot make this pay again.
+      const { data, error } = await supabase
+        .from("pay_history")
+        .delete()
+        .eq("id", historyId)
+        .eq("status", "pending")
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
+      }
+      setPayHistory((prev) => prev.filter((h) => h.id !== historyId));
+    } catch (err) {
+      console.error("Failed to skip pending pay:", err);
+      throw err;
     }
   }
 
   async function autoLogMissedPays() {
     try {
-      const todayYmd = toLocalYmd(new Date());
+      // Household-local day, so it agrees with the reminder cron (R19, #406).
+      const todayYmd = todayInZone(householdTimezone || "Australia/Sydney");
 
       const hId = await ensureHousehold();
 
@@ -4405,34 +4486,39 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         const { missed, next } = missedPayCatchUp(schedule.next_pay_date, schedule.frequency, todayYmd);
         if (missed.length === 0) continue; // Not missed
 
-        const missedRecords: any[] = missed.map((payDateStr) => ({
-          household_id: hId,
-          member_id: schedule.member_id,
-          pay_schedule_id: schedule.id,
-          amount: schedule.is_fixed_amount ? (schedule.amount || 0) : 0,
-          pay_date: payDateStr,
-          notes: schedule.is_fixed_amount
-            ? "Automatically logged missed pay"
-            : "Automatically logged missed pay — amount needs review",
-          status: "pending",
-        }));
+        // Claim first: move the date on only if nobody else has (the cron or
+        // another phone), so the same missed pays are never inserted twice.
+        const { data: claimed, error: claimErr } = await supabase
+          .from("pay_schedules")
+          .update({ next_pay_date: next })
+          .eq("id", schedule.id)
+          .eq("next_pay_date", schedule.next_pay_date)
+          .select("id");
+
+        if (claimErr) {
+          console.error(`Failed to claim missed pays for schedule ${schedule.id}:`, claimErr);
+          continue;
+        }
+        if (!claimed || claimed.length === 0) continue; // someone else got there first
 
         const { error: insertErr } = await supabase
           .from("pay_history")
-          .insert(missedRecords);
+          .insert(buildPendingPayRows(schedule, missed, hId));
 
         if (insertErr) {
           console.error(`Failed to insert missed pay history for schedule ${schedule.id}:`, insertErr);
-          continue;
-        }
-
-        const { error: updateErr } = await supabase
-          .from("pay_schedules")
-          .update({ next_pay_date: next })
-          .eq("id", schedule.id);
-
-        if (updateErr) {
-          console.error(`Failed to update next_pay_date for schedule ${schedule.id}:`, updateErr);
+          // Put the date back so the next load tries again.
+          const { error: revertErr } = await supabase
+            .from("pay_schedules")
+            .update({ next_pay_date: schedule.next_pay_date })
+            .eq("id", schedule.id)
+            .eq("next_pay_date", next);
+          if (revertErr) {
+            console.error(
+              `Missed pays lost: schedule ${schedule.id} next_pay_date moved from ${schedule.next_pay_date} to ${next} but the insert and the revert both failed:`,
+              revertErr,
+            );
+          }
         }
       }
 
@@ -4456,43 +4542,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
       setPayHistory((prev) => prev.filter((h) => h.id !== id));
 
-      // Rollback next pay date of the associated pay schedule if linked
-      if (historyItem.pay_schedule_id) {
-        const schedule = paySchedules.find((s) => s.id === historyItem.pay_schedule_id);
-        if (schedule) {
-          const prevPayDate = historyItem.pay_date;
-          const { data: updatedSchedule, error: scheduleErr } = await supabase
-            .from("pay_schedules")
-            .update({ next_pay_date: prevPayDate })
-            .eq("id", schedule.id)
-            .select()
-            .single();
-
-          if (scheduleErr) {
-            console.error("Failed to roll back pay schedule date:", scheduleErr);
-          } else if (updatedSchedule) {
-            setPaySchedules((prev) =>
-              prev.map((s) => (s.id === schedule.id ? updatedSchedule : s))
-            );
-          }
-        }
-      }
+      // The schedule's next pay date is never touched (R24, #411, folds #316):
+      // a row's pay_date is not always the scheduled date, so a rollback could
+      // land on the wrong day. Edit the schedule to change its date.
     } catch (err) {
       console.error("Failed to delete pay history:", err);
       throw err;
     }
   }
 
-  function calculateAveragePay(memberId: string): number | null {
-    const memberHistory = payHistory.filter(
-      (h) => String(h.member_id) === String(memberId)
-    );
-    if (memberHistory.length < 3) return null;
-
-    const sorted = [...memberHistory].sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-    const last3 = sorted.slice(0, 3);
-    const sum = last3.reduce((s, entry) => s + Number(entry.amount), 0);
-    return sum / 3;
+  function calculateAveragePay(scheduleId: string): number | null {
+    return averagePay(scheduleId, payHistory);
   }
 
   async function fetchHouseholdContributions(householdId?: string) {
@@ -4519,53 +4579,100 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   async function setContribution(memberId: string, amount: number, frequency: "weekly" | "fortnightly" | "monthly") {
+    // Throws on any failure (R23, #456) so the pop-up can show its red line.
+    const hId = await ensureHousehold();
+
+    // Clean up other frequencies for the same member to avoid orphaned cycles
+    const { error: deleteErr } = await supabase
+      .from("household_contributions")
+      .delete()
+      .eq("member_id", memberId)
+      .neq("frequency", frequency);
+
+    if (deleteErr) {
+      console.error("Error cleaning up other contributions:", deleteErr);
+      throw deleteErr;
+    }
+
+    const dbData = {
+      household_id: hId,
+      member_id: memberId,
+      amount,
+      frequency,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("household_contributions")
+      .upsert(dbData, { onConflict: "household_id,member_id,frequency" })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error upserting household contribution:", error);
+      throw error;
+    }
+
+    if (data) {
+      setHouseholdContributions((prev) => {
+        const filtered = prev.filter(
+          (c) => String(c.member_id) !== String(memberId) || c.frequency === frequency
+        );
+        const exists = filtered.some((c) => c.id === data.id);
+        if (exists) {
+          return filtered.map((c) => (c.id === data.id ? data : c));
+        }
+        return [...filtered, data];
+      });
+    }
+  }
+
+  /**
+   * Direct Pay "Apply" in Compare split (R23, #410): rewrites the split rows of
+   * the listed bills to the household shares (`sharesByMember`: member id to a
+   * 0-1 fraction). Only the listed bills are touched. Throws on any failure.
+   */
+  async function applyDirectPaySplits(billIds: string[], sharesByMember: Record<string, number>) {
+    const hId = await ensureHousehold();
+    let saved = 0;
     try {
-      const hId = await ensureHousehold();
+      for (const billId of billIds) {
+        const bill = bills.find((b) => String(b.id) === String(billId));
+        if (!bill || !bill.assignee_id) continue;
+        const existing = billSplits.filter((s) => String(s.bill_id) === String(billId));
+        const existingStatus: Record<string, string> = {};
+        for (const s of existing) if (s.status) existingStatus[String(s.member_id)] = s.status;
+        const rows = directPaySplitRows(bill, sharesByMember, String(bill.assignee_id), existingStatus);
 
-      // Clean up other frequencies for the same member to avoid orphaned cycles
-      const { error: deleteErr } = await supabase
-        .from("household_contributions")
-        .delete()
-        .eq("member_id", memberId)
-        .neq("frequency", frequency);
+        const { error: deleteError } = await supabase.from("bill_splits").delete().eq("bill_id", billId);
+        if (deleteError) throw deleteError;
 
-      if (deleteErr) {
-        console.error("Error cleaning up other contributions:", deleteErr);
-      }
+        const { data, error: insertError } = await supabase
+          .from("bill_splits")
+          .insert(rows.map((r) => ({ household_id: hId, bill_id: billId, ...r })))
+          .select();
+        if (insertError) throw insertError;
 
-      const dbData = {
-        household_id: hId,
-        member_id: memberId,
-        amount,
-        frequency,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase
-        .from("household_contributions")
-        .upsert(dbData, { onConflict: "household_id,member_id,frequency" })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error upserting household contribution:", error);
-        return;
-      }
-
-      if (data) {
-        setHouseholdContributions((prev) => {
-          const filtered = prev.filter(
-            (c) => String(c.member_id) !== String(memberId) || c.frequency === frequency
-          );
-          const exists = filtered.some((c) => c.id === data.id);
-          if (exists) {
-            return filtered.map((c) => (c.id === data.id ? data : c));
-          }
-          return [...filtered, data];
-        });
+        setBillSplits((prev) => [...prev.filter((s) => String(s.bill_id) !== String(billId)), ...(data ?? [])]);
+        saved += 1;
       }
     } catch (err) {
-      console.error("Failed to set household contribution:", err);
+      console.error("applyDirectPaySplits failed:", err);
+      // Put state back in line with the database before reporting.
+      try {
+        const ids = new Set(bills.map((b) => String(b.id)));
+        const { data } = await supabase.from("bill_splits").select("*");
+        if (data) setBillSplits(data.filter((s: { bill_id: string | number }) => ids.has(String(s.bill_id))));
+      } catch (refetchErr) {
+        console.error("applyDirectPaySplits refetch failed:", refetchErr);
+      }
+      if (saved > 0) {
+        const left = billIds.length - saved;
+        throw new Error(
+          `Saved ${saved} ${saved === 1 ? "bill" : "bills"}, but ${left} ${left === 1 ? "bill was" : "bills were"} not. Try again to finish.`
+        );
+      }
+      throw err;
     }
   }
 
@@ -4610,7 +4717,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function addRule(ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) {
+  async function addRule(ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">): Promise<string> {
     try {
       const hId = await ensureHousehold();
       const insertData = {
@@ -4627,14 +4734,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error inserting contribution rule:", error);
-        return;
+        throw error;
       }
 
-      if (data) {
-        setContributionRules((prev) => [...prev, data]);
-      }
+      if (!data) throw new Error("The rule was not saved.");
+      setContributionRules((prev) => [...prev, data]);
+      return String(data.id);
     } catch (err) {
       console.error("Failed to add contribution rule:", err);
+      throw err;
     }
   }
 
@@ -4649,7 +4757,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating contribution rule:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -4659,24 +4767,33 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update contribution rule:", err);
+      throw err;
     }
   }
 
   async function deleteRule(id: string) {
     try {
-      const { error } = await supabase
+      // .select() returns the rows actually deleted; an empty result means the delete was blocked.
+      const { data, error } = await supabase
         .from("contribution_rules")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select();
 
       if (error) {
         console.error("Error deleting contribution rule:", error);
-        return;
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error(
+          "The rule couldn't be deleted — it may have already been removed, or you may not have permission to delete it."
+        );
       }
 
       setContributionRules((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       console.error("Failed to delete contribution rule:", err);
+      throw err;
     }
   }
 
@@ -5093,8 +5210,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     dismissToast,
     isFinishSetupDismissed: finishSetup && finishSetup.userId === session?.user?.id ? finishSetup.dismissed : null,
     dismissFinishSetup,
-    isUpdatesCardVisible,
-    setUpdatesCardVisible,
     expenses,
     addExpense,
     updateExpense,
@@ -5142,14 +5257,16 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     updatePaySchedule,
     deletePaySchedule,
     logPay,
-    confirmPay,
     confirmAndUpdatePay,
+    skipDuePay,
+    skipPendingPay,
     autoLogMissedPays,
     deletePayHistory,
     calculateAveragePay,
     householdContributions,
     fetchHouseholdContributions,
     setContribution,
+    applyDirectPaySplits,
     deleteContribution,
     contributionRules,
     fetchContributionRules,
@@ -5201,6 +5318,8 @@ export function useCurrentUser() {
     email: email,
     avatar: (currentMember?.name || email || "U").charAt(0).toUpperCase(),
     avatar_url: currentMember?.avatar_url || null,
+    // An accepted owner. False while members are still loading (no match yet).
+    isOwner: !!currentMember && currentMember.role === "owner" && isAcceptedMember(currentMember),
   };
 }
 

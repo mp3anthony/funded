@@ -19,8 +19,32 @@ The brief message that appears above the bottom navigation after an action, some
 _Avoid_: Snackbar, banner, alert
 
 **Step flow** (planned, #377):
-A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog. Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc.
+A pop-up that creates something one question at a time: a card per essential field, then a summary card with an "Optional details" group of rows, then the main action. Choice cards are dropdowns that explain each option. Used for Add (bill or expense), Add Goal, New Pay Schedule and Add Rule. Smaller pop-ups are a single card (1-2 fields) or a confirm dialog (see Single card, Detail sheet, Confirm dialog below). Detail sheets double as the edit screen: each row opens that one field's card. Detail in `project/pages/popups.md` of the design doc. Closing after typing asks first in a confirm dialog. After a save the toast confirms ("Bill added") and the new row briefly highlights.
 _Avoid_: Wizard, form, modal (as names)
+
+**Single card** (planned, #377):
+One pop-up card at the bottom of the screen for one or two fields, with one main pill (and sometimes a quieter second pill such as "Skip"). Saving shows "Saving…"; a failure keeps the card open with a red line and "Try again".
+_Avoid_: Modal, form
+
+**Detail sheet** (bills and expenses built in R10, #397; goal and pay schedule planned, #377):
+A pop-up that shows one item (a bill, goal or pay schedule) as tappable rows. The main actions sit on top and a red Delete pill sits at the bottom; Delete asks first in a confirm dialog. A row opens a single card to edit that one field. There is no Edit button. A bill's status line (Paid, Paused, "Paid for September") is read-only; its Mark as Paid, Undo payment and Pause actions sit on top and wait for the save ("Saving…"), showing a red line if it fails. An expense sheet has no actions.
+_Avoid_: Edit form, details modal
+
+**Confirm dialog** (planned, #377):
+A small centred question with Cancel and a red action pill, used before anything destructive. Replaces the browser's own confirm box. Settings (Delete household, Switch payment mode, Leave household), member (Remove member's second question) and profile photo confirms moved to it in R13; the Payday confirms are still the browser box (planned, #377).
+_Avoid_: Alert, prompt
+
+**Bottom navigation** (planned, #377):
+The floating pill at the bottom with four slots: Dashboard, Payday, Bills, Goals. A lime ring slides to the current page. It fades away while the keyboard is open. Settings and Updates sit under no slot, so the ring fades out there.
+_Avoid_: Tab bar, nav bar, menu
+
+**Page header** (planned, #377):
+The large title at the top of every page: Syne title, optional subtitle, a back circle on drill-down pages, a "+" circle where the page adds things, the bell (only when unread) and the avatar, which opens Settings. It scrolls with the page.
+_Avoid_: Title bar, top bar
+
+**Carousel** (built in R04, #391; first used by the Dashboard stats in R26):
+A row of cards you swipe sideways, with dots underneath. Some turn by themselves and have a pause button; with Reduce Motion they change without sliding. Used for Dashboard stats (built, R26), Dashboard Bills and Goals (R27), and Payday contributors (built, R21).
+_Avoid_: Slider, swiper, ticker
 
 **Theme**:
 The Light, Dark or System appearance, chosen under Appearance in Settings.
@@ -29,17 +53,17 @@ _Avoid_: Mode (payment mode is a different thing), skin, colour scheme
 ### The pages
 
 **Dashboard**:
-The home page. One screen, no scroll (planned, #377): a tip strip, a verdict header, the stats carousel (or the Finish setting up card for owners while setup is unfinished), a Bills carousel and a Goals carousel. Today it shows the Finish setting up card, Household Health, Upcoming Bills and Savings Goals. Recent Activity was never built and is dropped from this entry.
+The home page. One screen, no scroll (planned, #377): a tip strip, a verdict header, the stats carousel (or the Finish setting up card for owners while setup is unfinished), a Bills carousel and a Goals carousel. Today (R26 built) the page is the **Tip strip**, then the header verdict (a status dot, "Bills covered" or "Short $X a week", and one muted line), then one slot holding the **Stats carousel** (or the Finish setting up card for owners while setup is unfinished; the slot stays empty for an owner until that card's dismissed flag has loaded, so stats never flash first), then the **Bills carousel** and the **Goals carousel** (R27 built, see below). The Stats carousel is two auto-turning slides: **Pay vs bills** (both modes) and, in Joint Fund, **Contributions vs bills** or, in Direct Pay, **Splits vs shares** (what the splits leave uncovered). Each shows one big number (spare, or short in red), a bar of how much of the pay or contributions the bills use, and a "Pay $X · Bills $Y" line; with nothing to compare it is grey with an empty bar and says what to set up. The dollars follow the Bills page "amounts as" choice (read-only here, remembered per person on this device); the header stays weekly and sets each slide's colour, so they never disagree. The **Bills carousel** is swipe-only, one card at a time with dots and a "View all" pill to the Bills page: the next five manual bills still to pay (not Auto-Pay, not paused, not Paid, no Paused or One-off label), overdue first by plain date order, bills with no due date last A to Z. A card shows the name, the countdown ("Due in 3 days", red "2 days overdue") and the bill's own amount with its frequency (not converted to the Bills page frequency); tapping it opens the bill's sheet. The **Goals carousel** is the same shape: up to three Saving goals not yet Reached, most progress first, each with a progress ring around the goal icon, "$saved of $target" and "+$X a week" from its rules (grey "No contribution set" when none); "View all" goes to the Goals page. Just tracking goals never show. With nothing to list, each shows one plain card ("No manual bills to pay", "No Saving goals yet"). The old collapse arrows are gone. Recent Activity was never built and is dropped from this entry.
 _Avoid_: Home screen, overview, summary
 
 **Bills page**:
 Where bills and expenses are listed, filtered, added and paid, with amounts shown in a chosen frequency.
-Planned redesign (#377; until it ships, today's page stands): a Household total hero with frequency pills (remembered per person, also drives the Dashboard stats), filter chips for Type and Due plus a Filter pill for Category and Edit Order, categories expanded by default with count and subtotal, rows alphabetical within a category, a countdown line on each bill ("Due in 3 days", "2 days overdue", "Paid") and a one-tap tick to mark an unpaid manual bill paid. Detail in `project/pages/bills.md` of the design doc.
+Planned redesign (#377; until it ships, today's page stands): a Household total hero with frequency pills (remembered per person on this device, built in R14; the Dashboard adopts it in R26), filter chips for Type and Due plus a Filter pill for Category and Edit Order, categories expanded by default with count and subtotal, rows alphabetical within a category, a countdown line on each bill ("Due in 3 days", "2 days overdue", "Paid") and a one-tap tick to mark an unpaid manual bill paid (built in R15 parts: rows, countdown, tick, A to Z order, category subtotal, which categories are closed remembered per person on this device; expense amounts follow the frequency pills; paying early also shows an Undo message). Detail in `project/pages/bills.md` of the design doc.
 _Avoid_: Budget page, expenses page
 
 **Goals page**:
 Where goals are listed, added and topped up. It is called Goals in the navigation and everywhere users read.
-Planned (#377): Saving goals show a progress ring and a pace line, with a quiet Wish list group of Just tracking goals at the bottom; a "+" circle on each Saving row tops it up. Detail in `project/pages/goals.md` of the design doc.
+Built in R17 (#404), ships with the redesign. The header total is the money saved across Saving goals only ("Total saved", or "Filtered total" with a category chosen), with "N goals · $X still to go" under it. One Filter chip opens the Category chips and Edit order. Saving goals are grouped by category (the person's own order), progress high to low with Reached goals last; categories start open, and which ones a person closed is remembered per person on this phone (separate from Bills). Each Saving row has a progress ring around the goal icon, "$saved of $target", a **pace line** and a round "+" that adds money (gone once the goal is Reached). The pace line reads "On track for 12 Dec", "Needs $40 a week for 12 Dec", "+$25 a week" (a rule is feeding it, no date), "Deadline reached" (past its date and not Reached), "Reached", or a grey "No contribution set". Pace counts only active fixed-dollar rules on fixed-amount pay above the rule's threshold; percentage rules and variable pay are left out. Just tracking goals sit in a **Wish list** group last (name, cost, a "Check impact" chip), which follows the Category filter and starts open. Detail in `project/pages/goals.md` of the design doc.
 _Avoid_: Funds page, Funds, savings page
 
 **Payday page**:
@@ -47,18 +71,22 @@ Where pay schedules are set up, pay is logged, pending pay is confirmed and rece
 _Avoid_: Income page, pay page
 
 **Settings**:
-The page for account, notifications, appearance, household settings, members, Updates, the Getting started guide, bug reporting and leaving the household.
-Planned change (#377): opened from the avatar top right. An identity card opens Profile (email read-only); Preferences (Notifications, inline Light/Dark/System Appearance); Members with a "+" to invite (Join code sheet); owner-only Household settings (Household name, Payment mode, Timezone; members see them read-only); a Help card (Updates, Getting started, Report an issue); Leave household in its own red card. Contribution amounts and Automation rules move to Payday and Goals. Detail in `project/pages/settings.md` of the design doc.
+The page for account, notifications, appearance, household settings, members, Updates, the Getting started guide, issue reporting and leaving the household.
+Planned change (#377): opened from the avatar top right. An identity card opens Profile (email read-only); Preferences (Notifications, inline Light/Dark/System Appearance); Members with a "+" to invite (Join code sheet); owner-only Household settings (Household name, Payment mode, Timezone; members see them read-only); a Help card (Updates, Getting started, Report an issue); Leave household in its own red card. Contribution amounts have moved to the Payday member sheet (R21, #408) and Automation rules move to Goals. Detail in `project/pages/settings.md` of the design doc.
 _Avoid_: Preferences, profile page, admin
 
 ### Keeping people informed
 
 **Updates card**:
-Replaced the old What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. While it shows, the dashboard tips ticker is hidden; Toasts still overlay it. Its title and link text use the page's new name (#311).
+Replaced the old What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. Toasts overlay it. Its title and link text use the page's new name (#311).
 _Avoid_: Popup, modal, banner, update dialog, What's new popup
 
+**Tip strip** (R26, #413):
+A slim pill at the top of the Dashboard showing one tip at a time from `src/lib/dashboard-tips.ts`, fading to the next every 6 seconds (instant with Reduce Motion, paused while the app is in the background). The X hides it until the app is next opened (kept for this session only); it replaces the old scrolling tips ticker that sat above the bottom navigation.
+_Avoid_: Ticker, banner
+
 **Finish setting up card**:
-A Dashboard card, shown to household owners only, listing what the household has none of yet (payday, bill, goal). Each row taps through to that page's add form. It leaves by itself once all three exist and returns if one goes missing again, unless that person tapped X, which hides it for good on every device. Sits at the top of the Dashboard.
+A Dashboard card, shown to household owners only, listing what the household has none of yet (payday, bill, goal). Each row taps through to that page's add form. It leaves by itself once all three exist and returns if one goes missing again, unless that person tapped X, which hides it for good on every device. Takes the Stats carousel's slot at the top of the Dashboard (R26).
 Planned (#377): fed by whatever the Setup hub left unticked at the end of Onboarding. The sign-in screens (`/login`, `/reset-password`, `/confirm-email`, offline) get the new look with no behaviour change. Detail in `project/pages/onboarding.md` of the design doc.
 _Avoid_: Checklist, setup wizard, onboarding (the first-run flow)
 
@@ -78,6 +106,6 @@ _Avoid_: Issue tracker, bug list, status page
 A problem we already know about, flagged with the `known-issue` label on GitHub and given a short "User-facing blurb" for members to read. In anything members read, call it a "known issue" or "problem we know about", never "bug", "open issue" or "ticket".
 _Avoid_: Bug (in member-facing text), open issue, ticket
 
-**Bug report**:
-A problem a member submits from Settings with a title and description, which reaches Anthony as a filed issue.
-_Avoid_: Feedback, support ticket, complaint
+**Issue report**:
+What a member sends from Settings > Report an issue: a title, a description and an optional screenshot. An "issue" can be a bug, something that looks wrong, an idea, or something confusing. It reaches Anthony as a filed GitHub issue labelled `from-app`. Not the same as a known issue. (Renamed from "Bug report" in #261, R12.)
+_Avoid_: Bug report, feedback, support ticket, complaint

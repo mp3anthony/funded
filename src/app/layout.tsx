@@ -1,4 +1,4 @@
-import { Syne, Instrument_Sans, JetBrains_Mono } from 'next/font/google';
+import { Syne, Instrument_Sans } from 'next/font/google';
 
 const syne = Syne({
   subsets: ['latin'],
@@ -10,15 +10,7 @@ const syne = Syne({
 const instrument = Instrument_Sans({
   subsets: ['latin'],
   variable: '--font-body',
-  weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
-  display: 'swap'
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  weight: ['400', '500', '600'],
   display: 'swap'
 });
 import type { Metadata, Viewport } from "next";
@@ -90,10 +82,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`h-[100dvh] w-screen flex flex-col overflow-hidden bg-background ${syne.variable} ${instrument.variable} ${jetbrains.variable} font-body relative`}>
-        {/* Green Haze Background */}
-        <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-primary opacity-[0.08] dark:opacity-15 blur-[150px] pointer-events-none -z-10 translate-x-1/4 translate-y-1/4 rounded-full" />
-        
+      <body className={`h-[100dvh] w-screen flex flex-col overflow-hidden bg-background ${syne.variable} ${instrument.variable} font-body relative`}>
         {/* Session is resolved client-side in AppProvider (see AppContext).
             No server-side session prefetch here — reading cookies() in the
             root layout would force the entire app to render dynamically under

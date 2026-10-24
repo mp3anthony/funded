@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 interface RowProps {
   /** Left-side label (Instrument Sans). */
   label: React.ReactNode;
-  /** Right-side value. Callers style figures in font-mono as needed. */
+  /** Right-side value. Figures use the body font with tabular numbers. */
   value?: React.ReactNode;
   /** Custom right-side content; overrides `value` when provided. */
   children?: React.ReactNode;
@@ -17,6 +17,8 @@ interface RowProps {
    *  settings sections separate rows with whitespace, not borders. */
   divider?: boolean;
   onClick?: () => void;
+  /** Taller tap target (44px) for tappable rows inside pop-ups. */
+  tall?: boolean;
   className?: string;
 }
 
@@ -34,6 +36,7 @@ export default function Row({
   chevron,
   divider,
   onClick,
+  tall,
   className,
 }: RowProps) {
   const interactive = typeof onClick === "function";
@@ -45,7 +48,7 @@ export default function Row({
       </span>
       <span className="flex items-center gap-2 shrink-0 text-right">
         {children ?? (
-          <span className="font-mono text-[13px] text-muted">{value}</span>
+          <span className="text-[13px] text-muted">{value}</span>
         )}
         {chevron && <ChevronRight className="h-[17px] w-[17px] text-subtle" />}
       </span>
@@ -55,12 +58,13 @@ export default function Row({
   const base = cn(
     "w-full flex items-center justify-between gap-3 py-2.5",
     divider && "border-t border-border",
+    tall && interactive && "min-h-11",
     className
   );
 
   if (interactive) {
     return (
-      <button type="button" onClick={onClick} className={cn(base, "text-left")}>
+      <button type="button" onClick={onClick} className={cn(base, "text-left press-tint")}>
         {content}
       </button>
     );

@@ -21,7 +21,7 @@ export default function OnboardingStep({ title, intro, why, error, children }: O
     <div className="flex-1 flex flex-col justify-center space-y-5">
       <div className="space-y-2">
         <DialogSection label={title} />
-        <p className="text-xs text-muted font-mono">{intro}</p>
+        <p className="text-xs text-muted">{intro}</p>
       </div>
       {why && (
         <div className="bg-surface-raised border border-border rounded-[2px] p-3 text-xs text-muted space-y-2">
@@ -29,7 +29,7 @@ export default function OnboardingStep({ title, intro, why, error, children }: O
         </div>
       )}
       {error && (
-        <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
+        <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs break-words whitespace-pre-wrap">
           <span className="font-bold">Failed to save:</span>
           <br />
           {error}

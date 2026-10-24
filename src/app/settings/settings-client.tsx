@@ -16,9 +16,9 @@ import {
   Monitor,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { supabase } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
 import PaymentModeToggle from "@/components/PaymentModeToggle";
-import ContributionSettingsSheet from "@/components/ContributionSettingsSheet";
 import RulesSettingsSheet from "@/components/RulesSettingsSheet";
 import BugReportSheet from "@/components/BugReportSheet";
 import PageHeader from "@/components/PageHeader";
@@ -30,17 +30,11 @@ import TimezoneDialog from "@/components/TimezoneDialog";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Field from "@/components/ui/Field";
+import Input from "@/components/ui/Input";
 import { type Member } from "@/types";
 import { leaveModeFor, eligibleNewOwners, isAcceptedMember, isDeleteConfirmed } from "@/lib/householdLeave";
-
-/* Error box shown inside the leave / delete household dialogs (#251). */
-function LeaveError({ message }: { message: string }) {
-  return (
-    <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
-      {message}
-    </div>
-  );
-}
 
 /* ── Page Component ──────────────────────────── */
 export default function SettingsClient() {
@@ -51,7 +45,6 @@ export default function SettingsClient() {
     updateHouseholdPaymentMode,
     householdTimezone,
     updateHouseholdTimezone,
-    householdContributions,
     contributionRules,
     funds,
     householdName,
@@ -73,10 +66,8 @@ export default function SettingsClient() {
   /* Payment mode confirm flow */
   const [tempMode, setTempMode] = useState<boolean | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [modeChangeError, setModeChangeError] = useState<string | null>(null);
 
   /* Reused sheets */
-  const [isContributionOpen, setIsContributionOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
@@ -100,7 +91,7 @@ export default function SettingsClient() {
   const [deleteText, setDeleteText] = useState("");
 
   /* Deep-link: open the Profile dialog when arriving via /settings?modal=profile
-     (e.g. from the avatar-dropdown name button). Reactive to the query param so
+     (e.g. a link to /settings?modal=profile). Reactive to the query param so
      it also fires when already on /settings (a same-route soft navigation does
      not remount this component); the flag is stripped once consumed so a refresh
      or back-nav doesn't re-open it. */
@@ -117,15 +108,6 @@ export default function SettingsClient() {
   }, [searchParams, pathname, router]);
 
   /* Derived display values */
-  const contributionMonthlyTotal = householdContributions.reduce((sum, c) => {
-    const amt = Number(c.amount) || 0;
-    const freq = (c.frequency || "monthly").toLowerCase();
-    if (freq === "weekly") return sum + amt * 4.33;
-    if (freq === "fortnightly") return sum + amt * 2.16;
-    if (freq === "yearly") return sum + amt / 12;
-    return sum + amt;
-  }, 0);
-  const hasContributions = householdContributions.length > 0;
   const activeRulesCount = contributionRules.filter((r) => r.is_active).length;
 
   const currentMember = members.find(
@@ -182,29 +164,12 @@ export default function SettingsClient() {
   function handleModeChangeClick(newMode: boolean) {
     if (newMode === isJointFund) return;
     setTempMode(newMode);
-    setModeChangeError(null);
     setShowPaymentModeDialog(false);
     setShowConfirm(true);
   }
 
-  async function handleConfirmModeChange() {
-    if (tempMode !== null) {
-      try {
-        setModeChangeError(null);
-        await updateHouseholdPaymentMode(tempMode);
-      } catch (err) {
-        const error = err as Error;
-        setModeChangeError(error.message || "Failed to update payment mode. Please try again.");
-        return;
-      }
-    }
-    setTempMode(null);
-    setShowConfirm(false);
-  }
-
   function handleCancelModeChange() {
     setTempMode(null);
-    setModeChangeError(null);
     setShowConfirm(false);
   }
 
@@ -276,11 +241,11 @@ export default function SettingsClient() {
   /* ── Render ────────────────────────────────── */
   return (
     <div className="flex-1 w-full max-w-2xl mx-auto px-6 pt-4 pb-10 md:pt-6">
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" showAvatar={false} onBack={() => router.push("/")} />
 
       {/* ── Identity anchor ─────────────────────── */}
       <div className="flex items-center gap-4 pt-2 pb-8">
-        <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center font-mono font-bold text-lg text-primary-fg bg-gradient-to-br from-primary to-success">
+        <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center font-bold text-lg text-primary-fg bg-gradient-to-br from-primary to-success">
           {currentMember?.avatar_url ? (
             <img src={currentMember.avatar_url} alt={currentMember.name} className="h-full w-full object-cover" />
           ) : (
@@ -288,10 +253,10 @@ export default function SettingsClient() {
           )}
         </div>
         <div className="min-w-0">
-          <h2 className="font-heading font-bold text-xl text-foreground truncate">
+          <h2 className="font-bold text-xl text-foreground truncate">
             {currentMember?.name || fullName || "Your account"}
           </h2>
-          <div className="font-mono text-xs text-muted mt-1 tracking-wide truncate">
+          <div className="text-xs text-muted mt-1 tracking-wide truncate">
             {householdName || "Household"} · {roleLabel}
           </div>
         </div>
@@ -308,12 +273,12 @@ export default function SettingsClient() {
         <SectionHeader title="App" />
         <Row label="Notifications" chevron onClick={() => setIsNotificationCenterOpen(true)}>
           <span className="flex flex-col items-end gap-0.5">
-            <span className="font-mono text-[13px] text-muted">
+            <span className="text-[13px] text-muted">
               {notificationSettings ? formatNotifyHourLabel(notificationSettings.notify_hour) : "—"}
             </span>
-            <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-subtle">
+            <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-subtle">
               <span
-                className={`h-1.5 w-1.5 rounded-full ${pushStatus?.hasLiveSubscription ? "bg-success" : "bg-subtle"} transition-colors duration-(--duration-slow) ease-(--ease-standard)`}
+                className={`h-1.5 w-1.5 rounded-full ${pushStatus?.hasLiveSubscription ? "bg-success" : "bg-subtle"} transition-colors duration-(--duration-structural) ease-(--ease-enter)`}
               />
               {pushStatus?.hasLiveSubscription ? "Active" : "Inactive"}
             </span>
@@ -331,27 +296,19 @@ export default function SettingsClient() {
       <section className="pt-6 pb-2">
         <SectionHeader title="Household" />
         {isJointFund && (
-          <>
-            <Row
-              label="Contribution amounts"
-              value={hasContributions ? `$${Math.round(contributionMonthlyTotal).toLocaleString()}/mo` : "Not set"}
-              chevron
-              onClick={() => setIsContributionOpen(true)}
-            />
-            <Row label="Automation rules" chevron onClick={() => setIsRulesOpen(true)}>
-              {activeRulesCount > 0 ? (
-                <span className="font-mono text-xs font-semibold text-primary">{activeRulesCount} active</span>
-              ) : (
-                <span className="font-mono text-[13px] text-muted">Off</span>
-              )}
-            </Row>
-          </>
+          <Row label="Automation rules" chevron onClick={() => setIsRulesOpen(true)}>
+            {activeRulesCount > 0 ? (
+              <span className="text-xs font-semibold text-primary">{activeRulesCount} active</span>
+            ) : (
+              <span className="text-[13px] text-muted">Off</span>
+            )}
+          </Row>
         )}
         <Row label="Join code" chevron onClick={() => setShowJoinCodeDialog(true)}>
           {joinCode ? (
-            <span className="font-mono text-sm font-bold text-primary tracking-widest">{joinCode}</span>
+            <span className="text-sm font-bold text-primary tracking-widest">{joinCode}</span>
           ) : (
-            <span className="font-mono text-[13px] text-muted">None</span>
+            <span className="text-[13px] text-muted">None</span>
           )}
         </Row>
         <Row
@@ -386,7 +343,7 @@ export default function SettingsClient() {
               onClick={canManage ? () => setMemberToEdit(member) : undefined}
               label={
                 <span className="flex items-center gap-3 min-w-0">
-                  <span className="h-9 w-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center font-mono text-[11px] font-bold bg-surface-elevated text-muted data-[owner=true]:bg-gradient-to-br data-[owner=true]:from-primary data-[owner=true]:to-success data-[owner=true]:text-primary-fg"
+                  <span className="h-9 w-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center text-[11px] font-bold bg-surface-elevated text-muted data-[owner=true]:bg-gradient-to-br data-[owner=true]:from-primary data-[owner=true]:to-success data-[owner=true]:text-primary-fg"
                     data-owner={isOwner}
                   >
                     {member.avatar_url ? (
@@ -397,7 +354,7 @@ export default function SettingsClient() {
                   </span>
                   <span className="flex flex-col min-w-0">
                     <span className="text-sm font-semibold text-foreground truncate">{member.name}</span>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-subtle mt-0.5">
+                    <span className="text-[10px] uppercase tracking-wider text-subtle mt-0.5">
                       {isOwner ? "Owner" : "Member"}
                       {member.invitation_status === "pending" ? " · Pending" : ""}
                     </span>
@@ -416,7 +373,7 @@ export default function SettingsClient() {
         </button>
       </section>
 
-      {/* ── Updates + Getting started + Report a bug + Leave household + version ── */}
+      {/* ── Updates + Getting started + Report an issue + Leave household + version ── */}
       <section className="pt-8">
         <Link
           href="/patch-notes"
@@ -435,7 +392,18 @@ export default function SettingsClient() {
           onClick={() => setIsBugReportOpen(true)}
           className="w-full text-left py-3 border-t border-border text-sm font-medium text-primary"
         >
-          Report a bug
+          Report an issue
+        </button>
+        {/* Interim Log out row (R03, #390): the avatar menu is gone; R29 places this for good. */}
+        <button
+          type="button"
+          onClick={async () => {
+            await supabase.auth.signOut();
+            router.push("/login");
+          }}
+          className="w-full text-left py-3 min-h-[44px] border-t border-border text-sm font-medium text-primary"
+        >
+          Log out
         </button>
         <button
           type="button"
@@ -445,10 +413,10 @@ export default function SettingsClient() {
           {leaveMode === "delete-only" ? "Delete household" : "Leave household"}
         </button>
         <div className="text-center pt-8 pb-2">
-          <span className="font-mono text-[10px] tracking-wider text-subtle/70">
+          <span className="text-[10px] tracking-wider text-subtle/70">
             funded. v{APP_VERSION}
           </span>
-          <div className="font-mono text-[10px] text-subtle/50 mt-1">© 2026 HazardousSchematics.com</div>
+          <div className="text-[10px] text-subtle/50 mt-1">© 2026 HazardousSchematics.com</div>
         </div>
       </section>
 
@@ -460,6 +428,7 @@ export default function SettingsClient() {
         onClose={() => setShowProfileModal(false)}
         title="Profile"
         icon={<User className="h-5 w-5 text-primary" />}
+        error={profileError}
         footer={
           <>
             <DialogButton variant="ghost" onClick={() => setShowProfileModal(false)}>
@@ -484,7 +453,6 @@ export default function SettingsClient() {
         }
       >
         <div className="flex flex-col gap-5">
-          {profileError && <LeaveError message={profileError} />}
           <div className="flex justify-center">
             {currentMember && (
               <AvatarUpload
@@ -499,7 +467,7 @@ export default function SettingsClient() {
           </div>
 
           <div>
-            <label htmlFor="settings-name" className="block font-mono text-[11px] uppercase tracking-wider text-subtle mb-2">
+            <label htmlFor="settings-name" className="block text-[11px] uppercase tracking-wider text-subtle mb-2">
               Nickname
             </label>
             <div className="relative">
@@ -515,7 +483,7 @@ export default function SettingsClient() {
           </div>
 
           <div>
-            <label htmlFor="settings-email" className="block font-mono text-[11px] uppercase tracking-wider text-subtle mb-2">
+            <label htmlFor="settings-email" className="block text-[11px] uppercase tracking-wider text-subtle mb-2">
               Email Address
             </label>
             <div className="relative">
@@ -581,10 +549,10 @@ export default function SettingsClient() {
           {joinCode ? (
             <>
               <div className="w-full flex items-center justify-center bg-background border border-border-strong rounded-xl py-4">
-                <span className="font-mono text-2xl font-bold text-primary tracking-[0.3em]">{joinCode}</span>
+                <span className="text-2xl font-bold text-primary tracking-[0.3em]">{joinCode}</span>
               </div>
               {codeExpiresAt && (
-                <div className="font-mono text-[11px] uppercase tracking-wider text-subtle">
+                <div className="text-[11px] uppercase tracking-wider text-subtle">
                   Expires {new Date(codeExpiresAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </div>
               )}
@@ -643,76 +611,73 @@ export default function SettingsClient() {
         </div>
       </Dialog>
 
-      {/* Payment mode change confirmation */}
-      <Dialog
+      {/* Payment mode change confirmation (R13: ConfirmDialog) */}
+      <ConfirmDialog
         open={showConfirm}
-        onClose={handleCancelModeChange}
-        title="Confirm payment mode change"
-        footer={
-          <>
-            <DialogButton variant="ghost" onClick={handleCancelModeChange}>
-              Cancel
-            </DialogButton>
-            <DialogButton variant="destructive" onClick={handleConfirmModeChange}>
-              Confirm
-            </DialogButton>
-          </>
+        title="Switch payment mode?"
+        confirmLabel="Switch"
+        showThrownMessage
+        successToast="Payment mode changed"
+        errorMessage="Failed to update payment mode. Please try again."
+        onConfirm={async () => {
+          // tempMode stays set until onDone/cancel so the text does not flip mid-save.
+          if (tempMode !== null) await updateHouseholdPaymentMode(tempMode);
+        }}
+        onDone={() => {
+          setTempMode(null);
+          setShowConfirm(false);
+        }}
+        onCancel={handleCancelModeChange}
+        message={
+          <div className="flex flex-col gap-3">
+            <div className="text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
+            <p>
+              Switching to <span className="text-primary font-semibold">{tempMode ? "Joint Fund" : "Direct Pay"}</span> will reset every bill&apos;s contributor splits.
+            </p>
+            <p className="text-xs leading-relaxed text-muted">
+              You&apos;ll need to reconfigure who pays what. This can&apos;t be undone.
+            </p>
+          </div>
         }
-      >
-        <div className="flex flex-col gap-3">
-          {modeChangeError && (
-            <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
-              <span className="font-bold">Failed to update payment mode:</span><br/>
-              {modeChangeError}
-            </div>
-          )}
-          <div className="font-mono text-[11px] uppercase tracking-wider text-subtle">Heads up</div>
-          <p className="text-[15px] leading-relaxed text-foreground">
-            Switching to <span className="text-primary font-semibold">{tempMode ? "Joint Fund" : "Direct Pay"}</span> will reset every bill&apos;s contributor splits.
-          </p>
-          <p className="font-mono text-xs leading-relaxed text-muted">
-            You&apos;ll need to reconfigure who pays what. This can&apos;t be undone.
-          </p>
-        </div>
-      </Dialog>
+      />
 
       {/* Leave household (#251): regular member, or owner while another owner remains */}
-      <Dialog
+      <ConfirmDialog
         open={leaveDialog === "leave"}
-        onClose={closeLeaveDialog}
         title="Leave household?"
-        footer={
-          <>
-            <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
-              Cancel
-            </DialogButton>
-            <DialogButton
-              variant="destructive"
-              className="min-h-[44px]"
-              disabled={isLeavingHousehold}
-              onClick={() => runLeaveAction(() => leaveHousehold())}
-            >
-              {isLeavingHousehold ? "Leaving…" : "Leave"}
-            </DialogButton>
-          </>
+        confirmLabel="Leave"
+        busyLabel="Leaving…"
+        showThrownMessage
+        keepBusyOnSuccess
+        onCancel={closeLeaveDialog}
+        onConfirm={async () => {
+          try {
+            await leaveHousehold();
+          } catch (err) {
+            console.error("Failed to leave household:", err);
+            throw err;
+          }
+          window.location.href = "/";
+        }}
+        message={
+          <div className="flex flex-col gap-3">
+            <p>
+              You&apos;ll be removed from {householdName ? <span className="font-semibold">{householdName}</span> : "this household"}. Everyone else carries on.
+            </p>
+            <p className="text-sm text-muted">
+              Your pay schedule, pay history, bill splits and contributions are deleted. Bills, expenses and goals you were assigned stay, but unassigned. You&apos;ll need to create or join a household again.
+            </p>
+          </div>
         }
-      >
-        <div className="flex flex-col gap-3">
-          <p className="text-[15px] leading-relaxed text-foreground">
-            You&apos;ll be removed from {householdName ? <span className="font-semibold">{householdName}</span> : "this household"}. Everyone else carries on.
-          </p>
-          <p className="text-sm leading-relaxed text-muted">
-            Your pay schedule, pay history, bill splits and contributions are deleted. Bills, expenses and goals you were assigned stay, but unassigned. You&apos;ll need to create or join a household again.
-          </p>
-          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
-        </div>
-      </Dialog>
+      />
 
       {/* Hand over ownership, then leave (only owner, other accepted members remain) */}
       <Dialog
         open={leaveDialog === "transfer"}
         onClose={closeLeaveDialog}
         title="Pick a new owner"
+        busy={isLeavingHousehold}
+        error={leaveHouseholdError}
         footer={
           <>
             <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
@@ -744,10 +709,10 @@ export default function SettingsClient() {
                   aria-checked={selected}
                   disabled={isLeavingHousehold}
                   onClick={() => setNewOwnerId(m.id)}
-                  className={`flex items-center justify-between gap-3 min-h-[44px] px-4 py-2 rounded-[2px] border text-left text-sm font-semibold transition-colors disabled:opacity-60 ${
+                  className={`flex items-center justify-between gap-3 min-h-11 px-4 py-2 rounded-card border text-left text-sm font-semibold transition-colors disabled:opacity-60 ${
                     selected
-                      ? "bg-primary/10 border-primary/40 text-primary"
-                      : "bg-transparent border-border-strong text-foreground"
+                      ? "border-transparent ring-2 ring-inset ring-primary bg-surface-raised text-foreground"
+                      : "border-border-strong bg-surface-raised text-foreground"
                   }`}
                 >
                   <span className="truncate">{m.name}</span>
@@ -759,7 +724,6 @@ export default function SettingsClient() {
           <p className="text-sm leading-relaxed text-muted">
             Your pay schedule, pay history, bill splits and contributions are deleted when you leave. Bills, expenses and goals you were assigned stay, but unassigned.
           </p>
-          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
           <button
             type="button"
             disabled={isLeavingHousehold}
@@ -776,38 +740,41 @@ export default function SettingsClient() {
       </Dialog>
 
       {/* Delete household: needs DELETE typed. Only reachable while no other owner remains. */}
-      <Dialog
+      <ConfirmDialog
         open={leaveDialog === "delete"}
-        onClose={closeLeaveDialog}
         title="Delete household?"
-        footer={
-          <>
-            <DialogButton variant="ghost" onClick={closeLeaveDialog} disabled={isLeavingHousehold}>
-              Cancel
-            </DialogButton>
-            <DialogButton
-              variant="destructive"
-              className="min-h-[44px]"
-              disabled={isLeavingHousehold || !isDeleteConfirmed(deleteText)}
-              onClick={() => runLeaveAction(() => deleteHousehold())}
-            >
-              {isLeavingHousehold ? "Deleting…" : "Delete household"}
-            </DialogButton>
-          </>
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        canConfirm={isDeleteConfirmed(deleteText)}
+        showThrownMessage
+        keepBusyOnSuccess
+        errorMessage="That didn't work. Please check your connection and try again."
+        onCancel={closeLeaveDialog}
+        onConfirm={async () => {
+          setIsLeavingHousehold(true);
+          try {
+            await deleteHousehold();
+          } catch (err) {
+            console.error("Failed to delete household:", err);
+            setIsLeavingHousehold(false);
+            throw err;
+          }
+          window.location.href = "/";
+        }}
+        message={
+          <div className="flex flex-col gap-3">
+            <p>
+              This permanently deletes {householdName ? <span className="font-semibold">{householdName}</span> : "this household"} for{" "}
+              {acceptedCount > 1 ? `all ${acceptedCount} members` : "you"}.
+            </p>
+            <p className="text-sm leading-relaxed text-muted">
+              Every bill, expense, goal, payday, pay history, split and contribution is lost. Other members get no notice; they land on the create-or-join screen the next time they open the app. This can&apos;t be undone.
+            </p>
+          </div>
         }
       >
-        <div className="flex flex-col gap-3">
-          <p className="text-[15px] leading-relaxed text-foreground">
-            This permanently deletes {householdName ? <span className="font-semibold">{householdName}</span> : "this household"} for{" "}
-            {acceptedCount > 1 ? `all ${acceptedCount} members` : "you"}.
-          </p>
-          <p className="text-sm leading-relaxed text-muted">
-            Every bill, expense, goal, payday, pay history, split and contribution is lost. Other members get no notice; they land on the create-or-join screen the next time they open the app. This can&apos;t be undone.
-          </p>
-          <label htmlFor="delete-household-confirm" className="font-mono text-[11px] uppercase tracking-wider text-subtle">
-            Type DELETE to confirm
-          </label>
-          <input
+        <Field id="delete-household-confirm" label="Type DELETE to confirm" className="text-left">
+          <Input
             id="delete-household-confirm"
             type="text"
             value={deleteText}
@@ -817,11 +784,9 @@ export default function SettingsClient() {
             autoCorrect="off"
             autoCapitalize="characters"
             spellCheck={false}
-            className="w-full px-4 py-3 min-h-[44px] rounded-[2px] bg-surface border border-border text-foreground text-base font-medium focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none disabled:opacity-60"
           />
-          {leaveHouseholdError && <LeaveError message={leaveHouseholdError} />}
-        </div>
-      </Dialog>
+        </Field>
+      </ConfirmDialog>
 
       {/* Timezone (owner-only; the Row above only opens this for owners) */}
       <TimezoneDialog
@@ -844,19 +809,12 @@ export default function SettingsClient() {
         member={memberToEdit}
         onRemoveTrigger={(m) => setMemberToRemove(m)}
       />
-      <ContributionSettingsSheet
-        isOpen={isContributionOpen}
-        onClose={() => setIsContributionOpen(false)}
-        householdMembers={members}
-        contributions={householdContributions}
-      />
       <RulesSettingsSheet
         isOpen={isRulesOpen}
         onClose={() => setIsRulesOpen(false)}
         householdMembers={members}
         rules={contributionRules}
         goals={funds}
-        contributions={householdContributions}
       />
       <BugReportSheet
         isOpen={isBugReportOpen}

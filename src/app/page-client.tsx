@@ -1,132 +1,86 @@
 "use client";
 
 import { useState } from "react";
-import { useApp, useCurrentUser, type Bill, type Fund } from "@/context/AppContext";
+import { useApp } from "@/context/AppContext";
 import BillDetailSheet from "@/components/BillDetailSheet";
-import AddBillSheet from "@/components/AddBillSheet";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
-import EditGoalSheet from "@/components/EditGoalSheet";
 import PageHeader from "@/components/PageHeader";
+import { useVerdict } from "@/hooks/useVerdict";
+import { useFinishSetup } from "@/hooks/useFinishSetup";
 
 // New premium components
 import FinishSetupCard from "@/components/FinishSetupCard";
-import HealthScoreCard from "@/components/HealthScoreCard";
-import UpcomingBillsCard from "@/components/UpcomingBillsCard";
-import ActiveGoalsCard from "@/components/ActiveGoalsCard";
-import DashboardTipsTicker from "@/components/DashboardTipsTicker";
+import DashboardBills from "@/components/DashboardBills";
+import DashboardGoals from "@/components/DashboardGoals";
+import DashboardTipStrip from "@/components/DashboardTipStrip";
+import DashboardStats from "@/components/DashboardStats";
 
+
+// R25: the verdict's status dot. Lime = covered, red = short, grey = nothing to compare yet.
+const DOT = {
+  ok: { className: "bg-primary", glow: "#c8ff00" },
+  bad: { className: "bg-destructive", glow: "#ff3d57" },
+  neutral: { className: "bg-subtle", glow: "#8a8a8a" },
+} as const;
 
 export default function HomeClient() {
   const {
     bills,
     funds,
-    payHistory,
     billSplits,
     members: householdMembers,
-    deleteBill,
-    deleteGoal,
-    isUpdatesCardVisible,
   } = useApp();
-  const currentUser = useCurrentUser();
+  const verdict = useVerdict();
+  const dot = DOT[verdict.tone];
+  // R26: the stats slot shows the Finish setting up card while setup is unfinished.
+  const finishSetup = useFinishSetup().state;
 
   /* ── Local UI States for Sheets ──────────────── */
-  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  // #250: open the edit form at the due date (from "Add due date").
-  const [editFocusDueDate, setEditFocusDueDate] = useState(false);
+  // R10: keep the id and look the bill up each render, so the sheet follows every
+  // save and closes by itself if the bill is deleted.
+  const [selectedBillId, setSelectedBillId] = useState<string | number | null>(null);
+  const selectedBill =
+    selectedBillId === null ? null : (bills.find((b) => String(b.id) === String(selectedBillId)) ?? null);
 
-  const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
-  const [isGoalDetailOpen, setIsGoalDetailOpen] = useState(false);
-  const [isGoalEditOpen, setIsGoalEditOpen] = useState(false);
-
-  /* ── Tips ticker trigger (#151) — reappears fixed to the bottom of the
-     viewport only once both Upcoming Bills and Savings Goals are minimised.
-     Starts `null` ("not yet known") rather than defaulting to minimised, so
-     the ticker can't flash visible for a returning user whose stored
-     preference turns out to be "expanded" before each card's own
-     localStorage read resolves. */
-  const [isBillsMinimised, setIsBillsMinimised] = useState<boolean | null>(null);
-  const [isGoalsMinimised, setIsGoalsMinimised] = useState<boolean | null>(null);
-  const bothCardsMinimised = isBillsMinimised === true && isGoalsMinimised === true;
-
-  /* ── Sheet Deletion Handlers ─────────────────── */
-  const handleDeleteBill = async () => {
-    if (selectedBill && confirm(`Are you sure you want to delete "${selectedBill.name}"?`)) {
-      try {
-        await deleteBill(selectedBill.id);
-        setIsDetailOpen(false);
-        setSelectedBill(null);
-      } catch (err: any) {
-        alert("Failed to delete bill: " + (err?.message || "Unknown error"));
-      }
-    }
-  };
-
-  const handleDeleteGoal = async () => {
-    if (selectedGoal && confirm(`Are you sure you want to delete "${selectedGoal.name}"?`)) {
-      try {
-        await deleteGoal(selectedGoal.id);
-        setIsGoalDetailOpen(false);
-        setSelectedGoal(null);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        alert("Failed to delete goal: " + errMsg);
-      }
-    }
-  };
+  // R11: same for goals.
+  const [selectedGoalId, setSelectedGoalId] = useState<string | number | null>(null);
+  const selectedGoal =
+    selectedGoalId === null ? null : (funds.find((f) => String(f.id) === String(selectedGoalId)) ?? null);
 
   return (
     <div className="flex-1 w-full max-w-2xl lg:max-w-4xl mx-auto px-6 pt-4 pb-10">
-      <PageHeader title="Dashboard" />
+      <DashboardTipStrip />
+
+      <PageHeader
+        title={verdict.headline}
+        srTitle="Dashboard"
+        subtitle={verdict.detail}
+        leading={
+          <span
+            aria-hidden="true"
+            className={`h-3 w-3 shrink-0 rounded-full ${dot.className} transition-colors duration-(--duration-structural) ease-(--ease-enter)`}
+            style={{ boxShadow: `0 0 12px ${dot.glow}A6` }}
+          />
+        }
+      />
 
       {/* Editorial sections */}
       <div className="space-y-9 pt-2">
-        <FinishSetupCard />
+        {/* One slot: the card while an owner has setup left, else the stats.
+            Renders nothing until the dismissed flag loads, so stats never flash first. */}
+        {finishSetup === "card" ? <FinishSetupCard /> : finishSetup === "none" ? <DashboardStats /> : null}
 
-        {/* Health Score — page anchor */}
-        <HealthScoreCard />
-
-        {/* Bills & Goals */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-9 lg:gap-8">
-          <div className="lg:col-span-2">
-            <UpcomingBillsCard
-              bills={bills}
-              onBillClick={(bill) => {
-                setSelectedBill(bill);
-                setIsDetailOpen(true);
-              }}
-              onMinimisedChange={setIsBillsMinimised}
-            />
-          </div>
-          <div className="lg:col-span-1">
-            <ActiveGoalsCard
-              funds={funds}
-              onGoalClick={(goal) => {
-                setSelectedGoal(goal);
-                setIsGoalDetailOpen(true);
-              }}
-              onMinimisedChange={setIsGoalsMinimised}
-            />
-          </div>
+        {/* Bills and Goals: swipe-only carousels (R27, #414) */}
+        <div className="space-y-6">
+          <DashboardBills onBillClick={(bill) => setSelectedBillId(bill.id)} />
+          <DashboardGoals onGoalClick={(goal) => setSelectedGoalId(goal.id)} />
         </div>
-
-
       </div>
-
-      {/* Tips ticker (#151) — fixed to the viewport, only when both cards
-          above are minimised. Rendered outside the scrolling content div
-          (like BottomNav in AppShell) so its fixed positioning is against
-          the viewport, not this page's own layout box. */}
-      <DashboardTipsTicker active={bothCardsMinimised && !isUpdatesCardVisible} />
 
       {/* Bill Detail Sheet */}
       <BillDetailSheet
-        isOpen={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false);
-          setSelectedBill(null);
-        }}
+        isOpen={selectedBill !== null}
+        onClose={() => setSelectedBillId(null)}
         bill={selectedBill}
         splits={
           selectedBill
@@ -134,57 +88,16 @@ export default function HomeClient() {
             : []
         }
         householdMembers={householdMembers}
-        onEdit={(opts) => {
-          setIsDetailOpen(false);
-          setEditFocusDueDate(opts?.focusDueDate === true);
-          setIsEditOpen(true);
-        }}
-        onDelete={handleDeleteBill}
-      />
-
-      {/* Edit Bill Sheet */}
-      <AddBillSheet
-        isOpen={isEditOpen}
-        onClose={() => {
-          setIsEditOpen(false);
-          setEditFocusDueDate(false);
-          setSelectedBill(null);
-        }}
-        focusDueDate={editFocusDueDate}
-        existingBill={selectedBill || undefined}
-        existingSplits={
-          selectedBill
-            ? billSplits.filter((s) => String(s.bill_id) === String(selectedBill.id))
-            : []
-        }
       />
 
       {/* Goal Detail Sheet — keyed so it genuinely remounts per open (the
           component itself is always mounted here; only its internal
           isOpen/goal check hides it), including reopening the same goal. */}
       <GoalDetailSheet
-        key={isGoalDetailOpen ? `open-${selectedGoal?.id ?? "none"}` : "closed"}
-        isOpen={isGoalDetailOpen}
-        onClose={() => {
-          setIsGoalDetailOpen(false);
-          setSelectedGoal(null);
-        }}
+        key={selectedGoal ? `open-${selectedGoal.id}` : "closed"}
+        isOpen={selectedGoal !== null}
+        onClose={() => setSelectedGoalId(null)}
         goal={selectedGoal}
-        onEdit={() => {
-          setIsGoalDetailOpen(false);
-          setIsGoalEditOpen(true);
-        }}
-        onDelete={handleDeleteGoal}
-      />
-
-      {/* Edit Goal Sheet */}
-      <EditGoalSheet
-        isOpen={isGoalEditOpen}
-        onClose={() => {
-          setIsGoalEditOpen(false);
-          setSelectedGoal(null);
-        }}
-        existingGoal={selectedGoal}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useApp, type AppToast } from "@/context/AppContext";
+import Button from "./Button";
 
 /** How long a toast stays up before dismissing itself. Long enough to reach Undo. */
 const AUTO_DISMISS_MS = 8000;
@@ -24,7 +25,7 @@ export default function Toast() {
       aria-live="polite"
       aria-atomic="true"
       className="fixed inset-x-0 z-[60] flex justify-center px-4 pointer-events-none"
-      style={{ bottom: "calc(5rem + 12px + env(safe-area-inset-bottom, 0px))" }}
+      style={{ bottom: "calc(var(--nav-clearance) + 12px)" }}
     >
       {toast && <ToastBody key={toast.id} toast={toast} onDismiss={dismissToast} />}
     </div>
@@ -64,24 +65,24 @@ function ToastBody({ toast, onDismiss }: { toast: AppToast; onDismiss: (id?: num
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false);
       }}
-      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[2px] border border-border-strong bg-surface-elevated pl-4 pr-2 py-2 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
+      className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-card border border-border-strong bg-surface-elevated pl-4 pr-2 py-2 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200"
     >
       <p className="flex-1 min-w-0 text-sm text-foreground">{toast.message}</p>
       {toast.actionLabel && toast.onAction && (
-        <button
-          type="button"
+        <Button
+          variant="primary"
           onClick={() => {
             const action = toast.onAction;
             onDismiss(toast.id);
             action?.();
           }}
-          // Solid filled button (black on the lime primary, ~7:1+ in both themes)
-          // with a 44px minimum tap target. It used to be lime text on the grey
-          // toast (1.8:1 in light mode, 28px tall), which read as no button at all.
-          className="shrink-0 min-h-[44px] min-w-[72px] rounded-[2px] px-4 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-sm shadow-sm hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer touch-manipulation"
+          // Solid primary pill (black on lime, ~7:1+ in both themes) with a 44px
+          // tap target. It used to be lime text on the grey toast (1.8:1 in
+          // light mode, 28px tall), which read as no button at all.
+          className="shrink-0 min-w-[72px] px-4"
         >
           {toast.actionLabel}
-        </button>
+        </Button>
       )}
     </div>
   );

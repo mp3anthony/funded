@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { type Member } from "@/types";
 import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Field from "@/components/ui/Field";
+import Select from "@/components/ui/Select";
+import { useSheetSave } from "@/hooks/useSheetSave";
+import { primaryPillLabel } from "@/lib/sheetSave";
 
 interface RemoveMemberModalProps {
   isOpen: boolean;
@@ -19,12 +24,20 @@ export default function RemoveMemberModal({
   member,
   householdMembers,
 }: RemoveMemberModalProps) {
-  const { bills, funds, paySchedules, billSplits, removeMember } = useApp();
+  const { funds, paySchedules, billSplits, removeMember } = useApp();
 
   const [reassignBillsTo, setReassignBillsTo] = useState<string>("delete");
   const [reassignGoalsTo, setReassignGoalsTo] = useState<string>("delete");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Shared save behaviour (R13): "Removing…" lock, red line + "Try again", toast.
+  const { status, error, run, reset } = useSheetSave({
+    onSuccess: onClose,
+    successToast: "Member removed",
+    errorMessage: "Failed to remove member. Please try again.",
+    showThrownMessage: true,
+  });
+  const saving = status === "saving";
 
   // Filter other members who can take over
   const otherMembers = useMemo(() => {
@@ -43,6 +56,11 @@ export default function RemoveMemberModal({
     }
   }, [otherMembers]);
 
+  // Clear any stale red line / "Try again" label when the pop-up opens or the member changes.
+  React.useEffect(() => {
+    if (isOpen) reset();
+  }, [isOpen, member, reset]);
+
   // Memoize counts of affected items
   const { billsCount, goalsCount, schedulesCount } = useMemo(() => {
     if (!member) return { billsCount: 0, goalsCount: 0, schedulesCount: 0 };
@@ -56,77 +74,63 @@ export default function RemoveMemberModal({
 
   if (!isOpen || !member) return null;
 
-  async function handleRemove(e: React.FormEvent) {
-    e.preventDefault();
-    if (!member) return;
-    setLoading(true);
-    setError(null);
+  const needsDeleteConfirm =
+    (reassignBillsTo === "delete" && billsCount > 0) ||
+    (reassignGoalsTo === "delete" && goalsCount > 0);
 
+  const confirmText = `You are choosing to delete this member's ${
+    reassignBillsTo === "delete" && billsCount > 0 ? "bill splits" : ""
+  }${
+    reassignGoalsTo === "delete" && goalsCount > 0
+      ? (reassignBillsTo === "delete" && billsCount > 0 ? " and " : "") + "goals"
+      : ""
+  } permanently. Are you sure you want to proceed?`;
+
+  async function doRemove() {
+    if (!member) return;
     const reassignBillsTarget = reassignBillsTo === "delete" ? undefined : reassignBillsTo;
     const reassignGoalsTarget = reassignGoalsTo === "delete" ? undefined : reassignGoalsTo;
+    await removeMember(member.id, reassignBillsTarget, reassignGoalsTarget);
+  }
 
+  function handleRemove(e: React.FormEvent) {
+    e.preventDefault();
+    if (saving) return;
     // Double confirmation if deletion of bills/goals is selected
-    if (
-      (reassignBillsTo === "delete" && billsCount > 0) ||
-      (reassignGoalsTo === "delete" && goalsCount > 0)
-    ) {
-      const confirmText = `You are choosing to delete this member's ${
-        reassignBillsTo === "delete" && billsCount > 0 ? "bill splits" : ""
-      }${
-        reassignGoalsTo === "delete" && goalsCount > 0
-          ? (reassignBillsTo === "delete" && billsCount > 0 ? " and " : "") + "goals"
-          : ""
-      } permanently. Are you sure you want to proceed?`;
-      
-      if (!window.confirm(confirmText)) {
-        setLoading(false);
-        return;
-      }
+    if (needsDeleteConfirm) {
+      setConfirmOpen(true);
+      return;
     }
-
-    try {
-      await removeMember(member.id, reassignBillsTarget, reassignGoalsTarget);
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || "Failed to remove member. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    run(doRemove);
   }
 
   return (
+    <>
     <Dialog
       open={isOpen}
       onClose={onClose}
-      title="Remove Household Member"
+      title="Remove household member"
       icon={<AlertTriangle className="h-5 w-5 text-destructive" />}
       maxWidthClass="max-w-lg"
+      busy={saving || confirmOpen}
+      error={error}
       footer={
         <>
-          <DialogButton variant="ghost" type="button" onClick={onClose} disabled={loading}>
+          <DialogButton variant="ghost" type="button" onClick={onClose} disabled={saving}>
             Cancel
           </DialogButton>
           <DialogButton
             variant="destructive"
             type="submit"
             form="remove-member-form"
-            disabled={loading}
-            className="flex items-center justify-center gap-1.5"
+            disabled={saving}
           >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Trash2 className="h-4 w-4" />
-            Remove Member
+            {saving ? "Removing…" : primaryPillLabel(status, "Remove member")}
           </DialogButton>
         </>
       }
     >
         <form id="remove-member-form" onSubmit={handleRemove} className="space-y-5 md:space-y-6">
-            {error && (
-              <div className="p-3.5 rounded-[2px] bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
-                {error}
-              </div>
-            )}
-
             {/* Warning Message */}
             <div className="space-y-2">
               <p className="text-sm text-foreground font-body leading-relaxed">
@@ -135,22 +139,22 @@ export default function RemoveMemberModal({
             </div>
 
             {/* Affected items breakdown */}
-            <div className="p-4 rounded-[2px] bg-foreground/5 border border-border-strong space-y-3">
+            <div className="p-4 rounded-card bg-foreground/5 border border-border-strong space-y-3">
               <h4 className="text-xs font-bold text-muted uppercase tracking-wider">
-                Affected Financial Items
+                Affected financial items
               </h4>
-              <div className="grid grid-cols-3 gap-4 font-mono">
-                <div className="p-3 rounded-[2px] bg-foreground/5 text-center">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-3 rounded-card bg-foreground/5 text-center">
                   <span className="block text-2xl font-bold text-foreground">{billsCount}</span>
-                  <span className="text-[9px] text-subtle uppercase tracking-wider">Bill Splits</span>
+                  <span className="text-[9px] text-subtle uppercase tracking-wider">Bill splits</span>
                 </div>
-                <div className="p-3 rounded-[2px] bg-foreground/5 text-center">
+                <div className="p-3 rounded-card bg-foreground/5 text-center">
                   <span className="block text-2xl font-bold text-foreground">{goalsCount}</span>
-                  <span className="text-[9px] text-subtle uppercase tracking-wider">Goals Owned</span>
+                  <span className="text-[9px] text-subtle uppercase tracking-wider">Goals owned</span>
                 </div>
-                <div className="p-3 rounded-[2px] bg-foreground/5 text-center">
+                <div className="p-3 rounded-card bg-foreground/5 text-center">
                   <span className="block text-2xl font-bold text-foreground">{schedulesCount}</span>
-                  <span className="text-[9px] text-subtle uppercase tracking-wider">Pay Schedules</span>
+                  <span className="text-[9px] text-subtle uppercase tracking-wider">Pay schedules</span>
                 </div>
               </div>
             </div>
@@ -159,23 +163,16 @@ export default function RemoveMemberModal({
             {(billsCount > 0 || goalsCount > 0) && (
               <div className="space-y-4">
                 <h4 className="text-xs font-bold text-muted uppercase tracking-wider">
-                  Reassignment Configuration
+                  Reassignment
                 </h4>
 
                 {/* Reassign Bills */}
                 {billsCount > 0 && (
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="reassign-bills"
-                      className="block text-xs font-bold text-muted"
-                    >
-                      Who should take over their Bill Splits?
-                    </label>
-                    <select
+                  <Field id="reassign-bills" label="Who should take over their bill splits?">
+                    <Select
                       id="reassign-bills"
                       value={reassignBillsTo}
                       onChange={(e) => setReassignBillsTo(e.target.value)}
-                      className="w-full px-4 py-3 rounded-[2px] bg-surface border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all cursor-pointer"
                     >
                       {otherMembers.length > 0 ? (
                         otherMembers.map((m) => (
@@ -186,27 +183,20 @@ export default function RemoveMemberModal({
                       ) : (
                         <option value="delete" disabled>No other members available</option>
                       )}
-                      <option value="delete" className="text-destructive">
+                      <option value="delete">
                         Delete splits/assignments entirely (Destructive)
                       </option>
-                    </select>
-                  </div>
+                    </Select>
+                  </Field>
                 )}
 
                 {/* Reassign Goals */}
                 {goalsCount > 0 && (
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="reassign-goals"
-                      className="block text-xs font-bold text-muted"
-                    >
-                      Who should take over their Goals?
-                    </label>
-                    <select
+                  <Field id="reassign-goals" label="Who should take over their goals?">
+                    <Select
                       id="reassign-goals"
                       value={reassignGoalsTo}
                       onChange={(e) => setReassignGoalsTo(e.target.value)}
-                      className="w-full px-4 py-3 rounded-[2px] bg-surface border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all cursor-pointer"
                     >
                       {otherMembers.length > 0 ? (
                         otherMembers.map((m) => (
@@ -217,11 +207,11 @@ export default function RemoveMemberModal({
                       ) : (
                         <option value="delete" disabled>No other members available</option>
                       )}
-                      <option value="delete" className="text-destructive">
+                      <option value="delete">
                         Delete goals entirely (Destructive)
                       </option>
-                    </select>
-                  </div>
+                    </Select>
+                  </Field>
                 )}
               </div>
             )}
@@ -233,5 +223,24 @@ export default function RemoveMemberModal({
             )}
         </form>
     </Dialog>
+
+    {/* Second question before deleting bills or goals for good */}
+    <ConfirmDialog
+      open={confirmOpen}
+      title="Delete for good?"
+      message={confirmText}
+      confirmLabel="Delete"
+      busyLabel="Removing…"
+      errorMessage="Failed to remove member. Please try again."
+      showThrownMessage
+      successToast="Member removed"
+      onConfirm={doRemove}
+      onDone={() => {
+        setConfirmOpen(false);
+        onClose();
+      }}
+      onCancel={() => setConfirmOpen(false)}
+    />
+    </>
   );
 }

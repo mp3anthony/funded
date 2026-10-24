@@ -1,21 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, BellOff, Check } from "lucide-react";
-import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import Dialog from "@/components/ui/Dialog";
+import Button from "@/components/ui/Button";
+import SingleCard from "@/components/ui/SingleCard";
 import { subscribeToPush, type PushStatus } from "@/lib/pushClient";
 
 /* ── Slice 10 (#96 half A): push dead-subscription re-prompt ──────
-   Opened from the "Push notifications" Row in settings-client.tsx. Explains
+   Opened from the "Push on this device" row in NotificationCenter. Explains
    *why* this device isn't receiving push (permission never granted vs.
    granted-but-no-live-subscription — the iOS-expiry case) in plain,
    non-alarming language, then lets the user fix it in one tap: re-request
    permission and re-register, without reinstalling the PWA.
 
    subscribeToPush() (src/lib/pushClient.ts) already handles both the
-   permission prompt and re-subscribing/persisting in one call — this dialog
-   is just the UI wrapper + status refresh around it, same shape as
-   TimezoneDialog/NotifyHourDialog. */
+   permission prompt and re-subscribing/persisting in one call.
+
+   R13 (#400): when action is needed this is a SingleCard (the shared save
+   behaviour: "Saving…", red line, "Try again"); otherwise a plain bottom card
+   with "Done". It closes after enabling with no toast (a toast would sit under
+   the Notifications sheet). */
 
 interface PushStatusDialogProps {
   isOpen: boolean;
@@ -42,41 +46,57 @@ function statusMessage(status: PushStatus): string {
   return "Push notifications are active on this device.";
 }
 
+function computeNeedsAction(status: PushStatus): boolean {
+  return status.supported && !status.hasLiveSubscription && status.permission !== "denied";
+}
+
 export default function PushStatusDialog({
   isOpen,
   onClose,
   status,
   onStatusChange,
 }: PushStatusDialogProps) {
-  const [isEnabling, setIsEnabling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [justEnabled, setJustEnabled] = useState(false);
-
-  // Reset local state whenever the dialog is (re)opened — same
-  // adjusting-state-during-render pattern as TimezoneDialog/NotifyHourDialog.
+  // Snapshot at open so onStatusChange inside onSubmit does not swap the
+  // card for the Done card (a remount) while the save is still finishing.
+  const [needsAction, setNeedsAction] = useState(() => computeNeedsAction(status));
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
-    if (isOpen) {
-      setError(null);
-      setJustEnabled(false);
-    }
+    if (isOpen) setNeedsAction(computeNeedsAction(status));
   }
 
-  const needsAction = status.supported && !status.hasLiveSubscription && status.permission !== "denied";
+  const body = (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted leading-relaxed">{statusMessage(status)}</p>
+      <p className="text-[11px] text-subtle leading-relaxed">
+        This only affects push alerts on this device — in-app reminders and the notification centre
+        keep working either way.
+      </p>
+    </div>
+  );
 
-  async function handleEnable() {
-    setError(null);
-    setIsEnabling(true);
-    try {
-      await subscribeToPush();
-      setJustEnabled(true);
-      onStatusChange({ supported: true, permission: "granted", hasLiveSubscription: true });
-    } catch (err) {
-      setError((err as Error)?.message || "Failed to enable push notifications. Please try again.");
-    } finally {
-      setIsEnabling(false);
-    }
+  if (needsAction) {
+    return (
+      <SingleCard
+        open={isOpen}
+        onClose={onClose}
+        title="Push notifications"
+        submitLabel="Enable push notifications"
+        showThrownMessage
+        secondaryAction={{ label: "Not now", onClick: onClose }}
+        onSubmit={async () => {
+          try {
+            await subscribeToPush();
+          } catch (err) {
+            const msg = (err as Error)?.message || "Please try again.";
+            throw new Error(`Couldn't enable push notifications: ${msg}`);
+          }
+          onStatusChange({ supported: true, permission: "granted", hasLiveSubscription: true });
+        }}
+      >
+        {body}
+      </SingleCard>
+    );
   }
 
   return (
@@ -84,49 +104,14 @@ export default function PushStatusDialog({
       open={isOpen}
       onClose={onClose}
       title="Push notifications"
-      icon={
-        status.hasLiveSubscription ? (
-          <Bell className="h-5 w-5 text-primary" />
-        ) : (
-          <BellOff className="h-5 w-5 text-muted" />
-        )
-      }
+      placement="bottom"
       footer={
-        needsAction ? (
-          <>
-            <DialogButton variant="ghost" onClick={onClose} disabled={isEnabling}>
-              Not now
-            </DialogButton>
-            <DialogButton variant="primary" onClick={handleEnable} disabled={isEnabling}>
-              {isEnabling ? "Enabling…" : justEnabled ? "Enabled" : "Enable push notifications"}
-            </DialogButton>
-          </>
-        ) : (
-          <DialogButton variant="primary" onClick={onClose}>
-            Done
-          </DialogButton>
-        )
+        <Button fullWidth onClick={onClose}>
+          Done
+        </Button>
       }
     >
-      <div className="flex flex-col gap-4">
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
-            <span className="font-bold">Couldn&apos;t enable push notifications:</span>
-            <br />
-            {error}
-          </div>
-        )}
-        {justEnabled && !error && (
-          <div className="flex items-center gap-2 bg-success/10 border border-success/30 rounded-xl p-3 text-success text-sm font-semibold">
-            <Check className="h-4 w-4 shrink-0" /> Push notifications are now active on this device.
-          </div>
-        )}
-        <p className="text-sm text-muted leading-relaxed">{statusMessage(status)}</p>
-        <p className="font-mono text-[11px] text-subtle leading-relaxed">
-          This only affects push alerts on this device — in-app reminders and the notification centre
-          keep working either way.
-        </p>
-      </div>
+      {body}
     </Dialog>
   );
 }

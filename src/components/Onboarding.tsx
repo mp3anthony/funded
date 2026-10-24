@@ -32,11 +32,11 @@ import {
 const inputClass =
   "w-full px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all disabled:opacity-60";
 const moneyInputClass =
-  "w-full pl-8 pr-4 py-3 rounded-[2px] bg-surface-raised border border-border font-mono text-primary text-sm font-semibold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all disabled:opacity-60";
+  "w-full pl-8 pr-4 py-3 rounded-[2px] bg-surface-raised border border-border text-primary text-sm font-semibold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all disabled:opacity-60";
 const dateInputClass =
-  "w-full min-w-0 px-4 py-3 rounded-[2px] bg-surface-raised border border-border font-mono text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all disabled:opacity-60";
+  "w-full min-w-0 px-4 py-3 rounded-[2px] bg-surface-raised border border-border text-foreground text-sm font-medium focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all disabled:opacity-60";
 const labelClass =
-  "block font-heading text-xs font-semibold tracking-wider uppercase text-subtle";
+  "block text-xs font-semibold tracking-wider uppercase text-subtle";
 const fieldsetClass = "space-y-4 min-w-0 border-0 p-0 m-0";
 
 /* Plain-language "why we ask" copy for the two required steps. */
@@ -72,7 +72,7 @@ function errMsg(err: unknown) {
 }
 
 function SavedNote({ where }: { where: string }) {
-  return <p className="text-xs text-primary font-mono">Saved. You can change it later on the {where} page.</p>;
+  return <p className="text-xs text-primary">Saved. You can change it later on the {where} page.</p>;
 }
 
 export default function Onboarding() {
@@ -207,7 +207,7 @@ export default function Onboarding() {
       setStepError(null);
       try {
         const amount = parseFloat(billAmount);
-        // Same shape addBill() reads/inserts as AddBillSheet.tsx's handleSave,
+        // Same shape addBill() reads/inserts as the Add flow's buildBillPayload (lib/addFlow.ts),
         // so a bill created here lands identically in the `bills` table.
         await addBill(
           {
@@ -237,7 +237,7 @@ export default function Onboarding() {
       setStepError(null);
       try {
         const target = parseFloat(goalTarget);
-        // Same shape AddGoalSheet writes for a new goal. addFund throws on a
+        // Same shape AddGoalFlow writes for a new goal. addFund throws on a
         // failed insert, so a failure lands in the catch below.
         await addFund({
           id: Date.now(), // placeholder, the database assigns the real id
@@ -312,7 +312,7 @@ export default function Onboarding() {
           <div className="relative w-full max-w-lg">
             <button
               onClick={() => supabase.auth.signOut()}
-              className="absolute -top-10 right-0 flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-border bg-surface text-[10px] font-bold text-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer font-mono uppercase tracking-wider z-10"
+              className="absolute -top-10 right-0 flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-border bg-surface text-[10px] font-bold text-muted hover:text-foreground hover:bg-surface-raised transition-colors cursor-pointer uppercase tracking-wider z-10"
             >
               Sign Out
             </button>
@@ -349,7 +349,7 @@ export default function Onboarding() {
                 })}
               </div>
 
-              <p className="text-center font-mono text-[11px] font-semibold text-subtle uppercase tracking-widest pb-2">
+              <p className="text-center text-[11px] font-semibold text-subtle uppercase tracking-widest pb-2">
                 STEP {currentStep} / {TOTAL_STEPS}
               </p>
 
@@ -379,14 +379,14 @@ export default function Onboarding() {
                             onClick={() => setFlowMode("create")}
                             className="w-full flex items-center gap-4 py-4 text-left transition-colors hover:bg-surface-raised cursor-pointer group"
                           >
-                            <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0 group-hover:bg-primary/10 transition-colors">
+                            <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0 group-active:bg-primary/10 transition-colors">
                               <Home className="h-4 w-4" />
                             </span>
                             <span className="flex-1 min-w-0">
-                              <span className="block font-heading font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                              <span className="block font-bold text-sm text-foreground group-hover:text-primary transition-colors">
                                 Create a Household
                               </span>
-                              <span className="block text-[10px] text-muted mt-0.5 font-mono">
+                              <span className="block text-[10px] text-muted mt-0.5">
                                 Start fresh, configure payday schedules &amp; add bills
                               </span>
                             </span>
@@ -397,14 +397,14 @@ export default function Onboarding() {
                             onClick={() => setIsJoinSheetOpen(true)}
                             className="w-full flex items-center gap-4 py-4 text-left transition-colors hover:bg-surface-raised cursor-pointer group"
                           >
-                            <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0 group-hover:bg-primary/10 transition-colors">
+                            <span className="flex items-center justify-center h-9 w-9 rounded-[2px] bg-surface-raised text-primary shrink-0 group-active:bg-primary/10 transition-colors">
                               <Sparkles className="h-4 w-4" />
                             </span>
                             <span className="flex-1 min-w-0">
-                              <span className="block font-heading font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                              <span className="block font-bold text-sm text-foreground group-hover:text-primary transition-colors">
                                 Join via Code
                               </span>
-                              <span className="block text-[10px] text-muted mt-0.5 font-mono">
+                              <span className="block text-[10px] text-muted mt-0.5">
                                 Join an existing household using a 6-digit code
                               </span>
                             </span>
@@ -469,10 +469,10 @@ export default function Onboarding() {
                           <Wallet className="h-4 w-4" />
                         </span>
                         <span className="flex-1 min-w-0">
-                          <span className="block font-heading font-bold text-sm text-foreground">
+                          <span className="block font-bold text-sm text-foreground">
                             Direct Pay
                           </span>
-                          <span className="block text-[10px] text-muted mt-0.5 font-mono">
+                          <span className="block text-[10px] text-muted mt-0.5">
                             Transfer directly per bill split.
                           </span>
                         </span>
@@ -495,10 +495,10 @@ export default function Onboarding() {
                           <Building2 className="h-4 w-4" />
                         </span>
                         <span className="flex-1 min-w-0">
-                          <span className="block font-heading font-bold text-sm text-foreground">
+                          <span className="block font-bold text-sm text-foreground">
                             Joint Fund
                           </span>
-                          <span className="block text-[10px] text-muted mt-0.5 font-mono">
+                          <span className="block text-[10px] text-muted mt-0.5">
                             Shared household bank account.
                           </span>
                         </span>
@@ -565,7 +565,7 @@ export default function Onboarding() {
                             Pay Amount
                           </label>
                           <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm font-mono">$</span>
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm">$</span>
                             <input
                               id="ob-payamount"
                               type="number"
@@ -611,7 +611,7 @@ export default function Onboarding() {
                             Amount
                           </label>
                           <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm font-mono">$</span>
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm">$</span>
                             <input
                               id="ob-billamount"
                               type="number"
@@ -684,7 +684,7 @@ export default function Onboarding() {
                           Target Amount
                         </label>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm font-mono">$</span>
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary text-sm">$</span>
                           <input
                             id="ob-goaltarget"
                             type="number"
@@ -710,7 +710,7 @@ export default function Onboarding() {
                       <Check className="h-9 w-9" />
                     </div>
                     <div className="space-y-2">
-                      <h2 className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-primary">
+                      <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-primary">
                         Setup Complete
                       </h2>
                       <p className="text-sm text-muted max-w-xs mx-auto">
@@ -727,9 +727,9 @@ export default function Onboarding() {
                             i % 2 === 0 ? "border-r" : ""
                           } ${i < 2 ? "border-b" : ""}`}
                         >
-                          <span className="font-mono text-[9px] uppercase tracking-wider text-subtle">{label}</span>
+                          <span className="text-[9px] uppercase tracking-wider text-subtle">{label}</span>
                           <span
-                            className={`font-mono text-sm font-semibold truncate max-w-full ${
+                            className={`text-sm font-semibold truncate max-w-full ${
                               muted ? "text-subtle" : "text-primary"
                             }`}
                           >
@@ -812,10 +812,10 @@ export default function Onboarding() {
       <JoinHouseholdSheet isOpen={isJoinSheetOpen} onClose={() => setIsJoinSheetOpen(false)} />
       {isCreating && (
         <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-6 animate-in fade-in duration-(--duration-base) ease-(--ease-standard)">
+          <div className="flex flex-col items-center gap-6 animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)">
             <Logo size="large" showWordmark={true} />
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm font-bold text-foreground capitalize tracking-wider font-mono animate-pulse">
+            <p className="text-sm font-bold text-foreground capitalize tracking-wider animate-pulse">
               Creating your Household...
             </p>
           </div>

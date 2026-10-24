@@ -33,10 +33,10 @@ export default function PaymentModeToggle({ currentMode, onModeChange, compact =
   return (
     <div className="flex flex-col space-y-4 w-full">
       <div className="flex flex-col space-y-2">
-        <h3 className="font-heading font-bold text-lg text-foreground text-center sm:text-left">
+        <h3 className="font-bold text-lg text-foreground text-center sm:text-left">
           Does your household use a joint account?
         </h3>
-        <p className="text-xs text-muted text-center sm:text-left font-mono">
+        <p className="text-xs text-muted text-center sm:text-left">
           This determines how bill splits are settled in the household.
         </p>
       </div>
@@ -59,7 +59,7 @@ export default function PaymentModeToggle({ currentMode, onModeChange, compact =
 
       <div className="flex items-start space-x-2 p-3 bg-surface border border-border rounded-xl">
         <Info className="h-4 w-4 text-subtle shrink-0 mt-0.5" />
-        <p className="font-mono text-[10px] text-muted leading-normal">
+        <p className="text-[10px] text-muted leading-normal">
           <strong>Tip:</strong> Direct Pay is great for houses where roommates split individual transfers. Joint Fund is ideal for couples or families who share a bank account.
         </p>
       </div>
