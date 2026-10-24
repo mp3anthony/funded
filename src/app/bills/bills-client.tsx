@@ -305,8 +305,12 @@ export default function BillsClient() {
   // Type = Expenses and the draft's Due resets to Any (see normaliseDraft).
   const filterChipActive = isFilterChipActive(filterState);
   const isDueDateDisabled = draft.type === "expenses";
+  // Frequency is a display choice, not a filter: it rides in the same card (draft + Apply)
+  // but never lights the Filter chip dot.
+  const [draftFrequency, setDraftFrequency] = useState<FrequencyType>("weekly");
   const openFilterCard = () => {
     setDraft(draftFromFilters(filterState));
+    setDraftFrequency(displayFrequency);
     setIsFilterOpen(true);
   };
   const applyDraft = () => {
@@ -314,6 +318,7 @@ export default function BillsClient() {
     setTypeFilter(d.type);
     setFilter(d.due);
     setCategoryFilter(d.category);
+    if (draftFrequency !== displayFrequency) handleFrequencyChange(draftFrequency);
     setIsFilterOpen(false);
   };
 
@@ -382,7 +387,7 @@ export default function BillsClient() {
       {/* Total */}
       <div className="px-1">
         <div className="text-xs font-bold uppercase tracking-wider text-subtle">
-          {filterActive ? "Filtered total" : "Household total"}
+          {filterActive ? "Filtered total" : "Household total"} · {displayFrequency}
         </div>
         <div className="mt-1 text-3xl font-bold text-primary-ink tracking-tight">{moneyFmt(totals.total)}</div>
         <p className="mt-1 text-xs text-muted font-body">
@@ -401,30 +406,9 @@ export default function BillsClient() {
         )}
       </div>
 
-      {/* Frequency pills (remembered per person) */}
-      <div
-        role="group"
-        aria-label="Show amounts as"
-        className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-      >
-        {FREQUENCY_OPTIONS.map((o) => (
-          <Chip
-            key={o.value}
-            selected={displayFrequency === o.value}
-            onClick={() => handleFrequencyChange(o.value)}
-          >
-            {o.label}
-          </Chip>
-        ))}
-      </div>
-
-      {/* Filters: one scrolling row */}
+      {/* Two chips in a fixed, wrapping row (never scrolls, never clips) */}
       <div className="flex flex-col gap-2">
-        <div
-          role="group"
-          aria-label="Filters"
-          className="scrollbar-none -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-        >
+        <div role="group" aria-label="Filters" className="flex flex-wrap items-center gap-2">
           <Chip onClick={openFilterCard} aria-haspopup="dialog">
             <span className="relative inline-flex">
               <SlidersHorizontal size={16} aria-hidden="true" />
@@ -558,7 +542,12 @@ export default function BillsClient() {
               Apply
             </Button>
             <div className="flex gap-2">
-              <Button variant="ghost" className="flex-1" disabled={isDraftDefault(draft)} onClick={() => setDraft(DEFAULT_DRAFT)}>
+              <Button variant="ghost" className="flex-1" disabled={isDraftDefault(draft) && draftFrequency === "weekly"}
+                onClick={() => {
+                  setDraft(DEFAULT_DRAFT);
+                  setDraftFrequency("weekly");
+                }}
+              >
                 Reset
               </Button>
               <Button
@@ -576,6 +565,16 @@ export default function BillsClient() {
         }
       >
         <div className="space-y-5">
+          <div>
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-subtle">Frequency</div>
+            <div role="group" aria-label="Show amounts as" className="flex flex-wrap gap-2">
+              {FREQUENCY_OPTIONS.map((o) => (
+                <Chip key={o.value} selected={draftFrequency === o.value} onClick={() => setDraftFrequency(o.value)}>
+                  {o.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
           <div>
             <div className="mb-2 text-xs font-bold uppercase tracking-wider text-subtle">Type</div>
             <div role="group" aria-label="Type" className="flex flex-wrap gap-2">

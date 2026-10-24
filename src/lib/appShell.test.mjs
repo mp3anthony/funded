@@ -30,7 +30,7 @@ test("BottomNav is a solid floating pill driven by NAV_SLOTS", () => {
     "motion-reduce:transition-none",
     "var(--nav-bottom)",
     "max-w-[480px]",
-    "bg-surface-raised",
+    "bg-surface-elevated",
   ]) {
     assert.ok(nav.includes(needle), `BottomNav missing ${needle}`);
   }

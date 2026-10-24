@@ -908,6 +908,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
 
 
+      // Status bar / browser chrome colour follows the CHOSEN theme (F05, #468), not just the OS
+      // setting that the layout's media-query meta tags see. Uses the real background token.
+      const bg = getComputedStyle(root).getPropertyValue("--color-background").trim();
+      if (bg) {
+        document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", bg));
+      }
+
       console.log("[ThemeManager] applied:", activeTheme, "HTML classes:", root.className, "data-theme:", root.getAttribute("data-theme"));
     };
 
@@ -4803,8 +4810,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  /** Throws when the save fails (F05, #444), so callers can show it instead of reading as success. */
   async function updateNotificationSettings(settings: Partial<NotificationSettings>) {
-    if (!session?.user || !notificationSettings) return;
+    if (!session?.user || !notificationSettings) throw new Error("Notification settings are not loaded yet");
     try {
       const { data: updated, error } = await supabase
         .from('notification_settings')
@@ -4812,12 +4820,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .eq('user_id', session.user.id)
         .select()
         .single();
-        
-      if (!error && updated) {
-        setNotificationSettings(updated);
-      }
+
+      if (error) throw error;
+      if (!updated) throw new Error("Notification settings were not saved");
+      setNotificationSettings(updated);
     } catch (err) {
       console.error("Failed to update notification settings:", err);
+      throw err;
     }
   }
 

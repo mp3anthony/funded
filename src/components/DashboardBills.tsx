@@ -10,19 +10,13 @@ import { buttonClasses } from "@/components/ui/Button";
 import { dueCountdown, type CountdownTone } from "@/lib/billRow";
 import { dashboardBills } from "@/lib/dashboardCarousels";
 import { todayInZone } from "@/lib/notifications/timezone";
+import { convertAmount } from "@/lib/utils";
 
 const TONE_CLASS: Record<CountdownTone, string> = {
   neutral: "text-muted",
   overdue: "text-destructive-ink",
   paid: "text-success-ink",
   muted: "text-muted",
-};
-
-const PER: Record<string, string> = {
-  weekly: "a week",
-  fortnightly: "a fortnight",
-  monthly: "a month",
-  yearly: "a year",
 };
 
 const money = (n: number) =>
@@ -63,8 +57,9 @@ export default function DashboardBills({ onBillClick }: { onBillClick: (bill: Bi
         <Carousel label="Bills to pay">
           {list.map((bill) => {
             const countdown = dueCountdown(bill, todayYmd);
-            const per = PER[(bill.frequency ?? "").toLowerCase()];
-            const sentence = `${bill.name}. ${countdown.text}. ${money(bill.amount)}${per ? ` ${per}` : ""}.`;
+            // Weekly like the rest of the Dashboard (F05, #468); exact factors from frequencyMath (F01).
+            const weekly = money(convertAmount(bill.amount, bill.frequency ?? "monthly", "weekly"));
+            const sentence = `${bill.name}. ${countdown.text}. ${weekly} a week.`;
             return (
               <Card key={bill.id} onClick={() => onBillClick(bill)} aria-label={sentence} className="h-full p-4">
                 <span aria-hidden="true" className="flex items-center gap-3">
@@ -76,9 +71,9 @@ export default function DashboardBills({ onBillClick }: { onBillClick: (bill: Bi
                   </span>
                   <span className="flex shrink-0 flex-col items-end">
                     <span className="text-lg font-bold tracking-tight tabular-nums text-primary-ink">
-                      {money(bill.amount)}
+                      {weekly}
                     </span>
-                    {per && <span className="text-[11px] font-body text-muted">{per}</span>}
+                    <span className="text-[11px] font-body text-muted">a week</span>
                   </span>
                 </span>
               </Card>

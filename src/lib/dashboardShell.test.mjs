@@ -16,7 +16,7 @@ test("tip strip: sessionStorage in try/catch, Reduce Motion, pauses while hidden
   assert.ok(t.includes("useReducedMotion"));
   assert.ok(t.includes("document.hidden"));
   assert.ok(t.includes("dashboardTips"));
-  assert.ok(t.includes("truncate"));
+  assert.ok(t.includes("line-clamp-2") && !t.includes("truncate"));
   assert.ok(t.includes("IconCircle"));
 });
 
@@ -98,4 +98,26 @@ test("Bills and Goals carousels (R27): swipe-only, tappable cards, View all pill
     assert.ok(!existsSync(join(SRC, `components/${f}.tsx`)));
   }
   assert.ok(!read("context/AppContext.tsx").includes("isUpdatesCardVisible"));
+});
+
+test("F05 (#468): Bills carousel shows weekly amounts, tips wrap, tips are short, nav is opaque", () => {
+  const b = read("components/DashboardBills.tsx");
+  assert.ok(b.includes('convertAmount(bill.amount, bill.frequency ?? "monthly", "weekly")'));
+  assert.ok(b.includes("a week") && !b.includes("a fortnight"));
+  const tips = read("lib/dashboard-tips.ts");
+  const lines = tips.split("\n").filter((l) => l.trim().startsWith('"Tip:'));
+  assert.ok(lines.length > 0);
+  for (const l of lines) assert.ok(l.trim().length - 3 <= 90, `tip too long: ${l.trim()}`);
+  assert.ok(read("components/BottomNav.tsx").includes("bg-surface-elevated"));
+  assert.ok(read("context/AppContext.tsx").includes('meta[name="theme-color"]'));
+});
+
+test("F05 (#468): Payday History collapses and remembers it; notify hour save can fail loudly", () => {
+  const h = read("components/PayHistorySection.tsx");
+  assert.ok(h.includes("aria-expanded={!collapsed}") && h.includes('COLLAPSE_SCOPE = "payday"'));
+  assert.ok(h.includes("applyToggle(") && h.includes("saveCollapsed("));
+  const ctx = read("context/AppContext.tsx");
+  const i = ctx.indexOf("async function updateNotificationSettings");
+  assert.ok(ctx.slice(i, i + 900).includes("throw err"));
+  assert.ok(read("components/NotificationCenter.tsx").includes("showToast"));
 });

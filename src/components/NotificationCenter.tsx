@@ -101,7 +101,7 @@ const TYPE_SETTINGS: {
 ];
 
 export default function NotificationCenter({ isOpen, onClose, pushStatus, onPushStatusChange }: NotificationCenterProps) {
-  const { notifications, notificationSettings, deleteNotification, clearAllNotifications, updateNotificationSettings } = useApp();
+  const { notifications, notificationSettings, deleteNotification, clearAllNotifications, updateNotificationSettings, showToast } = useApp();
   const [activeTab, setActiveTab] = useState<"list" | "settings">("list");
   const [showNotifyHourDialog, setShowNotifyHourDialog] = useState(false);
   const [showPushStatusDialog, setShowPushStatusDialog] = useState(false);
@@ -113,7 +113,12 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
     if (!notificationSettings) return;
     const currentVal = notificationSettings[key];
     if (typeof currentVal === 'boolean') {
-      await updateNotificationSettings({ [key]: !currentVal });
+      try {
+        await updateNotificationSettings({ [key]: !currentVal });
+      } catch {
+        // The switch stays where it was (state only changes on a saved write); say so.
+        showToast({ message: "Couldn't save that change. Check your connection and try again." });
+      }
     }
   };
 

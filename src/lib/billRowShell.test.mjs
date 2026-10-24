@@ -65,6 +65,9 @@ test("Bills Filter card: draft, Apply, Reset, Edit order; tick sits left of the 
   assert.ok(/>\s*Apply\s*<\/Button>/.test(t));
   assert.ok(/>\s*Reset\s*<\/Button>/.test(t));
   assert.ok(t.includes("Edit order"));
+  // Frequency lives in the Filter card (draft + Apply), not as a page-body pill row.
+  assert.ok(t.includes("draftFrequency") && t.includes('aria-label="Show amounts as"'));
+  assert.ok(!t.includes("overflow-x-auto"));
   assert.ok(t.includes("draftFromFilters(filterState)"));
   const b = read("components/BillCard.tsx");
   assert.ok(b.includes("w-11 shrink-0"));

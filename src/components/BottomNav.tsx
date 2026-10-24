@@ -40,7 +40,7 @@ export default function BottomNav() {
       style={{ paddingBottom: "var(--nav-bottom)" }}
     >
       <div
-        className={`relative grid w-full max-w-[480px] grid-cols-4 rounded-full border border-border-strong bg-surface-raised p-1 shadow-lg shadow-black/40 ${
+        className={`relative grid w-full max-w-[480px] grid-cols-4 rounded-full border border-border-strong bg-surface-elevated p-1 shadow-xl shadow-black/60 ${
           keyboardOpen ? "pointer-events-none" : "pointer-events-auto"
         }`}
       >

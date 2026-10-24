@@ -11,8 +11,10 @@ import SingleCard from "@/components/ui/SingleCard";
    own hour rather than only the owner. Stored on notification_settings.
    notify_hour (0-23, local to the household's timezone).
 
-   The push-reminders cron reads notify_hour to schedule each member's
-   reminders (Slice 11); this dialog only edits the stored preference. */
+   The push-reminders cron reads notify_hour to send each member's
+   reminders (Slice 11); this dialog only edits the stored preference.
+   A failed save throws from onSave, so the card stays open with its red
+   line (F05, #444). */
 
 interface NotifyHourDialogProps {
   isOpen: boolean;

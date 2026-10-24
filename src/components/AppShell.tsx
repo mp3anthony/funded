@@ -146,7 +146,7 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
   return (
     <ShellInboxContext.Provider value={inboxValue}>
       <div
-        className="flex-1 flex flex-col w-full relative overflow-hidden text-foreground"
+        className="flex-1 flex flex-col w-full relative overflow-hidden bg-background text-foreground"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Notification Center Modal */}

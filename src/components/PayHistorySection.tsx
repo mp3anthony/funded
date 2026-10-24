@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useApp, type PayHistory } from "@/context/AppContext";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
 import Dialog from "@/components/ui/Dialog";
-import SectionHeader from "@/components/ui/SectionHeader";
 import PayHistoryCard from "@/components/PayHistoryCard";
 import PayHistoryChart from "@/components/PayHistoryChart";
 import { cn } from "@/lib/utils";
+import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
 import {
   DEFAULT_PERIOD,
   PERIODS,
@@ -26,6 +26,8 @@ import {
 } from "@/lib/payChart";
 
 const PAGE_SIZE = 15;
+const COLLAPSE_SCOPE = "payday";
+const COLLAPSE_NAME = "History";
 
 interface PayHistorySectionProps {
   /** Household-local day; blank until the page has mounted. */
@@ -45,7 +47,23 @@ const money = (n: number) =>
  * `lib/payChart.ts`.
  */
 export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHistorySectionProps) {
-  const { payHistory, householdMembers } = useApp();
+  const { payHistory, householdMembers, session } = useApp();
+  const userId = session?.user?.id;
+  // Open by default; the remembered choice is read after mount so server and client agree.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    if (!userId) return;
+    // One-shot sync from localStorage, not a render cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCollapsed(loadCollapsed(userId, COLLAPSE_SCOPE).includes(COLLAPSE_NAME));
+  }, [userId]);
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    if (userId) {
+      saveCollapsed(userId, applyToggle(loadCollapsed(userId, COLLAPSE_SCOPE), COLLAPSE_NAME, next), COLLAPSE_SCOPE);
+    }
+  };
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   // null = everyone, so a member who gets their first pay later is included without a tap.
   const [picked, setPicked] = useState<string[] | null>(null);
@@ -94,9 +112,29 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
 
   return (
     <div>
-      <SectionHeader title="History" />
+      <button
+        type="button"
+        onClick={toggleCollapsed}
+        aria-expanded={!collapsed}
+        className="group mb-1 flex min-h-11 w-full cursor-pointer items-center gap-3 text-left touch-manipulation [-webkit-tap-highlight-color:transparent] focus:outline-none"
+      >
+        <span className="shrink-0 text-[15px] font-bold text-foreground transition-colors group-hover:text-primary-ink">
+          History
+        </span>
+        <span
+          className="h-0.5 flex-1 rounded-sm"
+          style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
+        />
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-subtle transition-transform group-hover:text-foreground motion-reduce:transition-none",
+            !collapsed && "rotate-180",
+          )}
+          aria-hidden="true"
+        />
+      </button>
 
-      {payHistory.length === 0 ? (
+      {collapsed ? null : payHistory.length === 0 ? (
         <div className="py-10 text-center">
           <p className="text-muted text-sm">No history logged yet.</p>
           <p className="text-subtle text-xs mt-1 font-body">Logged payday transactions will appear here.</p>

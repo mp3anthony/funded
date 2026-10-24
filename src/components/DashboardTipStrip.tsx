@@ -90,12 +90,12 @@ export default function DashboardTipStrip() {
 
   return (
     <div
-      className="mb-2 flex items-center gap-2 rounded-full border pl-4 pr-1"
+      className="mb-2 flex min-h-12 items-center gap-2 rounded-2xl border pl-4 pr-1"
       style={{ background: "var(--color-primary-light)", borderColor: "var(--color-primary-mid)" }}
     >
       <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary-ink" aria-hidden="true" />
       <p
-        className={`min-w-0 flex-1 truncate font-body text-xs font-semibold text-foreground transition-opacity duration-(--duration-feedback) ease-(--ease-enter) motion-reduce:transition-none ${
+        className={`min-w-0 flex-1 line-clamp-2 font-body text-xs leading-snug font-semibold text-foreground transition-opacity duration-(--duration-feedback) ease-(--ease-enter) motion-reduce:transition-none ${
           fading ? "opacity-0" : "opacity-100"
         }`}
       >
