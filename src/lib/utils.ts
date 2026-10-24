@@ -274,7 +274,7 @@ export function convertAmount(amount: number, fromFrequency: string, toFrequency
 /**
  * Issue #98, Slice 4 of 6: sums active fixed-$ goal-contribution rules into the
  * weekly-draw / suggested-split totals (bills-client.tsx's Total Bar and
- * ContributionSettingsSheet.tsx's SuggestSplitPanel). Both `action_type`s
+ * SuggestSplitPanel.tsx). Both `action_type`s
  * ("goal" and "contribution") count — either way it's real money that needs
  * to be drawn from the triggering member's pay. Percentage-of-surplus rules
  * (`amount_type === "percentage"`) are deliberately EXCLUDED — their payout

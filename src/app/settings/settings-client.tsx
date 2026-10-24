@@ -19,7 +19,6 @@ import { useApp } from "@/context/AppContext";
 import { supabase } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
 import PaymentModeToggle from "@/components/PaymentModeToggle";
-import ContributionSettingsSheet from "@/components/ContributionSettingsSheet";
 import RulesSettingsSheet from "@/components/RulesSettingsSheet";
 import BugReportSheet from "@/components/BugReportSheet";
 import PageHeader from "@/components/PageHeader";
@@ -46,7 +45,6 @@ export default function SettingsClient() {
     updateHouseholdPaymentMode,
     householdTimezone,
     updateHouseholdTimezone,
-    householdContributions,
     contributionRules,
     funds,
     householdName,
@@ -70,7 +68,6 @@ export default function SettingsClient() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   /* Reused sheets */
-  const [isContributionOpen, setIsContributionOpen] = useState(false);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isBugReportOpen, setIsBugReportOpen] = useState(false);
@@ -111,15 +108,6 @@ export default function SettingsClient() {
   }, [searchParams, pathname, router]);
 
   /* Derived display values */
-  const contributionMonthlyTotal = householdContributions.reduce((sum, c) => {
-    const amt = Number(c.amount) || 0;
-    const freq = (c.frequency || "monthly").toLowerCase();
-    if (freq === "weekly") return sum + amt * 4.33;
-    if (freq === "fortnightly") return sum + amt * 2.16;
-    if (freq === "yearly") return sum + amt / 12;
-    return sum + amt;
-  }, 0);
-  const hasContributions = householdContributions.length > 0;
   const activeRulesCount = contributionRules.filter((r) => r.is_active).length;
 
   const currentMember = members.find(
@@ -308,21 +296,13 @@ export default function SettingsClient() {
       <section className="pt-6 pb-2">
         <SectionHeader title="Household" />
         {isJointFund && (
-          <>
-            <Row
-              label="Contribution amounts"
-              value={hasContributions ? `$${Math.round(contributionMonthlyTotal).toLocaleString()}/mo` : "Not set"}
-              chevron
-              onClick={() => setIsContributionOpen(true)}
-            />
-            <Row label="Automation rules" chevron onClick={() => setIsRulesOpen(true)}>
-              {activeRulesCount > 0 ? (
-                <span className="text-xs font-semibold text-primary">{activeRulesCount} active</span>
-              ) : (
-                <span className="text-[13px] text-muted">Off</span>
-              )}
-            </Row>
-          </>
+          <Row label="Automation rules" chevron onClick={() => setIsRulesOpen(true)}>
+            {activeRulesCount > 0 ? (
+              <span className="text-xs font-semibold text-primary">{activeRulesCount} active</span>
+            ) : (
+              <span className="text-[13px] text-muted">Off</span>
+            )}
+          </Row>
         )}
         <Row label="Join code" chevron onClick={() => setShowJoinCodeDialog(true)}>
           {joinCode ? (
@@ -828,12 +808,6 @@ export default function SettingsClient() {
         onClose={() => setMemberToEdit(null)}
         member={memberToEdit}
         onRemoveTrigger={(m) => setMemberToRemove(m)}
-      />
-      <ContributionSettingsSheet
-        isOpen={isContributionOpen}
-        onClose={() => setIsContributionOpen(false)}
-        householdMembers={members}
-        contributions={householdContributions}
       />
       <RulesSettingsSheet
         isOpen={isRulesOpen}

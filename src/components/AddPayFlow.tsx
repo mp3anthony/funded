@@ -30,7 +30,9 @@ interface AddPayFlowProps {
   open: boolean;
   onClose: () => void;
   /** Called once the new pay schedule is saved (the page scrolls to it and highlights it). */
-  onAdded?: (id: string) => void;
+  onAdded?: (id: string, memberId: string) => void;
+  /** Pre-picks whose pay it is and skips the "Whose pay" card (a member's own "Set up pay" on Payday). Only an owner with 2+ members can pick another member. */
+  memberId?: string;
 }
 
 /**
@@ -41,17 +43,19 @@ interface AddPayFlowProps {
  * keeps them and a failed save ("Try again") loses nothing. Rules live in
  * `lib/addPayFlow.ts`. Editing an existing schedule is in PayScheduleDetailSheet.
  */
-export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) {
+export default function AddPayFlow({ open, onClose, onAdded, memberId: presetMember = "" }: AddPayFlowProps) {
   const uid = useId();
   const { addPaySchedule, householdMembers } = useApp();
   const currentUser = useCurrentUser();
 
-  const [values, setValues] = useState<AddPayValues>(() => initialValues());
+  // What the flow starts from: blank, except for a pre-picked member.
+  const baseline = (): AddPayValues => ({ ...initialValues(), member: presetMember });
+  const [values, setValues] = useState<AddPayValues>(baseline);
   // Fresh values each time the flow opens (derived-state reset, no effect).
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);
-    if (open) setValues(initialValues());
+    if (open) setValues(baseline());
   }
 
   const patch = (p: Partial<AddPayValues>) => setValues((v) => ({ ...v, ...p }));
@@ -59,6 +63,8 @@ export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) 
   // Pending (not yet joined) members are not offered.
   const acceptedMembers = householdMembers.filter(isAcceptedMember);
   const canPick = canPickMember(currentUser.isOwner, acceptedMembers.length);
+  // A pre-picked member replaces the "Whose pay" card.
+  const askWhose = canPick && !presetMember;
   const memberId = effectiveMember(values.member, {
     isOwner: canPick,
     currentId: String(currentUser.id),
@@ -173,13 +179,13 @@ export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) 
     nextPayDate: dateStep,
     amount: amountStep,
   };
-  const steps = stepKeys({ canPickMember: canPick, payType: values.payType }).map((k) => byKey[k]);
+  const steps = stepKeys({ canPickMember: askWhose, payType: values.payType }).map((k) => byKey[k]);
 
   const amountNum = parseAmount(values.amount);
 
   const summary = ({ edit }: { edit: (key: string) => void }) => (
     <div className="flex flex-col">
-      {canPick ? (
+      {askWhose ? (
         <Row tall chevron label="Whose pay" value={memberName} onClick={() => edit("member")} />
       ) : (
         <Row tall label="Whose pay" value={memberName} />
@@ -217,10 +223,10 @@ export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) 
     </div>
   );
 
-  const announce = (id: string) => {
+  const announce = (id: string, whose: string) => {
     // The schedule is already saved: a problem here must not fail the save (a retry would add it twice).
     try {
-      onAdded?.(id);
+      onAdded?.(id, whose);
     } catch (err) {
       console.error("onAdded failed:", err);
     }
@@ -228,7 +234,7 @@ export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) 
 
   const onSubmit = async () => {
     const id = await addPaySchedule(buildPaySchedulePayload(values, memberId));
-    announce(id);
+    announce(id, memberId);
   };
 
   return (
@@ -244,7 +250,7 @@ export default function AddPayFlow({ open, onClose, onAdded }: AddPayFlowProps) 
       canSubmit={memberId !== ""}
       dirty={hasChanges(
         values as unknown as Record<string, unknown>,
-        initialValues() as unknown as Record<string, unknown>
+        baseline() as unknown as Record<string, unknown>
       )}
       onSubmit={onSubmit}
     />

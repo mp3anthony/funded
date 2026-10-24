@@ -83,6 +83,7 @@ export const missions: GuideMission[] = [
       "Go to Payday and tap the + button beside the page title.",
       "Answer each question as it comes up: whether the amount is fixed or varies, how often it comes, the next pay date and, for fixed pay, the amount. Owners first pick whose pay it is. Tap Next after each one, then tap Add pay schedule.",
       "To see it, set the next pay date to today. On the day the pay is due it shows at the top of Payday under Needs you (Log pay, or Enter amount if the pay varies). Tap it when the money lands. If it never arrives, tap Didn't get paid to skip it. If a pay day goes by without you logging it, it becomes a pending pay for you to confirm, and you get a reminder each day until you do.",
+      "Each person has a card on Payday showing their next pay. Swipe to see the others and tap their card to open their pay schedules, their contribution (Joint Fund) and the rules that run on their pay. Tap Compare split at the top to see a fair split of the bills.",
     ],
   },
   {
@@ -149,7 +150,7 @@ export const pageGuide: GuidePage[] = [
   {
     name: "Payday",
     description:
-      "Pay schedules, logging pay, confirming pending pay and recent pay history.",
+      "A card for each person with their next pay, logging pay, confirming pending pay and recent pay history. Tap a card for that person's pay schedules, contribution and rules.",
   },
   {
     name: "Bills",

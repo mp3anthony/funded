@@ -54,12 +54,13 @@ test("the lib files stay import-free so node can run them", () => {
   }
 });
 
-test("Payday page opens AddPayFlow and highlights the new row on an inner wrapper", () => {
+test("Payday page opens AddPayFlow and highlights the new schedule's member card (R21)", () => {
   const t = read("app/payday/payday-client.tsx");
   assert.ok(t.includes('from "@/components/AddPayFlow"'));
-  assert.ok(t.includes("useRowHighlight") && t.includes("row-highlight"));
-  assert.ok(t.includes("id={payScheduleRowKey(schedule.id)}"));
-  assert.ok(t.includes("flash(payScheduleRowKey(id))"));
+  assert.ok(t.includes("useRowHighlight") && t.includes("highlighted={highlightKey === memberCardKey(member.id)}"));
+  assert.ok(read("components/MemberPayCard.tsx").includes("row-highlight"));
+  assert.ok(t.includes("id={memberCardKey(member.id)}") || read("components/MemberPayCard.tsx").includes("id={memberCardKey(member.id)}"));
+  assert.ok(t.includes("flash(memberCardKey(memberId))"));
   assert.ok(t.includes("setIsAddScheduleOpen(true)") && t.includes("stripAddSheetParam(searchParams)"));
   assert.ok(t.includes("<PayScheduleDetailSheet"), "edit lives in the detail sheet");
   assert.ok(!t.includes("AddPayScheduleSheet"), "the edit-only sheet is gone");

@@ -91,7 +91,6 @@ test("Row has an opt-in tall prop", () => {
 // Native confirm() ratchet: only these files may still call confirm(). Later slices
 // delete entries as they move to ConfirmDialog. Checked per file, not per call.
 const CONFIRM_ALLOWLIST = new Set([
-  "app/payday/payday-client.tsx",
   "components/PayHistoryCard.tsx",
 ]);
 

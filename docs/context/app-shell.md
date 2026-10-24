@@ -72,7 +72,7 @@ _Avoid_: Income page, pay page
 
 **Settings**:
 The page for account, notifications, appearance, household settings, members, Updates, the Getting started guide, issue reporting and leaving the household.
-Planned change (#377): opened from the avatar top right. An identity card opens Profile (email read-only); Preferences (Notifications, inline Light/Dark/System Appearance); Members with a "+" to invite (Join code sheet); owner-only Household settings (Household name, Payment mode, Timezone; members see them read-only); a Help card (Updates, Getting started, Report an issue); Leave household in its own red card. Contribution amounts and Automation rules move to Payday and Goals. Detail in `project/pages/settings.md` of the design doc.
+Planned change (#377): opened from the avatar top right. An identity card opens Profile (email read-only); Preferences (Notifications, inline Light/Dark/System Appearance); Members with a "+" to invite (Join code sheet); owner-only Household settings (Household name, Payment mode, Timezone; members see them read-only); a Help card (Updates, Getting started, Report an issue); Leave household in its own red card. Contribution amounts have moved to the Payday member sheet (R21, #408) and Automation rules move to Goals. Detail in `project/pages/settings.md` of the design doc.
 _Avoid_: Preferences, profile page, admin
 
 ### Keeping people informed

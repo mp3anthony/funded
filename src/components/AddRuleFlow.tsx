@@ -33,6 +33,8 @@ interface AddRuleFlowProps {
   onClose: () => void;
   /** Pre-picks the goal and skips the goal card (for a goal's own "Rules for this goal"). */
   goalId?: string;
+  /** Pre-picks whose pay the rule is for and skips the "Whose pay" card (a member's own sheet on Payday). Only an owner with 2+ members can pick another member. */
+  memberId?: string;
 }
 
 /**
@@ -43,17 +45,19 @@ interface AddRuleFlowProps {
  * is asked "Whose pay"; everyone else makes the rule for themselves. Rules live
  * in `lib/addRuleFlow.ts`.
  */
-export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps) {
+export default function AddRuleFlow({ open, onClose, goalId, memberId: presetMember = "" }: AddRuleFlowProps) {
   const uid = useId();
   const { addRule, householdMembers, funds } = useApp();
   const currentUser = useCurrentUser();
 
-  const [values, setValues] = useState<AddRuleValues>(() => initialValues(goalId));
+  // What the flow starts from: blank, except for a pre-picked goal and member.
+  const baseline = (): AddRuleValues => ({ ...initialValues(goalId), member: presetMember });
+  const [values, setValues] = useState<AddRuleValues>(baseline);
   // Fresh values each time the flow opens (derived-state reset, no effect).
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);
-    if (open) setValues(initialValues(goalId));
+    if (open) setValues(baseline());
   }
 
   const patch = (p: Partial<AddRuleValues>) => setValues((v) => ({ ...v, ...p }));
@@ -61,6 +65,8 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
   // Pending (not yet joined) members are not offered.
   const acceptedMembers = householdMembers.filter(isAcceptedMember);
   const canPick = canPickMember(currentUser.isOwner, acceptedMembers.length);
+  // A pre-picked member replaces the "Whose pay" card.
+  const askWhose = canPick && !presetMember;
   const memberId = effectiveMember(values.member, {
     isOwner: canPick,
     currentId: String(currentUser.id),
@@ -217,13 +223,13 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
   };
   // A pre-picked goal (the `goalId` prop) skips the goal card, but only if that goal exists.
   const skipGoal = !!goalId && funds.some((g) => String(g.id) === goalId);
-  const steps = stepKeys(canPick)
+  const steps = stepKeys(askWhose)
     .filter((k) => !(k === "goal" && skipGoal))
     .map((k) => byKey[k]);
 
   const summary = ({ edit }: { edit: (key: string) => void }) => (
     <div className="flex flex-col">
-      {canPick ? (
+      {askWhose ? (
         <Row tall chevron label="Whose pay" value={memberName} onClick={() => edit("member")} />
       ) : (
         <Row tall label="Whose pay" value={memberName} />
@@ -274,7 +280,7 @@ export default function AddRuleFlow({ open, onClose, goalId }: AddRuleFlowProps)
       canSubmit={memberId !== "" && goalOk}
       dirty={hasChanges(
         values as unknown as Record<string, unknown>,
-        initialValues(goalId) as unknown as Record<string, unknown>
+        baseline() as unknown as Record<string, unknown>
       )}
       onSubmit={onSubmit}
     />

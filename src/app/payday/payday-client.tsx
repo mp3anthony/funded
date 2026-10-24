@@ -2,9 +2,15 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Trash2, CheckCircle2, Clock, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
 import AddPayFlow from "@/components/AddPayFlow";
+import Carousel from "@/components/ui/Carousel";
+import Button from "@/components/ui/Button";
+import Dialog from "@/components/ui/Dialog";
+import MemberPayCard from "@/components/MemberPayCard";
+import MemberPaySheet from "@/components/MemberPaySheet";
+import SuggestSplitPanel from "@/components/SuggestSplitPanel";
 import LogPayCard, { type LogTarget } from "@/components/LogPayCard";
 import NeedsYouStrip from "@/components/NeedsYouStrip";
 import PayHistoryCard from "@/components/PayHistoryCard";
@@ -15,20 +21,28 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import { hasPaydayLinkParams, resolvePaydayLink, stripPaydayLinkParams } from "@/lib/notifications/paydayLink";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
-import { payScheduleRowKey } from "@/lib/addPayFlow";
+import { canPickMember } from "@/lib/addPayFlow";
+import { isAcceptedMember } from "@/lib/householdLeave";
+import { memberCardKey, memberCards } from "@/lib/paydayCards";
 import { savingGoals } from "@/lib/goalPace";
 import { todayInZone } from "@/lib/notifications/timezone";
 import { buildNeedsYou, isLoggableYmd, type NeedsYouRow } from "@/lib/needsYou";
 
 export default function PaydayClient() {
-  const { paySchedules, payHistory, householdMembers, deletePaySchedule, logPay, calculateAveragePay, addToGoal, isJointFund, householdContributions, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay, skipDuePay, skipPendingPay, householdTimezone, showToast } = useApp();
+  const { paySchedules, payHistory, householdMembers, logPay, calculateAveragePay, addToGoal, isJointFund, bills, expenses, contributionRules, setContribution, checkAndApplyRules, applyRuleAllocation, funds, autoLogMissedPays, confirmAndUpdatePay, skipDuePay, skipPendingPay, householdTimezone, showToast } = useApp();
   const currentUser = useCurrentUser();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
+  // Whose pay the New pay schedule flow starts on ("" = ask). Kept after the flow closes so it never flips mid-animation.
+  const [addForMember, setAddForMember] = useState("");
   const { highlightKey, flash } = useRowHighlight();
+  // The member whose sheet is open, and the schedule that was just added (its card switches to that tab).
+  const [openMemberId, setOpenMemberId] = useState<string | null>(null);
+  const [newScheduleId, setNewScheduleId] = useState<string | null>(null);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
   // The one Log / Confirm Pay card: a due pay to log or a Pending pay to confirm (R20, #407).
   const [logTarget, setLogTarget] = useState<LogTarget | null>(null);
   // R11: keep the id and look the schedule up each render, so the sheet follows every save and closes by itself if it is deleted.
@@ -70,11 +84,13 @@ export default function PaydayClient() {
   // Household-local day, the same one the reminders and auto-log use. Blank until mounted, so nothing flashes at hydration.
   const todayYmd = isMounted ? todayInZone(householdTimezone || "Australia/Sydney") : "";
 
-  const today = isMounted ? new Date() : new Date("2026-07-05");
-  today.setHours(0, 0, 0, 0);
-
   // A schedule is loggable once its pay date has come (next_pay_date <= today).
   const isLoggable = (schedule: PaySchedule) => isLoggableYmd(schedule.next_pay_date, todayYmd);
+
+  const openAddSchedule = (memberId = "") => {
+    setAddForMember(memberId);
+    setIsAddScheduleOpen(true);
+  };
 
   const memberNameOf = (memberId: string) =>
     householdMembers.find((m) => String(m.id) === String(memberId))?.name ?? "Unknown Member";
@@ -146,46 +162,10 @@ export default function PaydayClient() {
     }
     if (handledAddRef.current) return;
     handledAddRef.current = true;
-    setIsAddScheduleOpen(true);
+    openAddSchedule();
     const rest = stripAddSheetParam(searchParams);
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [searchParams, pathname, router]);
-
-  // Helper for countdown
-  const getCountdown = (schedule: PaySchedule) => {
-    const nextPay = new Date(schedule.next_pay_date + "T00:00:00");
-    nextPay.setHours(0, 0, 0, 0);
-    const diffTime = nextPay.getTime() - today.getTime();
-    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-
-    // Due pays are acted on in the Needs you strip above, so this just says so.
-    if (isLoggable(schedule)) {
-      return {
-        text: "Due now",
-        color: "text-primary bg-primary/10 border-primary/20",
-        icon: CheckCircle2,
-      };
-    } else {
-      return {
-        text: `in ${diffDays} day${diffDays !== 1 ? "s" : ""}`,
-        color: "text-muted bg-white/5 border-border-strong",
-        icon: Clock,
-      };
-    }
-  };
-
-  // Delete handler
-  const handleDeleteSchedule = async (schedule: PaySchedule) => {
-    const memberName = householdMembers.find((m) => String(m.id) === String(schedule.member_id))?.name || "Member";
-    if (confirm(`Delete payday schedule for ${memberName}? Any logged history will be preserved.`)) {
-      try {
-        await deletePaySchedule(schedule.id);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        showToast({ message: "Couldn't delete the pay schedule: " + errMsg });
-      }
-    }
-  };
 
   // Save from the Log / Confirm Pay card. Returns false (the card shows its red line) when the save fails.
   const handleSavePay = async (amount: number, notes: string | null): Promise<boolean> => {
@@ -291,36 +271,36 @@ export default function PaydayClient() {
   const visibleGroups = Object.entries(groupedHistory);
   const isEmpty = visibleGroups.length === 0;
 
-  // Explicit, hydration-safe ordering for the unified Upcoming Pays card.
-  // Primary: next_pay_date ascending (YYYY-MM-DD string compare = chronological).
-  // Tie-break: member name ascending.
-  const sortedSchedules = React.useMemo(() => {
-    return [...paySchedules].sort((a, b) => {
-      const dateCompare = a.next_pay_date.localeCompare(b.next_pay_date);
-      if (dateCompare !== 0) return dateCompare;
-      const aName = householdMembers.find((m) => String(m.id) === String(a.member_id))?.name || "";
-      const bName = householdMembers.find((m) => String(m.id) === String(b.member_id))?.name || "";
-      return aName.localeCompare(bName);
-    });
-  }, [paySchedules, householdMembers]);
+  // One card per member (R21, #408). Accepted members, plus anyone who already has pay.
+  const cards = React.useMemo(() => memberCards(householdMembers, paySchedules), [householdMembers, paySchedules]);
+  const acceptedCount = householdMembers.filter(isAcceptedMember).length;
+  const viewerCanPickMember = canPickMember(currentUser.isOwner, acceptedCount);
 
   return (
     <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-24 sm:px-6 md:pt-6 space-y-8">
       <PageHeader
         title="Payday"
         subtitle="Manage & track incomes"
-        onAdd={() => setIsAddScheduleOpen(true)}
+        extra={
+          // Joint Fund only until R23 makes the split work in Direct Pay.
+          isJointFund ? (
+            <Button variant="ghost" className="min-h-9 px-4 text-[15px]" onClick={() => setIsCompareOpen(true)}>
+              Compare split
+            </Button>
+          ) : undefined
+        }
+        onAdd={() => openAddSchedule()}
         addLabel="New pay schedule"
       />
 
       {/* Needs you: pays due to log and Pending pays to confirm (R20, #407) */}
       <NeedsYouStrip rows={needsYouRows} memberName={memberNameOf} onOpen={openNeedsYou} />
 
-      {/* Upcoming Pays */}
+      {/* One card per member: tap for their sheet (R21, #408) */}
       <div>
-        <SectionHeader title="Upcoming Pays" count={paySchedules.length} />
+        <SectionHeader title="Upcoming pays" />
 
-        {paySchedules.length === 0 ? (
+        {cards.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-muted text-sm">No pay schedules active.</p>
             <p className="text-subtle text-xs mt-1 font-body">
@@ -328,80 +308,22 @@ export default function PaydayClient() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col">
-            {sortedSchedules.map((schedule) => {
-              const member = householdMembers.find((m) => String(m.id) === String(schedule.member_id));
-              const memberName = member ? member.name : "Unknown Member";
-              const countdown = getCountdown(schedule);
-              const isReady = isLoggable(schedule);
-
-              const formattedAmount = schedule.is_fixed_amount && schedule.amount
-                ? `$${Number(schedule.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
-                : "Variable";
-
-              const CountdownIcon = countdown.icon;
-
-              return (
-                <div
-                  key={schedule.id}
-                  id={payScheduleRowKey(schedule.id)}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedScheduleId(String(schedule.id));
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedScheduleId(String(schedule.id));
-                    }
-                  }}
-                  className="border-t border-border hover:bg-surface/40 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset rounded-sm"
-                >
-                  {/* Inner wrapper: the add highlight sits here, the outer div keeps the row id. */}
-                  <div className={highlightKey === payScheduleRowKey(schedule.id) ? "row-highlight" : undefined}>
-                  {/* Info row: name/amount + freq/countdown · delete */}
-                  <div className="flex items-center gap-3 py-3">
-                    {/* Middle: name+amount over frequency+countdown */}
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-body font-semibold text-[15px] text-foreground truncate">
-                          {memberName}
-                        </h3>
-                        <span className={`shrink-0 font-bold tracking-tight text-lg ${schedule.is_fixed_amount ? "text-primary" : "text-muted"}`}>
-                          {formattedAmount}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <span className="min-w-0 truncate text-[10px] uppercase tracking-wider text-muted">
-                          {schedule.frequency}
-                        </span>
-                        <span className={`flex items-center gap-1 shrink-0 text-[10px] uppercase font-semibold tracking-wider ${isReady ? "text-primary" : "text-muted"}`}>
-                          <CountdownIcon size={11} className="shrink-0" />
-                          {countdown.text}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Delete button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSchedule(schedule);
-                      }}
-                      className="shrink-0 p-1.5 text-muted hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                      title="Delete Schedule"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <Carousel label="Pay by member" autoRotate peek={cards.length > 1} className="mt-2">
+            {cards.map(({ member, schedules }) => (
+              <MemberPayCard
+                key={String(member.id)}
+                member={member}
+                schedules={schedules}
+                todayYmd={todayYmd}
+                averageOf={calculateAveragePay}
+                highlighted={highlightKey === memberCardKey(member.id)}
+                focusScheduleId={newScheduleId}
+                canSetUp={viewerCanPickMember || String(member.id) === String(currentUser.id)}
+                onOpen={() => setOpenMemberId(String(member.id))}
+                onSetUp={() => openAddSchedule(String(member.id))}
+              />
+            ))}
+          </Carousel>
         )}
       </div>
 
@@ -529,11 +451,24 @@ export default function PaydayClient() {
         )}
       </div>
 
+      {/* A member's sheet (pay schedules, contribution, rules) */}
+      <MemberPaySheet
+        memberId={openMemberId}
+        onClose={() => setOpenMemberId(null)}
+        onOpenSchedule={(id) => setSelectedScheduleId(id)}
+        onAddSchedule={(memberId) => openAddSchedule(memberId)}
+        stackedOpen={selectedSchedule !== null || isAddScheduleOpen}
+      />
+
       {/* New pay schedule flow */}
       <AddPayFlow
         open={isAddScheduleOpen}
         onClose={() => setIsAddScheduleOpen(false)}
-        onAdded={(id) => flash(payScheduleRowKey(id))}
+        memberId={addForMember}
+        onAdded={(id, memberId) => {
+          setNewScheduleId(id);
+          flash(memberCardKey(memberId));
+        }}
       />
 
       {/* Pay Schedule Detail Sheet (edits one field at a time) */}
@@ -543,6 +478,20 @@ export default function PaydayClient() {
         paySchedule={selectedSchedule}
         householdMembers={householdMembers}
       />
+
+      {/* Compare split: the existing Suggest Split panel until R23 redesigns it */}
+      <Dialog open={isCompareOpen} onClose={() => setIsCompareOpen(false)} title="Compare split" placement="bottom">
+        <SuggestSplitPanel
+          startExpanded
+          householdMembers={householdMembers}
+          bills={bills}
+          expenses={expenses}
+          contributionRules={contributionRules}
+          paySchedules={paySchedules}
+          calculateAveragePay={calculateAveragePay}
+          setContribution={setContribution}
+        />
+      </Dialog>
 
       {/* Log / Confirm Pay card (due pays and Pending pays) */}
       <LogPayCard
