@@ -1,13 +1,12 @@
 /**
- * Dashboard tips ticker content (#151) — short, friendly tips about using
- * the app's actual features, shown in the bottom ticker banner when both
- * Upcoming Bills and Savings Goals are minimised.
+ * Dashboard tip strip content (#151, R26) — short, friendly tips about using
+ * the app's actual features, shown one at a time in the strip at the top of
+ * the Dashboard.
  *
  * Deliberately a flat, easily-editable list rather than scattered inline
- * JSX so the copy can be tweaked without touching the ticker component, and
+ * JSX so the copy can be tweaked without touching the strip component, and
  * so it can become data-driven (contextual/per-user tips) later without a
- * rewrite. Static and non-contextual for this ticket — see #151's "out of
- * scope" list.
+ * rewrite. Static and non-contextual — see #151's "out of scope" list.
  */
 // Staleness check: whenever a shipped feature renames, removes, or changes a
 // user-facing flow, review this list and update/add/remove tips to match.

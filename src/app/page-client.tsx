@@ -6,12 +6,14 @@ import BillDetailSheet from "@/components/BillDetailSheet";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
 import PageHeader from "@/components/PageHeader";
 import { useVerdict } from "@/hooks/useVerdict";
+import { useFinishSetup } from "@/hooks/useFinishSetup";
 
 // New premium components
 import FinishSetupCard from "@/components/FinishSetupCard";
 import UpcomingBillsCard from "@/components/UpcomingBillsCard";
 import ActiveGoalsCard from "@/components/ActiveGoalsCard";
-import DashboardTipsTicker from "@/components/DashboardTipsTicker";
+import DashboardTipStrip from "@/components/DashboardTipStrip";
+import DashboardStats from "@/components/DashboardStats";
 
 
 // R25: the verdict's status dot. Lime = covered, red = short, grey = nothing to compare yet.
@@ -27,10 +29,11 @@ export default function HomeClient() {
     funds,
     billSplits,
     members: householdMembers,
-    isUpdatesCardVisible,
   } = useApp();
   const verdict = useVerdict();
   const dot = DOT[verdict.tone];
+  // R26: the stats slot shows the Finish setting up card while setup is unfinished.
+  const finishSetup = useFinishSetup().state;
 
   /* ── Local UI States for Sheets ──────────────── */
   // R10: keep the id and look the bill up each render, so the sheet follows every
@@ -44,18 +47,10 @@ export default function HomeClient() {
   const selectedGoal =
     selectedGoalId === null ? null : (funds.find((f) => String(f.id) === String(selectedGoalId)) ?? null);
 
-  /* ── Tips ticker trigger (#151) — reappears fixed to the bottom of the
-     viewport only once both Upcoming Bills and Savings Goals are minimised.
-     Starts `null` ("not yet known") rather than defaulting to minimised, so
-     the ticker can't flash visible for a returning user whose stored
-     preference turns out to be "expanded" before each card's own
-     localStorage read resolves. */
-  const [isBillsMinimised, setIsBillsMinimised] = useState<boolean | null>(null);
-  const [isGoalsMinimised, setIsGoalsMinimised] = useState<boolean | null>(null);
-  const bothCardsMinimised = isBillsMinimised === true && isGoalsMinimised === true;
-
   return (
     <div className="flex-1 w-full max-w-2xl lg:max-w-4xl mx-auto px-6 pt-4 pb-10">
+      <DashboardTipStrip />
+
       <PageHeader
         title={verdict.headline}
         srTitle="Dashboard"
@@ -71,7 +66,9 @@ export default function HomeClient() {
 
       {/* Editorial sections */}
       <div className="space-y-9 pt-2">
-        <FinishSetupCard />
+        {/* One slot: the card while an owner has setup left, else the stats.
+            Renders nothing until the dismissed flag loads, so stats never flash first. */}
+        {finishSetup === "card" ? <FinishSetupCard /> : finishSetup === "none" ? <DashboardStats /> : null}
 
         {/* Bills & Goals */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-9 lg:gap-8">
@@ -79,26 +76,18 @@ export default function HomeClient() {
             <UpcomingBillsCard
               bills={bills}
               onBillClick={(bill) => setSelectedBillId(bill.id)}
-              onMinimisedChange={setIsBillsMinimised}
             />
           </div>
           <div className="lg:col-span-1">
             <ActiveGoalsCard
               funds={funds}
               onGoalClick={(goal) => setSelectedGoalId(goal.id)}
-              onMinimisedChange={setIsGoalsMinimised}
             />
           </div>
         </div>
 
 
       </div>
-
-      {/* Tips ticker (#151) — fixed to the viewport, only when both cards
-          above are minimised. Rendered outside the scrolling content div
-          (like BottomNav in AppShell) so its fixed positioning is against
-          the viewport, not this page's own layout box. */}
-      <DashboardTipsTicker active={bothCardsMinimised && !isUpdatesCardVisible} />
 
       {/* Bill Detail Sheet */}
       <BillDetailSheet

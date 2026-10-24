@@ -60,7 +60,7 @@ test("no hard-coded 5rem nav offsets", () => {
 });
 
 test("docked surfaces clear the nav through the token", () => {
-  for (const rel of ["components/ui/Toast.tsx", "components/UpdatesCard.tsx", "components/DashboardTipsTicker.tsx", "components/AppShell.tsx"]) {
+  for (const rel of ["components/ui/Toast.tsx", "components/UpdatesCard.tsx", "components/AppShell.tsx"]) {
     assert.ok(read(rel).includes("--nav-clearance"), `${rel} missing --nav-clearance`);
   }
 });

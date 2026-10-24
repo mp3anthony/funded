@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Calendar, ChevronRight, Receipt, Target, X, type LucideIcon } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { savingGoals } from "@/lib/goalPace";
-import { finishSetupHref, missingSetupItems, shouldShowFinishSetup, type SetupItem } from "@/lib/finishSetup";
+import { useFinishSetup } from "@/hooks/useFinishSetup";
+import { finishSetupHref, type SetupItem } from "@/lib/finishSetup";
+import IconCircle from "@/components/ui/IconCircle";
 
 const ROWS: Record<SetupItem, { label: string; Icon: LucideIcon }> = {
   payday: { label: "Add your payday", Icon: Calendar },
@@ -16,29 +17,19 @@ const ROWS: Record<SetupItem, { label: string; Icon: LucideIcon }> = {
  * Dashboard "Finish setting up" card (#333). Owners only: lists whichever of
  * payday, bill and goal the household has none of; each row opens that page's
  * add form. Leaves by itself when all three exist, or for good when the owner
- * taps X (stored per user, so it holds on every device).
+ * taps X (stored per user, so it holds on every device). Takes the stats
+ * carousel's slot on the Dashboard while it shows (R26).
  */
 export default function FinishSetupCard() {
-  const { bills, funds, paySchedules, members, session, isFinishSetupDismissed, dismissFinishSetup } = useApp();
+  const { dismissFinishSetup } = useApp();
+  const { state, missing } = useFinishSetup();
 
-  // Owner check matches settings-client (email match against the member list).
-  const currentMember = members.find(
-    (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
-  );
-  const isOwner = currentMember?.role === "owner";
-  const missing = missingSetupItems({
-    payScheduleCount: paySchedules.length,
-    billCount: bills.length,
-    // R17: a Just tracking goal does not count as a savings goal.
-    goalCount: savingGoals(funds).length,
-  });
-
-  if (!shouldShowFinishSetup({ isOwner, dismissed: isFinishSetupDismissed, missing })) return null;
+  if (state !== "card") return null;
 
   return (
     <section
       aria-label="Finish setting up"
-      className="rounded-[2px] border border-border-strong bg-surface-elevated"
+      className="overflow-hidden rounded-card border border-border bg-surface"
     >
       <div className="flex items-start gap-2 pl-4 pr-1 pt-1">
         <div className="flex-1 min-w-0 py-2.5">
@@ -47,14 +38,9 @@ export default function FinishSetupCard() {
             Add these to get the most out of Funded.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void dismissFinishSetup()}
-          aria-label="Hide Finish setting up"
-          className="shrink-0 flex h-11 w-11 items-center justify-center text-muted hover:text-foreground cursor-pointer touch-manipulation"
-        >
-          <X size={18} />
-        </button>
+        <IconCircle label="Hide Finish setting up" onClick={() => void dismissFinishSetup()}>
+          <X size={18} aria-hidden="true" />
+        </IconCircle>
       </div>
       <ul className="border-t border-border">
         {missing.map((item) => {

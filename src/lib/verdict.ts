@@ -174,3 +174,127 @@ export function verdict(input: VerdictInput): Verdict {
   }
   return shape("ok", "Bills covered", `${dollars(income.gap)} a week left after bills.`);
 }
+
+/** One Dashboard stats slide (R26, #413). Amounts are in the requested frequency. */
+export interface StatSlide {
+  /** cover = Joint Fund contributions; splits = Direct Pay splits. */
+  kind: "income" | "cover" | "splits";
+  /** From the weekly verdict halves, so a slide never disagrees with the header's colour. */
+  status: "unset" | "short" | "ok";
+  title: string;
+  /** Whole dollars: spare when 0 or more, negative when short. 0 when unset. */
+  big: number;
+  /** Pay, contributions or the covered part of bills. 0 when unset. */
+  from: number;
+  /** Bills + expenses. */
+  obligations: number;
+  /** Bar fraction 0..1 (full = the bills use all of it). 0 when unset. */
+  fill: number;
+  caption: string;
+}
+
+export interface StatsSlides {
+  frequency: string;
+  income: StatSlide;
+  cover: StatSlide;
+}
+
+/**
+ * The two Dashboard stat slides (R26, #413). Status comes from `verdict()` (weekly, whole
+ * dollars); only the shown dollars follow `frequency`, so a hair under $0.50 short still
+ * reads "ok" with $0 left, never a stray negative.
+ */
+export function verdictStats(input: VerdictInput & { frequency: string }): StatsSlides {
+  const { convert, frequency } = input;
+  const halves = verdict({ ...input, extraWeekly: 0 }).halves;
+  const toShown = (weekly: number) => whole(convert(weekly, "weekly", frequency));
+
+  const obligationsWeekly = weeklyObligations({ bills: input.bills, expenses: input.expenses, convert });
+  const obligations = toShown(obligationsWeekly);
+  const noBills = obligationsWeekly <= 0;
+
+  const unsetSlide = (kind: StatSlide["kind"], title: string, caption: string): StatSlide => ({
+    kind,
+    status: "unset",
+    title,
+    big: 0,
+    from: 0,
+    obligations,
+    fill: 0,
+    caption,
+  });
+  const NO_BILLS = "Add a bill and this will say if your pay covers it.";
+
+  // Slide 1: pay against bills (both payment modes).
+  const payWeekly = sum(input.pays.map((p) => convert(p.amount || 0, p.frequency, "weekly")));
+  let income: StatSlide;
+  if (halves.income.status === "unset") {
+    income = unsetSlide("income", "Pay vs bills", "Add pay on Payday to see if your bills are covered.");
+  } else if (noBills) {
+    income = { ...unsetSlide("income", "Pay vs bills", NO_BILLS), from: toShown(payWeekly) };
+  } else {
+    const pay = toShown(payWeekly);
+    const short = halves.income.status === "short";
+    income = {
+      kind: "income",
+      status: halves.income.status,
+      title: "Pay vs bills",
+      big: short ? Math.min(-1, toShown(payWeekly - obligationsWeekly)) : Math.max(0, toShown(payWeekly - obligationsWeekly)),
+      from: pay,
+      obligations,
+      fill: payWeekly > 0 ? Math.min(1, obligationsWeekly / payWeekly) : 0,
+      caption: `Pay ${dollars(pay)} · Bills ${dollars(obligations)}`,
+    };
+  }
+
+  // Slide 2: Joint Fund = contributions against bills; Direct Pay = bills the splits cover.
+  let cover: StatSlide;
+  if (input.isJointFund) {
+    const title = "Contributions vs bills";
+    const contributedWeekly = sum(input.contributions.map((c) => convert(c.amount || 0, c.frequency, "weekly")));
+    if (halves.cover.status === "unset") {
+      cover = unsetSlide("cover", title, "Set what each member puts in on Payday.");
+    } else if (noBills) {
+      cover = { ...unsetSlide("cover", title, NO_BILLS), from: toShown(contributedWeekly) };
+    } else {
+      const contributed = toShown(contributedWeekly);
+      const short = halves.cover.status === "short";
+      cover = {
+        kind: "cover",
+        status: halves.cover.status,
+        title,
+        big: short
+          ? Math.min(-1, toShown(contributedWeekly - obligationsWeekly))
+          : Math.max(0, toShown(contributedWeekly - obligationsWeekly)),
+        from: contributed,
+        obligations,
+        fill: contributedWeekly > 0 ? Math.min(1, obligationsWeekly / contributedWeekly) : 0,
+        caption: `Contributions ${dollars(contributed)} · Bills ${dollars(obligations)}`,
+      };
+    }
+  } else {
+    const title = "Splits vs shares";
+    if (noBills) {
+      cover = unsetSlide("splits", title, NO_BILLS);
+    } else {
+      const uncoveredWeekly = weeklyUncovered({ ...input, convert });
+      const uncovered = toShown(uncoveredWeekly);
+      const short = halves.cover.status === "short";
+      const covered = Math.max(0, obligations - uncovered);
+      cover = {
+        kind: "splits",
+        status: halves.cover.status,
+        title,
+        big: short ? Math.min(-1, -uncovered) : 0,
+        from: covered,
+        obligations,
+        fill: short ? Math.max(0, Math.min(1, 1 - uncoveredWeekly / obligationsWeekly)) : 1,
+        caption: short
+          ? `Covered ${dollars(covered)} · Bills ${dollars(obligations)}`
+          : `All ${dollars(obligations)} of bills covered`,
+      };
+    }
+  }
+
+  return { frequency, income, cover };
+}

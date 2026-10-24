@@ -42,9 +42,9 @@ _Avoid_: Tab bar, nav bar, menu
 The large title at the top of every page: Syne title, optional subtitle, a back circle on drill-down pages, a "+" circle where the page adds things, the bell (only when unread) and the avatar, which opens Settings. It scrolls with the page.
 _Avoid_: Title bar, top bar
 
-**Carousel** (planned, #377):
-A row of cards you swipe sideways, with dots underneath. Some turn by themselves and have a pause button; with Reduce Motion they change without sliding. Used for Dashboard stats, Dashboard Bills and Goals, and Payday contributors.
-_Avoid_: Slider, swiper, ticker (the Dashboard ticker stays separate until it is replaced)
+**Carousel** (built in R04, #391; first used by the Dashboard stats in R26):
+A row of cards you swipe sideways, with dots underneath. Some turn by themselves and have a pause button; with Reduce Motion they change without sliding. Used for Dashboard stats (built, R26), Dashboard Bills and Goals (R27), and Payday contributors (built, R21).
+_Avoid_: Slider, swiper, ticker
 
 **Theme**:
 The Light, Dark or System appearance, chosen under Appearance in Settings.
@@ -53,7 +53,7 @@ _Avoid_: Mode (payment mode is a different thing), skin, colour scheme
 ### The pages
 
 **Dashboard**:
-The home page. One screen, no scroll (planned, #377): a tip strip, a verdict header, the stats carousel (or the Finish setting up card for owners while setup is unfinished), a Bills carousel and a Goals carousel. Today (R25 built) the header is the verdict (a status dot, "Bills covered" or "Short $X a week", and one muted line), followed by the Finish setting up card, Upcoming Bills and Savings Goals; the stats carousel and the carousels for Bills and Goals come at R26 and R27. Recent Activity was never built and is dropped from this entry.
+The home page. One screen, no scroll (planned, #377): a tip strip, a verdict header, the stats carousel (or the Finish setting up card for owners while setup is unfinished), a Bills carousel and a Goals carousel. Today (R26 built) the page is the **Tip strip**, then the header verdict (a status dot, "Bills covered" or "Short $X a week", and one muted line), then one slot holding the **Stats carousel** (or the Finish setting up card for owners while setup is unfinished; the slot stays empty for an owner until that card's dismissed flag has loaded, so stats never flash first), then Upcoming Bills and Savings Goals; the carousels for Bills and Goals come at R27. The Stats carousel is two auto-turning slides: **Pay vs bills** (both modes) and, in Joint Fund, **Contributions vs bills** or, in Direct Pay, **Splits vs shares** (what the splits leave uncovered). Each shows one big number (spare, or short in red), a bar of how much of the pay or contributions the bills use, and a "Pay $X · Bills $Y" line; with nothing to compare it is grey with an empty bar and says what to set up. The dollars follow the Bills page "amounts as" choice (read-only here, remembered per person on this device); the header stays weekly and sets each slide's colour, so they never disagree. Recent Activity was never built and is dropped from this entry.
 _Avoid_: Home screen, overview, summary
 
 **Bills page**:
@@ -78,11 +78,15 @@ _Avoid_: Preferences, profile page, admin
 ### Keeping people informed
 
 **Updates card**:
-Replaced the old What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. While it shows, the dashboard tips ticker is hidden; Toasts still overlay it. Its title and link text use the page's new name (#311).
+Replaced the old What's new popup. A compact card pinned above the bottom navigation, shown once on the first open of a new version: version and date, the newest entry's first 2 bullets, "+N more" when there are extras, and a "See updates" link. It does not block the app. It stays until the person taps X or the link, with no auto-dismiss and nothing left behind. Toasts overlay it. Its title and link text use the page's new name (#311).
 _Avoid_: Popup, modal, banner, update dialog, What's new popup
 
+**Tip strip** (R26, #413):
+A slim pill at the top of the Dashboard showing one tip at a time from `src/lib/dashboard-tips.ts`, fading to the next every 6 seconds (instant with Reduce Motion, paused while the app is in the background). The X hides it until the app is next opened (kept for this session only); it replaces the old scrolling tips ticker that sat above the bottom navigation.
+_Avoid_: Ticker, banner
+
 **Finish setting up card**:
-A Dashboard card, shown to household owners only, listing what the household has none of yet (payday, bill, goal). Each row taps through to that page's add form. It leaves by itself once all three exist and returns if one goes missing again, unless that person tapped X, which hides it for good on every device. Sits at the top of the Dashboard.
+A Dashboard card, shown to household owners only, listing what the household has none of yet (payday, bill, goal). Each row taps through to that page's add form. It leaves by itself once all three exist and returns if one goes missing again, unless that person tapped X, which hides it for good on every device. Takes the Stats carousel's slot at the top of the Dashboard (R26).
 Planned (#377): fed by whatever the Setup hub left unticked at the end of Onboarding. The sign-in screens (`/login`, `/reset-password`, `/confirm-email`, offline) get the new look with no behaviour change. Detail in `project/pages/onboarding.md` of the design doc.
 _Avoid_: Checklist, setup wizard, onboarding (the first-run flow)
 

@@ -36,7 +36,7 @@ let pendingEntry: PatchNoteEntry | null = null;
  *
  * The version is marked seen the moment the card is shown (not on dismiss),
  * so it appears once per version. While it shows it tells AppContext
- * (`isUpdatesCardVisible`) so the dashboard tips ticker steps aside.
+ * (`isUpdatesCardVisible`) so other docked surfaces can step aside.
  */
 export default function UpdatesCard() {
   const { setUpdatesCardVisible } = useApp();
@@ -87,7 +87,7 @@ export default function UpdatesCard() {
   }, [setUpdatesCardVisible]);
 
   // Clear the flag if this unmounts while showing (e.g. sign-out), so the
-  // ticker isn't left hidden. The pending entry is kept for a remount.
+  // flag isn't left set. The pending entry is kept for a remount.
   useEffect(() => {
     return () => setUpdatesCardVisible(false);
   }, [setUpdatesCardVisible]);

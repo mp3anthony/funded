@@ -11,8 +11,8 @@ interface UpcomingBillsCardProps {
   bills: Bill[];
   onBillClick: (bill: Bill) => void;
   /** Fires with the resolved minimised state on mount and on every toggle
-   * (#151) — lets the dashboard know when this card is minimised, e.g. to
-   * drive the tips ticker's "both cards minimised" trigger. */
+   * (#151) — lets the dashboard know when this card is minimised. Unused
+   * by the Dashboard since R26; R27 replaces these cards. */
   onMinimisedChange?: (isMinimised: boolean) => void;
 }
 

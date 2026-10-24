@@ -625,7 +625,7 @@ for the static page itself if separated out.
 - The first-open popup is replaced by the Updates card: a compact, non-blocking
   card above the bottom nav, shown once per version, with the newest entry's
   first 2 bullets, "+N more" and a "See updates" link. It stays until the
-  person taps X or the link, and hides the dashboard tips ticker while shown.
+  person taps X or the link, and nothing else on the Dashboard depends on it.
   This supersedes the popup wording above, which is left as history.
   Link back: issues #311, #260.
 
