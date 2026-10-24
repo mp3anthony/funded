@@ -2,18 +2,17 @@
 
 import { useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import JoinHouseholdSheet from "./JoinHouseholdSheet";
 import OnboardingWelcome from "./OnboardingWelcome";
 import OnboardingCreateFlow from "./OnboardingCreateFlow";
+import OnboardingJoinFlow from "./OnboardingJoinFlow";
 import OnboardingHub from "./OnboardingHub";
 
 export default function Onboarding() {
-  const { createHousehold } = useApp();
+  const { createHousehold, joinHousehold } = useApp();
 
   // Welcome and the create flow come first; the Setup hub (R32) only shows
   // once the household exists.
-  const [phase, setPhase] = useState<"welcome" | "create" | "hub">("welcome");
-  const [isJoinSheetOpen, setIsJoinSheetOpen] = useState(false);
+  const [phase, setPhase] = useState<"welcome" | "create" | "join" | "hub">("welcome");
   // True once createHousehold succeeded. Guards against calling it a second
   // time: re-creating would take createHousehold's adopt-existing path, which
   // flips isOnboarded and unmounts the wizard mid-flow.
@@ -26,12 +25,11 @@ export default function Onboarding() {
   }
 
   if (phase === "welcome") {
-    return (
-      <>
-        <OnboardingWelcome onCreate={() => setPhase("create")} onJoin={() => setIsJoinSheetOpen(true)} />
-        <JoinHouseholdSheet isOpen={isJoinSheetOpen} onClose={() => setIsJoinSheetOpen(false)} />
-      </>
-    );
+    return <OnboardingWelcome onCreate={() => setPhase("create")} onJoin={() => setPhase("join")} />;
+  }
+
+  if (phase === "join") {
+    return <OnboardingJoinFlow onJoin={joinHousehold} onExit={() => setPhase("welcome")} />;
   }
 
   if (phase === "create") {

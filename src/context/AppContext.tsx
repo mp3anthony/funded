@@ -3537,9 +3537,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function joinHousehold(code: string) {
     const sanitizedCode = code.trim().toUpperCase();
 
-    // #75 item 3, door 2. Deliberately runs BEFORE the backupState/try block
-    // below: that block's catch rolls every household field back to the cached
-    // values, which would immediately undo the recovery this guard performs.
+    // #75 item 3, door 2. Deliberately runs BEFORE the try block below.
     //
     // The question this gate has to answer is "do we already hold a household id
     // we can TRUST for THIS user?" — and the presence of dbHouseholdId cannot
@@ -3573,7 +3571,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // Two paths this must not disturb: a genuinely new user has no membership row
     // at all, so the query below finds nothing and the join proceeds untouched;
     // and an invited user's unclaimed record has user_id = null, so it cannot
-    // match .eq('user_id', …) — the claim/recovery logic further down still runs.
+    // match .eq('user_id', …) — the edge function claims it with the service role.
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const userId = currentSession?.user?.id || session?.user?.id;
     const holdsTrustedHousehold =
@@ -3634,8 +3632,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           // The join is still refused: throwing exits joinHousehold before the
           // edge function is invoked, so no second household_members row can be
           // created. Wording matches the sibling helpers and, like theirs,
-          // avoids JoinHouseholdSheet's "already a member" / "expired" /
-          // "Invalid" substring matches (src/components/JoinHouseholdSheet.tsx:76-84).
+          // avoids the join screen's "already a member" / "expired" /
+          // "invalid" substring matches (src/lib/onboardingJoin.ts).
           console.error("[joinHousehold] Failed to load the household this user already belongs to:", JSON.stringify(existingError, null, 2));
           throw new Error("Couldn't open your existing household. Please check your connection and try again.");
         }
@@ -3651,9 +3649,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // before the second (:1022) rejects. What it guarantees is that none of
         // the household state is committed: dbHouseholdId,
         // resolvedHouseholdUserIdRef and isOnboarded are untouched. Those three
-        // gate everything, so JoinHouseholdSheet is still mounted and its catch
-        // (src/components/JoinHouseholdSheet.tsx:73-84) shows the user what
-        // happened, and the retry starts from a clean slate.
+        // gate everything, so the join screen is still mounted and its catch
+        // shows the user what happened, and the retry starts from a clean slate.
         //
         // Leaving dbHouseholdId and the ref uncommitted on a failed hydration
         // also matters here specifically: setting them would make the door-2 gate
@@ -3685,236 +3682,59 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // asked for. Reached only once the household above loaded AND hydrated
         // cleanly, so "we've reopened it" is literally true — both failure cases
         // threw their own, different messages earlier. The wording deliberately
-        // avoids JoinHouseholdSheet's "already a member" / "expired" / "Invalid"
-        // substring matches (src/components/JoinHouseholdSheet.tsx:76-84), which
-        // would otherwise rewrite it into a wrong explanation. That sheet only
-        // actually displays it on the Settings path; on the Onboarding path the
-        // setIsOnboarded(true) above unmounts the sheet before the throw lands,
-        // so the message is swallowed. Harmless — the user ends up in their real
-        // household either way — but don't rely on it being seen there.
+        // avoids the join screen's "already a member" / "expired" / "invalid"
+        // substring matches (src/lib/onboardingJoin.ts), which would otherwise
+        // rewrite it into a wrong explanation. The setIsOnboarded(true) above
+        // unmounts the join screen before the throw lands, so the message is
+        // swallowed. Harmless: the user ends up in their real household either
+        // way, but don't rely on it being seen there.
         throw new Error("You already belong to a household, so we've reopened it instead of joining a new one.");
       }
     }
 
-    // Cache backup state for potential rollback on failure
-    const backupState = {
-      dbHouseholdId,
-      householdName,
-      isJointFund,
-      householdTimezone,
-      bills,
-      expenses,
-      funds,
-      paydays,
-      members,
-      billSplits,
-      expenseSplits,
-      paySchedules,
-      payHistory,
-      householdContributions,
-      contributionRules,
-    };
-
+    // The edge function refuses anyone already in a household (the guard
+    // above covers the stale-state case), so there is no old household or
+    // membership to clean up here. It also claims an invited user_id = null
+    // member row with the service role.
+    const previousHouseholdId = dbHouseholdId;
     try {
-      // 1. Attempt to invoke the join-household Supabase Edge Function
       const { data, error } = await supabase.functions.invoke("join-household", {
         body: { code: sanitizedCode },
       });
 
-      let newHouseholdId = "";
-
-      if (!error && data && !data.error) {
-        newHouseholdId = data.householdId;
-      } else {
-        if (data?.error) {
-          throw new Error(data.error);
-        }
-        if (error) {
-          let parsedError: Error | null = null;
-          if ((error as any).context) {
-            try {
-              const contextClone = (error as any).context.clone();
-              const errText = await contextClone.text();
-              console.warn("[joinHousehold] Error context text response:", errText);
-              const errBody = JSON.parse(errText);
-              if (errBody && errBody.error) {
-                parsedError = new Error(errBody.error);
-              }
-            } catch (jsonErr) {
-              console.error("[joinHousehold] Failed to parse edge function error response:", jsonErr);
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      if (error) {
+        let parsedError: Error | null = null;
+        const errContext = (error as { context?: Response }).context;
+        if (errContext) {
+          try {
+            const errText = await errContext.clone().text();
+            const errBody = JSON.parse(errText);
+            if (errBody && errBody.error) {
+              parsedError = new Error(errBody.error);
             }
-          }
-
-          // Recovery Logic: If already a member, check if we can claim the user_id = null record
-          if (parsedError && parsedError.message === "You are already a member of this household") {
-            console.log("[joinHousehold] Already member error detected, attempting client-side claim of user_id = null record...");
-            const { data: household } = await supabase
-              .from("households")
-              .select("id")
-              .eq("join_code", sanitizedCode)
-              .maybeSingle();
-
-            console.log("[joinHousehold] Recovery household query result:", household);
-
-            if (household) {
-              const { data: { session: currentSession } } = await supabase.auth.getSession();
-              const userObj = currentSession?.user || session?.user;
-              console.log("[joinHousehold] Recovery userObj query result:", userObj?.id, userObj?.email);
-              if (userObj) {
-                const userEmail = userObj.email || "";
-                const { data: existingMember } = await supabase
-                  .from("household_members")
-                  .select("id, user_id, email, household_id")
-                  .eq("household_id", household.id)
-                  .ilike("email", userEmail)
-                  .maybeSingle();
-
-                console.log("[joinHousehold] Recovery existingMember query result:", existingMember);
-
-                if (existingMember && !existingMember.user_id) {
-                  console.log("[joinHousehold] Found unclaimed member record, claiming it now...");
-                  const { error: updateErr } = await supabase
-                    .from("household_members")
-                    .update({
-                      user_id: userObj.id,
-                      invitation_status: "accepted"
-                    })
-                    .eq("id", existingMember.id);
-
-                  if (!updateErr) {
-                    console.log("[joinHousehold] Successfully claimed membership record on client!");
-                    newHouseholdId = household.id;
-                    parsedError = null; // Clear error to skip throwing
-                  } else {
-                    console.error("[joinHousehold] Failed to claim membership on client:", updateErr);
-                  }
-                } else if (existingMember && existingMember.user_id) {
-                  console.log("[joinHousehold] Member record already has user_id:", existingMember.user_id);
-                } else {
-                  console.log("[joinHousehold] No matching member record found for email:", userEmail);
-                }
-              }
-            }
-          }
-
-          if (parsedError) {
-            throw parsedError;
-          }
-          if (!newHouseholdId) {
-            throw error;
+          } catch (jsonErr) {
+            console.error("[joinHousehold] Failed to parse edge function error response:", jsonErr);
           }
         }
+        throw parsedError || error;
       }
 
+      const newHouseholdId: string = data?.householdId || "";
       if (!newHouseholdId) {
         throw new Error("Couldn't join right now. Please check your connection and try again.");
       }
 
-      // 2. WIPE CURRENT USER DATA IN DATABASE FIRST
-      if (backupState.dbHouseholdId && backupState.dbHouseholdId !== newHouseholdId) {
-        const oldHouseholdId = backupState.dbHouseholdId;
-
-        // #89: this decision used to be made straight off `backupState.members`
-        // — a cached React state snapshot, not a fresh DB read. If that
-        // snapshot was itself the victim of the warm-reload RLS race (#74:
-        // successful query, zero rows, because the auth token hadn't
-        // attached yet), `currentUserInOldHousehold` resolved to `undefined`
-        // regardless of DB truth, and cascade-delete/own-membership-removal
-        // was silently skipped — orphaning the old household or membership
-        // row. Do a live read and run it through the same
-        // resolveWarmReloadRace reconciliation loadData uses, with
-        // `backupState.members` as the "previous state" side of that check,
-        // before trusting an empty/absent result.
-        const fetchOldHouseholdMembers = async (): Promise<SupabaseArrayResult<Member>> => {
-          const res = await supabase
-            .from("household_members")
-            .select("*")
-            .eq("household_id", oldHouseholdId);
-          return { data: res.data ? res.data.map(mapMemberFromDb) : null, error: res.error };
-        };
-
-        const freshOldHouseholdMembersRes = await fetchOldHouseholdMembers();
-        const confirmedOldHouseholdMembers = await resolveWarmReloadRace(
-          backupState.members,
-          freshOldHouseholdMembersRes,
-          fetchOldHouseholdMembers
-        );
-
-        if (confirmedOldHouseholdMembers) {
-          const currentUserInOldHousehold = confirmedOldHouseholdMembers.find(
-            (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
-          );
-
-          if (currentUserInOldHousehold && currentUserInOldHousehold.role === "owner") {
-            // Cascade delete current household from database
-            const { error: deleteError } = await supabase
-              .from("households")
-              .delete()
-              .eq("id", oldHouseholdId);
-            if (deleteError) {
-              console.error("Error deleting old household:", deleteError);
-            }
-          } else if (currentUserInOldHousehold) {
-            // Delete old membership record
-            await supabase
-              .from("household_members")
-              .delete()
-              .eq("id", currentUserInOldHousehold.id);
-          }
-        } else {
-          // Inconclusive (query failed, or the empty result couldn't be
-          // confirmed one way or the other) — don't guess. Skip the
-          // cascade-delete/membership-removal rather than risk deleting a
-          // household or row that's still genuinely in use.
-          console.error(
-            "Could not confirm old household membership state before join cleanup; skipping cascade-delete/membership removal for household",
-            oldHouseholdId
-          );
-        }
-      }
-
-      // 3. WIPE local state variables
-      setBills([]);
-      setExpenses([]);
-      setFunds([]);
-      setPaydays([]);
-      setMembers([]);
-      setBillSplits([]);
-      setExpenseSplits([]);
-      setPaySchedules([]);
-      setPayHistory([]);
-      setHouseholdContributions([]);
-      setContributionRules([]);
-
-      // 4. Fetch fresh data for the new household
       setDbHouseholdId(newHouseholdId);
-      // assumeEmptyPreviousState: true — the setX([]) calls just above wiped
-      // this local state, but loadData/loadHouseholdRelatedData read
-      // bills/funds/paydays/members/billSplits as plain closed-over
-      // variables from this render, which those setters don't retroactively
-      // update. Without this flag, resolveWarmReloadRace would see the OLD
-      // household's real, non-empty data as "previous state" while checking
-      // the NEW household's fetch, and needlessly re-fetch every slice
-      // that's honestly empty in the new household.
+      // assumeEmptyPreviousState: true, because this user had no household
+      // data, so the warm-reload check must not treat the new household's
+      // empty slices as suspicious.
       await loadData({ assumeEmptyPreviousState: true });
-    } catch (err: any) {
-      console.error("Failed to join household, rolling back state:", err);
-      // Rollback React states to cached values
-      setDbHouseholdId(backupState.dbHouseholdId);
-      setHouseholdNameState(backupState.householdName);
-      setIsJointFund(backupState.isJointFund);
-      setHouseholdTimezone(backupState.householdTimezone);
-      setBills(backupState.bills);
-      setExpenses(backupState.expenses);
-      setFunds(backupState.funds);
-      setPaydays(backupState.paydays);
-      setMembers(backupState.members);
-      setBillSplits(backupState.billSplits);
-      setExpenseSplits(backupState.expenseSplits);
-      setPaySchedules(backupState.paySchedules);
-      setPayHistory(backupState.payHistory);
-      setHouseholdContributions(backupState.householdContributions);
-      setContributionRules(backupState.contributionRules);
+    } catch (err) {
+      console.error("Failed to join household:", err);
+      setDbHouseholdId(previousHouseholdId);
       throw err;
     }
   }

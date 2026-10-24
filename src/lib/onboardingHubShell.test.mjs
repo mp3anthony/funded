@@ -44,7 +44,7 @@ test("hub has no square corners, blur or sign out", () => {
 
 test("Onboarding goes welcome, create, hub and no longer has the old tail", () => {
   const t = read("components/Onboarding.tsx");
-  assert.ok(t.includes('"welcome" | "create" | "hub"'));
+  assert.ok(t.includes('"welcome" | "create" | "join" | "hub"'));
   assert.ok(t.includes("<OnboardingHub"));
   assert.ok(t.includes("householdCreatedRef"));
   for (const gone of ["OnboardingStep", "Skip for now", "Setup Complete", "TOTAL_STEPS", "addPaySchedule", "addBill", "addFund"])

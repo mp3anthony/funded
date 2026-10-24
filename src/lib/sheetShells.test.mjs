@@ -117,8 +117,8 @@ test("R13 pop-ups sit on the shells", () => {
   assert.ok(!sc.includes("LeaveError"));
   assert.ok((sc.match(/<ConfirmDialog/g) ?? []).length >= 2);
   assert.ok(read("components/PaymentModeSheet.tsx").includes("useSheetSave("), "Switch payment mode saves through the shared hook");
-  const js = read("components/JoinHouseholdSheet.tsx");
-  assert.ok(js.includes("busy=") && !js.includes("animate-bounce"));
+  assert.ok(read("components/OnboardingJoinFlow.tsx").includes("onboarding-join-form"));
+  assert.ok(!existsSync(join(SRC, "components/JoinHouseholdSheet.tsx")), "join is a full-screen flow, not a sheet");
   assert.ok(read("components/EmailVerifiedModal.tsx").includes('placement="confirm"'));
   const uc = read("components/UpdatesCard.tsx");
   assert.ok(uc.includes("rounded-card") && uc.includes("IconCircle"));

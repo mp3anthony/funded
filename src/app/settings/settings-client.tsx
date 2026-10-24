@@ -231,7 +231,7 @@ export default function SettingsClient() {
      household (see src/lib/householdLeave.ts); the leave-household and
      delete-household functions re-check it server-side, so a stale screen just
      gets a plain-English error shown in the dialog. Success redirects to "/"
-     (same pattern as JoinHouseholdSheet.tsx:71) so the full reload lets
+     (same full-reload pattern as OnboardingJoinFlow) so the full reload lets
      AppShell's onboarding gate show the create-or-join screen. */
   const leaveMode = currentMember ? leaveModeFor(members, currentMember) : "leave";
   const eligibleOwners = currentMember ? eligibleNewOwners(members, currentMember.id) : [];
