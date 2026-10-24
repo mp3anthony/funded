@@ -13,7 +13,7 @@ interface PayHistoryCardProps {
 }
 
 export default function PayHistoryCard({ history, onConfirmPending, hideMemberInfo, dotColour }: PayHistoryCardProps) {
-  const { householdMembers, deletePayHistory, funds, contributionRules } = useApp();
+  const { householdMembers, deletePayHistory, funds, contributionRules, showToast } = useApp();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const isPending = history.status === "pending";
@@ -68,14 +68,16 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
 
   const handleDelete = async () => {
     const question = hasAmount
-      ? `Delete this payment of $${formattedAmount} logged on ${formattedDate}?`
-      : `Delete this pending pay from ${formattedDate}?`;
+      ? `Delete this payment of $${formattedAmount} logged on ${formattedDate}? The next pay date won't change.`
+      : `Delete this pending pay from ${formattedDate}? The next pay date won't change.`;
     if (confirm(question)) {
       setIsDeleting(true);
       try {
         await deletePayHistory(history.id);
+        showToast({ message: "Pay deleted" });
       } catch (err) {
         console.error("Failed to delete pay history entry:", err);
+        showToast({ message: "Couldn't delete that pay. Try again." });
       } finally {
         setIsDeleting(false);
       }

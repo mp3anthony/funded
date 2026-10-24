@@ -4550,37 +4550,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
       setPayHistory((prev) => prev.filter((h) => h.id !== id));
 
-      // Roll the schedule's next pay date back only when this was its newest
-      // pay; deleting an older one must not drag the date backwards (R19, #406).
-      const isNewestForSchedule =
-        !!historyItem.pay_schedule_id &&
-        !payHistory.some(
-          (h) =>
-            h.id !== id &&
-            h.pay_schedule_id === historyItem.pay_schedule_id &&
-            (h.pay_date > historyItem.pay_date ||
-              (h.pay_date === historyItem.pay_date && (h.created_at ?? "") > (historyItem.created_at ?? ""))),
-        );
-      if (isNewestForSchedule) {
-        const schedule = paySchedules.find((s) => s.id === historyItem.pay_schedule_id);
-        if (schedule) {
-          const prevPayDate = historyItem.pay_date;
-          const { data: updatedSchedule, error: scheduleErr } = await supabase
-            .from("pay_schedules")
-            .update({ next_pay_date: prevPayDate })
-            .eq("id", schedule.id)
-            .select()
-            .single();
-
-          if (scheduleErr) {
-            console.error("Failed to roll back pay schedule date:", scheduleErr);
-          } else if (updatedSchedule) {
-            setPaySchedules((prev) =>
-              prev.map((s) => (s.id === schedule.id ? updatedSchedule : s))
-            );
-          }
-        }
-      }
+      // The schedule's next pay date is never touched (R24, #411, folds #316):
+      // a row's pay_date is not always the scheduled date, so a rollback could
+      // land on the wrong day. Edit the schedule to change its date.
     } catch (err) {
       console.error("Failed to delete pay history:", err);
       throw err;
