@@ -368,7 +368,7 @@ export default function BillsClient() {
         <div className="text-xs font-bold uppercase tracking-wider text-subtle">
           {filterActive ? "Filtered total" : "Household total"}
         </div>
-        <div className="mt-1 text-3xl font-bold text-primary tracking-tight">{moneyFmt(totals.total)}</div>
+        <div className="mt-1 text-3xl font-bold text-primary-ink tracking-tight">{moneyFmt(totals.total)}</div>
         <p className="mt-1 text-xs text-muted font-body">
           Bills {moneyFmt(totals.bills)} · Expenses {moneyFmt(totals.expenses)}
           {!filterActive && <> · Goals {moneyFmt(totals.goals)}</>}
@@ -479,7 +479,7 @@ export default function BillsClient() {
                   aria-expanded={!collapsedCategories.includes(category)}
                   className="flex items-center gap-3 w-full min-h-11 text-left px-1 focus:outline-none group"
                 >
-                  <span className="font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
+                  <span className="font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary-ink transition-colors">
                     {category}
                   </span>
                   <span className="text-[11px] font-semibold text-subtle shrink-0">

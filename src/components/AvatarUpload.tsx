@@ -138,7 +138,7 @@ export default function AvatarUpload({
 
         {loading && (
           <div className="absolute inset-0 bg-foreground/20 dark:bg-foreground/20 dark:bg-black/80 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            <Loader2 className="h-6 w-6 text-primary-ink animate-spin" />
           </div>
         )}
       </div>
@@ -182,7 +182,7 @@ export default function AvatarUpload({
             and resized.
           </p>
           {error && (
-            <p className="text-[10px] text-destructive font-semibold uppercase tracking-wider animate-shake">
+            <p className="text-[10px] text-destructive-ink font-semibold uppercase tracking-wider animate-shake">
               {error}
             </p>
           )}

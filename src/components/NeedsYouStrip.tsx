@@ -35,7 +35,7 @@ export default function NeedsYouStrip({ rows, memberName, onOpen }: NeedsYouStri
                   {payLine(row.frequency, row.payDate)}
                 </span>
                 {row.amount !== null ? (
-                  <span className="text-sm font-bold text-primary">{amountLabel(row.amount)}</span>
+                  <span className="text-sm font-bold text-primary-ink">{amountLabel(row.amount)}</span>
                 ) : (
                   <span className="text-sm text-muted">Amount needed</span>
                 )}

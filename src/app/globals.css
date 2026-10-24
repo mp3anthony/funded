@@ -46,11 +46,19 @@
   /* Text */
   --color-foreground: #f0f0f0;
   --color-muted: #999999;
-  --color-subtle: #666666;
+  --color-subtle: #858585;
 
   /* Border */
   --color-border: rgba(255, 255, 255, 0.07);
   --color-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Text-safe versions of the status colours (R35 contrast check). Same as
+     the fill colour in dark; darker in light so coloured text reaches 4.5:1
+     on the page and card surfaces. Used through the text-*-ink utilities for coloured text. */
+  --color-primary-ink: #c8ff00;
+  --color-accent-ink: #ffab00;
+  --color-success-ink: #00e676;
+  --color-destructive-ink: #ff3d57;
 
   /* ── Motion tokens (Slice 13, #99) — the one shared duration/easing
      scale for the whole app. Not color-dependent, so no per-theme
@@ -74,7 +82,7 @@
 
   --color-foreground: #f0f0f0;
   --color-muted: #999999;
-  --color-subtle: #666666;
+  --color-subtle: #858585;
 
   --color-border: rgba(255, 255, 255, 0.07);
   --color-border-strong: rgba(255, 255, 255, 0.12);
@@ -113,7 +121,7 @@
 
   --color-foreground: #0f0f0f;
   --color-muted: #444444;
-  --color-subtle: #777777;
+  --color-subtle: #5c5c5c;
 
   --color-border: rgba(0, 0, 0, 0.09);
   --color-border-strong: rgba(0, 0, 0, 0.15);
@@ -129,6 +137,10 @@
   --color-destructive: #cc2233;
   --color-destructive-fg: #ffffff;
   --color-success: #00994a;
+  --color-primary-ink: #456500;
+  --color-accent-ink: #8a5400;
+  --color-success-ink: #006b33;
+  --color-destructive-ink: #b81d2d;
 }
 
 @media (prefers-color-scheme: light) {
@@ -140,7 +152,7 @@
 
     --color-foreground: #0f0f0f;
     --color-muted: #444444;
-    --color-subtle: #777777;
+    --color-subtle: #5c5c5c;
 
     --color-border: rgba(0, 0, 0, 0.09);
     --color-border-strong: rgba(0, 0, 0, 0.15);
@@ -156,6 +168,10 @@
     --color-destructive: #cc2233;
     --color-destructive-fg: #ffffff;
     --color-success: #00994a;
+    --color-primary-ink: #456500;
+    --color-accent-ink: #8a5400;
+    --color-success-ink: #006b33;
+    --color-destructive-ink: #b81d2d;
   }
 }
 
@@ -187,6 +203,11 @@
   --color-destructive-light: var(--color-destructive-light);
   --color-destructive-fg: var(--color-destructive-fg);
   --color-destructive-pressed: color-mix(in srgb, var(--color-destructive) 85%, black);
+
+  --color-primary-ink: var(--color-primary-ink);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-success-ink: var(--color-success-ink);
+  --color-destructive-ink: var(--color-destructive-ink);
 
   --color-success: var(--color-success);
   --color-success-light: var(--color-success-light);

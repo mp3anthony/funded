@@ -59,8 +59,8 @@ function RolePill({ label, tone = "neutral" }: { label: string; tone?: "neutral"
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-        tone === "primary" && "border-primary/30 bg-primary/10 text-primary",
-        tone === "accent" && "border-accent/30 bg-accent/10 text-accent",
+        tone === "primary" && "border-primary/30 bg-primary/10 text-primary-ink",
+        tone === "accent" && "border-accent/30 bg-accent/10 text-accent-ink",
         tone === "neutral" && "border-border bg-surface-elevated text-muted"
       )}
     >
@@ -423,7 +423,7 @@ export default function SettingsClient() {
       </Card>
       <Card
         onClick={openLeaveDialog}
-        className="mt-10 flex min-h-11 items-center border-destructive/40 px-4 py-3 text-[15px] font-semibold text-destructive"
+        className="mt-10 flex min-h-11 items-center border-destructive/40 px-4 py-3 text-[15px] font-semibold text-destructive-ink"
       >
         {leaveMode === "delete-only" ? "Delete household" : "Leave household"}
       </Card>
@@ -437,7 +437,7 @@ export default function SettingsClient() {
         open={showProfileModal}
         onClose={() => setShowProfileModal(false)}
         title="Profile"
-        icon={<User className="h-5 w-5 text-primary" />}
+        icon={<User className="h-5 w-5 text-primary-ink" />}
         error={profileError}
         footer={
           <>
@@ -524,7 +524,7 @@ export default function SettingsClient() {
         open={showJoinCodeDialog}
         onClose={() => setShowJoinCodeDialog(false)}
         title="Join code"
-        icon={<Users className="h-5 w-5 text-primary" />}
+        icon={<Users className="h-5 w-5 text-primary-ink" />}
         busy={isRegenerating}
         error={codeError}
       >
@@ -535,7 +535,7 @@ export default function SettingsClient() {
           {joinCode ? (
             <>
               <div className="w-full flex items-center justify-center bg-background border border-border-strong rounded-card py-4">
-                <span className="text-2xl font-bold text-primary tracking-[0.3em]">{joinCode}</span>
+                <span className="text-2xl font-bold text-primary-ink tracking-[0.3em]">{joinCode}</span>
               </div>
               {codeExpiresAt && (
                 <div className="text-[11px] uppercase tracking-wider text-subtle">
@@ -658,7 +658,7 @@ export default function SettingsClient() {
               setDeleteText("");
               setLeaveDialog("delete");
             }}
-            className="self-start min-h-[44px] text-sm font-semibold text-destructive disabled:opacity-50"
+            className="self-start min-h-[44px] text-sm font-semibold text-destructive-ink disabled:opacity-50"
           >
             Delete household instead
           </button>

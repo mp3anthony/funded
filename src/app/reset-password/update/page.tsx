@@ -119,7 +119,7 @@ export default function UpdatePasswordPage() {
     >
       {linkState === "checking" && (
         <div className="flex flex-col items-center gap-3 py-6 animate-in fade-in duration-(--duration-feedback) ease-(--ease-enter)">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Loader2 className="h-6 w-6 animate-spin text-primary-ink" />
           <p className="text-sm text-muted">Verifying your reset link...</p>
         </div>
       )}

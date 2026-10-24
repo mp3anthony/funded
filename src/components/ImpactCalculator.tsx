@@ -23,7 +23,7 @@ import { convertAmount, cn } from "@/lib/utils";
 const moneyFmt = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const TONE_CLASS = { ok: "text-primary", bad: "text-destructive", neutral: "text-muted" } as const;
+const TONE_CLASS = { ok: "text-primary-ink", bad: "text-destructive-ink", neutral: "text-muted" } as const;
 
 interface ImpactCalculatorProps {
   open: boolean;

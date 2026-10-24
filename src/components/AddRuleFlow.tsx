@@ -109,7 +109,7 @@ export default function AddRuleFlow({ open, onClose, goalId, memberId: presetMem
           <p className="text-[17px] font-semibold text-foreground">Which goal does the extra go to?</p>
           <p className="text-[13px] text-muted">
             Add a goal first, then make a rule for it.{" "}
-            <Link href="/funds?add=1" onClick={onClose} className="text-primary underline">
+            <Link href="/funds?add=1" onClick={onClose} className="text-primary-ink underline">
               Add a goal
             </Link>
           </p>

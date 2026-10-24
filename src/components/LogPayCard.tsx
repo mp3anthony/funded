@@ -161,7 +161,7 @@ export default function LogPayCard({ target, onClose, onSave, onSkip }: LogPayCa
             {allocationPreview && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-muted">
-                  <Sparkles size={12} className="text-primary" aria-hidden="true" />
+                  <Sparkles size={12} className="text-primary-ink" aria-hidden="true" />
                   Your rules would move
                 </div>
                 <div className="flex flex-col gap-2 rounded-card border border-border bg-surface p-3.5 text-sm">
@@ -170,7 +170,7 @@ export default function LogPayCard({ target, onClose, onSave, onSkip }: LogPayCa
                     <span className="font-bold">{amountLabel(allocationPreview.gross)}</span>
                   </div>
                   {allocationPreview.allocations.map((alloc) => (
-                    <div key={alloc.id} className="flex items-center justify-between text-primary">
+                    <div key={alloc.id} className="flex items-center justify-between text-primary-ink">
                       <span className="mr-2 truncate">
                         {alloc.targetName}
                         {alloc.isPercentage && (
@@ -184,7 +184,7 @@ export default function LogPayCard({ target, onClose, onSave, onSkip }: LogPayCa
                   ))}
                   <div className="flex items-center justify-between border-t border-border pt-2 text-foreground">
                     <span className="text-muted">Take home</span>
-                    <span className={`font-bold ${allocationPreview.remaining >= 0 ? "text-primary" : "text-destructive"}`}>
+                    <span className={`font-bold ${allocationPreview.remaining >= 0 ? "text-primary-ink" : "text-destructive-ink"}`}>
                       {amountLabel(allocationPreview.remaining)}
                     </span>
                   </div>

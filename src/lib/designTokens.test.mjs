@@ -69,3 +69,11 @@ test("globals.css defines the new tokens and no forced 2px radius", () => {
   }
   assert.ok(!/border-radius:\s*2px\s*!important/.test(css));
 });
+
+test("coloured text uses the text-safe ink utilities (light-theme contrast, R35)", () => {
+  // text-primary/accent/success/destructive are ~2.5-3.3:1 on light surfaces.
+  assert.deepEqual(
+    offenders(/(?<![\w-])(?:[a-z-]+:)*text-(primary|accent|success|destructive)(?![-\w/])/),
+    [],
+  );
+});

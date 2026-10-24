@@ -256,7 +256,7 @@ export default function FundsClient() {
           aria-expanded={isExpanded}
           className="group flex min-h-11 w-full items-center gap-3 px-1 text-left focus:outline-none"
         >
-          <span className="shrink-0 text-[15px] font-bold text-foreground transition-colors group-hover:text-primary">
+          <span className="shrink-0 text-[15px] font-bold text-foreground transition-colors group-hover:text-primary-ink">
             {title}
           </span>
           <span className="shrink-0 text-[11px] font-semibold text-subtle">({count})</span>
@@ -297,7 +297,7 @@ export default function FundsClient() {
         <div className="text-xs font-bold uppercase tracking-wider text-subtle">
           {filterActive ? "Filtered total" : "Total saved"}
         </div>
-        <div className="mt-1 text-3xl font-bold tracking-tight text-primary">{moneyFmt(displayTotalSaved)}</div>
+        <div className="mt-1 text-3xl font-bold tracking-tight text-primary-ink">{moneyFmt(displayTotalSaved)}</div>
         <p className="mt-1 text-xs font-body text-muted">
           {totals.count === 0 ? (
             "No saving goals yet"

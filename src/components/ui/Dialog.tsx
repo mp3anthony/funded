@@ -172,7 +172,7 @@ export default function Dialog({
         <div className="overflow-y-auto flex-1 p-5">
           {children}
           {error && !footer && (
-            <p role="alert" className="mt-3 text-sm text-destructive">
+            <p role="alert" className="mt-3 text-sm text-destructive-ink">
               {error}
             </p>
           )}
@@ -188,7 +188,7 @@ export default function Dialog({
           >
             {error ? (
               <>
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="text-sm text-destructive-ink">
                   {error}
                 </p>
                 <div className="flex items-center gap-3">{footer}</div>

@@ -51,7 +51,7 @@ function Val({ children, accent }: { children: React.ReactNode; accent?: boolean
     <span
       className={
         accent
-          ? "block max-w-[55vw] truncate text-[13px] font-semibold text-accent"
+          ? "block max-w-[55vw] truncate text-[13px] font-semibold text-accent-ink"
           : "block max-w-[55vw] truncate text-[13px] text-muted"
       }
     >

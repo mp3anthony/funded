@@ -144,7 +144,7 @@ export default function TimezoneDialog({
               }`}
             >
               <span className="truncate text-sm font-semibold">{formatZoneLabel(tz)}</span>
-              {active && <Check className="h-4 w-4 shrink-0 text-primary" />}
+              {active && <Check className="h-4 w-4 shrink-0 text-primary-ink" />}
             </button>
           );
         })}

@@ -141,18 +141,18 @@ export default function MemberPayCard({
           <span
             className={cn(
               "mt-3 truncate text-[28px] font-bold leading-tight tracking-tight tabular-nums",
-              shown.estimate ? "text-muted" : "text-primary"
+              shown.estimate ? "text-muted" : "text-primary-ink"
             )}
           >
             {shown.amount !== null ? amountLabel(shown.amount) : schedule.is_fixed_amount ? "Amount needed" : "Variable"}
           </span>
           {shown.note && <span className="mt-0.5 text-xs text-muted">{shown.note}</span>}
-          <span className={cn("mt-1 text-sm", due ? "font-semibold text-primary" : "text-muted")}>
+          <span className={cn("mt-1 text-sm", due ? "font-semibold text-primary-ink" : "text-muted")}>
             {cardLine(schedule.frequency, daysLeft)}
           </span>
         </span>
-        <ProgressRing percent={ringPercent(daysLeft, schedule.frequency)} size={72} stroke={6} className={due ? "text-primary" : "text-muted"}>
-          <span className={cn("text-center text-[13px] font-bold leading-none", due ? "text-primary" : "text-foreground")}>
+        <ProgressRing percent={ringPercent(daysLeft, schedule.frequency)} size={72} stroke={6} className={due ? "text-primary-ink" : "text-muted"}>
+          <span className={cn("text-center text-[13px] font-bold leading-none", due ? "text-primary-ink" : "text-foreground")}>
             {daysLeft === null ? "" : due ? "Now" : daysLeft}
           </span>
         </ProgressRing>

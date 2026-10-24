@@ -41,7 +41,7 @@ export default function OnboardingWelcome({ onCreate, onJoin }: OnboardingWelcom
 
         <div className="flex flex-col gap-3">
           <Card onClick={onCreate} className="flex items-center gap-4 p-5">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-raised text-primary">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-raised text-primary-ink">
               <Home size={20} aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">
@@ -50,7 +50,7 @@ export default function OnboardingWelcome({ onCreate, onJoin }: OnboardingWelcom
             </span>
           </Card>
           <Card onClick={onJoin} className="flex items-center gap-4 p-5">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-raised text-primary">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-raised text-primary-ink">
               <KeyRound size={20} aria-hidden="true" />
             </span>
             <span className="min-w-0 flex-1">

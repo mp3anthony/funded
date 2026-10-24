@@ -112,7 +112,7 @@ export default function PaymentModeSheet({ open, onClose }: PaymentModeSheetProp
                   <span className="text-xs leading-relaxed text-muted">{mode.line}</span>
                 </span>
                 {current && (
-                  <span className="mt-0.5 flex shrink-0 items-center gap-1 text-xs font-semibold text-primary">
+                  <span className="mt-0.5 flex shrink-0 items-center gap-1 text-xs font-semibold text-primary-ink">
                     <Check className="h-4 w-4" aria-hidden="true" /> Current
                   </span>
                 )}

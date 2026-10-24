@@ -449,7 +449,7 @@ export default function BugReportSheet({ isOpen, onClose, session }: BugReportSh
             </label>
           )}
           {screenshotError && (
-            <p role="alert" className="break-words text-sm text-destructive">
+            <p role="alert" className="break-words text-sm text-destructive-ink">
               Screenshot not attached: {screenshotError}
             </p>
           )}

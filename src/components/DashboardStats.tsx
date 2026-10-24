@@ -59,7 +59,7 @@ function StatCard({ slide, per }: { slide: StatSlide; per: string }) {
         </p>
         <p
           className={`mt-1 font-body text-3xl font-bold tabular-nums leading-tight ${
-            slide.status === "short" ? "text-destructive" : slide.status === "unset" ? "text-muted" : "text-foreground"
+            slide.status === "short" ? "text-destructive-ink" : slide.status === "unset" ? "text-muted" : "text-foreground"
           }`}
         >
           {big}

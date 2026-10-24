@@ -51,7 +51,7 @@ export default function FinishSetupCard() {
                 href={finishSetupHref(item)}
                 className="flex min-h-[44px] items-center gap-3 px-4 py-2 text-sm font-semibold text-foreground hover:bg-foreground/5 touch-manipulation"
               >
-                <Icon size={18} className="text-primary shrink-0" />
+                <Icon size={18} className="text-primary-ink shrink-0" />
                 <span className="flex-1 min-w-0">{label}</span>
                 <ChevronRight size={16} className="text-muted shrink-0" />
               </Link>

@@ -13,8 +13,8 @@ import { todayInZone } from "@/lib/notifications/timezone";
 
 const TONE_CLASS: Record<CountdownTone, string> = {
   neutral: "text-muted",
-  overdue: "text-destructive",
-  paid: "text-success",
+  overdue: "text-destructive-ink",
+  paid: "text-success-ink",
   muted: "text-muted",
 };
 
@@ -75,7 +75,7 @@ export default function DashboardBills({ onBillClick }: { onBillClick: (bill: Bi
                     </span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end">
-                    <span className="text-lg font-bold tracking-tight tabular-nums text-primary">
+                    <span className="text-lg font-bold tracking-tight tabular-nums text-primary-ink">
                       {money(bill.amount)}
                     </span>
                     {per && <span className="text-[11px] font-body text-muted">{per}</span>}

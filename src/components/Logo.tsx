@@ -29,7 +29,7 @@ export default function Logo({ size = "medium", showWordmark = false }: LogoProp
         className="flex items-center select-none shrink-0 transition-transform duration-200 hover:scale-[1.03]"
         style={{ width: wordmarkWidth, height: wordmarkHeight }}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 50" className="w-full h-full text-primary fill-current">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 50" className="w-full h-full text-primary-ink fill-current">
           <text x="0" y="40" fill="currentColor" fontFamily="system-ui, -apple-system, sans-serif" fontWeight="bold" fontSize="40">funded</text>
           <circle cx="148" cy="35" r="4.5" fill="currentColor" />
         </svg>
@@ -46,7 +46,7 @@ export default function Logo({ size = "medium", showWordmark = false }: LogoProp
         viewBox="0 0 32 32"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full text-primary fill-current"
+        className="w-full h-full text-primary-ink fill-current"
       >
         {/* Sleek geometric lowercase 'f' */}
         <path d="M20 13H16V9.5C16 8.5 16.5 8 18 8H20V5H18C14.5 5 13 6.8 13 9.5V13H10V16H13V27H16V16H20V13Z" />

@@ -49,7 +49,7 @@ export default function SurplusSuggestionModal({
       open={isOpen}
       onClose={onClose}
       title="Surplus Detected!"
-      icon={<TrendingUp size={20} className="text-primary" />}
+      icon={<TrendingUp size={20} className="text-primary-ink" />}
       maxWidthClass="max-w-sm"
       footer={
         <DialogButton variant="ghost" onClick={onClose}>
@@ -61,7 +61,7 @@ export default function SurplusSuggestionModal({
           {/* Title details */}
           <div className="space-y-1">
             <h4 className="font-bold text-lg text-foreground leading-tight">
-              {memberName} earned <span className="text-primary">${formattedSurplus}</span> over average!
+              {memberName} earned <span className="text-primary-ink">${formattedSurplus}</span> over average!
             </h4>
             <p className="text-xs text-muted font-body">
               Would you like to add this extra income to one of your goals?
@@ -95,7 +95,7 @@ export default function SurplusSuggestionModal({
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-xs font-bold text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-[2px] group-active:bg-primary group-active:text-primary-fg transition-all">
+                  <div className="flex items-center gap-1 text-xs font-bold text-primary-ink whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-[2px] group-active:bg-primary group-active:text-primary-fg transition-all">
                     <span>+${formattedSurplus}</span>
                     <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>

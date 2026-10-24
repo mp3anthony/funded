@@ -250,7 +250,7 @@ const INITIAL_BILLS: Bill[] = [
     amount: 1200.0,
     status: "Due Soon",
     frequency: "Monthly",
-    statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+    statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
     statusIcon: Clock,
     categoryColor: "bg-secondary/10 text-secondary",
     is_recurring: true,
@@ -263,9 +263,9 @@ const INITIAL_BILLS: Bill[] = [
     amount: 145.5,
     status: "Due Soon",
     frequency: "Monthly",
-    statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+    statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
     statusIcon: Clock,
-    categoryColor: "bg-accent/10 text-amber-600 dark:text-accent",
+    categoryColor: "bg-accent/10 text-amber-600 dark:text-accent-ink",
     is_recurring: true,
   },
   {
@@ -276,7 +276,7 @@ const INITIAL_BILLS: Bill[] = [
     amount: 79.99,
     status: "Due Soon",
     frequency: "Monthly",
-    statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+    statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
     statusIcon: Clock,
     categoryColor: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
     is_recurring: true,
@@ -342,9 +342,9 @@ const INITIAL_FUNDS: Fund[] = [
     category: "Safety Net",
     currentAmount: 7500.0,
     targetAmount: 10000.0,
-    bgLight: "bg-primary/10 text-primary",
+    bgLight: "bg-primary/10 text-primary-ink",
     barColor: "bg-primary",
-    accentText: "text-primary",
+    accentText: "text-primary-ink",
     icon: Shield,
     deadline: null,
     status: "in_progress",
@@ -355,9 +355,9 @@ const INITIAL_FUNDS: Fund[] = [
     category: "Transport",
     currentAmount: 1700.0,
     targetAmount: 15000.0,
-    bgLight: "bg-accent/10 text-accent",
+    bgLight: "bg-accent/10 text-accent-ink",
     barColor: "bg-accent",
-    accentText: "text-accent",
+    accentText: "text-accent-ink",
     icon: Car,
     deadline: null,
     status: "in_progress",
@@ -389,7 +389,7 @@ function getStatusStyle(status: string) {
     case "Due Soon":
     default:
       return {
-        statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+        statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
         statusIcon: Clock,
       };
   }
@@ -400,7 +400,7 @@ function getCategoryColor(category: string) {
     case "Household Bills":
       return "bg-secondary/10 text-secondary";
     case "Temporary":
-      return "bg-accent/10 text-amber-600 dark:text-accent";
+      return "bg-accent/10 text-amber-600 dark:text-accent-ink";
     case "Subscriptions":
       return "bg-purple-500/10 text-purple-600 dark:text-purple-400";
     case "Living Costs":
@@ -446,9 +446,9 @@ function getFundStyle(category: string) {
       };
     case "Emergency":
       return {
-        bgLight: "bg-primary/10 text-primary",
+        bgLight: "bg-primary/10 text-primary-ink",
         barColor: "bg-primary",
-        accentText: "text-primary",
+        accentText: "text-primary-ink",
         icon: Shield,
       };
     case "Wish List":
@@ -460,9 +460,9 @@ function getFundStyle(category: string) {
       };
     case "Education":
       return {
-        bgLight: "bg-accent/10 text-yellow-600 dark:text-accent",
+        bgLight: "bg-accent/10 text-yellow-600 dark:text-accent-ink",
         barColor: "bg-accent",
-        accentText: "text-yellow-600 dark:text-accent",
+        accentText: "text-yellow-600 dark:text-accent-ink",
         icon: BookOpen,
       };
     case "Other":

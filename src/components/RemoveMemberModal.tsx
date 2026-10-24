@@ -110,7 +110,7 @@ export default function RemoveMemberModal({
       open={isOpen}
       onClose={onClose}
       title="Remove household member"
-      icon={<AlertTriangle className="h-5 w-5 text-destructive" />}
+      icon={<AlertTriangle className="h-5 w-5 text-destructive-ink" />}
       maxWidthClass="max-w-lg"
       busy={saving || confirmOpen}
       error={error}

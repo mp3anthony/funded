@@ -64,7 +64,7 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
     maximumFractionDigits: 2,
   });
   const amountLabel = hasAmount ? `$${formattedAmount}` : "Amount needed";
-  const amountClass = hasAmount ? "text-primary" : "text-muted";
+  const amountClass = hasAmount ? "text-primary-ink" : "text-muted";
 
   const handleDelete = async () => {
     const question = hasAmount
@@ -125,14 +125,14 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
 
           <div className="flex items-center gap-3 shrink-0">
             {isPending && (
-              <span className="text-[10px] text-accent uppercase font-bold tracking-wider">
+              <span className="text-[10px] text-accent-ink uppercase font-bold tracking-wider">
                 Pending
               </span>
             )}
 
             {history.rule_id && rule && (
-              <span className="flex items-center gap-1 text-[10px] text-primary uppercase font-bold tracking-wider shrink-0">
-                <Sparkles size={10} className="shrink-0 text-primary" />
+              <span className="flex items-center gap-1 text-[10px] text-primary-ink uppercase font-bold tracking-wider shrink-0">
+                <Sparkles size={10} className="shrink-0 text-primary-ink" />
                 +${allocationAmount.toFixed(2)} to {allocationTargetName}
               </span>
             )}
@@ -153,7 +153,7 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
         {isPending && (
           <button
             onClick={handleConfirm}
-            className="p-2 rounded-lg text-primary active:bg-primary/10 transition-all active:scale-95 cursor-pointer"
+            className="p-2 rounded-lg text-primary-ink active:bg-primary/10 transition-all active:scale-95 cursor-pointer"
             title="Confirm this pay entry"
           >
             <CheckCircle2 size={16} />
@@ -162,7 +162,7 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
         <button
           onClick={handleDelete}
           disabled={isDeleting}
-          className="p-2 rounded-lg text-muted hover:text-destructive hover:bg-destructive/10 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="p-2 rounded-lg text-muted hover:text-destructive-ink hover:bg-destructive/10 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           title="Delete history entry"
         >
           <Trash2 size={16} />

@@ -64,7 +64,7 @@ export default function BottomNav() {
               className="press relative z-10 flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-full [-webkit-tap-highlight-color:transparent]"
             >
               <Icon
-                className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted"}`}
+                className={`h-5 w-5 ${isActive ? "text-primary-ink" : "text-muted"}`}
                 aria-hidden="true"
               />
               <span

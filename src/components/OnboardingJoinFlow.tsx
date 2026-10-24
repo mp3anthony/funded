@@ -101,7 +101,7 @@ export default function OnboardingJoinFlow({ onJoin, onExit }: OnboardingJoinFlo
           />
         </Field>
         {error && (
-          <p role="alert" className="mt-3 break-words text-sm text-destructive">
+          <p role="alert" className="mt-3 break-words text-sm text-destructive-ink">
             {error}
           </p>
         )}

@@ -106,7 +106,7 @@ export const RecentActivityCard = React.memo(function RecentActivityCard({
     <div className="bg-surface border border-border rounded-2xl p-6 shadow-xl transition-all duration-300 hover:border-border-strong">
       {/* Header */}
       <div className="flex items-center gap-2 mb-5">
-        <Activity className="h-4 w-4 text-primary" />
+        <Activity className="h-4 w-4 text-primary-ink" />
         <h3 className="font-bold text-base text-foreground tracking-wide">
           Recent Activity
         </h3>
@@ -136,11 +136,11 @@ export const RecentActivityCard = React.memo(function RecentActivityCard({
               
               if (act.type === "bill") {
                 ActivityIcon = CreditCard;
-                iconColor = "text-primary"; // Lime Green positive accent
+                iconColor = "text-primary-ink"; // Lime Green positive accent
                 iconBg = "bg-primary/10";
               } else if (act.type === "contribution") {
                 ActivityIcon = PiggyBank;
-                iconColor = "text-primary"; // Lime Green positive accent
+                iconColor = "text-primary-ink"; // Lime Green positive accent
                 iconBg = "bg-primary/10";
               }
 

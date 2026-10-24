@@ -110,7 +110,7 @@ export default function ExpenseCard({
         </div>
 
         {/* Right: amount */}
-        <span className="shrink-0 font-bold text-primary tracking-tight text-lg tabular-nums">
+        <span className="shrink-0 font-bold text-primary-ink tracking-tight text-lg tabular-nums">
           ${formattedAmount}
         </span>
       </button>

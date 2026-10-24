@@ -63,7 +63,7 @@ export default function OnboardingHub() {
                 >
                   {ticked ? (
                     <span
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary-ink"
                       role="img"
                       aria-label="Added"
                     >

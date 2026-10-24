@@ -33,11 +33,12 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 - **Bill tracking** — manage bills across any frequency (weekly, fortnightly, monthly, yearly) with paid/due-soon/overdue status tracking, plus pausing, auto-pay bills and a permanent "Undo payment" on the last paid cycle
 - **Expenses** — variable spending (groceries, fuel) that counts toward the household total as a weekly amount
 - **Frequency normalisation** — all bills convert to a common frequency for apples-to-apples comparison
-- **Savings goals** — sinking funds with targets, progress tracking, and manual top-ups
-- **Contribution rules** — define rules that auto-allocate surplus income above a threshold to goals or increased contributions
+- **Savings goals** — targets with progress rings, a pace line, manual top-ups, and a Wish list of "Just tracking" goals
+- **Pay rules** — rules that send a share of pay above a threshold to a goal, set per goal or per member
 - **Payment modes** — choose between Joint Fund (pooled pot) or Direct Pay (split bills between members)
 - **Multi-member households** — invite members via join code, manage roles (owner/member), and assign bill splits
-- **Health score** — weighted financial health score (0–100) based on bill status, goal progress, and budget coverage
+- **Dashboard verdict** — one line at the top says "Bills covered" or "Short $X a week", worked out weekly from your pay (or contributions) against bills and expenses
+- **Check impact** — a calculator on Bills and Goals that shows what a new payment plan or subscription would do to the household total, and can turn it into a bill
 - **Notifications** — in-app notification centre plus web push reminders (bills, pending pay, payday, goals), read/unread state, per-type settings, a per-member notify hour and a household timezone
 - **Light and dark mode** — automatic via `prefers-color-scheme` CSS media query, with a manual Light / Dark / System choice under Appearance in Settings (applied as a `.dark` / `.light` class)
 - **PWA** — installable as a home screen app on iOS Safari and Android Chrome with an offline fallback page
@@ -83,7 +84,7 @@ cd funded-nextjs
 npm install
 
 # 3. Create your environment file
-# Create .env.local in the project root and fill it in (see below)
+cp .env.local.example .env.local   # then fill it in (see below)
 
 # 4. Run the database migrations (see Database setup)
 
@@ -107,7 +108,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Environment variables
 
-Create a `.env.local` file in the project root with the following values:
+Copy `.env.local.example` to `.env.local` (or create the file) with the following values:
 
 ```env
 # ── Client (safe to expose to the browser) ──
@@ -143,7 +144,7 @@ set to the same values in Vercel and in the matching scheduler.
 is only needed by the in-app bug report route (`/api/bug-report`); without it that
 route reports not configured.
 
-> **Note:** `.env*` files are git-ignored by default. Never commit real credentials.
+> **Note:** `.env*` files are git-ignored, except the placeholder file `.env.local.example`. Never commit real credentials.
 
 ---
 
@@ -214,24 +215,26 @@ funded-nextjs/
 │   │   ├── payday/           # Pay schedules, pay logging and history page
 │   │   ├── reset-password/update/  # Set a new password (reached from the reset email)
 │   │   └── settings/         # Account, app, household and member settings
-│   ├── components/           # Reusable UI components (about 55, plus ui/)
+│   ├── components/           # Reusable UI components (about 70, plus ui/)
 │   │   ├── AppShell.tsx      # Auth guard, onboarding gate, bottom nav shell
-│   │   ├── Onboarding.tsx    # 6-step onboarding wizard
+│   │   ├── Onboarding.tsx    # Onboarding: Welcome, create or join, then the Setup hub
 │   │   ├── BottomNav.tsx     # Floating 4-slot pill nav (slots in lib/navSlots.ts)
 │   │   ├── PageHeader.tsx    # Shared page header: title, back circle, + circle, bell, avatar
 │   │   ├── HeaderActions.tsx # Bell (unread only) and avatar for the page header
 │   │   ├── ShellInboxContext.tsx # Lets the header bell open the AppShell notification inbox
 │   │   ├── NotificationCenter.tsx # In-app notification centre (alerts, settings)
 │   │   ├── *Sheet / *Modal / *Dialog.tsx  # Bottom sheets and dialogs (bills, goals, pay, members, bug report, push, timezone)
-│   │   ├── *Card.tsx         # Dashboard and list cards (health score, upcoming bills, goals, activity, bills, expenses)
-│   │   └── ui/               # Shared primitives (Dialog, Row, SectionHeader, Toast, Button, IconCircle/BackCircle/CloseCircle, Chip, Card, Input/Select/Textarea, Carousel)
+│   │   ├── Dashboard*.tsx    # Dashboard stats, bills and goals carousels, tip strip
+│   │   ├── *Card.tsx         # List and pay cards (bills, expenses, member pay, finish setup)
+│   │   └── ui/               # Shared primitives (Dialog, DetailSheet, SingleCard, StepFlow, Row, Toast, Button, IconCircle/BackCircle/CloseCircle, Chip, Card, Input/Select/Textarea, Carousel, ProgressRing)
 │   ├── context/
 │   │   └── AppContext.tsx    # Global state provider (auth, data, CRUD)
 │   ├── hooks/                # Small shared hooks (viewport vars, keyboard-open for the nav fade)
 │   ├── lib/
 │   │   ├── supabase.ts       # Supabase client initialisation
 │   │   ├── storage.ts        # Avatar upload/delete/get utilities
-│   │   ├── utils.ts          # Shared helpers (health score, date, frequency conversion)
+│   │   ├── utils.ts          # Shared helpers (date, frequency conversion)
+│   │   ├── verdict.ts        # Dashboard verdict and stats maths (tests in verdict.test.mjs)
 │   │   ├── navSlots.ts       # Bottom-nav slots and path-to-slot lookup (tests in navSlots.test.mjs, appShell.test.mjs)
 │   │   ├── carousel.ts       # Carousel maths: snap targets, active slide, auto-rotate rule (tests in carouselLogic.test.mjs, carousel.test.mjs)
 │   │   ├── billCycle.ts      # Bill rollover logic (tests in billCycle.test.mjs)
@@ -269,11 +272,11 @@ funded-nextjs/
 
 | Route | Screen | Purpose |
 |-------|--------|---------|
-| `/` | **Dashboard** | Finish setting up card (owners), health score, upcoming bills, active goals, recent activity feed |
-| `/payday` | **Payday** | Pay schedules, income entry (fixed or variable), pending pay confirmation, pay history, surplus rule triggers |
-| `/bills` | **Bills** | All household bills and expenses with status badges, category filters, search, and frequency normalisation toggle |
-| `/funds` | **Goals** | Savings goals with progress bars, manual top-ups, and completion tracking |
-| `/settings` | **Settings** | Profile, notifications (including notify hour and push status), appearance (Light / Dark / System), payment mode (Joint Fund / Direct Pay), contribution amounts and automation rules (Joint Fund), join code, household timezone, member management, Updates, Getting started, bug reporting |
+| `/` | **Dashboard** | Verdict header (covered or short), tip strip, stats carousel (or Finish setting up card), manual bills and Saving goals carousels |
+| `/payday` | **Payday** | Needs you strip (due and pending pays), a card per member, Compare split, pay history chart, surplus rule triggers |
+| `/bills` | **Bills** | All household bills and expenses with countdowns, category groups, filters, search, a frequency choice and Check impact |
+| `/funds` | **Goals** | Savings goals with progress rings and pace, manual top-ups, and the Wish list |
+| `/settings` | **Settings** | Profile, notifications (including notify hour and push status), appearance (Light / Dark / System), members and join code, household name, payment mode and timezone, Updates, Getting started, Report an issue, Log out, Leave or delete household |
 | `/login` | **Login** | Email/password authentication (sign in or sign up) |
 | `/confirm-email` | **Confirm Email** | Email verification landing page |
 | `/reset-password/update` | **Reset Password** | Password update page reached via Supabase reset email link |
@@ -284,12 +287,12 @@ funded-nextjs/
 
 ### User flow
 
-1. **Sign up** → email confirmation → **Onboarding** (6 steps: create a household or join one, choose payment mode, add first pay schedule, add first bill, add first goal, done; payday, bill and goal can be skipped)
-2. **Dashboard** shows household health at a glance
+1. **Sign up** → email confirmation → **Onboarding** (Welcome: create a household or join with a code; creating asks for a name and payment mode, then an optional Setup hub with Add your pay, Add a bill, Add a goal)
+2. **Dashboard** says at a glance whether bills are covered
 3. **Payday** to log income when paid — surplus rules fire automatically; surplus suggestion modal prompts allocation
 4. **Bills** to manage household costs
 5. **Goals** to track savings targets
-6. **Settings** to invite members, configure contributions, rules, and notification preferences
+6. **Settings** to invite members, change the household and set notification preferences
 7. **Forgot password** → reset email → `/reset-password/update` to set a new password
 
 ---
@@ -321,6 +324,8 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 | `--color-muted` | `#999999` | `#444444` |
 | `--color-border` | `rgba(255,255,255,0.07)` | `rgba(0,0,0,0.09)` |
 
+Coloured text (lime, amber, green, red) uses the `text-*-ink` utilities, whose light-theme values are darker so they reach 4.5:1 on the page and card surfaces. The plain colours stay for fills and borders. The full design rules are in [`DESIGN-REFERENCE.md`](DESIGN-REFERENCE.md).
+
 ### Theme switching
 
 - **Automatic:** CSS `@media (prefers-color-scheme: light)` sets light tokens on `:root` when no class is present
@@ -341,15 +346,9 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 
 `convertAmount(amount, fromFrequency, toFrequency)` normalises any amount between `weekly`, `fortnightly`, `monthly`, and `yearly` using standard budgeting coefficients (4.33 weeks/month, 2.16 fortnights/month).
 
-### Health score
+### Dashboard verdict
 
-`calculateHealthScore()` returns 0–100 based on three weighted factors:
-
-| Factor | Weight | Scoring |
-|--------|--------|---------|
-| Bills management | 40% | –20 points per overdue bill (paused bills and one-off auto-pay bills whose date has passed are ignored) |
-| Goals & contributions | 30% | 80 base + 20 if any goal has progress; 50 if nothing set up |
-| Budget coverage | 30% | Ratio of contributions (or splits) to total monthly obligations (bills, expenses and active fixed-dollar contribution rules) |
+`src/lib/verdict.ts` works everything out weekly and the worse of two halves wins: pay against bills and expenses, and (Joint Fund) contributions against the same, or (Direct Pay) the bills and expenses nobody is assigned to cover. Result: green "Bills covered", red "Short $X a week", or grey "Set up your pay" / "Set up contributions" / "Add your bills".
 
 ### Payment modes
 
@@ -360,7 +359,7 @@ All colours are defined as CSS custom properties in `globals.css` and mapped int
 
 ### Contribution rules
 
-When a pay entry exceeds a contributor's threshold, a configurable percentage is automatically allocated to a goal or added as an increased contribution.
+When a pay entry exceeds a rule's threshold, a percentage or fixed amount is allocated to the rule's goal. Rules are added from a goal or from a member's Payday card.
 
 ### Known Issues
 
@@ -426,7 +425,7 @@ This is a solo project developed under a structured **Lead Developer Liaison Pro
 
 ## Versioning
 
-The current version is shown at the bottom of the Settings screen and sourced from `src/lib/version.ts` (`APP_VERSION`), not `package.json` — not restated here, so this doc can't drift out of sync with it. Until the app is declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.x` → `v0.9.x+1` …). `v0.9.0` was deliberately skipped.
+The current version is shown in Settings under Updates and sourced from `src/lib/version.ts` (`APP_VERSION`), not `package.json` — not restated here, so this doc can't drift out of sync with it. Until the app is declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.x` → `v0.9.x+1` …). `v0.9.0` was deliberately skipped.
 
 > **Note:** This table is a loose guideline, not an enforced rule. The actual version applied at each
 > merge is decided with Anthony directly at merge time, per the Versioning section in

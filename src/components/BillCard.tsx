@@ -22,8 +22,8 @@ export interface BillCardProps {
 
 const TONE_CLASS: Record<CountdownTone, string> = {
   neutral: "text-muted",
-  overdue: "text-destructive",
-  paid: "text-success",
+  overdue: "text-destructive-ink",
+  paid: "text-success-ink",
   muted: "text-muted",
 };
 
@@ -168,10 +168,10 @@ export default function BillCard({
 
             <span
               className={`inline-flex shrink-0 items-center gap-1 text-lg font-bold tracking-tight tabular-nums ${
-                isPaused ? "text-muted" : "text-primary"
+                isPaused ? "text-muted" : "text-primary-ink"
               }`}
             >
-              {isPaused && <Pause size={14} className="shrink-0 text-accent" aria-hidden="true" />}
+              {isPaused && <Pause size={14} className="shrink-0 text-accent-ink" aria-hidden="true" />}
               ${formattedAmount}
             </span>
           </button>
@@ -188,7 +188,7 @@ export default function BillCard({
             type="button"
             onClick={openDueDateCard}
             aria-label={`Add due date for ${bill.name}`}
-            className={`-mt-1 mb-1 min-h-11 text-left text-[11px] font-bold text-accent cursor-pointer ${
+            className={`-mt-1 mb-1 min-h-11 text-left text-[11px] font-bold text-accent-ink cursor-pointer ${
               assignee ? "pl-11" : ""
             }`}
           >

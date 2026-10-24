@@ -64,7 +64,7 @@ export default function DetailSheet({
         <div className="flex flex-col gap-4">
           {actions && <div className="flex flex-col gap-2">{actions}</div>}
           {actionError && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive-ink">
               {actionError}
             </p>
           )}

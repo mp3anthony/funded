@@ -206,7 +206,7 @@ export default function ItemFieldCard({
             </p>
           )}
           {error && (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-destructive-ink" role="alert">
               {error}
             </p>
           )}
@@ -225,7 +225,7 @@ export default function ItemFieldCard({
             assigneeId={assigneeId || ctx.fallbackAssigneeId || ""}
           />
           {error && (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="text-sm text-destructive-ink" role="alert">
               {error}
             </p>
           )}

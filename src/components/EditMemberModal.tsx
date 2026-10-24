@@ -81,7 +81,7 @@ export default function EditMemberModal({
       open={isOpen}
       onClose={onClose}
       title="Edit member"
-      icon={<User className="h-5 w-5 text-primary" />}
+      icon={<User className="h-5 w-5 text-primary-ink" />}
       busy={saving}
       error={error}
       footer={
@@ -163,7 +163,7 @@ export default function EditMemberModal({
                 </p>
               )}
               {role === 'owner' && member.role !== 'owner' && (
-                <p className="text-xs text-primary leading-normal font-body">
+                <p className="text-xs text-primary-ink leading-normal font-body">
                   Promoting this member to Owner grants them full administrative control, including the ability to manage other members and edit household configurations.
                 </p>
               )}

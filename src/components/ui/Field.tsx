@@ -46,7 +46,7 @@ export default function Field({
         </p>
       )}
       {error && (
-        <p id={`${id}-err`} className="text-sm text-destructive">
+        <p id={`${id}-err`} className="text-sm text-destructive-ink">
           {error}
         </p>
       )}

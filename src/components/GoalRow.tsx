@@ -9,11 +9,11 @@ import { useCountUp } from "@/hooks/useCountUp";
 import { isReached, type Pace, type PaceKind } from "@/lib/goalPace";
 
 const PACE_TONE: Record<PaceKind, string> = {
-  reached: "text-success",
-  onTrack: "text-success",
-  needs: "text-accent",
+  reached: "text-success-ink",
+  onTrack: "text-success-ink",
+  needs: "text-accent-ink",
   rule: "text-muted",
-  past: "text-accent",
+  past: "text-accent-ink",
   none: "text-muted",
 };
 
@@ -62,11 +62,11 @@ export default function GoalRow({
         onClick={onOpen}
         className="press-tint flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
       >
-        <ProgressRing percent={displayPercentage} className={reached ? "text-success" : fund.accentText || "text-primary"}>
+        <ProgressRing percent={displayPercentage} className={reached ? "text-success-ink" : fund.accentText || "text-primary-ink"}>
           {reached ? (
-            <Check size={18} className="text-success" aria-hidden="true" />
+            <Check size={18} className="text-success-ink" aria-hidden="true" />
           ) : (
-            <IconComponent className={`h-[18px] w-[18px] ${fund.accentText || "text-primary"}`} aria-hidden="true" />
+            <IconComponent className={`h-[18px] w-[18px] ${fund.accentText || "text-primary-ink"}`} aria-hidden="true" />
           )}
         </ProgressRing>
 

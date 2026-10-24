@@ -127,10 +127,10 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
 
   const getIconForType = (type: string) => {
     switch (type) {
-      case 'manual_bill': return <Clock size={20} className="text-accent" />;
+      case 'manual_bill': return <Clock size={20} className="text-accent-ink" />;
       case 'auto_pay': return <AlertTriangle size={20} className="text-rose-500" />;
-      case 'lodge_payment': return <CheckCircle size={20} className="text-primary" />;
-      case 'payday_log_pay': return <Clock size={20} className="text-primary" />;
+      case 'lodge_payment': return <CheckCircle size={20} className="text-primary-ink" />;
+      case 'payday_log_pay': return <Clock size={20} className="text-primary-ink" />;
       case 'goal_milestone': return <CheckCircle size={20} className="text-secondary" />;
       default: return <Bell size={20} className="text-muted" />;
     }
@@ -196,7 +196,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                           <span className="block min-w-0 flex-1 space-y-1">
                             <span className="flex items-center justify-between text-sm font-semibold text-foreground">
                               <span>{notif.title}</span>
-                              {!notif.is_read && <Circle size={8} fill="currentColor" className="text-primary" />}
+                              {!notif.is_read && <Circle size={8} fill="currentColor" className="text-primary-ink" />}
                             </span>
                             <span className="block text-sm text-muted">{notif.message}</span>
                             <span className="block text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -295,7 +295,7 @@ export default function NotificationCenter({ isOpen, onClose, pushStatus, onPush
                         label={
                           <span className="block">
                             <span className="block font-semibold text-foreground">Push on this device</span>
-                            <span className="block text-sm text-accent">Needs attention</span>
+                            <span className="block text-sm text-accent-ink">Needs attention</span>
                           </span>
                         }
                       />

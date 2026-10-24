@@ -176,7 +176,7 @@ function BillShares({
             <div key={m.id} className="flex items-center justify-between gap-3">
               <span className="min-w-0 truncate text-[15px] text-foreground">
                 {m.name}
-                {isAssignee && <span className="ml-2 text-xs text-primary">Assignee</span>}
+                {isAssignee && <span className="ml-2 text-xs text-primary-ink">Assignee</span>}
               </span>
               {isAssignee ? (
                 <span className="w-28 shrink-0 text-right text-[15px] text-muted">
@@ -206,7 +206,7 @@ function BillShares({
           );
         })}
       </div>
-      <p className={cn("text-sm", over ? "text-destructive" : "text-muted")} aria-live="polite">
+      <p className={cn("text-sm", over ? "text-destructive-ink" : "text-muted")} aria-live="polite">
         {over ? `${fmt(Math.abs(remaining))} over` : `${fmt(Math.max(0, remaining))} remaining`}
       </p>
     </Field>
@@ -248,7 +248,7 @@ function PercentRows({
       ))}
       <p
         id={`${id}-total`}
-        className={cn("text-sm", valid ? "text-primary" : "text-destructive")}
+        className={cn("text-sm", valid ? "text-primary-ink" : "text-destructive-ink")}
         aria-live="polite"
       >
         Total {total.toFixed(1)}%{valid ? "" : " (must be 100%)"}

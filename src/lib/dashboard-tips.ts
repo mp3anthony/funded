@@ -23,6 +23,9 @@ export const dashboardTips: string[] = [
   "Tip: Split a shared bill or expense by percentage across household members in a couple of taps.",
   "Tip: Found an issue? Report it straight from Settings — add a title, description, and an optional screenshot.",
   "Tip: Not sure you paid a bill? Open it — it shows the month you last paid for, and Undo payment fixes a mis-tap.",
+  "Tip: Thinking of a new subscription? Tap Check impact on Bills to see what it would do to your total before you commit.",
+  "Tip: Pay day arrived? It shows at the top of Payday under Needs you. Tap it when the money lands.",
+  "Tip: Not saving for something yet? Add it as Just tracking and it waits in your Wish list on the Goals page.",
   "Tip: Check \"Updates\" in Settings any time to see what's changed in the latest update.",
   "Tip: New to Funded? Settings > Getting started has a short guide to the basics.",
 ];

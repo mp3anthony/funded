@@ -151,7 +151,7 @@ export default function OnboardingCreateFlow({ onCreate, onDone, onExit }: Onboa
               />
               <p className="text-xs text-muted">{PAYMENT_MODE_NOTE}</p>
               {error && (
-                <p role="alert" className="break-words text-sm text-destructive">
+                <p role="alert" className="break-words text-sm text-destructive-ink">
                   {error}
                 </p>
               )}

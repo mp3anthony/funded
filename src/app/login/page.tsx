@@ -155,7 +155,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => switchMode("forgot")}
-                  className="min-h-11 px-1 text-sm font-semibold text-primary cursor-pointer"
+                  className="min-h-11 px-1 text-sm font-semibold text-primary-ink cursor-pointer"
                 >
                   Forgot password?
                 </button>

@@ -56,7 +56,7 @@ export default function AuthScreen({ title, subtitle, icon, embedded = false, ch
 /** Round icon badge for AuthScreen's `icon` slot. */
 export function AuthIcon({ children }: { children: React.ReactNode }) {
   return (
-    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-raised text-primary">
+    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-raised text-primary-ink">
       {children}
     </span>
   );
@@ -79,8 +79,8 @@ export function AuthNotice({
       className={cn(
         "flex items-center gap-3 rounded-input p-4 text-sm font-medium animate-in fade-in slide-in-from-top-1 duration-(--duration-feedback) ease-(--ease-enter)",
         tone === "error"
-          ? "bg-destructive/10 text-destructive"
-          : "border border-primary/20 bg-primary/10 font-semibold text-primary",
+          ? "bg-destructive/10 text-destructive-ink"
+          : "border border-primary/20 bg-primary/10 font-semibold text-primary-ink",
         className
       )}
     >

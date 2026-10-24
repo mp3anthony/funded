@@ -32,7 +32,7 @@ export default function EmailVerifiedModal({ isOpen, onClose }: EmailVerifiedMod
       }
     >
       <div className="flex flex-col items-center text-center gap-4 py-2">
-        <CheckCircle2 className="h-12 w-12 text-primary" />
+        <CheckCircle2 className="h-12 w-12 text-primary-ink" />
         <p className="text-sm text-muted font-body leading-relaxed">
           Your account is ready. Let&apos;s get your household set up.
         </p>

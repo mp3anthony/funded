@@ -386,7 +386,7 @@ export default function AvatarCropModal({
 
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/70">
-                <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                <Loader2 className="h-6 w-6 text-primary-ink animate-spin" />
               </div>
             )}
           </div>

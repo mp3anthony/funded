@@ -35,8 +35,8 @@ function GoalSlide({ item, onOpen }: { item: DashboardGoal<Fund>; onOpen: () => 
     <Card onClick={onOpen} aria-label={sentence} className="h-full p-4">
       <span aria-hidden="true" className="flex items-center gap-3">
         <span className="motion-reduce:[&_circle]:transition-none">
-          <ProgressRing percent={shown} size={52} stroke={4} className={goal.accentText || "text-primary"}>
-            <Icon className={`h-5 w-5 ${goal.accentText || "text-primary"}`} />
+          <ProgressRing percent={shown} size={52} stroke={4} className={goal.accentText || "text-primary-ink"}>
+            <Icon className={`h-5 w-5 ${goal.accentText || "text-primary-ink"}`} />
           </ProgressRing>
         </span>
         <span className="flex min-w-0 flex-1 flex-col">

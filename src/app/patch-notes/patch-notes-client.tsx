@@ -54,7 +54,7 @@ export default function PatchNotesClient() {
 
   const tabClass = (active: boolean) =>
     `pb-2 px-1 text-sm font-semibold transition-colors relative ${
-      active ? "text-primary" : "text-muted hover:text-foreground"
+      active ? "text-primary-ink" : "text-muted hover:text-foreground"
     }`;
 
   return (
@@ -121,7 +121,7 @@ export default function PatchNotesClient() {
                       key={i}
                       className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
                     >
-                      <span className="text-primary shrink-0">•</span>
+                      <span className="text-primary-ink shrink-0">•</span>
                       <span>{line}</span>
                     </li>
                   ))}
@@ -155,7 +155,7 @@ export default function PatchNotesClient() {
               key={issue.number}
               className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
             >
-              <span className="text-primary shrink-0">•</span>
+              <span className="text-primary-ink shrink-0">•</span>
               <span>
                 {issue.paragraphs.map((p, i) => (
                   <span key={i} className="block">

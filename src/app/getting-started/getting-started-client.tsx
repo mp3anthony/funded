@@ -37,11 +37,11 @@ export default function GettingStartedClient() {
   const backLink =
     isMounted && !isAuthLoading ? (
       session ? (
-        <Link href="/settings" className="text-sm font-medium text-primary">
+        <Link href="/settings" className="text-sm font-medium text-primary-ink">
           ‹ Back to Settings
         </Link>
       ) : (
-        <Link href="/login" className="text-sm font-medium text-primary">
+        <Link href="/login" className="text-sm font-medium text-primary-ink">
           Sign in
         </Link>
       )
@@ -81,7 +81,7 @@ export default function GettingStartedClient() {
                 key={i}
                 className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
               >
-                <span className="text-primary shrink-0">•</span>
+                <span className="text-primary-ink shrink-0">•</span>
                 <span>{line}</span>
               </li>
             ))}
@@ -96,7 +96,7 @@ export default function GettingStartedClient() {
                 key={i}
                 className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
               >
-                <span className="text-primary shrink-0">•</span>
+                <span className="text-primary-ink shrink-0">•</span>
                 <span>{line}</span>
               </li>
             ))}
@@ -120,7 +120,7 @@ export default function GettingStartedClient() {
                       key={j}
                       className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
                     >
-                      <span className="text-primary shrink-0">•</span>
+                      <span className="text-primary-ink shrink-0">•</span>
                       <span>{step}</span>
                     </li>
                   ))}
@@ -136,7 +136,7 @@ export default function GettingStartedClient() {
                           key={k}
                           className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
                         >
-                          <span className="text-primary shrink-0">•</span>
+                          <span className="text-primary-ink shrink-0">•</span>
                           <span>{line}</span>
                         </li>
                       ))}
@@ -177,7 +177,7 @@ export default function GettingStartedClient() {
                 key={i}
                 className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
               >
-                <span className="text-accent shrink-0">•</span>
+                <span className="text-accent-ink shrink-0">•</span>
                 <span>{item.text}</span>
               </li>
             ))}

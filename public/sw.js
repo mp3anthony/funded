@@ -1,4 +1,5 @@
-// Manual-test redeploy trigger — see PR #121, no functional change
+// Service worker: caches the app shell and serves /offline when the network is down.
+// CACHE_NAME below is rewritten at build time by scripts/stamp-sw.mjs.
 const CACHE_NAME = 'funded-pwa-cache-179-light-icon';
 const OFFLINE_URL = '/offline';
 

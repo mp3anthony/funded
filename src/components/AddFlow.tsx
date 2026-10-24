@@ -329,7 +329,7 @@ export default function AddFlow({ open, onClose, onAdded, prefill }: AddFlowProp
           onClick={() => edit(percentExpense ? "split" : "assignee")}
         />
         <Row tall chevron label="Split" onClick={() => edit("split")}>
-          <span className={split.invalid ? "text-[13px] text-destructive" : "text-[13px] text-muted"}>
+          <span className={split.invalid ? "text-[13px] text-destructive-ink" : "text-[13px] text-muted"}>
             {split.label}
           </span>
         </Row>

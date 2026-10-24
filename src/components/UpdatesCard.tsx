@@ -103,7 +103,7 @@ export default function UpdatesCard() {
     >
       <div className="pointer-events-auto w-full max-w-md rounded-card border border-border-strong bg-surface-elevated shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-(--duration-feedback) motion-reduce:animate-none">
         <div className="flex items-center gap-2 pl-4 pr-1 pt-1">
-          <Sparkles size={16} className="text-primary shrink-0" />
+          <Sparkles size={16} className="text-primary-ink shrink-0" />
           <p className="flex-1 min-w-0 text-sm font-bold text-foreground">
             Updates
             <span className="ml-2 text-[11px] font-normal text-subtle">
@@ -117,7 +117,7 @@ export default function UpdatesCard() {
         <ul className="flex flex-col gap-1.5 px-4 pb-1">
           {shown.map((line, i) => (
             <li key={i} className="text-[13px] font-body text-foreground/85 leading-snug flex gap-2">
-              <span className="text-primary shrink-0">•</span>
+              <span className="text-primary-ink shrink-0">•</span>
               <span className="line-clamp-2">{line}</span>
             </li>
           ))}
@@ -127,7 +127,7 @@ export default function UpdatesCard() {
           <Link
             href="/patch-notes"
             onClick={close}
-            className="flex min-h-[44px] items-center text-sm font-semibold text-primary hover:underline touch-manipulation"
+            className="flex min-h-[44px] items-center text-sm font-semibold text-primary-ink hover:underline touch-manipulation"
           >
             See updates
           </Link>
