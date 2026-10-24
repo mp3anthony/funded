@@ -99,11 +99,11 @@ export const missions: GuideMission[] = [
   {
     title: "Mark a bill paid",
     steps: [
-      "On Bills, tap the round tick at the right of a bill to mark it paid. Or tap the bill to open it, then tap Mark as Paid.",
+      "On Bills, tap the round tick at the right of a bill to mark it paid. Or tap the bill to open it, then tap Mark as paid.",
       "Each bill says when it is due, like Due in 3 days or 2 days overdue. A Paid bill says Paid.",
       "If it's a repeating bill that was due today or overdue, it moves straight on to its next due date, and a message pops up with an Undo button for a few seconds.",
-      "Paying early? It just shows as Paid until its due date. Tap Mark as Unpaid if you didn't mean it.",
-      "No due date on a repeating bill? Mark as Paid asks when it's next due. Pick a date and it moves on to it. Skip for now marks it Paid, and it stays Paid until you add a date. Don't ask again for this bill stops the question for good.",
+      "Paying early? It just shows as Paid until its due date. Tap Mark as unpaid if you didn't mean it.",
+      "No due date on a repeating bill? Mark as paid asks when it's next due. Pick a date and it moves on to it. Skip for now marks it Paid, and it stays Paid until you add a date. Don't ask again for this bill stops the question for good.",
     ],
     note: "Only Manual bills have this button. Auto-Pay bills pay themselves.",
   },

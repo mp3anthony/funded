@@ -602,3 +602,24 @@ export function compareDatelessLast(
 ): number {
   return (isDateless(a) ? 1 : 0) - (isDateless(b) ? 1 : 0);
 }
+
+/* ── Which paid action the bill sheet shows (F03, #466) ───────────────── */
+
+export type BillPaidAction = 'mark-paid' | 'mark-unpaid' | 'undo-payment' | null;
+
+/**
+ * The ONE paid/unpaid action the bill detail sheet offers: autopay bills get
+ * none (#187); a Paid bill gets Mark as unpaid; a bill already paid for this
+ * cycle (`canUndoPayment`) gets Undo payment instead of Mark as paid; any
+ * other bill gets Mark as paid.
+ */
+export function billPaidAction(args: {
+  isAutoPay: boolean;
+  status: string;
+  canUndo: boolean;
+}): BillPaidAction {
+  if (args.isAutoPay) return null;
+  if (args.status === 'Paid') return 'mark-unpaid';
+  if (args.canUndo) return 'undo-payment';
+  return 'mark-paid';
+}

@@ -129,7 +129,7 @@ export default function GoalDetailSheet({ isOpen, onClose, goal, onCheckImpact }
     onCheckImpact?.(goal);
   };
 
-  const actions =
+  const primary =
     !isTracking && statusLabel !== "Reached" ? (
       <Button fullWidth onClick={openAddAmount}>
         Add amount
@@ -146,7 +146,7 @@ export default function GoalDetailSheet({ isOpen, onClose, goal, onCheckImpact }
         open={isOpen}
         onClose={onClose}
         title={goal.name}
-        actions={actions}
+        primary={primary}
         busy={editing !== null || addAmountOpen || addRuleOpen || activeRuleId !== null}
         onDelete={deleteWithRules}
         deleteConfirm={{

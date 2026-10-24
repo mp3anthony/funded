@@ -201,7 +201,7 @@ export default function SuggestSplitSheet({ open, onClose }: SuggestSplitSheetPr
       error={error}
       subheader={
         showSteps ? (
-          <div className="flex gap-2 overflow-x-auto px-5 pb-3" role="group" aria-label="Steps">
+          <div className="flex gap-2 overflow-x-auto px-5 pb-3 pt-4" role="group" aria-label="Steps">
             {steps.map((label, i) => (
               <Chip key={label} selected={i === step} disabled={busy} onClick={() => setStep(i)}>
                 {label}

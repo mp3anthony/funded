@@ -14,6 +14,7 @@ import { primaryPillLabel } from "@/lib/sheetSave";
 import { todayInZone } from "@/lib/notifications/timezone";
 import {
   UNPAID_STATUS,
+  billPaidAction,
   canUndoPayment,
   dueDateHint,
   isDateless,
@@ -61,8 +62,8 @@ function Val({ children, accent }: { children: React.ReactNode; accent?: boolean
 }
 
 /**
- * Bill detail sheet (R10, #397): a status line, the actions on top, one tappable
- * row per field (each opens a one-field card) and a red Delete at the bottom.
+ * Bill detail sheet (R10, #397): a status line, one tappable row per field (each opens
+ * a one-field card) and a pinned footer (F03): the one paid action, Pause, red Delete.
  * The old Edit button and edit form are gone. Rules live in `lib/addFlow.ts`.
  */
 export default function BillDetailSheet({
@@ -240,8 +241,15 @@ export default function BillDetailSheet({
     ? new Date(bill.last_paid_for + "T00:00:00").toLocaleDateString("en-US", { month: "long" })
     : "";
 
-  const paidPill =
-    bill.status === "Paid" ? (
+  const paidAction = billPaidAction({
+    isAutoPay,
+    status: bill.status,
+    canUndo: showUndoPayment,
+  });
+
+  // One paid/unpaid action only (F03): Mark as paid, Mark as unpaid or Undo payment. #187: autopay has none.
+  const primary =
+    paidAction === "mark-unpaid" ? (
       <Button
         variant="ghost"
         fullWidth
@@ -251,9 +259,21 @@ export default function BillDetailSheet({
           void payHook.run(() => markAsUnpaid(bill));
         }}
       >
-        {primaryPillLabel(payHook.status, "Mark as Unpaid")}
+        {primaryPillLabel(payHook.status, "Mark as unpaid")}
       </Button>
-    ) : (
+    ) : paidAction === "undo-payment" ? (
+      <Button
+        variant="ghost"
+        fullWidth
+        disabled={anySaving}
+        onClick={() => {
+          setUndoText({ month: undoMonth, message: undoMessage });
+          setUndoOpen(true);
+        }}
+      >
+        Undo payment
+      </Button>
+    ) : paidAction === "mark-paid" ? (
       <Button
         fullWidth
         disabled={anySaving}
@@ -266,42 +286,25 @@ export default function BillDetailSheet({
           void payHook.run(() => markAsPaid(bill));
         }}
       >
-        {primaryPillLabel(payHook.status, "Mark as Paid")}
+        {primaryPillLabel(payHook.status, "Mark as paid")}
       </Button>
-    );
+    ) : undefined;
 
-  const hasSecondary = showUndoPayment || bill.is_recurring;
-  const actions =
-    isAutoPay && !hasSecondary ? undefined : (
-      <>
-        {/* #187: autopay bills pay themselves — no paid/unpaid action. */}
-        {!isAutoPay && paidPill}
-        {hasSecondary && (
-          <div className="flex flex-wrap justify-center gap-2">
-            {showUndoPayment && (
-              <Button variant="ghost" disabled={anySaving} onClick={() => {
-                setUndoText({ month: undoMonth, message: undoMessage });
-                setUndoOpen(true);
-              }}>
-                Undo payment
-              </Button>
-            )}
-            {bill.is_recurring && (
-              <Button
-                variant="ghost"
-                disabled={anySaving}
-                onClick={() => {
-                  payHook.reset();
-                  void pauseHook.run(() => togglePauseBill(bill.id, !bill.is_paused));
-                }}
-              >
-                {primaryPillLabel(pauseHook.status, bill.is_paused ? "Resume" : "Pause")}
-              </Button>
-            )}
-          </div>
-        )}
-      </>
-    );
+  const secondary = bill.is_recurring
+    ? [
+        <Button
+          key="pause"
+          variant="ghost"
+          disabled={anySaving}
+          onClick={() => {
+            payHook.reset();
+            void pauseHook.run(() => togglePauseBill(bill.id, !bill.is_paused));
+          }}
+        >
+          {primaryPillLabel(pauseHook.status, bill.is_paused ? "Resume" : "Pause")}
+        </Button>,
+      ]
+    : undefined;
 
   const noteLine = (bill.notes ?? "").split("\n")[0].trim();
 
@@ -311,7 +314,8 @@ export default function BillDetailSheet({
         open={isOpen}
         onClose={onClose}
         title={bill.name}
-        actions={actions}
+        primary={primary}
+        secondary={secondary}
         actionError={payHook.error ?? pauseHook.error}
         busy={anySaving || editing !== null || undoOpen}
         onDelete={() => deleteBill(bill.id)}
@@ -342,7 +346,7 @@ export default function BillDetailSheet({
             ) : dateless ? (
               <Val>{hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"}</Val>
             ) : (
-              <Val>{bill.dueLabel ?? bill.dueDate}</Val>
+              <Val>{bill.dueLabel ?? (bill.due_date ? dueDateLabel(bill.due_date.slice(0, 10)) : bill.dueDate)}</Val>
             )}
           </Row>
           <Row

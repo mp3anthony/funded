@@ -9,9 +9,14 @@ interface DetailSheetProps {
   open: boolean;
   onClose: () => void;
   title: React.ReactNode;
-  /** Main actions shown on top (the main one `fullWidth` primary). */
-  actions?: React.ReactNode;
-  /** Red line under `actions` (an action failed). */
+  /** The main action, pinned in the footer (pass a `fullWidth` primary Button). */
+  primary?: React.ReactNode;
+  /**
+   * Other actions, pinned in the footer as equal-width pills in one row, with
+   * Delete as the last pill. Pass plain `Button`s (no `fullWidth`; the footer sizes them).
+   */
+  secondary?: React.ReactNode[];
+  /** Red line above the footer pills (an action failed). */
   actionError?: React.ReactNode;
   /** An action or card save is in flight: close, Escape, backdrop and Delete do nothing. */
   busy?: boolean;
@@ -24,9 +29,14 @@ interface DetailSheetProps {
   deletedToast?: string;
 }
 
+/** One equal-width cell of the pill row: the button inside fills it. */
+const PILL_CELL = "flex min-w-0 flex-1 [&>*]:w-full [&>*]:px-3";
+
 /**
- * Bottom pop-up showing an item as tappable rows, main actions on top and a
- * red Delete pill at the bottom that asks first (R05, #392). No footer.
+ * Bottom pop-up showing an item as tappable rows (R05, #392). The header is the
+ * title and close only. One pinned footer (F03, #466): `primary` full width, then
+ * `secondary` pills and the red Delete (asks first) as equal-width pills in one
+ * row, Delete last. The body scrolls and the footer stays put.
  * The sheet is locked while the Delete question is open (R10), so Escape closes
  * only the question and never the sheet under a running delete.
  */
@@ -34,7 +44,8 @@ export default function DetailSheet({
   open,
   onClose,
   title,
-  actions,
+  primary,
+  secondary,
   actionError,
   busy = false,
   children,
@@ -52,6 +63,34 @@ export default function DetailSheet({
     if (!open) setConfirmOpen(false);
   }
 
+  const pills = React.Children.toArray(secondary);
+  const footer =
+    primary || pills.length > 0 || onDelete ? (
+      <div className="flex w-full flex-col gap-2">
+        {primary}
+        {(pills.length > 0 || onDelete) && (
+          <div className="flex gap-2">
+            {pills.map((pill, i) => (
+              <div key={i} className={PILL_CELL}>
+                {pill}
+              </div>
+            ))}
+            {onDelete && (
+              <div className={PILL_CELL}>
+                <Button
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  {deleteLabel}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    ) : undefined;
+
   return (
     <>
       <Dialog
@@ -60,27 +99,15 @@ export default function DetailSheet({
         title={title}
         placement="bottom"
         busy={busy || confirmOpen}
+        error={footer ? actionError : undefined}
+        footer={footer}
       >
-        <div className="flex flex-col gap-4">
-          {actions && <div className="flex flex-col gap-2">{actions}</div>}
-          {actionError && (
-            <p role="alert" className="text-sm text-destructive-ink">
-              {actionError}
-            </p>
-          )}
-          <div>{children}</div>
-          {onDelete && (
-            <div className="flex justify-center">
-              <Button
-                variant="destructive"
-                disabled={busy}
-                onClick={() => setConfirmOpen(true)}
-              >
-                {deleteLabel}
-              </Button>
-            </div>
-          )}
-        </div>
+        {children}
+        {!footer && actionError && (
+          <p role="alert" className="mt-3 text-sm text-destructive-ink">
+            {actionError}
+          </p>
+        )}
       </Dialog>
       {onDelete && (
         <ConfirmDialog

@@ -6,6 +6,9 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { dueDateLabel } from "./addFlow.ts";
+import { dateLabel } from "./addPayFlow.ts";
+import { deadlineLabel } from "./addGoalFlow.ts";
 
 const SRC = fileURLToPath(new URL("..", import.meta.url));
 const ROOT = join(SRC, "..");
@@ -162,4 +165,47 @@ test("conventions document the detail sheets", () => {
   const conv = readFileSync(join(ROOT, "docs/conventions.md"), "utf8");
   assert.ok(conv.includes("Detail sheets (R10, #397)"));
   assert.ok(!conv.includes("AddBillSheet"));
+});
+
+test("DetailSheet has one pinned footer: primary, equal-width pills, Delete last (F03, #466)", () => {
+  const t = read("components/ui/DetailSheet.tsx");
+  const code = stripComments(t);
+  for (const needle of ["primary", "secondary", "footer={footer}", "PILL_CELL", "flex-1", 'variant="destructive"']) {
+    assert.ok(code.includes(needle), `DetailSheet missing ${needle}`);
+  }
+  assert.ok(!/actions/.test(code), "the old top-of-sheet actions prop is gone");
+  // Delete is rendered after the secondary pills in the same row.
+  assert.ok(code.indexOf("pills.map(") < code.indexOf("{deleteLabel}"), "Delete must come after the secondary pills");
+  // The body (children) is not wrapped with the Delete button any more.
+  const body = code.slice(code.indexOf("<Dialog"), code.indexOf("</Dialog>"));
+  assert.ok(body.includes("{children}"));
+  for (const rel of [
+    "components/BillDetailSheet.tsx",
+    "components/ExpenseDetailSheet.tsx",
+    "components/GoalDetailSheet.tsx",
+    "components/PayScheduleDetailSheet.tsx",
+    "components/RuleDetailSheet.tsx",
+    "components/MemberPaySheet.tsx",
+  ]) assert.ok(!/actions=/.test(read(rel)), `${rel} still passes actions=`);
+});
+
+test("the bill sheet offers one paid action and one date format (F03, #466)", () => {
+  const t = read("components/BillDetailSheet.tsx");
+  assert.ok(t.includes("billPaidAction("));
+  assert.ok(!t.includes("showUndoPayment && ("), "Undo payment is no longer a second pill beside Mark as paid");
+  assert.ok(t.includes("dueDateLabel(bill.due_date"), "Due date row uses dueDateLabel");
+  assert.ok(!t.includes("<Val>{bill.dueLabel ?? bill.dueDate}</Val>"));
+});
+
+test("Due date, Invoice date, Deadline and Next payday read in one format", () => {
+  for (const ymd of ["2026-11-13", "2026-01-05", "2027-12-31"]) {
+    assert.equal(dateLabel(ymd), dueDateLabel(ymd));
+    assert.equal(deadlineLabel(ymd), dueDateLabel(ymd));
+  }
+  assert.match(dueDateLabel("2026-11-13"), /^13 Nov 2026$/);
+});
+
+test("Compare split chips have top padding under the header", () => {
+  const t = read("components/SuggestSplitSheet.tsx");
+  assert.ok(/aria-label="Steps"/.test(t) && /px-5 pb-3 pt-4/.test(t));
 });

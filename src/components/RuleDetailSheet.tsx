@@ -98,16 +98,16 @@ export default function RuleDetailSheet({ ruleId, onClose }: RuleDetailSheetProp
         open
         onClose={onClose}
         title={isGoalRule ? `Rule for ${goalName}` : "Contribution rule"}
-        actions={
+        secondary={[
           <Button
+            key="toggle"
             variant="ghost"
-            fullWidth
             disabled={toggling}
             onClick={() => void toggleHook.run(() => updateRule(rule.id, { is_active: !rule.is_active }))}
           >
             {primaryPillLabel(toggleHook.status, rule.is_active ? "Turn off" : "Turn on")}
-          </Button>
-        }
+          </Button>,
+        ]}
         actionError={toggleHook.error}
         busy={toggling || editing !== null}
         onDelete={() => deleteRule(rule.id)}
