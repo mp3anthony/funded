@@ -96,9 +96,9 @@ export function periodStart(period: Period, todayYmd: string): string | null {
   return monthsBack(todayYmd, period === "3m" ? 3 : 12);
 }
 
-/** A confirmed pay with a known amount is the only kind a chart line can use. */
+/** A confirmed pay with a known amount above $0 is the only kind a chart line can use (F01: legacy $0 rows dipped the line). */
 export function isChartable(row: ChartRow): boolean {
-  return row.status !== "pending" && row.amount !== null && row.amount !== undefined;
+  return row.status !== "pending" && row.amount !== null && row.amount !== undefined && Number(row.amount) > 0;
 }
 
 function inPeriod(row: ChartRow, start: string | null): boolean {

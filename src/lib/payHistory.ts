@@ -65,14 +65,16 @@ export function averagePay(scheduleId: string | number, history: readonly PayRow
   return sum / confirmed.length;
 }
 
-/** Amount of the newest row for a schedule that has an amount (Pending rows with no amount are skipped). */
+/** Amount of the newest confirmed row for a schedule with an amount above $0 (Pending and legacy $0 rows are skipped, F01). */
 export function latestLoggedAmount(scheduleId: string | number, history: readonly PayRow[]): number | null {
   const rows = history
     .filter(
       (h) =>
         String(h.pay_schedule_id ?? "") === String(scheduleId) &&
+        h.status !== "pending" &&
         h.amount !== null &&
-        h.amount !== undefined,
+        h.amount !== undefined &&
+        Number(h.amount) > 0,
     )
     .sort(newestFirst);
   return rows.length > 0 ? Number(rows[0].amount) : null;

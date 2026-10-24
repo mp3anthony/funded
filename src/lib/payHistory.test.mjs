@@ -106,3 +106,13 @@ test('pendingPayPhrase buckets', () => {
   assert.equal(pendingPayPhrase('nonsense', today), 'your pay');
   assert.equal(pendingPayPhrase('2026-10-04', 'nope'), 'your pay');
 });
+
+test('latestLoggedAmount ignores Pending rows and $0 rows (F01)', () => {
+  const h = [
+    row({ pay_date: '2026-10-01', amount: 900 }),
+    row({ pay_date: '2026-10-08', amount: 0 }),
+    row({ pay_date: '2026-10-15', amount: 500, status: 'pending' }),
+  ];
+  assert.equal(latestLoggedAmount('s1', h), 900);
+  assert.equal(latestLoggedAmount('s1', [row({ amount: 0 }), row({ amount: 40, status: 'pending' })]), null);
+});

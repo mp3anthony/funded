@@ -9,8 +9,8 @@ import {
   percentLabel,
 } from "./suggestSplit.ts";
 
-// Same factors as utils.convertAmount (4.33 weeks, 2.16 fortnights per month).
-const per = { weekly: 4.33, fortnightly: 2.16, monthly: 1, yearly: 1 / 12 };
+// Same factors as utils.convertAmount (exact: 52 weeks, 26 fortnights, 12 months a year).
+const per = { weekly: 52 / 12, fortnightly: 26 / 12, monthly: 1, yearly: 1 / 12 };
 const convert = (a, from, to) => (a * per[from]) / per[to];
 
 const m = (id) => ({ id, name: `M${id}` });
@@ -41,7 +41,7 @@ test("computeMemberIncomes: sums schedules, own frequency = most recent", () => 
     convert
   );
   assert.equal(r.blocked, false);
-  assert.ok(Math.abs(r.monthlyIncome - (433 + 200)) < 1e-9);
+  assert.ok(Math.abs(r.monthlyIncome - (100 * (52 / 12) + 200)) < 1e-9);
   assert.equal(r.ownFrequency, "monthly");
 });
 
@@ -56,7 +56,7 @@ test("computeSplit: shares sum to 1 and dollars to the total; blocked gives noth
   assert.equal(rows[0].share, 0.75);
   assert.equal(rows[1].share, 0.25);
   assert.equal(rows[0].monthlyDollars + rows[1].monthlyDollars, 1000);
-  assert.ok(Math.abs(rows[0].weeklyDollars - 750 / 4.33) < 1e-9);
+  assert.ok(Math.abs(rows[0].weeklyDollars - 750 / (52 / 12)) < 1e-9);
   assert.equal(computeSplit([{ member: m("1"), blocked: true, reason: "missing pay schedule" }], 1000, convert).length, 0);
 });
 

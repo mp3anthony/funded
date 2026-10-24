@@ -316,3 +316,33 @@ test("stats: Direct Pay slide has kind splits", () => {
   const s = stats({ bills: [bill()], pays: [{ amount: 400, frequency: "weekly" }] });
   assert.equal(s.cover.kind, "splits");
 });
+
+test("goalsWeekly counts against pay like a bill, so a plan's coverage includes goals (F01)", () => {
+  const input = base({ bills: [bill({ amount: 100 })], pays: [{ amount: 150, frequency: "weekly" }] });
+  assert.equal(verdict(input).halves.income.gap, 50);
+  assert.equal(verdict({ ...input, goalsWeekly: 30 }).halves.income.gap, 20);
+  assert.equal(verdict({ ...input, goalsWeekly: 30, extraWeekly: 25 }).tone, "bad");
+  assert.equal(verdict({ ...input, goalsWeekly: 30, extraWeekly: 25 }).halves.income.gap, -5);
+});
+
+test("goalsWeekly is left out by default (Dashboard header stays bills + expenses)", () => {
+  const input = base({ bills: [bill({ amount: 100 })], pays: [{ amount: 110, frequency: "weekly" }] });
+  assert.deepEqual(verdict(input), verdict({ ...input, goalsWeekly: 0 }));
+  assert.equal(verdict(input).tone, "ok");
+});
+
+test("goalsWeekly does not touch the Direct Pay cover half (judged on pay only)", () => {
+  const input = base({ bills: [bill({ amount: 100 })], pays: [{ amount: 150, frequency: "weekly" }] });
+  assert.deepEqual(verdict({ ...input, goalsWeekly: 30 }).halves.cover, verdict(input).halves.cover);
+});
+
+test("goalsWeekly is counted in the Joint Fund cover half too", () => {
+  const input = base({
+    isJointFund: true,
+    bills: [bill({ amount: 100 })],
+    pays: [{ amount: 200, frequency: "weekly" }],
+    contributions: [{ amount: 110, frequency: "weekly" }],
+  });
+  assert.equal(verdict(input).halves.cover.gap, 10);
+  assert.equal(verdict({ ...input, goalsWeekly: 30 }).halves.cover.gap, -20);
+});

@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
 import { type PaySchedule } from "@/context/AppContext";
 import { type ContributionRule } from "@/types";
+import { convertFrequency } from "@/lib/frequencyMath";
 
 const twMerge = extendTailwindMerge({
   extend: { theme: { radius: ["card", "sheet", "input"] } },
@@ -79,50 +80,11 @@ export function getRelativeTime(dateStr: string): string {
 
 /**
  * Converts a dollar amount from one billing frequency (weekly, fortnightly, monthly, yearly) to another.
- * Uses budgeting coefficients: 4.33 weeks per month, 2.16 by-weeks per month.
+ * Exact factors (52 weeks, 26 fortnights, 12 months a year; a fortnight is exactly two weeks), see
+ * `lib/frequencyMath.ts` (F01, #464).
  */
 export function convertAmount(amount: number, fromFrequency: string, toFrequency: string): number {
-  if (!fromFrequency || !toFrequency) return amount;
-  
-  const from = fromFrequency.toLowerCase();
-  const to = toFrequency.toLowerCase();
-  
-  if (from === to) return amount;
-  
-  // Convert to monthly first (base unit)
-  let monthly: number;
-  switch (from) {
-    case "weekly":
-      monthly = amount * 4.33;
-      break;
-    case "fortnightly":
-    case "fortnightly":
-      monthly = amount * 2.16;
-      break;
-    case "monthly":
-      monthly = amount;
-      break;
-    case "yearly":
-      monthly = amount / 12;
-      break;
-    default:
-      monthly = amount;
-  }
-
-  // Convert from monthly to target frequency
-  switch (to) {
-    case "weekly":
-      return monthly / 4.33;
-    case "fortnightly":
-    case "fortnightly":
-      return monthly / 2.16;
-    case "monthly":
-      return monthly;
-    case "yearly":
-      return monthly * 12;
-    default:
-      return monthly;
-  }
+  return convertFrequency(amount, fromFrequency, toFrequency);
 }
 
 /**

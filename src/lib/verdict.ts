@@ -43,6 +43,12 @@ export interface VerdictInput {
   contributions: VerdictAmount[];
   /** A plan being tried in the Impact calculator, weekly. */
   extraWeekly?: number;
+  /**
+   * Weekly dollars that active goal rules move into goals (F01, #464). Only the Impact calculator
+   * passes it, so its coverage line matches its Household total lines; the Dashboard header
+   * leaves it out (bills + expenses only). Direct Pay's second half ignores it (judged on pay only).
+   */
+  goalsWeekly?: number;
   convert: Convert;
 }
 
@@ -124,8 +130,9 @@ export function weeklyUncovered(args: {
 export function verdict(input: VerdictInput): Verdict {
   const { convert } = input;
   const extra = input.extraWeekly ?? 0;
+  const goals = input.goalsWeekly ?? 0;
   const obligations =
-    weeklyObligations({ bills: input.bills, expenses: input.expenses, convert }) + extra;
+    weeklyObligations({ bills: input.bills, expenses: input.expenses, convert }) + goals + extra;
 
   // Half 1: pay against bills. Both payment modes.
   const pay = sum(input.pays.map((p) => convert(p.amount || 0, p.frequency, "weekly")));

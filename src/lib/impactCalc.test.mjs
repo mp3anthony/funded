@@ -8,6 +8,7 @@ import {
   planLength,
   impactFromVerdict,
   billPrefill,
+  coverageNote,
 } from "./impactCalc.ts";
 
 // Stand-in convert: weekly is the base; fortnight x2, month x4, year x52.
@@ -151,4 +152,11 @@ test("billPrefill: ongoing is a Subscription with no note", () => {
   assert.equal(p.name, "");
   assert.equal(p.category, "Subscriptions");
   assert.equal(p.notes, "");
+});
+
+test("coverageNote: says what is counted, and that Direct Pay is judged on pay only (F01)", () => {
+  assert.match(coverageNote(true), /goal savings/);
+  assert.match(coverageNote(true), /contributions/);
+  assert.match(coverageNote(false), /goal savings/);
+  assert.match(coverageNote(false), /pay only/);
 });

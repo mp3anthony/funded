@@ -102,6 +102,13 @@ export interface Coverage {
   flips: boolean;
 }
 
+/** One muted line under the coverage answer: what it counts (F01, #464). */
+export function coverageNote(isJointFund: boolean): string {
+  return isJointFund
+    ? "Counts bills, expenses and goal savings against pay and contributions."
+    : "Counts bills, expenses and goal savings against pay only; splits are not checked.";
+}
+
 const dollars = (n: number) =>
   `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 

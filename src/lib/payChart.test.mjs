@@ -19,6 +19,7 @@ import {
   domainDate,
   seriesColour,
   SERIES_COLOURS,
+  isChartable,
 } from "./payChart.ts";
 
 const row = (id, member, date, amount, extra = {}) => ({ id, member_id: member, pay_date: date, amount, status: "confirmed", ...extra });
@@ -148,4 +149,20 @@ test("labels and colours", () => {
   assert.equal(seriesColour(0), SERIES_COLOURS[0]);
   assert.equal(seriesColour(SERIES_COLOURS.length), SERIES_COLOURS[0]);
   assert.equal(seriesColour(-1), SERIES_COLOURS[SERIES_COLOURS.length - 1]);
+});
+
+test("isChartable: confirmed with an amount above 0 only (F01)", () => {
+  assert.equal(isChartable(row(1, "a", "2026-10-01", 100)), true);
+  assert.equal(isChartable(row(2, "a", "2026-10-01", 0)), false);
+  assert.equal(isChartable(row(3, "a", "2026-10-01", null)), false);
+  assert.equal(isChartable(row(4, "a", "2026-10-01", 100, { status: "pending" })), false);
+});
+
+test("a legacy $0 row is not plotted and does not count in totals", () => {
+  const rows = [row(1, "a", "2026-10-01", 300), row(2, "a", "2026-10-08", 0), row(3, "a", "2026-10-15", 100)];
+  const [s] = buildSeries(rows, ["a"], null);
+  assert.equal(s.points.length, 2);
+  assert.equal(s.total, 400);
+  assert.equal(s.average, 200);
+  assert.equal(householdTotal(rows, null), 400);
 });

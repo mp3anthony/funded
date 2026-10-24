@@ -344,7 +344,7 @@ Coloured text (lime, amber, green, red) uses the `text-*-ink` utilities, whose l
 
 ### Frequency conversion
 
-`convertAmount(amount, fromFrequency, toFrequency)` normalises any amount between `weekly`, `fortnightly`, `monthly`, and `yearly` using standard budgeting coefficients (4.33 weeks/month, 2.16 fortnights/month).
+`convertAmount(amount, fromFrequency, toFrequency)` normalises any amount between `weekly`, `fortnightly`, `monthly`, and `yearly` using exact payments-per-year factors (52 weekly, 26 fortnightly, 12 monthly).
 
 ### Dashboard verdict
 

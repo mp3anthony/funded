@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
+import { useApp } from "@/context/AppContext";
 import { useVerdict } from "@/hooks/useVerdict";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
@@ -11,6 +12,7 @@ import { FREQUENCY_OPTIONS, parseAmount } from "@/lib/addFlow";
 import type { FrequencyType } from "@/lib/frequencyPreference";
 import {
   billPrefill,
+  coverageNote,
   impactFromVerdict,
   extraCosts,
   parsePayments,
@@ -82,8 +84,9 @@ export default function ImpactCalculator({
   const payments = inputs.ongoing ? null : parsePayments(inputs.payments);
   // The verdict as it stands and with the plan added (R25).
   const extraWeekly = amount === null ? 0 : convertAmount(amount, inputs.frequency, "weekly");
-  const verdictNow = useVerdict();
-  const verdictWith = useVerdict(extraWeekly);
+  const { isJointFund } = useApp();
+  const verdictNow = useVerdict(0, true);
+  const verdictWith = useVerdict(extraWeekly, true);
   const ready = amount !== null && (inputs.ongoing || payments !== null);
 
   const result = useMemo(() => {
@@ -238,6 +241,7 @@ export default function ImpactCalculator({
                 {result.coverage.headline}
               </p>
               <p className="mt-0.5 text-xs text-muted">{result.coverage.detail}</p>
+              <p className="mt-0.5 text-xs text-muted">{coverageNote(isJointFund)}</p>
             </div>
           </div>
         )}
