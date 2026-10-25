@@ -103,3 +103,11 @@ test("payload: always a goal rule, active, numbers parsed", () => {
   assert.equal(zero.threshold_amount, 0);
   assert.equal(zero.amount_type, "fixed");
 });
+
+test("initialValues (F07): prefill sets threshold and amount, still a fixed amount", () => {
+  const v = initialValues("g1", { threshold: "0", amount: "15.38" });
+  assert.equal(v.threshold, "0");
+  assert.equal(v.amount, "15.38");
+  assert.equal(v.amountType, "fixed");
+  assert.equal(initialValues("g1").threshold, "");
+});

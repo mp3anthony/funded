@@ -36,8 +36,14 @@ export interface AddRuleValues {
   amount: string;
 }
 
-export function initialValues(goalId: string = ""): AddRuleValues {
-  return { member: "", goalId, threshold: "", amountType: "fixed", amount: "" };
+export function initialValues(goalId: string = "", prefill: { threshold?: string; amount?: string } = {}): AddRuleValues {
+  return {
+    member: "",
+    goalId,
+    threshold: prefill.threshold ?? "",
+    amountType: "fixed",
+    amount: prefill.amount ?? "",
+  };
 }
 
 /** The essential cards in order. The member card is only for an owner with 2+ members. */

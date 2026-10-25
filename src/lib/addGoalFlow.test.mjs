@@ -133,3 +133,13 @@ test("legacy Wish List category reads as Other in the goal sheet and the categor
   assert.ok(!opts.includes("Wish List"));
   assert.equal(opts.filter((v) => v === "Other").length, 1);
 });
+
+import { activeStatus } from "./addGoalFlow.ts";
+
+test("activeStatus (F07): completed at target, in progress with some saved, else not started", () => {
+  assert.equal(activeStatus(400, 400), "completed");
+  assert.equal(activeStatus(500, 400), "completed");
+  assert.equal(activeStatus(1, 400), "in_progress");
+  assert.equal(activeStatus(0, 400), "not_started");
+  assert.equal(activeStatus(0, 0), "not_started");
+});

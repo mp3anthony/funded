@@ -70,6 +70,8 @@ export interface StepFlowProps {
   errorMessage?: string;
   /** Something was entered. Closing then asks first. Use `hasChanges` from lib/stepFlow. */
   dirty: boolean;
+  /** Open on the summary instead of the first card (every answer already filled in). Cards stay reachable by tapping a row. */
+  startAtSummary?: boolean;
 }
 
 interface Nav {
@@ -103,11 +105,12 @@ export default function StepFlow({
   successToast,
   errorMessage,
   dirty,
+  startAtSummary = false,
 }: StepFlowProps) {
   const formId = useId();
   const keys = steps.map((s) => s.key);
   const extraKeys = extras.map((s) => s.key);
-  const firstAt = keys[0] ?? STEP_SUMMARY;
+  const firstAt = startAtSummary ? STEP_SUMMARY : (keys[0] ?? STEP_SUMMARY);
 
   const [nav, setNav] = useState<Nav>({ at: firstAt, detour: false, dir: "none" });
   const [confirmOpen, setConfirmOpen] = useState(false);

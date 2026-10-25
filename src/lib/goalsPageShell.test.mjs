@@ -41,16 +41,36 @@ test("Goals page: new header, one-line description (F06), Saving-only total, Fil
   assert.ok(t.includes("flash(goalRowKey(goal.id), 600)"));
 });
 
-test("Goals page: Check impact is the full calculator and Turn into a bill goes to Bills", () => {
-  const t = read("app/funds/funds-client.tsx");
+test("Goals page (F07): no Check impact chip; the goal-mode calculator ends in Create rule, Bills keeps Turn into a bill", () => {
+  const t = stripComments(read("app/funds/funds-client.tsx"));
+  // No standalone chip beside Filter, and no bill plumbing on Goals.
+  assert.ok(!t.includes("Check impact"));
+  assert.ok(!t.includes("<Calculator"));
+  assert.ok(!t.includes("<AddFlow"));
+  assert.ok(!t.includes("billPrefill"));
+  assert.ok(!t.includes("useHouseholdTotal"));
+  // Goal mode calculator -> Add rule flow for that goal, filled in and opened on its summary.
   assert.ok(t.includes("<ImpactCalculator"));
-  assert.ok(t.includes("currentTotal={householdTotal}"));
-  assert.ok(t.includes("useHouseholdTotal(displayFrequency)"));
-  assert.ok(t.includes("loadFrequency("));
-  assert.ok(t.includes("initial={impactInitial}"));
-  assert.ok(t.includes("<AddFlow"));
-  assert.ok(t.includes("prefill={billPrefill}"));
-  assert.ok(t.includes('router.push("/bills")'));
+  assert.ok(t.includes("stillToSave(fund.targetAmount, fund.currentAmount)"));
+  assert.ok(t.includes('mode="goal"'));
+  assert.ok(t.includes("onCreateRule="));
+  assert.ok(t.includes("<AddRuleFlow"));
+  assert.ok(t.includes('prefill={{ threshold: "0", amount: rulePerPay }}'));
+  const calc = read("components/ImpactCalculator.tsx");
+  assert.ok(calc.includes("Create rule") && calc.includes("Turn into a bill"));
+  assert.ok(read("app/bills/bills-client.tsx").includes("onTurnIntoBill"));
+  assert.ok(read("components/AddRuleFlow.tsx").includes("startAtSummary={!!prefill}"));
+  assert.ok(read("components/ui/StepFlow.tsx").includes("startAtSummary"));
+});
+
+test("AddRuleFlow (F07): a rule on a Wish list goal makes it Active, rule first, failure logged not thrown", () => {
+  const t = read("components/AddRuleFlow.tsx");
+  const add = t.indexOf("await addRule(");
+  const upd = t.indexOf("await updateGoal(");
+  assert.ok(add > -1 && upd > add);
+  assert.ok(t.includes("isTracking(goal)"));
+  assert.ok(t.includes("activeStatus("));
+  assert.ok(/catch \(err\) \{\s*console\.error/.test(t));
 });
 
 test("GoalRow: ring, pace line, round + hidden when Reached, one tap target", () => {
@@ -77,14 +97,13 @@ test("WishRow: name, cost, no Check impact (the goal sheet has it), an empty rin
   assert.ok(!t.includes("Reached"));
 });
 
-test("Goals Filter card: draft with Apply, Reset and Edit order; chip row is only Filter and Check impact", () => {
+test("Goals Filter card: draft with Apply, Reset and Edit order; chip row is only Filter", () => {
   const t = read("app/funds/funds-client.tsx");
   assert.ok(t.includes("draftCategory"));
   assert.ok(/>\s*Apply\s*<\/Button>/.test(t));
   assert.ok(/>\s*Reset\s*<\/Button>/.test(t));
   assert.ok(t.includes("Edit order"));
-  assert.ok(t.includes("openImpact()"));
-  assert.ok(!t.includes("openImpact(fund)"));
+  assert.ok(!t.includes("openImpact()"));
 });
 
 test("GoalDetailSheet: a Just tracking goal gets a Check impact action that closes the sheet first", () => {

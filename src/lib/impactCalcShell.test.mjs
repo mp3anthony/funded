@@ -26,7 +26,12 @@ test("ImpactCalculator: Dialog shell, Nothing is saved, Turn into a bill, reset 
   assert.ok(t.includes("prevOpen"));
   assert.ok(t.includes("initial?"));
   // It closes itself before handing over, so dialogs never stack.
-  assert.ok(t.indexOf("onClose();") < t.indexOf("onTurnIntoBill("));
+  assert.ok(t.indexOf("onClose();") < t.indexOf("onTurnIntoBill?.("));
+  // Goal mode (F07): Create rule closes first too, and the Household total is plan-mode only.
+  assert.ok(t.includes('mode = "plan"') && t.includes("Create rule") && t.includes("leftoverLine("));
+  assert.ok(t.indexOf("onClose();", t.indexOf("const createRule")) < t.indexOf("onCreateRule?.("));
+  assert.ok(t.includes("{!isGoal && ("));
+  assert.ok(t.includes('"Still to save"') && t.includes("perPayUsable(perPay)") && t.includes("Amount is too small to make a rule"));
 });
 
 test("bills-client: Check impact chip, unfiltered total, prefill passed and cleared on close", () => {

@@ -92,7 +92,7 @@ export const missions: GuideMission[] = [
       "Go to Goals and tap the + button beside the page title.",
       "Name your goal, set a target amount, and tap Add goal.",
       "Whenever you put money towards it, tap the + beside the goal.",
-      "Not saving yet? Pick Wish list when you add it. It sits in the Wish list at the bottom with its cost, and Check impact shows what it would do to your household before you commit. Wish list goals are not counted in your totals.",
+      "Not saving yet? Pick Wish list when you add it. It sits in the Wish list at the bottom with its cost, and its Check impact shows how much of your weekly leftover it would take, then lets you create a rule for it. Creating a rule makes it an active goal. Wish list goals are not counted in your totals.",
       "To change a goal or pay schedule later, tap it, then tap the line you want to change.",
     ],
   },

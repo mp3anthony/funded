@@ -134,8 +134,11 @@ export function goalRowKey(id: string | number): string {
  */
 export function goalStatus(v: AddGoalValues): GoalStatus {
   if (v.kind === "tracking") return "paused";
-  const target = parseAmount(v.target) ?? 0;
-  const saved = parseSaved(v.saved) ?? 0;
+  return activeStatus(parseSaved(v.saved) ?? 0, parseAmount(v.target) ?? 0);
+}
+
+/** The status of an Active goal from its numbers: completed once saved reaches the target, in progress with some saved, else not started. */
+export function activeStatus(saved: number, target: number): GoalStatus {
   if (target > 0 && saved >= target) return "completed";
   if (saved > 0) return "in_progress";
   return "not_started";

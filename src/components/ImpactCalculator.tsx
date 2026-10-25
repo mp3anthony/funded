@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { useApp } from "@/context/AppContext";
+import { useApp, useCurrentUser } from "@/context/AppContext";
 import { useVerdict } from "@/hooks/useVerdict";
 import Button from "@/components/ui/Button";
 import Chip from "@/components/ui/Chip";
@@ -15,7 +15,12 @@ import {
   coverageNote,
   impactFromVerdict,
   extraCosts,
+  goalWeekly,
+  leftoverLine,
   parsePayments,
+  perPayAmount,
+  perPayUsable,
+  pickPayFrequency,
   planLength,
   totalCost,
   type BillPrefill,
@@ -30,13 +35,17 @@ const TONE_CLASS = { ok: "text-primary-ink", bad: "text-destructive-ink", neutra
 interface ImpactCalculatorProps {
   open: boolean;
   onClose: () => void;
-  /** The Bills page's "amounts as" choice; the Household total is shown in it. */
-  frequency: FrequencyType;
-  /** The unfiltered Household total now, in `frequency`. */
-  currentTotal: number;
-  /** Hands the answers to the Add flow. This pop-up closes first. */
-  onTurnIntoBill: (prefill: BillPrefill) => void;
-  /** Answers known already (R17: from a Just tracking goal). */
+  /** "plan" (Bills): a payment plan or subscription. "goal" (F07): saving towards a goal. */
+  mode?: "plan" | "goal";
+  /** Plan mode: the Bills page's "amounts as" choice; the Household total is shown in it. */
+  frequency?: FrequencyType;
+  /** Plan mode: the unfiltered Household total now, in `frequency`. */
+  currentTotal?: number;
+  /** Plan mode: hands the answers to the Add flow. This pop-up closes first. */
+  onTurnIntoBill?: (prefill: BillPrefill) => void;
+  /** Goal mode: hands the per-pay amount (dollars and cents) to the Add rule flow. This pop-up closes first. */
+  onCreateRule?: (perPay: number) => void;
+  /** Answers known already (goal mode: the goal's name and target). */
   initial?: { name?: string; amount?: number };
 }
 
@@ -64,9 +73,11 @@ const freshInputs = (initial: ImpactCalculatorProps["initial"]): Inputs => ({
 export default function ImpactCalculator({
   open,
   onClose,
-  frequency,
-  currentTotal,
+  mode = "plan",
+  frequency = "weekly",
+  currentTotal = 0,
   onTurnIntoBill,
+  onCreateRule,
   initial,
 }: ImpactCalculatorProps) {
   const uid = useId();
@@ -80,33 +91,53 @@ export default function ImpactCalculator({
   }
   const patch = (p: Partial<Inputs>) => setInputs((v) => ({ ...v, ...p }));
 
-  const amount = parseAmount(inputs.amount);
-  const payments = inputs.ongoing ? null : parsePayments(inputs.payments);
+  const isGoal = mode === "goal";
+  const { isJointFund, paySchedules } = useApp();
+  const currentUser = useCurrentUser();
+  const typed = parseAmount(inputs.amount);
+  const payments = inputs.ongoing && !isGoal ? null : parsePayments(inputs.payments);
+  // Goal mode: the typed amount is the whole cost, so one payment is cost / payments.
+  const amount = isGoal ? (typed !== null && payments !== null ? typed / payments : null) : typed;
   // The verdict as it stands and with the plan added (R25).
   const extraWeekly = amount === null ? 0 : convertAmount(amount, inputs.frequency, "weekly");
-  const { isJointFund } = useApp();
   const verdictNow = useVerdict(0, true);
   const verdictWith = useVerdict(extraWeekly, true);
-  const ready = amount !== null && (inputs.ongoing || payments !== null);
+  // Goal mode: one pay's worth, at the pay frequency the rule will run on.
+  const payFrequency = pickPayFrequency(paySchedules, currentUser.id);
+  const perPay = isGoal && amount !== null ? perPayAmount(extraWeekly, payFrequency, convertAmount) : null;
+  const tooSmall = isGoal && amount !== null && !perPayUsable(perPay);
+  const ready = amount !== null && (inputs.ongoing || payments !== null) && !tooSmall;
 
   const result = useMemo(() => {
     if (amount === null || (!inputs.ongoing && payments === null)) return null;
     const costs = extraCosts(amount, inputs.frequency, convertAmount);
     return {
       costs,
-      total: totalCost(amount, payments),
+      total: isGoal && typed !== null ? typed : totalCost(amount, payments),
+      leftover: leftoverLine(
+        isGoal && typed !== null && payments !== null
+          ? goalWeekly(typed, payments, inputs.frequency, convertAmount)
+          : extraWeekly,
+        verdictNow.halves.income,
+      ),
       length: planLength(inputs.frequency, payments),
       newTotal: currentTotal + convertAmount(amount, inputs.frequency, frequency),
       coverage: impactFromVerdict(verdictNow, verdictWith),
     };
-  }, [amount, payments, inputs.ongoing, inputs.frequency, currentTotal, frequency, verdictNow, verdictWith]);
+  }, [amount, typed, isGoal, payments, inputs.ongoing, inputs.frequency, currentTotal, frequency, extraWeekly, verdictNow, verdictWith]);
 
   const turnIntoBill = () => {
     if (!ready) return;
     onClose();
-    onTurnIntoBill(
+    onTurnIntoBill?.(
       billPrefill({ name: inputs.name, amount: inputs.amount, frequency: inputs.frequency, payments }),
     );
+  };
+
+  const createRule = () => {
+    if (!ready || perPay === null) return;
+    onClose();
+    onCreateRule?.(perPay);
   };
 
   const nameId = `${uid}-name`;
@@ -122,27 +153,39 @@ export default function ImpactCalculator({
       placement="bottom"
       footer={
         <div className="flex w-full flex-col gap-2">
-          {!ready && <p className="text-center text-xs text-muted">Enter an amount and number of payments</p>}
-          <Button fullWidth disabled={!ready} onClick={turnIntoBill}>
-            Turn into a bill
+          {!ready && (
+            <p className="text-center text-xs text-muted">
+              {tooSmall
+                ? "Amount is too small to make a rule"
+                : isGoal
+                  ? "Enter what is left to save and the number of payments"
+                  : "Enter an amount and number of payments"}
+            </p>
+          )}
+          <Button fullWidth disabled={!ready} onClick={isGoal ? createRule : turnIntoBill}>
+            {isGoal ? "Create rule" : "Turn into a bill"}
           </Button>
         </div>
       }
     >
       <div className="flex flex-col gap-5">
-        <p className="-mt-1 text-xs text-muted">Nothing is saved.</p>
+        <p className="-mt-1 text-xs text-muted">
+          {isGoal && initial?.name ? `${initial.name}. ` : ""}Nothing is saved.
+        </p>
 
-        <Field id={nameId} label="Name (optional)">
-          <Input
-            id={nameId}
-            placeholder="Phone plan"
-            value={inputs.name}
-            onChange={(e) => patch({ name: e.target.value })}
-            autoComplete="off"
-          />
-        </Field>
+        {!isGoal && (
+          <Field id={nameId} label="Name (optional)">
+            <Input
+              id={nameId}
+              placeholder="Phone plan"
+              value={inputs.name}
+              onChange={(e) => patch({ name: e.target.value })}
+              autoComplete="off"
+            />
+          </Field>
+        )}
 
-        <Field id={amountId} label="Payment amount">
+        <Field id={amountId} label={isGoal ? "Still to save" : "Payment amount"}>
           <div className="relative">
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">$</span>
             <Input
@@ -159,7 +202,7 @@ export default function ImpactCalculator({
 
         <div className="flex flex-col gap-2">
           <span className="text-[15px] font-semibold text-foreground" id={`${uid}-freq`}>
-            How often
+            {isGoal ? "Save it how often" : "How often"}
           </span>
           <div role="group" aria-labelledby={`${uid}-freq`} className="flex flex-wrap gap-2">
             {FREQUENCY_OPTIONS.map((o) => (
@@ -172,17 +215,19 @@ export default function ImpactCalculator({
 
         <div className="flex flex-col gap-2">
           <span className="text-[15px] font-semibold text-foreground" id={`${uid}-pay`}>
-            Payments
+            {isGoal ? "Save it over" : "Payments"}
           </span>
-          <div role="group" aria-labelledby={`${uid}-pay`} className="flex flex-wrap gap-2">
-            <Chip selected={!inputs.ongoing} onClick={() => patch({ ongoing: false })}>
-              Number of payments
-            </Chip>
-            <Chip selected={inputs.ongoing} onClick={() => patch({ ongoing: true })}>
-              Ongoing
-            </Chip>
-          </div>
-          {!inputs.ongoing && (
+          {!isGoal && (
+            <div role="group" aria-labelledby={`${uid}-pay`} className="flex flex-wrap gap-2">
+              <Chip selected={!inputs.ongoing} onClick={() => patch({ ongoing: false })}>
+                Number of payments
+              </Chip>
+              <Chip selected={inputs.ongoing} onClick={() => patch({ ongoing: true })}>
+                Ongoing
+              </Chip>
+            </div>
+          )}
+          {(isGoal || !inputs.ongoing) && (
             <Input
               id={paymentsId}
               aria-label="Number of payments"
@@ -197,6 +242,21 @@ export default function ImpactCalculator({
 
         {result && (
           <div className="flex flex-col gap-4 border-t border-border pt-4">
+            {isGoal && perPay !== null && (
+              <div aria-live="polite">
+                <p className={cn("text-[17px] font-bold", TONE_CLASS[result.leftover.tone])}>{result.leftover.text}</p>
+                <div className="mt-2 flex items-baseline justify-between gap-3 text-[15px]">
+                  <span className="text-muted">Per pay</span>
+                  <span className="font-semibold tabular-nums text-foreground">{moneyFmt(perPay)}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-muted">
+                  {payFrequency
+                    ? `Based on your ${payFrequency} pay`
+                    : "Add your pay on Payday to match your pay days"}
+                </p>
+              </div>
+            )}
+
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-subtle">Extra cost</div>
               <dl className="mt-2 flex flex-col gap-1.5 text-[15px]">
@@ -222,6 +282,7 @@ export default function ImpactCalculator({
               )}
             </div>
 
+            {!isGoal && (
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-subtle">
                 Household total, {freqLabel}
@@ -235,6 +296,7 @@ export default function ImpactCalculator({
                 <span className="font-semibold tabular-nums text-foreground">{moneyFmt(result.newTotal)}</span>
               </div>
             </div>
+            )}
 
             <div aria-live="polite">
               <p className={cn("text-[17px] font-bold", TONE_CLASS[result.coverage.tone])}>

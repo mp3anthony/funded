@@ -160,3 +160,63 @@ test("coverageNote: says what is counted, and that Direct Pay is judged on pay o
   assert.match(coverageNote(false), /goal savings/);
   assert.match(coverageNote(false), /pay only/);
 });
+
+// ── Goal mode (F07, #471) ──
+import { stillToSave, perPayUsable, pickPayFrequency, goalWeekly, perPayAmount, leftoverLine } from "./impactCalc.ts";
+
+// Realistic stand-in: weeks in each period (a month is 52/12 weeks).
+const WEEKS = { weekly: 1, fortnightly: 2, monthly: 52 / 12, yearly: 52 };
+const realConvert = (amount, from, to) => (amount * WEEKS[to]) / WEEKS[from];
+
+test("perPayAmount: $400 over 12 monthly payments on fortnightly pay is $15.38 a pay", () => {
+  const weekly = goalWeekly(400, 12, "monthly", realConvert);
+  assert.ok(Math.abs(weekly - 7.6923) < 0.001);
+  assert.equal(perPayAmount(weekly, "fortnightly", realConvert), 15.38);
+  assert.equal(perPayAmount(weekly, "weekly", realConvert), 7.69);
+});
+
+test("perPayAmount: no pay set up gives the weekly amount", () => {
+  assert.equal(perPayAmount(7.6923, null, realConvert), 7.69);
+});
+
+test("pickPayFrequency: own fixed first, then own any, then anyone's, else null", () => {
+  const s = [
+    { member_id: "a", frequency: "monthly", is_fixed_amount: false },
+    { member_id: "b", frequency: "weekly", is_fixed_amount: true },
+    { member_id: "b", frequency: "fortnightly", is_fixed_amount: true },
+  ];
+  assert.equal(pickPayFrequency(s, "b"), "weekly");
+  assert.equal(pickPayFrequency(s, "a"), "monthly");
+  assert.equal(pickPayFrequency(s, "z"), "monthly");
+  assert.equal(pickPayFrequency([], "a"), null);
+});
+
+test("leftoverLine: takes X of Y, short and unset", () => {
+  assert.deepEqual(leftoverLine(7.69, { status: "ok", gap: 120.4 }), {
+    tone: "ok",
+    text: "Takes $8 of your $120 left a week",
+  });
+  assert.equal(leftoverLine(200, { status: "ok", gap: 120 }).tone, "bad");
+  assert.deepEqual(leftoverLine(7, { status: "short", gap: -35.2 }), {
+    tone: "bad",
+    text: "You're already $35 a week short",
+  });
+  assert.deepEqual(leftoverLine(7, { status: "unset", gap: 0 }), {
+    tone: "neutral",
+    text: "Add your pay to check this",
+  });
+});
+
+test("stillToSave: target minus saved, never below zero", () => {
+  assert.equal(stillToSave(400, 150), 250);
+  assert.equal(stillToSave(400, 0), 400);
+  assert.equal(stillToSave(400, 400), 0);
+  assert.equal(stillToSave(400, 500), 0);
+  assert.equal(stillToSave(100.1, 0.05), 100.05);
+});
+
+test("perPayUsable: a rounded per-pay of zero cannot make a rule", () => {
+  assert.equal(perPayUsable(perPayAmount(0.001, "fortnightly", realConvert)), false);
+  assert.equal(perPayUsable(15.38), true);
+  assert.equal(perPayUsable(null), false);
+});

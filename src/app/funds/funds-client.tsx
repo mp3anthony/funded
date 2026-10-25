@@ -3,14 +3,15 @@
 import { useState, useMemo, useEffect, useRef, useId } from "react";
 import { flushSync } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Calculator, ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
 import { useApp, type Fund } from "@/context/AppContext";
-import AddFlow from "@/components/AddFlow";
+import AddRuleFlow from "@/components/AddRuleFlow";
 import AddGoalFlow from "@/components/AddGoalFlow";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
 import AddAmountModal from "@/components/AddAmountModal";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
 import ImpactCalculator from "@/components/ImpactCalculator";
+import { stillToSave } from "@/lib/impactCalc";
 import PageHeader from "@/components/PageHeader";
 import GoalRow from "@/components/GoalRow";
 import WishRow from "@/components/WishRow";
@@ -20,13 +21,10 @@ import Dialog from "@/components/ui/Dialog";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
 import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
-import { loadFrequency, type FrequencyType } from "@/lib/frequencyPreference";
 import { todayInZone } from "@/lib/notifications/timezone";
 import { useCountUp } from "@/hooks/useCountUp";
-import { useHouseholdTotal } from "@/hooks/useHouseholdTotal";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
 import { GOAL_CATEGORIES, displayCategory, goalRowKey, type AddedGoal } from "@/lib/addGoalFlow";
-import type { BillPrefill } from "@/lib/impactCalc";
 import {
   isTracking,
   pace as paceFor,
@@ -83,15 +81,13 @@ export default function FundsClient() {
   const [isEditCategoryOrderOpen, setIsEditCategoryOrderOpen] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
-  // Check impact (R16 calculator, now also from Goals). The "amounts as" choice is the
-  // one remembered on the Bills page; read after mount so the first render matches the server.
-  const [displayFrequency, setDisplayFrequency] = useState<FrequencyType>("weekly");
+  // Check impact (F07): only from a Wish list goal's sheet, in goal mode. Its "Create rule" button
+  // opens the Add rule flow for that goal with the per-pay amount filled in.
   const [isImpactOpen, setIsImpactOpen] = useState(false);
-  const [impactInitial, setImpactInitial] = useState<{ name: string; amount: number } | undefined>(undefined);
-  const householdTotal = useHouseholdTotal(displayFrequency);
-  // "Turn into a bill" opens the Add flow here, prefilled; adding goes to Bills to show the new bill.
-  const [isBillFlowOpen, setIsBillFlowOpen] = useState(false);
-  const [billPrefill, setBillPrefill] = useState<BillPrefill | undefined>(undefined);
+  const [impactGoal, setImpactGoal] = useState<{ id: string; name: string; amount: number } | undefined>(undefined);
+  const [isRuleOpen, setIsRuleOpen] = useState(false);
+  const [ruleGoalId, setRuleGoalId] = useState<string | undefined>(undefined);
+  const [rulePerPay, setRulePerPay] = useState("");
 
   const toggleCategory = (category: string) => {
     const collapse = !collapsed.includes(category);
@@ -111,7 +107,6 @@ export default function FundsClient() {
     // One-shot sync from localStorage, not a render cascade.
     /* eslint-disable react-hooks/set-state-in-effect */
     setCollapsed(loadCollapsed(userId, COLLAPSE_SCOPE));
-    setDisplayFrequency(loadFrequency(userId));
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [session?.user?.id]);
 
@@ -225,8 +220,8 @@ export default function FundsClient() {
     document.getElementById(addAmountInputId)?.focus();
   };
 
-  const openImpact = (fund?: Fund) => {
-    setImpactInitial(fund ? { name: fund.name, amount: fund.targetAmount } : undefined);
+  const openImpact = (fund: Fund) => {
+    setImpactGoal({ id: String(fund.id), name: fund.name, amount: stillToSave(fund.targetAmount, fund.currentAmount) });
     setIsImpactOpen(true);
   };
 
@@ -335,10 +330,6 @@ export default function FundsClient() {
           </span>
           Filter
           {filterActive && <span className="sr-only"> (filters chosen)</span>}
-        </Chip>
-        <Chip onClick={() => openImpact()} aria-haspopup="dialog">
-          <Calculator size={16} aria-hidden="true" />
-          Check impact
         </Chip>
       </div>
 
@@ -473,25 +464,25 @@ export default function FundsClient() {
       {/* Add Goal flow */}
       <AddGoalFlow open={isAddOpen} onClose={() => setIsAddOpen(false)} onAdded={handleAdded} />
 
-      {/* Check impact: the full calculator, including Turn into a bill */}
+      {/* Check impact for one goal (F07): ends in Create rule */}
       <ImpactCalculator
         open={isImpactOpen}
         onClose={() => setIsImpactOpen(false)}
-        frequency={displayFrequency}
-        currentTotal={householdTotal}
-        initial={impactInitial}
-        onTurnIntoBill={(prefill) => {
-          setBillPrefill(prefill);
-          setIsBillFlowOpen(true);
+        mode="goal"
+        initial={impactGoal}
+        onCreateRule={(perPay) => {
+          setRuleGoalId(impactGoal?.id);
+          setRulePerPay(String(perPay));
+          setIsRuleOpen(true);
         }}
       />
 
-      {/* Add flow for "Turn into a bill": after it saves, go to Bills so the new bill is seen */}
-      <AddFlow
-        open={isBillFlowOpen}
-        onClose={() => setIsBillFlowOpen(false)}
-        onAdded={() => router.push("/bills")}
-        prefill={billPrefill}
+      {/* Add rule for that goal, opened on its summary with the per-pay amount filled in */}
+      <AddRuleFlow
+        open={isRuleOpen}
+        onClose={() => setIsRuleOpen(false)}
+        goalId={ruleGoalId}
+        prefill={{ threshold: "0", amount: rulePerPay }}
       />
 
       {/* Add Amount Modal */}

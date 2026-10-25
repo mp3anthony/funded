@@ -10,7 +10,8 @@ import Row from "@/components/ui/Row";
 import StepFlow, { type FlowStep } from "@/components/ui/StepFlow";
 import { isAcceptedMember } from "@/lib/householdLeave";
 import { hasChanges } from "@/lib/stepFlow";
-import { savingGoals } from "@/lib/goalPace";
+import { isTracking, savingGoals } from "@/lib/goalPace";
+import { activeStatus } from "@/lib/addGoalFlow";
 import { canPickMember } from "@/lib/addPayFlow";
 import {
   AMOUNT_TYPE_OPTIONS,
@@ -35,6 +36,11 @@ interface AddRuleFlowProps {
   goalId?: string;
   /** Pre-picks whose pay the rule is for and skips the "Whose pay" card (a member's own sheet on Payday). Only an owner with 2+ members can pick another member. */
   memberId?: string;
+  /**
+   * Starting answers (F07: "Create rule" from Check impact). The flow then opens on the summary
+   * so the amount is seen before saving. Prefilled answers alone do not count as unsaved changes.
+   */
+  prefill?: { threshold?: string; amount?: string };
 }
 
 /**
@@ -45,13 +51,13 @@ interface AddRuleFlowProps {
  * is asked "Whose pay"; everyone else makes the rule for themselves. Rules live
  * in `lib/addRuleFlow.ts`.
  */
-export default function AddRuleFlow({ open, onClose, goalId, memberId: presetMember = "" }: AddRuleFlowProps) {
+export default function AddRuleFlow({ open, onClose, goalId, memberId: presetMember = "", prefill }: AddRuleFlowProps) {
   const uid = useId();
-  const { addRule, householdMembers, funds } = useApp();
+  const { addRule, updateGoal, householdMembers, funds } = useApp();
   const currentUser = useCurrentUser();
 
   // What the flow starts from: blank, except for a pre-picked goal and member.
-  const baseline = (): AddRuleValues => ({ ...initialValues(goalId), member: presetMember });
+  const baseline = (): AddRuleValues => ({ ...initialValues(goalId, prefill), member: presetMember });
   const [values, setValues] = useState<AddRuleValues>(baseline);
   // Fresh values each time the flow opens (derived-state reset, no effect).
   const [prevOpen, setPrevOpen] = useState(open);
@@ -265,6 +271,24 @@ export default function AddRuleFlow({ open, onClose, goalId, memberId: presetMem
 
   const onSubmit = async () => {
     await addRule(buildRulePayload(values, memberId));
+    // A rule on a Wish list goal means it is being saved towards now, so it becomes Active (F07).
+    // Rule first, then status; a failed status change is logged, never thrown (a retry would add the rule twice).
+    const goal = funds.find((g) => String(g.id) === values.goalId);
+    if (goal && isTracking(goal)) {
+      try {
+        await updateGoal(goal.id, {
+          name: goal.name,
+          category: goal.category,
+          targetAmount: goal.targetAmount,
+          currentAmount: goal.currentAmount,
+          deadline: goal.deadline ? String(goal.deadline).slice(0, 10) : null,
+          status: activeStatus(goal.currentAmount, goal.targetAmount),
+          member_id: goal.member_id ?? null,
+        });
+      } catch (err) {
+        console.error("Rule added, but the goal could not be made Active:", err);
+      }
+    }
   };
 
   return (
@@ -283,6 +307,7 @@ export default function AddRuleFlow({ open, onClose, goalId, memberId: presetMem
         baseline() as unknown as Record<string, unknown>
       )}
       onSubmit={onSubmit}
+      startAtSummary={!!prefill}
     />
   );
 }

@@ -140,3 +140,69 @@ export function impactFromVerdict(before: VerdictLike, after: VerdictLike): Cove
   }
   return { tone: "bad", headline: after.headline, detail, flips };
 }
+
+/* ── Goal mode (F07, #471): what saving towards a goal takes ───────────── */
+
+/** The slice of a pay schedule the goal calculator reads. */
+export interface PayScheduleLike {
+  member_id: string | number;
+  frequency: string;
+  is_fixed_amount?: boolean;
+}
+
+/**
+ * Which pay frequency a rule is matched to: the member's first fixed-amount schedule,
+ * else any schedule of theirs, else any schedule at all, else null (no pay set up).
+ */
+export function pickPayFrequency(schedules: readonly PayScheduleLike[], memberId: string | number): string | null {
+  const mine = schedules.filter((s) => String(s.member_id) === String(memberId));
+  const fixed = mine.find((s) => s.is_fixed_amount);
+  if (fixed) return fixed.frequency;
+  if (mine.length > 0) return mine[0].frequency;
+  return schedules.length > 0 ? schedules[0].frequency : null;
+}
+
+/** The weekly cost of putting `cost` away over `payments` payments at `frequency`. */
+export function goalWeekly(cost: number, payments: number, frequency: string, convert: Convert): number {
+  return convert(cost / payments, frequency, "weekly");
+}
+
+/**
+ * A weekly amount as one pay's worth at the pay frequency, rounded to cents
+ * (so $400 over 12 monthly payments on fortnightly pay is $15.38 a pay).
+ * With no pay frequency the weekly amount is returned as is.
+ */
+export function perPayAmount(weeklyAmount: number, payFrequency: string | null, convert: Convert): number {
+  const v = payFrequency === null ? weeklyAmount : convert(weeklyAmount, "weekly", payFrequency);
+  return Math.round(v * 100) / 100;
+}
+
+/** What is left to save for a goal: target minus saved, never below zero. Rounded to cents. */
+export function stillToSave(target: number, saved: number): number {
+  return Math.max(Math.round((target - saved) * 100) / 100, 0);
+}
+
+/** A rule needs at least one cent a pay once rounded. */
+export function perPayUsable(perPay: number | null): boolean {
+  return perPay !== null && perPay > 0;
+}
+
+export interface LeftoverLine {
+  tone: "neutral" | "ok" | "bad";
+  text: string;
+}
+
+/**
+ * "Takes $X of your $Y left a week" for a goal costing `weeklyCost` a week.
+ * `income` is the verdict's pay-versus-costs half as it stands now (goal rules included).
+ */
+export function leftoverLine(weeklyCost: number, income: { status: string; gap: number }): LeftoverLine {
+  if (income.status === "unset") return { tone: "neutral", text: "Add your pay to check this" };
+  if (income.status === "short") {
+    return { tone: "bad", text: `You're already ${dollars(income.gap)} a week short` };
+  }
+  return {
+    tone: weeklyCost > income.gap ? "bad" : "ok",
+    text: `Takes ${dollars(weeklyCost)} of your ${dollars(income.gap)} left a week`,
+  };
+}
