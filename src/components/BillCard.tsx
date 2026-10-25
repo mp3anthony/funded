@@ -4,20 +4,20 @@ import React, { useRef, useState } from "react";
 import { Check, Pause } from "lucide-react";
 import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
 import { convertAmount } from "@/lib/utils";
-import BillDetailSheet from "./BillDetailSheet";
 import NextDueDateDialog from "./NextDueDateDialog";
 import RowPill from "./RowPill";
 import IconCircle from "@/components/ui/IconCircle";
 import { isDateless, dueDateHint, shouldAskNextDueDate } from "@/lib/billCycle";
 import { dueCountdown, showTick, type CountdownTone } from "@/lib/billRow";
 import { todayInZone } from "@/lib/notifications/timezone";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export interface BillCardProps {
   bill: Bill;
   splits?: BillSplit[];
   householdMembers: Member[];
   displayFrequency?: "weekly" | "fortnightly" | "monthly" | "yearly";
+  /** Opens the detail sheet, which the Bills page owns (F10, #438). "dueDate" starts on the Due date card. */
+  onOpen: (startField?: "dueDate") => void;
 }
 
 const TONE_CLASS: Record<CountdownTone, string> = {
@@ -37,47 +37,23 @@ const TONE_CLASS: Record<CountdownTone, string> = {
  * amounts line up. The tick marks it paid in one tap (a dateless recurring
  * bill asks "When is it next due?" first, same as the detail sheet).
  * "Add due date" is its own button under the row, never inside the main one.
+ * The detail sheet lives on the Bills page (F10, #438), so a row that moves to a
+ * closed category or is filtered out after an edit cannot take the open sheet with it.
  */
 export default function BillCard({
   bill,
   splits = [],
   householdMembers,
   displayFrequency = "weekly",
+  onOpen,
 }: BillCardProps) {
   const { markAsPaid, markDatelessBillPaid, householdTimezone } = useApp();
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  // #250: "Add due date" opens the detail sheet straight on its Due date card.
-  const [startField, setStartField] = useState<"dueDate" | undefined>(undefined);
   // R15: the tick's in-flight write, and the in-row "When is it next due?" question.
   const [saving, setSaving] = useState(false);
   const [askingNextDue, setAskingNextDue] = useState(false);
   // Blocks a fast double tap before the disabled state has re-rendered.
   const inFlightRef = useRef(false);
 
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const highlightBillId = searchParams ? searchParams.get("billId") : null;
-
-  const [prevHighlightId, setPrevHighlightId] = useState<string | null>(null);
-
-  if (highlightBillId !== prevHighlightId) {
-    setPrevHighlightId(highlightBillId);
-    if (highlightBillId && highlightBillId === bill.id.toString()) {
-      setIsDetailOpen(true);
-    }
-  }
-
-  const handleCloseDetail = () => {
-    setIsDetailOpen(false);
-    setStartField(undefined);
-    if (highlightBillId === bill.id.toString()) {
-      const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
-      params.delete("billId");
-      const newQuery = params.toString();
-      router.replace(`${pathname}${newQuery ? `?${newQuery}` : ""}`);
-    }
-  };
   // Determine assignee
   const assigneeSplit = splits.find((s) => s.is_assignee);
   const assigneeId = bill.assignee_id || (assigneeSplit?.member_id);
@@ -102,11 +78,6 @@ export default function BillCard({
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-
-  const openDueDateCard = () => {
-    setStartField("dueDate");
-    setIsDetailOpen(true);
-  };
 
   // Runs one write with the double-tap guard; the row's tick is disabled meanwhile.
   async function run(write: () => Promise<boolean>): Promise<boolean> {
@@ -145,7 +116,7 @@ export default function BillCard({
           {/* One button, one reading: avatar is decorative, the rest is its text. */}
           <button
             type="button"
-            onClick={() => setIsDetailOpen(true)}
+            onClick={() => onOpen()}
             className="press-tint flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
           >
             {assignee && (
@@ -186,7 +157,7 @@ export default function BillCard({
             type="button"
             aria-hidden="true"
             tabIndex={-1}
-            onClick={() => setIsDetailOpen(true)}
+            onClick={() => onOpen()}
             className={`press-tint inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-end gap-1 rounded-sm pl-1 text-lg font-semibold tracking-tight tabular-nums whitespace-nowrap ${
               isPaused ? "text-muted" : "text-foreground"
             }`}
@@ -199,7 +170,7 @@ export default function BillCard({
         {showAddDueDate && (
           <button
             type="button"
-            onClick={openDueDateCard}
+            onClick={() => onOpen("dueDate")}
             aria-label={`Add due date for ${bill.name}`}
             className={`-mt-1 mb-1 min-h-11 text-left text-[11px] font-bold text-accent-ink cursor-pointer ${
               assignee ? "pl-11" : ""
@@ -220,15 +191,6 @@ export default function BillCard({
         // Skip is the plain Mark as paid.
         onSkip={() => void answerNextDue(() => markAsPaid(bill))}
         onMute={() => void answerNextDue(() => markDatelessBillPaid(bill, { mute: true }))}
-      />
-
-      <BillDetailSheet
-        isOpen={isDetailOpen}
-        onClose={handleCloseDetail}
-        bill={bill}
-        splits={splits}
-        householdMembers={householdMembers}
-        startField={startField}
       />
     </>
   );

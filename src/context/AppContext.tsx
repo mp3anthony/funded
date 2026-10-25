@@ -2099,6 +2099,19 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Bills Actions ──────────────────────────── */
+  // F10 (#432): when an item saved but its splits did not, delete the item again so
+  // "Try again" cannot add a second copy. Returns true when the row is gone. (Its split
+  // rows cascade, and none were saved.)
+  async function rollBackInsertedItem(table: "bills" | "expenses", id: string | number): Promise<boolean> {
+    // .select() returns the deleted rows: RLS can match 0 rows without an error.
+    const { data, error } = await supabase.from(table).delete().eq("id", id).select();
+    if (error || !data?.length) {
+      console.error(`Could not roll back the new row in ${table} (id ${id}):`, error);
+      return false;
+    }
+    return true;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function addBill(billData: any, splitsData: any[] = []) {
     try {
@@ -2152,7 +2165,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           .select();
 
         if (splitsError) {
-          console.error("Error inserting bill splits (bill saved successfully):", splitsError);
+          console.error("Error inserting bill splits:", splitsError);
+          // F10 (#432): undo the bill so a retry is safe. If the undo fails too, keep the
+          // bill in local state so it is visible and can be fixed or deleted.
+          if (!(await rollBackInsertedItem("bills", newBill.id))) {
+            setBills((prev) => [...prev, mapBillFromDb(newBill)]);
+          }
           throw splitsError;
         }
         if (data) {
@@ -3062,7 +3080,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           .select();
 
         if (splitsError) {
-          console.error("Error inserting expense splits (expense saved successfully):", splitsError);
+          console.error("Error inserting expense splits:", splitsError);
+          // F10 (#432): undo the expense so a retry is safe. If the undo fails too, keep it
+          // in local state so it is visible and can be fixed or deleted.
+          if (!(await rollBackInsertedItem("expenses", newExpense.id))) {
+            setExpenses((prev) => [...prev, mapExpenseFromDb(newExpense)]);
+          }
           throw splitsError;
         }
         if (data) {

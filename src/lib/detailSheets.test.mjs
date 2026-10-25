@@ -90,9 +90,11 @@ test("a tap opens the card with flushSync and focuses its box; startField opens 
   const bill = read("components/BillDetailSheet.tsx");
   assert.ok(bill.includes("startField"));
   assert.ok(bill.includes("setEditing(startField)"));
-  // Add due date on a row opens the sheet on the Due date card.
+  // Add due date on a row opens the sheet on the Due date card (F10: the Bills page owns the sheet).
   const row = read("components/BillCard.tsx");
-  assert.ok(row.includes('startField={startField}') && row.includes('setStartField("dueDate")'));
+  assert.ok(row.includes('onOpen("dueDate")'));
+  const page = read("app/bills/bills-client.tsx");
+  assert.ok(page.includes("startField={openSheet?.kind === \"bill\" ? openSheet.startField : undefined}"));
 });
 
 test("the bill sheet: actions wait for the save, undo asks first, the due-date question is kept", () => {
@@ -126,9 +128,9 @@ test("callers hand the sheets the live item, not a stale copy", () => {
   assert.ok(page.includes("bills.find("));
   assert.ok(page.includes("selectedBillId"));
   assert.ok(!page.includes("setSelectedBill("));
-  // BillCard keeps its ?billId= deep link open/close block unchanged.
-  const card = read("components/BillCard.tsx");
-  assert.ok(card.includes('searchParams.get("billId")') && card.includes("router.replace("));
+  // The Bills page keeps the ?billId= deep link open/close block (moved out of BillCard in F10).
+  const card = read("app/bills/bills-client.tsx");
+  assert.ok(card.includes('searchParams?.get("billId")') && card.includes("router.replace("));
   assert.ok(card.includes("params.delete(\"billId\")"));
   // The expense row no longer deletes or edits itself.
   const exp = read("components/ExpenseCard.tsx");

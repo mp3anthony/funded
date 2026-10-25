@@ -6,6 +6,8 @@ import { X, ChevronDown, ChevronUp, Calculator, Search, SlidersHorizontal } from
 import { useApp, useCurrentUser, type Bill, type Expense } from "@/context/AppContext";
 import AddFlow from "@/components/AddFlow";
 import BillCard from "@/components/BillCard";
+import BillDetailSheet from "@/components/BillDetailSheet";
+import ExpenseDetailSheet from "@/components/ExpenseDetailSheet";
 import ExpenseCard from "@/components/ExpenseCard";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
 import ImpactCalculator from "@/components/ImpactCalculator";
@@ -88,6 +90,9 @@ export default function BillsClient() {
   const pathname = usePathname();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  // F10 (#438): the open detail sheet lives here, not inside the rows, so a row that moves to a
+  // closed category or is filtered out after an edit cannot unmount its own open sheet.
+  const [openSheet, setOpenSheet] = useState<{ kind: "bill" | "expense"; id: string; startField?: "dueDate" } | null>(null);
   const { highlightKey, flash } = useRowHighlight();
   const [filter, setFilter] = useState<DueFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -200,6 +205,41 @@ export default function BillsClient() {
       openCategory(target.category || "Other");
     }
   }, [searchParams, bills]);
+
+  // A ?billId= link (notifications, Dashboard) opens that bill's sheet once the bills have loaded,
+  // even when its category group is closed. Closing the sheet drops the param from the URL.
+  const linkedBillId = searchParams?.get("billId") ?? null;
+  const [handledLinkId, setHandledLinkId] = useState<string | null>(null);
+  if (linkedBillId !== handledLinkId) {
+    if (!linkedBillId) {
+      setHandledLinkId(null);
+    } else if (bills.some((b) => String(b.id) === linkedBillId)) {
+      setHandledLinkId(linkedBillId);
+      setOpenSheet({ kind: "bill", id: linkedBillId });
+    }
+  }
+
+  const closeSheet = () => {
+    const closing = openSheet;
+    setOpenSheet(null);
+    if (closing?.kind === "bill" && linkedBillId === closing.id) {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+      params.delete("billId");
+      const newQuery = params.toString();
+      router.replace(`${pathname}${newQuery ? `?${newQuery}` : ""}`);
+    }
+  };
+
+  // The open item comes from the full lists, not the filtered ones, so filters never hide it.
+  const sheetBill = openSheet?.kind === "bill" ? bills.find((b) => String(b.id) === openSheet.id) : undefined;
+  const sheetExpense =
+    openSheet?.kind === "expense" ? expenses.find((e) => String(e.id) === openSheet.id) : undefined;
+  const sheetMissing = openSheet !== null && !sheetBill && !sheetExpense;
+  useEffect(() => {
+    // The item was deleted: clear the state so nothing re-opens later.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (sheetMissing) setOpenSheet(null);
+  }, [sheetMissing]);
 
   const filterState = useMemo(
     () => ({ type: typeFilter, due: filter, category: categoryFilter, search: searchQuery }),
@@ -506,6 +546,7 @@ export default function BillsClient() {
                               splits={billSplits.filter(s => s.bill_id === row.item.id)}
                               householdMembers={householdMembers}
                               displayFrequency={displayFrequency}
+                              onOpen={(startField) => setOpenSheet({ kind: "bill", id: String(row.item.id), startField })}
                             />
                           </div>
                         </div>
@@ -519,6 +560,7 @@ export default function BillsClient() {
                               expense={row.item}
                               householdMembers={householdMembers}
                               displayFrequency={displayFrequency}
+                              onOpen={() => setOpenSheet({ kind: "expense", id: String(row.item.id) })}
                             />
                           </div>
                         </div>
@@ -531,6 +573,22 @@ export default function BillsClient() {
           </div>
         )}
       </div>
+
+      <BillDetailSheet
+        isOpen={sheetBill !== undefined}
+        onClose={closeSheet}
+        bill={sheetBill ?? null}
+        splits={sheetBill ? billSplits.filter((s) => s.bill_id === sheetBill.id) : []}
+        householdMembers={householdMembers}
+        startField={openSheet?.kind === "bill" ? openSheet.startField : undefined}
+      />
+
+      <ExpenseDetailSheet
+        isOpen={sheetExpense !== undefined}
+        onClose={closeSheet}
+        expense={sheetExpense ?? null}
+        householdMembers={householdMembers}
+      />
 
       <Dialog
         open={isFilterOpen}

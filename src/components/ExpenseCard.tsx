@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useApp, type Expense, type Member } from "@/context/AppContext";
-import ExpenseDetailSheet from "./ExpenseDetailSheet";
 import RowPill from "./RowPill";
 import { convertAmount } from "@/lib/utils";
 
@@ -11,6 +10,8 @@ export interface ExpenseCardProps {
   householdMembers: Member[];
   /** R15: amounts follow the Bills frequency pills so rows add up to the totals. */
   displayFrequency?: "weekly" | "fortnightly" | "monthly" | "yearly";
+  /** Opens the detail sheet, which the Bills page owns (F10, #438). */
+  onOpen: () => void;
 }
 
 /**
@@ -24,9 +25,9 @@ export default function ExpenseCard({
   expense,
   householdMembers,
   displayFrequency = "weekly",
+  onOpen,
 }: ExpenseCardProps) {
   const { expenseSplits } = useApp();
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const assignee = householdMembers.find((m) => String(m.id) === String(expense.assignee_id));
 
@@ -53,7 +54,7 @@ export default function ExpenseCard({
       <div className="flex items-center gap-1 border-t border-border">
         <button
           type="button"
-          onClick={() => setIsDetailOpen(true)}
+          onClick={onOpen}
           className="press-tint flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-sm py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset"
         >
           {/* Leading identity cue: single assignee chip for whole-item
@@ -122,19 +123,12 @@ export default function ExpenseCard({
           type="button"
           aria-hidden="true"
           tabIndex={-1}
-          onClick={() => setIsDetailOpen(true)}
+          onClick={onOpen}
           className="press-tint inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-end rounded-sm pl-1 text-lg font-semibold tracking-tight tabular-nums whitespace-nowrap text-foreground"
         >
           ${formattedAmount}
         </button>
       </div>
-
-      <ExpenseDetailSheet
-        isOpen={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
-        expense={expense}
-        householdMembers={householdMembers}
-      />
     </>
   );
 }
