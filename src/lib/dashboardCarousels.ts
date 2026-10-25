@@ -8,7 +8,6 @@
  */
 
 export const DASHBOARD_BILLS_MAX = 5;
-export const DASHBOARD_GOALS_MAX = 3;
 
 export interface CarouselBill {
   id: string | number;
@@ -59,8 +58,8 @@ export interface CarouselGoal {
 
 /** The `goalPace.ts` helpers this file needs, injected so it stays import-free. */
 export interface GoalDeps<G extends CarouselGoal, R, S> {
-  savingGoals: (funds: readonly G[]) => G[];
-  isReached: (g: G) => boolean;
+  /** Wish list = Just tracking (status "paused"). */
+  isWish: (g: G) => boolean;
   sortByProgress: (goals: readonly G[]) => G[];
   weeklyFromRules: (goalId: string | number, rules: readonly R[], schedules: readonly S[]) => number;
 }
@@ -69,7 +68,9 @@ export interface DashboardGoal<G> {
   goal: G;
   /** Whole-percent progress, 0 to 100. */
   percent: number;
-  /** "+$X a week" or "No contribution set". */
+  /** Wish list goal: no weekly line is shown. */
+  isWish: boolean;
+  /** "+$X a week" or "No contribution set"; empty for a Wish list goal. */
   weeklyText: string;
   hasContribution: boolean;
 }
@@ -79,26 +80,36 @@ function dollars(n: number): string {
   return `$${Number.isInteger(r) ? r : r.toFixed(2)}`;
 }
 
-/** Up to 3 Saving goals that are not Reached, most progress first, each with its weekly contribution text. */
+/**
+ * Every goal (F09, #473): Active goals with a weekly rule contribution first, then other
+ * Active goals, then Wish list goals. Each group keeps `sortByProgress` order. Reached goals
+ * are included. Wish list cards carry no weekly text.
+ */
 export function dashboardGoals<G extends CarouselGoal, R, S>(
   funds: readonly G[],
   rules: readonly R[],
   schedules: readonly S[],
   deps: GoalDeps<G, R, S>
 ): DashboardGoal<G>[] {
-  const open = deps.savingGoals(funds).filter((g) => !deps.isReached(g));
-  return deps
-    .sortByProgress(open)
-    .slice(0, DASHBOARD_GOALS_MAX)
-    .map((goal) => {
-      const weekly = deps.weeklyFromRules(goal.id, rules, schedules);
-      const percent =
-        goal.targetAmount > 0 ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) : 0;
-      return {
-        goal,
-        percent,
-        weeklyText: weekly > 0 ? `+${dollars(weekly)} a week` : "No contribution set",
-        hasContribution: weekly > 0,
-      };
-    });
+  const wish = funds.filter((g) => deps.isWish(g));
+  const active = funds.filter((g) => !deps.isWish(g));
+  const withWeekly = (goal: G) => ({ goal, weekly: deps.weeklyFromRules(goal.id, rules, schedules) });
+  const sortedActive = deps.sortByProgress(active).map(withWeekly);
+  const ordered = [
+    ...sortedActive.filter((x) => x.weekly > 0),
+    ...sortedActive.filter((x) => !(x.weekly > 0)),
+    ...deps.sortByProgress(wish).map((goal) => ({ goal, weekly: 0 })),
+  ];
+  return ordered.map(({ goal, weekly }) => {
+    const isWish = deps.isWish(goal);
+    const percent =
+      goal.targetAmount > 0 ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) : 0;
+    return {
+      goal,
+      percent,
+      isWish,
+      weeklyText: isWish ? "" : weekly > 0 ? `+${dollars(weekly)} a week` : "No contribution set",
+      hasContribution: !isWish && weekly > 0,
+    };
+  });
 }

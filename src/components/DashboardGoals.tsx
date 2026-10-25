@@ -10,13 +10,13 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import { ViewAllLink } from "@/components/DashboardBills";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { dashboardGoals, type DashboardGoal } from "@/lib/dashboardCarousels";
-import { isReached, savingGoals, sortByProgress, weeklyFromRules } from "@/lib/goalPace";
+import { isTracking, sortByProgress, weeklyFromRules } from "@/lib/goalPace";
 
 const money = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 function GoalSlide({ item, onOpen }: { item: DashboardGoal<Fund>; onOpen: () => void }) {
-  const { goal, percent, weeklyText, hasContribution } = item;
+  const { goal, percent, weeklyText, hasContribution, isWish } = item;
   const reducedMotion = useReducedMotion();
   const Icon = goal.icon || Target;
 
@@ -44,11 +44,13 @@ function GoalSlide({ item, onOpen }: { item: DashboardGoal<Fund>; onOpen: () => 
           <span className="mt-0.5 text-[13px] font-body text-muted tabular-nums">
             {money(goal.currentAmount)} of {money(goal.targetAmount)}
           </span>
-          <span
-            className={`mt-0.5 text-[13px] font-medium tabular-nums ${hasContribution ? "text-foreground" : "text-muted"}`}
-          >
-            {weeklyText}
-          </span>
+          {!isWish && (
+            <span
+              className={`mt-0.5 text-[13px] font-medium tabular-nums ${hasContribution ? "text-foreground" : "text-muted"}`}
+            >
+              {weeklyText}
+            </span>
+          )}
         </span>
       </span>
     </Card>
@@ -56,16 +58,16 @@ function GoalSlide({ item, onOpen }: { item: DashboardGoal<Fund>; onOpen: () => 
 }
 
 /**
- * Dashboard Goals carousel (R27, #414): up to 3 Active goals still to reach, most progress
- * first, each with a ring and its weekly contribution. Swipe-only. Each card opens the goal's sheet.
+ * Dashboard Goals carousel (R27, #414; F09, #473): every goal. Active goals with a weekly rule
+ * contribution first, then other Active goals, then Wish list goals (no weekly line). Swipe-only.
+ * Each card opens the goal's sheet.
  */
 export default function DashboardGoals({ onGoalClick }: { onGoalClick: (goal: Fund) => void }) {
   const { funds, contributionRules, paySchedules } = useApp();
   const list = useMemo(
     () =>
       dashboardGoals(funds, contributionRules, paySchedules, {
-        savingGoals,
-        isReached,
+        isWish: isTracking,
         sortByProgress,
         weeklyFromRules,
       }),
@@ -73,15 +75,15 @@ export default function DashboardGoals({ onGoalClick }: { onGoalClick: (goal: Fu
   );
 
   return (
-    <section aria-label="Active goals">
+    <section aria-label="Goals">
       <SectionHeader title="Goals" className="mb-3" trailing={<ViewAllLink href="/funds" label="View all goals" />} />
       {list.length === 0 ? (
         <Card className="p-4">
-          <p className="font-body text-[15px] font-semibold text-foreground">No active goals yet</p>
-          <p className="mt-0.5 text-[13px] font-body text-muted">Goals you are saving towards show up here.</p>
+          <p className="font-body text-[15px] font-semibold text-foreground">No goals yet</p>
+          <p className="mt-0.5 text-[13px] font-body text-muted">Goals you add show up here.</p>
         </Card>
       ) : (
-        <Carousel label="Active goals">
+        <Carousel label="Goals">
           {list.map((item) => (
             <GoalSlide key={item.goal.id} item={item} onOpen={() => onGoalClick(item.goal)} />
           ))}

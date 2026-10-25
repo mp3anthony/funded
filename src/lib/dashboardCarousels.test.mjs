@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dashboardBills, dashboardGoals } from './dashboardCarousels.ts';
-import { savingGoals, isReached, sortByProgress, weeklyFromRules } from './goalPace.ts';
+import { isTracking, sortByProgress, weeklyFromRules } from './goalPace.ts';
 
 const TODAY = '2026-10-24';
 const bill = (o = {}) => ({ id: 1, name: 'Rent', status: 'Unpaid', payment_type: 'manual', due_date: '2026-10-30', ...o });
@@ -35,23 +35,32 @@ test('bills: capped at 5', () => {
 });
 
 const fund = (o = {}) => ({ id: 1, name: 'Trip', currentAmount: 50, targetAmount: 100, status: 'in_progress', ...o });
-const deps = { savingGoals, isReached, sortByProgress, weeklyFromRules };
+const deps = { isWish: isTracking, sortByProgress, weeklyFromRules };
 const rule = { member_id: 'm1', threshold_amount: 0, action_type: 'goal', action_target_id: 2, amount_to_add: 20, amount_type: 'fixed', is_active: true };
 const sched = { member_id: 'm1', amount: 1000, frequency: 'weekly', is_fixed_amount: true };
 
-test('goals: Just tracking and Reached are left out', () => {
+test('goals: Reached goals and Wish list goals are included (F09)', () => {
   const funds = [fund({ id: 1 }), fund({ id: 2, status: 'paused' }), fund({ id: 3, currentAmount: 100 })];
-  assert.deepEqual(dashboardGoals(funds, [], [], deps).map((g) => g.goal.id), [1]);
+  assert.deepEqual(dashboardGoals(funds, [], [], deps).map((g) => g.goal.id), [1, 3, 2]);
 });
 
-test('goals: most progress first, capped at 3', () => {
+test('goals: no cap, most progress first within the group', () => {
   const funds = [
     fund({ id: 1, currentAmount: 10 }),
     fund({ id: 2, currentAmount: 90 }),
     fund({ id: 3, currentAmount: 60 }),
     fund({ id: 4, currentAmount: 30 }),
   ];
-  assert.deepEqual(dashboardGoals(funds, [], [], deps).map((g) => g.goal.id), [2, 3, 4]);
+  assert.deepEqual(dashboardGoals(funds, [], [], deps).map((g) => g.goal.id), [2, 3, 4, 1]);
+});
+
+test('goals: rule goals first, then other Active, then Wish list', () => {
+  const funds = [
+    fund({ id: 5, status: 'paused', currentAmount: 90 }),
+    fund({ id: 1, currentAmount: 80 }),
+    fund({ id: 2, currentAmount: 10 }),
+  ];
+  assert.deepEqual(dashboardGoals(funds, [rule], [sched], deps).map((g) => g.goal.id), [2, 1, 5]);
 });
 
 test('goals: weekly text from rules, else "No contribution set"', () => {
@@ -62,4 +71,12 @@ test('goals: weekly text from rules, else "No contribution set"', () => {
   assert.equal(out[1].weeklyText, 'No contribution set');
   assert.equal(out[1].hasContribution, false);
   assert.equal(out[0].percent, 50);
+});
+
+test('goals: Wish list cards have no weekly text; nothing yields an empty list', () => {
+  const out = dashboardGoals([fund({ id: 2, status: 'paused' })], [rule], [sched], deps);
+  assert.equal(out[0].isWish, true);
+  assert.equal(out[0].weeklyText, '');
+  assert.equal(out[0].hasContribution, false);
+  assert.deepEqual(dashboardGoals([], [], [], deps), []);
 });

@@ -113,9 +113,8 @@ test("GoalDetailSheet: a Just tracking goal gets a Check impact action that clos
   assert.ok(t.indexOf("onClose();\n    onCheckImpact?.(goal)") > -1);
 });
 
-test("Just tracking goals are left out of the places that count money", () => {
+test("Just tracking goals are left out of the places that count money (the Dashboard Goals carousel shows them since F09)", () => {
   const uses = [
-    "lib/dashboardCarousels.ts",
     "components/SurplusSuggestionModal.tsx",
     "components/AddRuleFlow.tsx",
     "app/payday/payday-client.tsx",

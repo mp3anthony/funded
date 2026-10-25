@@ -112,6 +112,14 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
 
   return (
     <div>
+      {payHistory.length > 0 && todayYmd && (
+        <div className="mb-1">
+          <Chip onClick={() => setIsFilterOpen(true)} aria-haspopup="dialog">
+            {filterLabel(selected, allIds, names, period)}
+            <ChevronDown size={14} aria-hidden="true" />
+          </Chip>
+        </div>
+      )}
       <button
         type="button"
         onClick={toggleCollapsed}
@@ -141,11 +149,6 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
         </div>
       ) : !todayYmd ? null : (
         <>
-          <Chip onClick={() => setIsFilterOpen(true)} aria-haspopup="dialog">
-            {filterLabel(selected, allIds, names, period)}
-            <ChevronDown size={14} aria-hidden="true" />
-          </Chip>
-
           {rows.length === 0 ? (
             <div className="py-10 text-center">
               <p className="text-muted text-sm">No pays in this period.</p>
