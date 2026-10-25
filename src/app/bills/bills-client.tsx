@@ -349,6 +349,7 @@ export default function BillsClient() {
 
       <PageHeader
         title="Bills"
+        subtitle="Everything you pay, in one list"
         onAdd={openAdd}
         addLabel="Add bill"
         extra={

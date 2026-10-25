@@ -66,7 +66,7 @@ test("Finish setup hook has a loading state and the card renders only for 'card'
   assert.ok(c.includes("rounded-card"));
 });
 
-test("Dashboard order: tip strip, header, then one stats / Finish setup slot", () => {
+test("Dashboard order: header, one stats / Finish setup slot, then the tip strip", () => {
   const t = read("app/page-client.tsx");
   const strip = t.indexOf("<DashboardTipStrip />");
   const header = t.indexOf("<PageHeader");
@@ -74,8 +74,8 @@ test("Dashboard order: tip strip, header, then one stats / Finish setup slot", (
   const stats = t.indexOf("<DashboardStats />");
   const cards = t.indexOf("<DashboardBills");
   const goals = t.indexOf("<DashboardGoals");
-  assert.ok(strip > -1 && strip < header && header < slot && header < stats);
-  assert.ok(slot < cards && stats < cards && cards < goals);
+  assert.ok(strip > -1 && header > -1 && header < slot && header < stats);
+  assert.ok(stats < strip && strip < cards && cards < goals);
   assert.ok(t.includes('finishSetup === "card"') && t.includes('finishSetup === "none"'));
   assert.ok(!t.includes("onMinimisedChange"));
   assert.ok(t.includes("useVerdict()"));

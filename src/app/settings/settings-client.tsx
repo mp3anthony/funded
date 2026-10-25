@@ -269,7 +269,7 @@ export default function SettingsClient() {
   /* ── Render ────────────────────────────────── */
   return (
     <div className="flex-1 w-full max-w-2xl mx-auto px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12">
-      <PageHeader title="Settings" showAvatar={false} onBack={() => router.push("/")} />
+      <PageHeader title="Settings" subtitle="Your account and household" showAvatar={false} onBack={() => router.push("/")} />
 
       {/* ── Identity card ───────────────────────── */}
       <Card onClick={() => setShowProfileModal(true)} className="flex items-center gap-4 p-4 mt-2 mb-8">

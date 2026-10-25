@@ -26,7 +26,7 @@ export default function Logo({ size = "medium", showWordmark = false }: LogoProp
   if (showWordmark) {
     return (
       <div 
-        className="flex items-center select-none shrink-0 transition-transform duration-200 hover:scale-[1.03]"
+        className="flex items-center select-none shrink-0"
         style={{ width: wordmarkWidth, height: wordmarkHeight }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 50" className="w-full h-full text-primary-ink fill-current">
@@ -39,7 +39,7 @@ export default function Logo({ size = "medium", showWordmark = false }: LogoProp
 
   return (
     <div 
-      className="flex items-center select-none shrink-0 transition-transform duration-200 hover:scale-[1.05]"
+      className="flex items-center select-none shrink-0"
       style={{ width: iconSize, height: iconSize }}
     >
       <svg

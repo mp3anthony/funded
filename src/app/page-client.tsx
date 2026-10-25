@@ -49,8 +49,6 @@ export default function HomeClient() {
 
   return (
     <div className="flex-1 w-full max-w-2xl lg:max-w-4xl mx-auto px-6 pt-4 pb-10">
-      <DashboardTipStrip />
-
       <PageHeader
         title={verdict.headline}
         srTitle="Dashboard"
@@ -69,6 +67,9 @@ export default function HomeClient() {
         {/* One slot: the card while an owner has setup left, else the stats.
             Renders nothing until the dismissed flag loads, so stats never flash first. */}
         {finishSetup === "card" ? <FinishSetupCard /> : finishSetup === "none" ? <DashboardStats /> : null}
+
+        {/* Tip sits under the stats carousel (F06, #469) */}
+        <DashboardTipStrip />
 
         {/* Bills and Goals: swipe-only carousels (R27, #414) */}
         <div className="space-y-6">

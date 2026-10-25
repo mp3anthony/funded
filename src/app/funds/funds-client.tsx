@@ -295,7 +295,7 @@ export default function FundsClient() {
 
   return (
     <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12 space-y-4">
-      <PageHeader title="Goals" onAdd={() => setIsAddOpen(true)} addLabel="New goal" />
+      <PageHeader title="Goals" subtitle="What you are saving towards" onAdd={() => setIsAddOpen(true)} addLabel="New goal" />
 
       {/* Total of Saving goals only (Just tracking goals are in the Wish list below) */}
       <div className="px-1">

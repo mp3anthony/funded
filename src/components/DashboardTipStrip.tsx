@@ -90,7 +90,7 @@ export default function DashboardTipStrip() {
 
   return (
     <div
-      className="mb-2 flex min-h-12 items-center gap-2 rounded-2xl border pl-4 pr-1"
+      className="flex min-h-12 items-center gap-2 rounded-2xl border pl-4 pr-1"
       style={{ background: "var(--color-primary-light)", borderColor: "var(--color-primary-mid)" }}
     >
       <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary-ink" aria-hidden="true" />

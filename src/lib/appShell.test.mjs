@@ -77,7 +77,13 @@ test("PageHeader is the shared header", () => {
   assert.ok(header.includes("IconCircle"));
   assert.ok(header.includes("HeaderActions"));
   assert.ok(!/\baction\b\??:/.test(header), "no action prop");
-  assert.ok(!header.includes("Logo"));
+  // F06: app icon top-left (taps to Dashboard) unless a back circle replaces it; title is the last row.
+  assert.ok(header.includes("<Logo") && header.includes('href="/"'));
+  assert.ok(header.indexOf("<Logo") < header.indexOf("{subtitle}"));
+  assert.ok(header.indexOf("{subtitle}") < header.indexOf("<h1"));
+  assert.ok(header.indexOf("{extra}") < header.indexOf("<h1"));
+  assert.ok(header.indexOf("onBack ?") < header.indexOf("<Link"), "back circle replaces the icon");
+  assert.ok(!/hover:/.test(read("components/Logo.tsx")));
   assert.ok(!/hover:/.test(header));
   assert.ok(!/hover:/.test(read("components/HeaderActions.tsx")));
 });

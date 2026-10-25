@@ -15,11 +15,11 @@ test("goalPace lib exists and has no imports", () => {
   assert.ok(!/^\s*import\s/m.test(stripComments(read("lib/goalPace.ts"))));
 });
 
-test("Goals page: new header, no subtitle, Saving-only total, Filter chip, Wish list, empty states", () => {
+test("Goals page: new header, one-line description (F06), Saving-only total, Filter chip, Wish list, empty states", () => {
   const t = read("app/funds/funds-client.tsx");
   assert.ok(!t.includes("avg completion"));
   assert.ok(!t.includes("avgCompletion"));
-  assert.ok(!t.includes("subtitle="));
+  assert.ok(t.includes("subtitle="));
   assert.ok(t.includes("savingGoals(funds)"));
   assert.ok(t.includes("savingTotals("));
   assert.ok(t.includes("still to go"));
