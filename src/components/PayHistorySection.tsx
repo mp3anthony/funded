@@ -154,57 +154,57 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
           ) : (
             <>
               {!collapsed && (
-              <div className="mt-4 rounded-card border border-border bg-surface p-3">
-                {hasLines ? (
-                  <PayHistoryChart
-                    series={series}
-                    colours={series.map((s) => colourOf[s.memberId])}
-                    names={series.map((s) => names[s.memberId])}
-                    start={start}
-                    todayYmd={todayYmd}
-                  />
-                ) : (
-                  <p className="py-6 text-center text-sm text-muted">Nothing confirmed in this period yet.</p>
-                )}
+                <div className="mt-4 rounded-card border border-border bg-surface p-3">
+                  {hasLines ? (
+                    <PayHistoryChart
+                      series={series}
+                      colours={series.map((s) => colourOf[s.memberId])}
+                      names={series.map((s) => names[s.memberId])}
+                      start={start}
+                      todayYmd={todayYmd}
+                    />
+                  ) : (
+                    <p className="py-6 text-center text-sm text-muted">Nothing confirmed in this period yet.</p>
+                  )}
 
-                {single ? (
-                  <dl className="mt-2 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
-                    <Stat label="Total" value={money(single.total)} />
-                    <Stat label="Pays" value={String(single.points.length)} />
-                    <Stat label="Average" value={single.average === null ? "None yet" : money(single.average)} />
-                  </dl>
-                ) : (
-                  <ul className="mt-2 flex flex-col border-t border-border">
-                    {series.map((s) => {
-                      const share = sharePercent(s.total, household);
-                      return (
-                        <li key={s.memberId} className="flex items-center gap-2 py-2 text-sm">
-                          <span
-                            aria-hidden="true"
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
-                            style={{ background: colourOf[s.memberId] }}
-                          />
-                          <span className="min-w-0 flex-1 truncate font-body font-semibold text-foreground">
-                            {names[s.memberId]}
-                          </span>
-                          <span className="font-bold text-foreground tabular-nums">{money(s.total)}</span>
-                          <span className="w-12 text-right text-xs text-muted tabular-nums">
-                            {share === null ? "" : `${share}%`}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-                {series.length > 1 && household > 0 && (
-                  <p className="mt-1 text-xs text-subtle">Share of the household&apos;s pay in this period.</p>
-                )}
-                {pending > 0 && (
-                  <p className="mt-1 text-xs text-subtle">
-                    {pending} pending {pending === 1 ? "pay isn't" : "pays aren't"} on the chart until confirmed.
-                  </p>
-                )}
-              </div>
+                  {single ? (
+                    <dl className="mt-2 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
+                      <Stat label="Total" value={money(single.total)} />
+                      <Stat label="Pays" value={String(single.points.length)} />
+                      <Stat label="Average" value={single.average === null ? "None yet" : money(single.average)} />
+                    </dl>
+                  ) : (
+                    <ul className="mt-2 flex flex-col border-t border-border">
+                      {series.map((s) => {
+                        const share = sharePercent(s.total, household);
+                        return (
+                          <li key={s.memberId} className="flex items-center gap-2 py-2 text-sm">
+                            <span
+                              aria-hidden="true"
+                              className="h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ background: colourOf[s.memberId] }}
+                            />
+                            <span className="min-w-0 flex-1 truncate font-body font-semibold text-foreground">
+                              {names[s.memberId]}
+                            </span>
+                            <span className="font-bold text-foreground tabular-nums">{money(s.total)}</span>
+                            <span className="w-12 text-right text-xs text-muted tabular-nums">
+                              {share === null ? "" : `${share}%`}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {series.length > 1 && household > 0 && (
+                    <p className="mt-1 text-xs text-subtle">Share of the household&apos;s pay in this period.</p>
+                  )}
+                  {pending > 0 && (
+                    <p className="mt-1 text-xs text-subtle">
+                      {pending} pending {pending === 1 ? "pay isn't" : "pays aren't"} on the chart until confirmed.
+                    </p>
+                  )}
+                </div>
               )}
 
               <div className="mt-4 flex flex-col">

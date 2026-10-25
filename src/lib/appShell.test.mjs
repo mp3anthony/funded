@@ -89,6 +89,14 @@ test("PageHeader is the shared header", () => {
   assert.ok(!/hover:/.test(read("components/HeaderActions.tsx")));
 });
 
+test("nav hidden while loading, title clamps, History collapse hides the chart", () => {
+  const shell = read("components/AppShell.tsx");
+  assert.ok(shell.includes("{!isLoading && <BottomNav />}"));
+  assert.ok(!shell.includes("(!isLoading || session)"));
+  assert.ok(read("components/PageHeader.tsx").includes("clamp("));
+  assert.ok(read("components/PayHistorySection.tsx").includes("{!collapsed && ("));
+});
+
 test("add buttons go through PageHeader onAdd", () => {
   for (const rel of ["app/bills/bills-client.tsx", "app/funds/funds-client.tsx", "app/payday/payday-client.tsx"]) {
     assert.ok(read(rel).includes("onAdd="), `${rel} missing onAdd=`);

@@ -14,7 +14,7 @@ type AddProps =
 
 type PageHeaderProps = {
   title: string;
-  /** One-line description of the page (row 2, left). */
+  /** One-line description of the page (row 3, left, same line as the action buttons). */
   subtitle?: string;
   /** Hide the avatar (Settings and Updates). Default true. */
   showAvatar?: boolean;
@@ -24,13 +24,14 @@ type PageHeaderProps = {
   leading?: React.ReactNode;
   /** Read out before the title by screen readers only ("Dashboard" for the verdict header). */
   srTitle?: string;
-  /** Extra controls in row 2, before the "+" circle. */
+  /** Extra controls in row 3 (right side), before the "+" circle. */
   extra?: React.ReactNode;
 } & AddProps;
 
 /**
- * Three rows (F06, #469): app icon (or back circle) with bell and avatar; description with the
- * page's action buttons; then the title, so a long title never fights the buttons for width.
+ * Three rows (F06, #469): 1) app icon (or back circle) with bell and avatar; 2) the title;
+ * 3) the description with the page's action buttons on one line. A long title never fights the
+ * buttons for width.
  */
 export default function PageHeader({
   title,
@@ -54,7 +55,7 @@ export default function PageHeader({
           <Link
             href="/"
             aria-label="Dashboard"
-            className="press inline-flex h-12 min-w-11 -ml-2 items-center justify-start touch-manipulation [-webkit-tap-highlight-color:transparent]"
+            className="press inline-flex h-[52px] min-w-11 -ml-2 items-center justify-start touch-manipulation [-webkit-tap-highlight-color:transparent]"
           >
             <Logo size="large" />
           </Link>
