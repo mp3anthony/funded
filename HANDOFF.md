@@ -73,7 +73,7 @@ Open items, to handle now:
 
 Stays open on purpose: epics #463 (review fixes), #377 and parents #277-#281, #385-#387 (close when all children stay closed, at the final merge); [#423](https://github.com/mp3anthony/funded/issues/423) R36 post-merge design-doc cleanup; [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) parked, `needs-info`.
 
-**Final merge checklist (only when Anthony says go):** 1) apply the R28 migration `supabase/migrations/20261024130000_households_update_owner_only.sql` to production; 2) merge PR #425; 3) run `UPDATE pay_history SET amount = NULL WHERE status = 'pending' AND amount = 0;`; 4) v0.1.0 bump (`package.json` already reads 0.1.0, check) and patch-notes entry at the release step he calls; 5) close the epics and #377/parents; 6) R36 (#423) cleanup. Pending device checks: everything listed as "Not yet checked on iPhone" above, reviewed by Anthony in one pass.
+**Final merge checklist (only when Anthony says go):** 1) apply the R28 migration `supabase/migrations/20261024130000_households_update_owner_only.sql` to production; 2) merge PR #425; 3) run `UPDATE pay_history SET amount = NULL WHERE status = 'pending' AND amount = 0;`; 4) v0.1.0 bump (`package.json` already reads 0.1.0, check) and patch-notes entry at the release step he calls; 5) close #377, #463 and the folded old issues (#438 #432 #440 #454 #470); 6) R36 (#423) cleanup. Pending device checks: everything listed as "Not yet checked on iPhone" above, reviewed by Anthony in one pass.
 
 ## Next session, in order
 
