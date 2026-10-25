@@ -134,7 +134,7 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
         />
       </button>
 
-      {collapsed ? null : payHistory.length === 0 ? (
+      {payHistory.length === 0 ? (
         <div className="py-10 text-center">
           <p className="text-muted text-sm">No history logged yet.</p>
           <p className="text-subtle text-xs mt-1 font-body">Logged payday transactions will appear here.</p>
@@ -153,6 +153,7 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
             </div>
           ) : (
             <>
+              {!collapsed && (
               <div className="mt-4 rounded-card border border-border bg-surface p-3">
                 {hasLines ? (
                   <PayHistoryChart
@@ -204,6 +205,7 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
                   </p>
                 )}
               </div>
+              )}
 
               <div className="mt-4 flex flex-col">
                 {rows.slice(0, shown).map((history) => (

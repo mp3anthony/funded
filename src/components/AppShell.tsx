@@ -200,7 +200,7 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
 
       {/* Bottom Nav — rendered OUTSIDE the overflow-hidden container so
           position:fixed works against the viewport on iOS WebKit */}
-      {(!isLoading || session) && <BottomNav />}
+      {!isLoading && <BottomNav />}
 
       <EmailVerifiedModal isOpen={showVerifiedModal} onClose={() => setShowVerifiedModal(false)} />
       {!isLoading && currentUser && <UpdatesCard />}

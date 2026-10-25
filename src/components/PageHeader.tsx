@@ -54,9 +54,9 @@ export default function PageHeader({
           <Link
             href="/"
             aria-label="Dashboard"
-            className="press inline-flex h-11 min-w-11 items-center justify-start touch-manipulation [-webkit-tap-highlight-color:transparent]"
+            className="press inline-flex h-12 min-w-11 -ml-2 items-center justify-start touch-manipulation [-webkit-tap-highlight-color:transparent]"
           >
-            <Logo size="medium" />
+            <Logo size="large" />
           </Link>
         )}
         <div className="flex shrink-0 items-center gap-1">
@@ -64,7 +64,16 @@ export default function PageHeader({
         </div>
       </div>
 
-      {/* Row 2: description left, page actions right */}
+      {/* Row 2: the page title, full width, sized down on narrow screens so it fits */}
+      <div className="mt-1 flex min-w-0 items-center gap-3">
+        {leading}
+        <h1 className="font-heading font-extrabold text-[clamp(20px,7.2vw,28px)] sm:text-[32px] leading-tight tracking-tight text-foreground truncate">
+          {srTitle && <span className="sr-only">{srTitle}: </span>}
+          {title}
+        </h1>
+      </div>
+
+      {/* Row 3: description left, page actions right, on one line */}
       {(subtitle || hasActions) && (
         <div className="mt-1 flex items-center justify-between gap-3">
           <p className="min-w-0 flex-1 text-xs text-muted font-body">{subtitle}</p>
@@ -80,15 +89,6 @@ export default function PageHeader({
           )}
         </div>
       )}
-
-      {/* Row 3: the page title */}
-      <div className="mt-1 flex min-w-0 items-center gap-3">
-        {leading}
-        <h1 className="font-heading font-extrabold text-[28px] sm:text-[32px] leading-tight tracking-tight text-foreground truncate">
-          {srTitle && <span className="sr-only">{srTitle}: </span>}
-          {title}
-        </h1>
-      </div>
     </div>
   );
 }
