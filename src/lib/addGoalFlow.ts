@@ -23,15 +23,24 @@ export const GOAL_CATEGORIES: string[] = [
   "Other",
 ];
 
+/**
+ * The category a goal is shown under. "Wish List" is a retired category some old rows still carry
+ * (Type is the only wish switch now), so it reads as Other; blank also reads as Other. Display only, no data write.
+ */
+export function displayCategory(category?: string | null): string {
+  const c = (category ?? "").trim();
+  return !c || c === "Wish List" ? "Other" : c;
+}
+
 export const KIND_OPTIONS: Option[] = [
   {
     value: "saving",
-    label: "Saving",
+    label: "Active goal",
     description: "You're putting money towards it. Shows progress and counts in your savings.",
   },
   {
     value: "tracking",
-    label: "Just tracking",
+    label: "Wish list",
     description: "Just a note of what something costs. Nothing is saved towards it yet.",
   },
 ];
@@ -40,7 +49,7 @@ export interface AddGoalValues {
   kind: GoalKind;
   name: string;
   target: string;
-  /** Saving only. "" counts as $0. */
+  /** Active goal only. "" counts as $0. */
   saved: string;
   /** "" = no deadline. */
   deadline: string;
@@ -52,7 +61,7 @@ export interface AddedGoal {
   category: string;
 }
 
-/** Category a new goal starts in. Kind (Saving / Just tracking) is the only switch; category is separate. */
+/** Category a new goal starts in. Type (Active goal / Wish list) is the only switch; category is separate. */
 const DEFAULT_CATEGORY = "Savings";
 
 export function initialValues(): AddGoalValues {
@@ -66,12 +75,12 @@ export function initialValues(): AddGoalValues {
   };
 }
 
-/** Switching Saving <-> Just tracking changes the kind only; the category is left as chosen. */
+/** Switching Active goal <-> Wish list changes the type only; the category is left as chosen. */
 export function applyKindChange(v: AddGoalValues, kind: GoalKind): AddGoalValues {
   return kind === v.kind ? v : { ...v, kind };
 }
 
-/** The essential cards in order. Just tracking skips "Already saved". */
+/** The essential cards in order. Wish list skips "Already saved". */
 export function stepKeys(kind: GoalKind): string[] {
   return kind === "saving" ? ["kind", "name", "target", "saved"] : ["kind", "name", "target"];
 }
@@ -121,7 +130,7 @@ export function goalRowKey(id: string | number): string {
 
 /**
  * The status a new goal is saved with (no Status question is asked).
- * Just tracking -> paused; saved reaches the target -> completed; some saved -> in progress.
+ * Wish list -> paused; saved reaches the target -> completed; some saved -> in progress.
  */
 export function goalStatus(v: AddGoalValues): GoalStatus {
   if (v.kind === "tracking") return "paused";
@@ -159,7 +168,7 @@ export interface GoalLike {
   status?: string | null;
 }
 
-/** Edit values for a goal. Just tracking = status "paused". */
+/** Edit values for a goal. Wish list = status "paused". */
 export function valuesFromGoal(g: GoalLike): AddGoalValues {
   return {
     kind: g.status === "paused" ? "tracking" : "saving",
@@ -167,7 +176,7 @@ export function valuesFromGoal(g: GoalLike): AddGoalValues {
     target: String(g.targetAmount),
     saved: String(g.currentAmount),
     deadline: g.deadline ? String(g.deadline).slice(0, 10) : "",
-    category: (g.category ?? "").trim() || "Other",
+    category: displayCategory(g.category),
   };
 }
 
@@ -181,7 +190,7 @@ export function goalFieldError(field: GoalField, v: AddGoalValues): string | nul
 
 /**
  * What `updateGoal` takes. It writes every column, so every field save sends
- * the whole goal; the status is worked out again each time. Just tracking keeps
+ * the whole goal; the status is worked out again each time. Wish list keeps
  * its saved amount (switching back restores it). `member_id` is passed through
  * so a save never clears it.
  */
@@ -199,15 +208,15 @@ export function goalUpdate(v: AddGoalValues, goal: { member_id?: string | null }
 
 /** The status line on the goal sheet. */
 export function goalStatusLabel(g: { status?: string | null; currentAmount: number; targetAmount: number }): string {
-  if (g.status === "paused") return "Just tracking";
+  if (g.status === "paused") return "Wish list";
   if (g.targetAmount > 0 && g.currentAmount >= g.targetAmount) return "Reached";
-  return "Saving";
+  return "Active goal";
 }
 
 /** The Category choices, plus the goal's own category when it is an old one not in the list. */
 export function goalCategoryOptions(current?: string | null): Option[] {
   const list: Option[] = GOAL_CATEGORIES.map((c) => ({ value: c, label: c }));
-  const cur = (current ?? "").trim();
+  const cur = displayCategory(current);
   if (cur && !GOAL_CATEGORIES.includes(cur)) list.push({ value: cur, label: cur });
   return list;
 }

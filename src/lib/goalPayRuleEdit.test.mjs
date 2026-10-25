@@ -77,10 +77,10 @@ test("goalFieldError", () => {
 });
 
 test("goalStatusLabel", () => {
-  assert.equal(goalStatusLabel(goal({ status: "paused" })), "Just tracking");
+  assert.equal(goalStatusLabel(goal({ status: "paused" })), "Wish list");
   assert.equal(goalStatusLabel(goal({ currentAmount: 1000 })), "Reached");
-  assert.equal(goalStatusLabel(goal()), "Saving");
-  assert.equal(goalStatusLabel(goal({ status: "completed", currentAmount: 50 })), "Saving");
+  assert.equal(goalStatusLabel(goal()), "Active goal");
+  assert.equal(goalStatusLabel(goal({ status: "completed", currentAmount: 50 })), "Active goal");
 });
 
 test("goalCategoryOptions keeps a legacy category", () => {

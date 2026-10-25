@@ -16,7 +16,7 @@ import {
 
 const TITLES: Record<GoalField, string> = {
   name: "Name",
-  kind: "Kind",
+  kind: "Type",
   target: "Target",
   saved: "Saved",
   deadline: "Deadline",
@@ -85,7 +85,7 @@ export default function GoalFieldCard({
       body = (
         <ChoiceField
           id={`${inputId}-kind`}
-          question="What kind of goal?"
+          question="What type of goal?"
           options={KIND_OPTIONS}
           value={values.kind}
           onChange={(kind) => onChange(applyKindChange(values, kind as GoalKind))}

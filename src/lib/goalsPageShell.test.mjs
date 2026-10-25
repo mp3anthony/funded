@@ -119,3 +119,26 @@ test("ProgressRing is decorative and uses the shared motion tokens", () => {
   assert.ok(t.includes("--duration-structural"));
   assert.ok(t.includes("--ease-enter"));
 });
+
+test("F08: no user-visible Just tracking / Kind / Saving goal wording in source (stored ids and comments may keep them)", () => {
+  const files = [
+    "lib/addGoalFlow.ts",
+    "lib/dashboard-tips.ts",
+    "lib/getting-started.ts",
+    "app/funds/funds-client.tsx",
+    "components/AddGoalFlow.tsx",
+    "components/GoalFieldCard.tsx",
+    "components/GoalDetailSheet.tsx",
+    "components/DashboardGoals.tsx",
+    "components/WishRow.tsx",
+    "components/GoalRow.tsx",
+  ];
+  for (const f of files) {
+    const t = stripComments(read(f));
+    assert.ok(!/Just tracking/i.test(t), `${f}: Just tracking`);
+    assert.ok(!/\bKind\b/.test(t), `${f}: Kind`);
+    assert.ok(!/saving goal/i.test(t), `${f}: saving goal`);
+    assert.ok(!/kind of goal/i.test(t), `${f}: kind of goal`);
+  }
+  assert.ok(read("app/funds/funds-client.tsx").includes("displayCategory"));
+});

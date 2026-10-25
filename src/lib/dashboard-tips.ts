@@ -25,7 +25,7 @@ export const dashboardTips: string[] = [
   "Tip: Not sure you paid? Open the bill. Undo payment fixes a mis-tap.",
   "Tip: Tap Check impact on Bills to see what a new subscription would cost you.",
   "Tip: Pay day arrived? Tap it under Needs you on Payday when the money lands.",
-  "Tip: Not saving yet? Add it as Just tracking and it waits in your Wish list.",
+  "Tip: Not saving yet? Add it as a Wish list goal and it waits there.",
   "Tip: Check \"Updates\" in Settings to see what's new.",
   "Tip: New to Funded? Settings > Getting started has a short guide.",
 ];

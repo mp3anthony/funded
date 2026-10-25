@@ -25,7 +25,7 @@ import { todayInZone } from "@/lib/notifications/timezone";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useHouseholdTotal } from "@/hooks/useHouseholdTotal";
 import { useRowHighlight } from "@/hooks/useRowHighlight";
-import { GOAL_CATEGORIES, goalRowKey, type AddedGoal } from "@/lib/addGoalFlow";
+import { GOAL_CATEGORIES, displayCategory, goalRowKey, type AddedGoal } from "@/lib/addGoalFlow";
 import type { BillPrefill } from "@/lib/impactCalc";
 import {
   isTracking,
@@ -45,7 +45,7 @@ const GOAL_CATEGORY_REMAP: Record<string, string> = {
   "Debt Payoff": "Debt & Finance",
   "Interest Free Payment": "Debt & Finance",
   "Short-Term": "Other",
-  // "Wish List" is no longer a category: Kind (Just tracking) is the only switch.
+  // "Wish List" is no longer a category: Type (Wish list) is the only switch.
   "Wish List": "Other",
 };
 
@@ -175,18 +175,18 @@ export default function FundsClient() {
   }, [searchParams, pathname, router]);
 
   // ── Derived values ────────────────────────────────────────────────
-  // Only Saving goals count towards the total and the pace; Just tracking goals live in the Wish list.
+  // Only Active goals count towards the total and the pace; Wish list goals live in the Wish list.
   const filterActive = categoryFilter !== "All";
 
   const saving = useMemo(() => savingGoals(funds), [funds]);
   const listedSaving = useMemo(
     () =>
       saving.filter(
-        (f) => !filterActive || (f.category === "Wish List" ? "Other" : f.category || "Other") === categoryFilter,
+        (f) => !filterActive || displayCategory(f.category) === categoryFilter,
       ),
     [saving, filterActive, categoryFilter],
   );
-  // The Wish list is its own group (Kind is the only switch), so the category Filter does not apply to it.
+  // The Wish list is its own group (Type is the only switch), so the category Filter does not apply to it.
   const listedWish = useMemo(() => sortByCost(funds.filter(isTracking)), [funds]);
 
   const totals = useMemo(() => savingTotals(listedSaving), [listedSaving]);
@@ -197,8 +197,8 @@ export default function FundsClient() {
   const groupedSaving = useMemo(() => {
     const groups: Record<string, Fund[]> = {};
     listedSaving.forEach((fund) => {
-      // A retired "Wish List" category on an old Saving row reads as Other until its data is updated.
-      const cat = !fund.category || fund.category === "Wish List" ? "Other" : fund.category;
+      // A retired "Wish List" category on an old Active goal row reads as Other until its data is updated.
+      const cat = displayCategory(fund.category);
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(fund);
     });
@@ -209,7 +209,7 @@ export default function FundsClient() {
   }, [listedSaving]);
 
   const allCategories = useMemo(() => {
-    const currentCats = Array.from(new Set(funds.map((f) => f.category || "Other")));
+    const currentCats = Array.from(new Set(funds.map((f) => displayCategory(f.category))));
     // "Wish List" is a retired category name some old rows still carry; it is not a choice any more.
     return Array.from(new Set([...categoryOrder, ...GOAL_CATEGORIES, ...currentCats])).filter((c) => c !== "Wish List");
   }, [funds, categoryOrder]);
@@ -297,7 +297,7 @@ export default function FundsClient() {
     <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12 space-y-4">
       <PageHeader title="Goals" subtitle="What you are saving towards" onAdd={() => setIsAddOpen(true)} addLabel="New goal" />
 
-      {/* Total of Saving goals only (Just tracking goals are in the Wish list below) */}
+      {/* Total of Active goals only (Wish list goals are in the Wish list below) */}
       <div className="px-1">
         <div className="text-xs font-bold uppercase tracking-wider text-subtle">
           {filterActive ? "Filtered total" : "Total saved"}
@@ -305,7 +305,7 @@ export default function FundsClient() {
         <div className="mt-1 text-3xl font-bold tracking-tight text-primary-ink">{moneyFmt(displayTotalSaved)}</div>
         <p className="mt-1 text-xs font-body text-muted">
           {totals.count === 0 ? (
-            "No saving goals yet"
+            "No active goals yet"
           ) : (
             <>
               {totals.count} goal{totals.count !== 1 ? "s" : ""} · {moneyFmt(totals.toGo)} still to go
@@ -386,7 +386,7 @@ export default function FundsClient() {
               );
             })}
 
-            {/* Wish list: Just tracking goals, always last, whatever their category */}
+            {/* Wish list: goals, always last, whatever their category */}
             {listedWish.length > 0 &&
               renderGroup(WISH_KEY, "Wish list", listedWish.length, null, (isExpanded) =>
                 listedWish.map((fund, index) => (

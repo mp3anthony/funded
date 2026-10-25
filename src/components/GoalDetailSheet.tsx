@@ -34,7 +34,7 @@ interface GoalDetailSheetProps {
   onClose: () => void;
   /** The live goal (parents look it up by id so it follows every save). */
   goal: Fund | null;
-  /** Goals page only: a Just tracking goal gets a "Check impact" action that hands off to the calculator. */
+  /** Goals page only: a Wish list goal gets a "Check impact" action that hands off to the calculator. */
   onCheckImpact?: (goal: Fund) => void;
 }
 
@@ -183,7 +183,7 @@ export default function GoalDetailSheet({ isOpen, onClose, goal, onCheckImpact }
             divider
             tall
             chevron
-            label="Kind"
+            label="Type"
             value={optionLabel(KIND_OPTIONS, seed.kind)}
             onClick={() => openField("kind")}
           />

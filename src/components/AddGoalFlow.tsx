@@ -37,7 +37,7 @@ interface AddGoalFlowProps {
 
 /**
  * The one way to add a goal (R08, #395): a StepFlow with the essential cards
- * (Kind, Name, Target and, for a Saving goal, Already saved), then a summary
+ * (Type, Name, Target and, for an Active goal, Already saved), then a summary
  * whose "Optional details" rows (Deadline, Category) open extra cards. All
  * entries live here, so Back and detours keep them and a failed save
  * ("Try again") loses nothing. Rules live in `lib/addGoalFlow.ts`.
@@ -68,7 +68,7 @@ export default function AddGoalFlow({ open, onClose, onAdded }: AddGoalFlowProps
     content: (
       <ChoiceField
         id={`${uid}-kind`}
-        question="What kind of goal?"
+        question="What type of goal?"
         options={KIND_OPTIONS}
         value={values.kind}
         onChange={(k) => setValues((v) => applyKindChange(v, k as GoalKind))}
@@ -215,7 +215,7 @@ export default function AddGoalFlow({ open, onClose, onAdded }: AddGoalFlowProps
         <Row
           tall
           chevron
-          label="Kind"
+          label="Type"
           value={optionLabel(KIND_OPTIONS, values.kind)}
           onClick={() => edit("kind")}
         />

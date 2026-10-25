@@ -33,7 +33,7 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 - **Bill tracking** — manage bills across any frequency (weekly, fortnightly, monthly, yearly) with paid/due-soon/overdue status tracking, plus pausing, auto-pay bills and a permanent "Undo payment" on the last paid cycle
 - **Expenses** — variable spending (groceries, fuel) that counts toward the household total as a weekly amount
 - **Frequency normalisation** — all bills convert to a common frequency for apples-to-apples comparison
-- **Savings goals** — targets with progress rings, a pace line, manual top-ups, and a Wish list of "Just tracking" goals
+- **Savings goals** — targets with progress rings, a pace line, manual top-ups, and a Wish list of goals you are not saving towards yet
 - **Pay rules** — rules that send a share of pay above a threshold to a goal, set per goal or per member
 - **Payment modes** — choose between Joint Fund (pooled pot) or Direct Pay (split bills between members)
 - **Multi-member households** — invite members via join code, manage roles (owner/member), and assign bill splits
@@ -272,7 +272,7 @@ funded-nextjs/
 
 | Route | Screen | Purpose |
 |-------|--------|---------|
-| `/` | **Dashboard** | Verdict header (covered or short), tip strip, stats carousel (or Finish setting up card), manual bills and Saving goals carousels |
+| `/` | **Dashboard** | Verdict header (covered or short), tip strip, stats carousel (or Finish setting up card), manual bills and Active goals carousels |
 | `/payday` | **Payday** | Needs you strip (due and pending pays), a card per member, Compare split, pay history chart, surplus rule triggers |
 | `/bills` | **Bills** | All household bills and expenses with countdowns, category groups, filters, search, a frequency choice and Check impact |
 | `/funds` | **Goals** | Savings goals with progress rings and pace, manual top-ups, and the Wish list |

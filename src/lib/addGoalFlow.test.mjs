@@ -13,12 +13,16 @@ import {
   goalStatus,
   buildGoalPayload,
   applyKindChange,
+  displayCategory,
+  valuesFromGoal,
+  goalCategoryOptions,
+  goalStatusLabel,
   initialValues,
 } from "./addGoalFlow.ts";
 
 const withValues = (p) => ({ ...initialValues(), ...p });
 
-test("stepKeys: Saving asks Already saved, Just tracking does not", () => {
+test("stepKeys: Active goal asks Already saved, Wish list does not", () => {
   assert.deepEqual(stepKeys("saving"), ["kind", "name", "target", "saved"]);
   assert.deepEqual(stepKeys("tracking"), ["kind", "name", "target"]);
 });
@@ -105,4 +109,27 @@ test("goalRowKey, amountLabel, deadlineLabel", () => {
   assert.equal(amountLabel(1200), "$1,200.00");
   assert.equal(deadlineLabel(""), "No deadline");
   assert.match(deadlineLabel("2027-03-01"), /2027/);
+});
+
+test("type labels: Active goal / Wish list (F08)", () => {
+  assert.deepEqual(KIND_OPTIONS.map((o) => [o.value, o.label]), [["saving", "Active goal"], ["tracking", "Wish list"]]);
+  assert.equal(goalStatusLabel({ status: "paused", currentAmount: 0, targetAmount: 10 }), "Wish list");
+  assert.equal(goalStatusLabel({ status: "in_progress", currentAmount: 1, targetAmount: 10 }), "Active goal");
+});
+
+test("displayCategory: retired Wish List and blank read as Other, nothing else changes", () => {
+  assert.equal(displayCategory("Wish List"), "Other");
+  assert.equal(displayCategory(" Wish List "), "Other");
+  assert.equal(displayCategory(""), "Other");
+  assert.equal(displayCategory(null), "Other");
+  assert.equal(displayCategory(undefined), "Other");
+  assert.equal(displayCategory("Education"), "Education");
+});
+
+test("legacy Wish List category reads as Other in the goal sheet and the category card", () => {
+  const g = { name: "Xbox", category: "Wish List", currentAmount: 0, targetAmount: 400, status: "paused" };
+  assert.equal(valuesFromGoal(g).category, "Other");
+  const opts = goalCategoryOptions("Wish List").map((o) => o.value);
+  assert.ok(!opts.includes("Wish List"));
+  assert.equal(opts.filter((v) => v === "Other").length, 1);
 });
