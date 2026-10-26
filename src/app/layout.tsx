@@ -22,6 +22,9 @@ export const metadata: Metadata = {
   title: "Funded",
   description: "Household Finance Control Center",
   manifest: "/manifest.json?v=3",
+  icons: {
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -49,7 +52,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased bg-background">
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-light-512x512.png?v=3" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script
