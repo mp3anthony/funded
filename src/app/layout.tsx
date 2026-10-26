@@ -17,13 +17,21 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import AppShell from "@/components/AppShell";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+// iOS ignores the apple-touch-icon when fetched by URL on some hosts (F11,
+// #475), so the 180x180 PNG is embedded as a data URI. Read once, cached.
+const APPLE_TOUCH_ICON = `data:image/png;base64,${readFileSync(
+  join(process.cwd(), "public", "apple-touch-icon.png"),
+).toString("base64")}`;
 
 export const metadata: Metadata = {
   title: "Funded",
   description: "Household Finance Control Center",
   manifest: "/manifest.json?v=3",
   icons: {
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: APPLE_TOUCH_ICON, sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
