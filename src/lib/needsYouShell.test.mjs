@@ -59,3 +59,27 @@ test("AppContext: confirm throws, skips exist, the due skip is conditional on th
   const confirm = t.slice(t.indexOf("async function confirmAndUpdatePay("), t.indexOf("async function skipDuePay("));
   assert.ok(confirm.includes("throw error;"));
 });
+
+test("confirming a Pending pay runs rules and the surplus suggestion like logging does (#454)", () => {
+  const ctx = stripComments(read("context/AppContext.tsx"));
+  const confirm = ctx.slice(ctx.indexOf("async function confirmAndUpdatePay("), ctx.indexOf("async function skipDuePay("));
+  // Only a Pending row flips, and a no-row result throws: a second confirm cannot re-run the rules.
+  assert.ok(confirm.includes('.eq("status", "pending")'));
+  assert.ok(confirm.includes(".maybeSingle()") && confirm.includes("if (!data)"));
+  // The rule payout uses the amount just saved, not the stale Pending amount in state.
+  assert.ok(ctx.includes("knownPayAmount?: number"));
+
+  const t = stripComments(read("app/payday/payday-client.tsx"));
+  assert.equal((t.match(/const runPayAftermath = /g) ?? []).length, 1);
+  const aftermath = t.slice(t.indexOf("const runPayAftermath = "), t.indexOf("const handleSavePay = "));
+  assert.ok(aftermath.includes("checkAndApplyRules(") && aftermath.includes("applyRuleAllocation(rule, historyId, amount)"));
+  assert.ok(aftermath.includes("setSurplusInfo("));
+  // Both save paths call the one helper; rules only run after the save succeeded.
+  const save = t.slice(t.indexOf("const handleSavePay = "), t.indexOf("const handleSkipPay = "));
+  assert.equal((save.match(/runPayAftermath\(/g) ?? []).length, 2);
+  assert.ok(save.indexOf("await confirmAndUpdatePay(") < save.indexOf("runPayAftermath("));
+  assert.ok(save.indexOf("if (!newHistory) return false;") < save.lastIndexOf("runPayAftermath("));
+  // Skipping a Pending pay never runs rules.
+  const skip = t.slice(t.indexOf("const handleSkipPay = "), t.indexOf("const handleAllocateSurplus = "));
+  assert.ok(!skip.includes("runPayAftermath") && !skip.includes("applyRuleAllocation"));
+});

@@ -800,7 +800,7 @@ interface AppContextValue {
   deleteRule: (id: string) => Promise<void>;
   toggleRuleActive: (id: string) => Promise<void>;
   checkAndApplyRules: (memberId: string, payAmount: number) => ContributionRule[];
-  applyRuleAllocation: (rule: ContributionRule, payHistoryId: string) => Promise<void>;
+  applyRuleAllocation: (rule: ContributionRule, payHistoryId: string, knownPayAmount?: number) => Promise<void>;
 
   /* Members */
   members: Member[];
@@ -4284,19 +4284,23 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .from("pay_history")
         .update(updateData)
         .eq("id", historyId)
+        // Only a Pending pay can be confirmed: a second phone or a double tap gets an error,
+        // so the rules and surplus suggestion that follow run once (#454).
+        .eq("status", "pending")
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("confirmAndUpdatePay - failed to update pay history:", error);
         throw error;
       }
-
-      if (data) {
-        setPayHistory((prev) =>
-          prev.map((h) => (h.id === historyId ? data : h))
-        );
+      if (!data) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
       }
+
+      setPayHistory((prev) =>
+        prev.map((h) => (h.id === historyId ? data : h))
+      );
     } catch (err) {
       console.error("Failed to confirm and update pay:", err);
       throw err;
@@ -4687,13 +4691,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     );
   }
 
-  async function applyRuleAllocation(rule: ContributionRule, payHistoryId: string) {
+  async function applyRuleAllocation(rule: ContributionRule, payHistoryId: string, knownPayAmount?: number) {
     try {
-      // Find the corresponding pay history item to get the logged pay amount
+      // Find the corresponding pay history item to get the logged pay amount.
+      // A pay confirmed this render passes its amount in: state may still hold the Pending amount (#454).
       let historyItem = payHistory.find((h) => h.id === payHistoryId);
-      let payAmount = historyItem ? Number(historyItem.amount) : 0;
+      let payAmount = knownPayAmount !== undefined ? knownPayAmount : historyItem ? Number(historyItem.amount) : 0;
 
-      if (!historyItem) {
+      if (!historyItem && knownPayAmount === undefined) {
         // Fallback: Query direct from database to prevent race conditions
         const { data, error } = await supabase
           .from("pay_history")

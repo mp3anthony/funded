@@ -158,32 +158,15 @@ export default function PaydayClient() {
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [searchParams, pathname, router]);
 
-  // Save from the Log / Confirm Pay card. Returns false (the card shows its red line) when the save fails.
-  const handleSavePay = async (amount: number, notes: string | null): Promise<boolean> => {
-    if (!logTarget) return false;
-
-    if (logTarget.kind === "confirm") {
-      // Throws on failure; the card shows the red line. Confirming a Pending pay does not run rules (see money.md).
-      await confirmAndUpdatePay(logTarget.history.id, amount, notes);
-      return true;
-    }
-
-    const schedule = logTarget.schedule;
-    const memberId = schedule.member_id;
-    // Average of this schedule's last confirmed pays, taken BEFORE this pay is logged (R19, #406).
-    const avg = calculateAveragePay(String(schedule.id));
-
-    // Household-local day, not UTC (an evening log in NZ used to get yesterday's date, #315).
-    const logDate = todayInZone(householdTimezone || "Australia/Sydney");
-    const newHistory = await logPay(schedule.id, amount, logDate, notes || "Pay logged");
-    if (!newHistory) return false;
-
-    // Rules run after the pay is saved; a rule failing must not make the card offer a second log.
+  // After a pay is saved (logged by hand, or a Pending pay confirmed): run the member's rules and
+  // offer the surplus suggestion. One place so both paths behave the same (#454). Never throws:
+  // the pay is already saved, and a rule failing must not make the card offer a second save.
+  const runPayAftermath = async (memberId: string, amount: number, avg: number | null, historyId: string) => {
     try {
       const triggered = checkAndApplyRules(memberId, amount);
       const parts: string[] = [];
       for (const rule of triggered) {
-        await applyRuleAllocation(rule, newHistory.id);
+        await applyRuleAllocation(rule, historyId, amount);
 
         let targetName = "contribution";
         if (rule.action_type === "goal") {
@@ -194,8 +177,8 @@ export default function PaydayClient() {
       }
       if (parts.length > 0) showToast({ message: `Rule triggered: Added ${parts.join(", ")}` });
     } catch (err) {
-      console.error("Failed to apply rules after logging pay:", err);
-      showToast({ message: "Pay logged, but a rule couldn't be applied." });
+      console.error("Failed to apply rules after saving pay:", err);
+      showToast({ message: "Pay saved, but a rule couldn't be applied." });
     }
 
     // Skip the surplus popup when the household has no goals to add it to (#215).
@@ -207,6 +190,33 @@ export default function PaydayClient() {
         surplusAmount: surplus,
       });
     }
+  };
+
+  // Save from the Log / Confirm Pay card. Returns false (the card shows its red line) when the save fails.
+  const handleSavePay = async (amount: number, notes: string | null): Promise<boolean> => {
+    if (!logTarget) return false;
+
+    if (logTarget.kind === "confirm") {
+      const history = logTarget.history;
+      // Average taken BEFORE this pay is confirmed (R19, #406).
+      const avg = history.pay_schedule_id ? calculateAveragePay(String(history.pay_schedule_id)) : null;
+      // Throws on failure (card shows the red line) and then rules do not run. It only succeeds for a
+      // row that is still Pending, so rules and the surplus suggestion run once per pay (#454).
+      await confirmAndUpdatePay(history.id, amount, notes);
+      await runPayAftermath(String(history.member_id), amount, avg, String(history.id));
+      return true;
+    }
+
+    const schedule = logTarget.schedule;
+    // Average of this schedule's last confirmed pays, taken BEFORE this pay is logged (R19, #406).
+    const avg = calculateAveragePay(String(schedule.id));
+
+    // Household-local day, not UTC (an evening log in NZ used to get yesterday's date, #315).
+    const logDate = todayInZone(householdTimezone || "Australia/Sydney");
+    const newHistory = await logPay(schedule.id, amount, logDate, notes || "Pay logged");
+    if (!newHistory) return false;
+
+    await runPayAftermath(String(schedule.member_id), amount, avg, String(newHistory.id));
     return true;
   };
 
