@@ -55,7 +55,20 @@ export const RecentActivityCard = React.memo(function RecentActivityCard({
       const member = members.find((m) => String(m.id) === String(p.member_id));
       const memberName = member ? member.name : "Household member";
 
-      if (p.allocation_type === "goal") {
+      if (p.is_bonus === true) {
+        // A one-off bonus payment (F13, #477).
+        list.push({
+          id: `bonus-${p.id}`,
+          type: "paycheck",
+          description: `Bonus: ${memberName} received $${p.amount.toLocaleString("en-US", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          })}`,
+          date: parseBillDate(p.pay_date),
+          dateStr: p.pay_date,
+          amount: p.amount,
+        });
+      } else if (p.allocation_type === "goal") {
         const goal = funds.find((g) => String(g.id) === String(p.allocation_target_id));
         const goalName = goal ? goal.name : "Savings Goal";
         list.push({

@@ -166,3 +166,23 @@ test("a legacy $0 row is not plotted and does not count in totals", () => {
   assert.equal(s.average, 200);
   assert.equal(householdTotal(rows, null), 400);
 });
+
+test("a bonus is on the line and in the total but not in the Average (F13)", () => {
+  const rows = [
+    row("a", "m1", "2026-10-01", 1000),
+    row("b", "m1", "2026-10-10", 3000, { is_bonus: true, pay_schedule_id: null }),
+    row("c", "m1", "2026-10-15", 2000),
+  ];
+  const [s] = buildSeries(rows, ["m1"], null);
+  assert.equal(s.points.length, 3);
+  assert.equal(s.total, 6000);
+  assert.equal(s.average, 1500);
+  assert.deepEqual(s.points.map((p) => p.isBonus), [false, true, false]);
+  assert.equal(householdTotal(rows, null), 6000);
+});
+
+test("only a bonus gives no Average", () => {
+  const [s] = buildSeries([row("a", "m1", "2026-10-01", 500, { is_bonus: true })], ["m1"], null);
+  assert.equal(s.total, 500);
+  assert.equal(s.average, null);
+});

@@ -1,22 +1,27 @@
 "use client";
 
 import React, { useState } from "react";
-import { Trash2, Calendar, FileText, Sparkles, CheckCircle2 } from "lucide-react";
+import { Trash2, Calendar, FileText, NotebookPen, Sparkles, CheckCircle2 } from "lucide-react";
 import { useApp, type PayHistory } from "@/context/AppContext";
+import IconCircle from "@/components/ui/IconCircle";
 
 interface PayHistoryCardProps {
   history: PayHistory;
   onConfirmPending?: (history: PayHistory) => void;
+  /** Opens the Pay note pop-up for this row (one pop-up for the whole list, F12 #476). */
+  onOpenNote?: (history: PayHistory) => void;
   hideMemberInfo?: boolean;
   /** The member's line colour on the history chart (R22): a dot before their name. */
   dotColour?: string;
 }
 
-export default function PayHistoryCard({ history, onConfirmPending, hideMemberInfo, dotColour }: PayHistoryCardProps) {
+export default function PayHistoryCard({ history, onConfirmPending, onOpenNote, hideMemberInfo, dotColour }: PayHistoryCardProps) {
   const { householdMembers, deletePayHistory, funds, contributionRules, showToast } = useApp();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const isPending = history.status === "pending";
+  const isBonus = history.is_bonus === true;
+  const hasNote = Boolean(history.notes && history.notes.trim() !== "");
 
   // Find member name
   const member = householdMembers.find((m) => String(m.id) === String(history.member_id));
@@ -67,7 +72,9 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
   const amountClass = hasAmount ? "text-primary-ink" : "text-muted";
 
   const handleDelete = async () => {
-    const question = hasAmount
+    const question = isBonus
+      ? `Delete this bonus of ${formattedAmount} from ${formattedDate}?`
+      : hasAmount
       ? `Delete this payment of $${formattedAmount} logged on ${formattedDate}? The next pay date won't change.`
       : `Delete this pending pay from ${formattedDate}? The next pay date won't change.`;
     if (confirm(question)) {
@@ -105,14 +112,16 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
                 <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dotColour }} />
               )}
               <span className="truncate font-body font-semibold text-[15px] text-foreground">{memberName}</span>
+              {isBonus && <BonusTag />}
             </div>
             <span className={`font-bold ${amountClass} text-base whitespace-nowrap`}>
               {amountLabel}
             </span>
           </div>
         ) : (
-          <div className={`font-bold ${amountClass} text-lg whitespace-nowrap`}>
-            {amountLabel}
+          <div className="flex items-center gap-2">
+            <span className={`font-bold ${amountClass} text-lg whitespace-nowrap`}>{amountLabel}</span>
+            {isBonus && <BonusTag />}
           </div>
         )}
 
@@ -138,18 +147,18 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
             )}
           </div>
         </div>
-
-        {/* Notes (Conditional) */}
-        {history.notes && (
-          <div className="flex items-start gap-1.5 text-xs text-subtle pt-0.5">
-            <FileText size={13} className="mt-0.5 shrink-0 text-muted" />
-            <span className="break-words font-body">{history.notes}</span>
-          </div>
-        )}
       </div>
 
       {/* Action buttons */}
       <div className="shrink-0 flex items-center gap-1">
+        {/* The note lives in a pop-up (F12, #476): a filled icon when there is one, a quieter one to add. */}
+        <IconCircle
+          label={hasNote ? "View note" : "Add note"}
+          onClick={() => onOpenNote?.(history)}
+          className={hasNote ? undefined : "opacity-60"}
+        >
+          {hasNote ? <FileText size={16} aria-hidden="true" /> : <NotebookPen size={16} aria-hidden="true" />}
+        </IconCircle>
         {isPending && (
           <button
             onClick={handleConfirm}
@@ -169,5 +178,14 @@ export default function PayHistoryCard({ history, onConfirmPending, hideMemberIn
         </button>
       </div>
     </div>
+  );
+}
+
+/** Small tag on a bonus payment row (F13, #477). */
+function BonusTag() {
+  return (
+    <span className="shrink-0 rounded-full border border-primary/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-ink">
+      Bonus
+    </span>
   );
 }

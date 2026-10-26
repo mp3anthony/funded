@@ -4,6 +4,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useApp, useCurrentUser, type PaySchedule, type PayHistory } from "@/context/AppContext";
 import AddPayFlow from "@/components/AddPayFlow";
+import AddBonusFlow from "@/components/AddBonusFlow";
+import Dialog from "@/components/ui/Dialog";
+import Row from "@/components/ui/Row";
 import Carousel from "@/components/ui/Carousel";
 import Button from "@/components/ui/Button";
 import MemberPayCard from "@/components/MemberPayCard";
@@ -34,6 +37,9 @@ export default function PaydayClient() {
   const pathname = usePathname();
 
   const [isAddScheduleOpen, setIsAddScheduleOpen] = useState(false);
+  // The "+" asks what to add first (F13, #477): a schedule or a one-off bonus payment.
+  const [isChooserOpen, setIsChooserOpen] = useState(false);
+  const [isBonusOpen, setIsBonusOpen] = useState(false);
   // Whose pay the New pay schedule flow starts on ("" = ask). Kept after the flow closes so it never flips mid-animation.
   const [addForMember, setAddForMember] = useState("");
   const { highlightKey, flash } = useRowHighlight();
@@ -258,8 +264,8 @@ export default function PaydayClient() {
             Compare split
           </Button>
         }
-        onAdd={() => openAddSchedule()}
-        addLabel="New pay schedule"
+        onAdd={() => setIsChooserOpen(true)}
+        addLabel="Add to Payday"
       />
 
       {/* Needs you: pays due to log and Pending pays to confirm (R20, #407) */}
@@ -307,6 +313,33 @@ export default function PaydayClient() {
         onAddSchedule={(memberId) => openAddSchedule(memberId)}
         stackedOpen={selectedSchedule !== null || isAddScheduleOpen}
       />
+
+      {/* What the "+" adds: a pay schedule or a bonus payment (F13, #477) */}
+      <Dialog open={isChooserOpen} onClose={() => setIsChooserOpen(false)} title="Add to Payday" placement="bottom">
+        <div className="flex flex-col">
+          <Row
+            tall
+            chevron
+            label="Add a schedule"
+            onClick={() => {
+              setIsChooserOpen(false);
+              openAddSchedule();
+            }}
+          />
+          <Row
+            tall
+            chevron
+            label="Add a bonus payment"
+            onClick={() => {
+              setIsChooserOpen(false);
+              setIsBonusOpen(true);
+            }}
+          />
+        </div>
+      </Dialog>
+
+      {/* Bonus payment flow: a one-off income, no schedule */}
+      <AddBonusFlow open={isBonusOpen} onClose={() => setIsBonusOpen(false)} />
 
       {/* New pay schedule flow */}
       <AddPayFlow

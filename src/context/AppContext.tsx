@@ -136,6 +136,8 @@ export interface PayHistory {
   allocation_type: "goal" | "contribution" | null;
   allocation_target_id: string | null;
   status?: 'pending' | 'confirmed';
+  /** True for a one-off bonus payment logged from Payday (F13, #477). Absent until the migration is applied. */
+  is_bonus?: boolean;
 }
 
 export interface Member {
@@ -782,6 +784,8 @@ interface AppContextValue {
   skipPendingPay: (historyId: string) => Promise<void>;
   autoLogMissedPays: () => Promise<void>;
   deletePayHistory: (id: string) => Promise<void>;
+  updatePayNotes: (id: string, notes: string | null) => Promise<void>;
+  logBonus: (input: { memberId: string; amount: number; payDate: string; notes: string | null }) => Promise<string>;
   /** Average of that schedule's last 4 confirmed pays; null with fewer than 2 (R19, #406). */
   calculateAveragePay: (scheduleId: string) => number | null;
 
@@ -4430,6 +4434,60 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  // Edit a pay's note (F12, #476). Notes only: no history of edits. An RLS-blocked UPDATE
+  // changes 0 rows without an error, so ask for the row back and treat none as a failure.
+  async function updatePayNotes(id: string, notes: string | null) {
+    const clean = notes === null || notes.trim() === "" ? null : notes.trim();
+    const { data, error } = await supabase
+      .from("pay_history")
+      .update({ notes: clean })
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      console.error("Failed to update pay note:", error);
+      throw error;
+    }
+    assertRowUpdated(data, "Couldn't save that note.");
+    setPayHistory((prev) => prev.map((h) => (h.id === id ? { ...h, notes: clean } : h)));
+  }
+
+  // Log a one-off bonus (F13, #477). A confirmed pay with no schedule and is_bonus true.
+  // Deliberately NOT logPay: no next pay date moves, and no rules or surplus suggestion run.
+  async function logBonus({
+    memberId,
+    amount,
+    payDate,
+    notes,
+  }: {
+    memberId: string;
+    amount: number;
+    payDate: string;
+    notes: string | null;
+  }): Promise<string> {
+    const hId = await ensureHousehold();
+    const { data, error } = await supabase
+      .from("pay_history")
+      .insert({
+        household_id: hId,
+        member_id: memberId,
+        pay_schedule_id: null,
+        amount,
+        pay_date: parseDateForDb(payDate),
+        notes,
+        status: "confirmed",
+        is_bonus: true,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error("Failed to log bonus:", error);
+      throw error;
+    }
+    if (!data) throw new Error("Couldn't save that bonus.");
+    setPayHistory((prev) => [data, ...prev]);
+    return String(data.id);
+  }
+
   function calculateAveragePay(scheduleId: string): number | null {
     return averagePay(scheduleId, payHistory);
   }
@@ -5144,6 +5202,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     skipPendingPay,
     autoLogMissedPays,
     deletePayHistory,
+    updatePayNotes,
+    logBonus,
     calculateAveragePay,
     householdContributions,
     fetchHouseholdContributions,

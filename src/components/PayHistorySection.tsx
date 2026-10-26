@@ -8,6 +8,7 @@ import Chip from "@/components/ui/Chip";
 import Dialog from "@/components/ui/Dialog";
 import PayHistoryCard from "@/components/PayHistoryCard";
 import PayHistoryChart from "@/components/PayHistoryChart";
+import PayNoteCard from "@/components/PayNoteCard";
 import { cn } from "@/lib/utils";
 import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
 import {
@@ -69,6 +70,9 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
   const [picked, setPicked] = useState<string[] | null>(null);
   const [period, setPeriod] = useState<Period>(DEFAULT_PERIOD);
   const [shown, setShown] = useState(PAGE_SIZE);
+  // The pay whose note pop-up is open (F12, #476); looked up each render so a save shows at once.
+  const [noteId, setNoteId] = useState<string | null>(null);
+  const noteHistory = noteId === null ? null : (payHistory.find((h) => String(h.id) === noteId) ?? null);
 
   // Members with any pay on record, in the household's member order (their line colour follows that order).
   const options = useMemo(() => {
@@ -216,6 +220,7 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
                     key={history.id}
                     history={history}
                     onConfirmPending={onConfirmPending}
+                    onOpenNote={(h) => setNoteId(String(h.id))}
                     hideMemberInfo={allIds.length === 1}
                     dotColour={colourOf[String(history.member_id)]}
                   />
@@ -230,6 +235,8 @@ export default function PayHistorySection({ todayYmd, onConfirmPending }: PayHis
           )}
         </>
       )}
+
+      <PayNoteCard history={noteHistory} onClose={() => setNoteId(null)} />
 
       <Dialog open={isFilterOpen} onClose={() => setIsFilterOpen(false)} title="Show" placement="bottom">
         <div className="space-y-5">

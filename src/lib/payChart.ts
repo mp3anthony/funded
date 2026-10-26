@@ -28,12 +28,16 @@ export interface ChartRow {
   pay_date: string;
   created_at?: string | null;
   status?: string | null;
+  /** A one-off bonus (F13, #477): on the chart and in totals, but not in the Average. */
+  is_bonus?: boolean | null;
 }
 
 export interface ChartPoint {
   id: string;
   date: string;
   amount: number;
+  /** True for a bonus; left out of `average`. */
+  isBonus: boolean;
 }
 
 export interface MemberSeries {
@@ -41,7 +45,7 @@ export interface MemberSeries {
   /** Confirmed pays in the period, oldest first. */
   points: ChartPoint[];
   total: number;
-  /** Mean of the points, or null with none. */
+  /** Mean of the non-bonus points, or null with none (a bonus is not a typical pay). */
   average: number | null;
 }
 
@@ -139,9 +143,11 @@ export function buildSeries(
     const points = rows
       .filter((r) => String(r.member_id) === memberId && isChartable(r) && inPeriod(r, start))
       .sort((a, b) => -newestFirst(a, b))
-      .map((r) => ({ id: String(r.id), date: r.pay_date.slice(0, 10), amount: Number(r.amount) }));
+      .map((r) => ({ id: String(r.id), date: r.pay_date.slice(0, 10), amount: Number(r.amount), isBonus: r.is_bonus === true }));
     const total = points.reduce((s, p) => s + p.amount, 0);
-    return { memberId, points, total, average: points.length > 0 ? total / points.length : null };
+    const regular = points.filter((p) => !p.isBonus);
+    const regularTotal = regular.reduce((s, p) => s + p.amount, 0);
+    return { memberId, points, total, average: regular.length > 0 ? regularTotal / regular.length : null };
   });
 }
 

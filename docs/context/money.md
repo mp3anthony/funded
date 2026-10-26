@@ -105,7 +105,7 @@ Built in R19 (#406): a Pending pay is added to history only once its pay day has
 _Avoid_: Unconfirmed income, draft pay, missed pay
 
 **Pay history** (built in R22, #409):
-The History section at the bottom of Payday: a filter chip ("Everyone · 3 months") opens a pop-up with a tick box per member that has any pay on record (at least one stays ticked) and a period (4 weeks, 3 months, 12 months, All; default 3 months, not remembered). Under it a chart with one coloured line per ticked member (confirmed pays only; a Pending pay is not on the chart and a note says how many are left out). With one member a dashed line marks their average and the totals read Total, Pays, Average; with several, each member's period total and their share of the household's pay in that period (everyone, not just the ticked) sit under the chart. The list below is the same people and period, newest first, Pending included (its tick opens the Confirm Pay card), 15 at a time with Show more. Line colours follow the member order and are fixed per member. No chart library: plain SVG. Rules live in `src/lib/payChart.ts`.
+The History section at the bottom of Payday: a filter chip ("Everyone · 3 months") opens a pop-up with a tick box per member that has any pay on record (at least one stays ticked) and a period (4 weeks, 3 months, 12 months, All; default 3 months, not remembered). Under it a chart with one coloured line per ticked member (confirmed pays only; a Pending pay is not on the chart and a note says how many are left out). With one member a dashed line marks their average and the totals read Total, Pays, Average; with several, each member's period total and their share of the household's pay in that period (everyone, not just the ticked) sit under the chart. The list below is the same people and period, newest first, Pending included (its tick opens the Confirm Pay card), 15 at a time with Show more. Line colours follow the member order and are fixed per member. No chart library: plain SVG. Rules live in `src/lib/payChart.ts`. Each row has a round note icon (filled when the pay has a note, quieter "Add note" when not) that opens a **Pay note** pop-up (F12, #476): the note, editable by anyone, Save greyed until changed, toast "Note saved"; notes only, no edit history, empty text saves as no note. A bonus row carries a small "Bonus" tag (see Bonus payment).
 _Avoid_: Recent pay history, contributor filter, income report
 
 **Member pay card** (built in R21, #408):
@@ -124,9 +124,13 @@ _Avoid_: Cancel pay, missed pay, void
 For a variable-pay schedule (per schedule, not per member), the average of its last 4 confirmed pays, ignoring Pending pays; needs at least 2 confirmed, else "Not enough pays yet". Rule lives in `src/lib/payHistory.ts` (`averagePay`). A variable-pay member card shows it in grey with "Estimate from your last 4 pays" (or "Not enough pays yet"). Replaced the old last-3-pays rule, which counted Pending $0 rows.
 _Avoid_: Typical pay, expected pay
 
+**Bonus payment** (built in F13, #477):
+A one-off income logged from the Payday "+" (the "+" asks first: "Add a schedule" or "Add a bonus payment"). Whose pay (only with 2+ members; anyone can log for any accepted member), Amount, Date (today or earlier, household time), then a summary with optional Notes and "Save bonus". Saved as a confirmed pay with no schedule and `is_bonus` true (`logBonus`): it moves no next pay date and runs no rules or surplus suggestion. It shows in history (with a "Bonus" tag), on the chart line and in totals and shares, but not in weekly income, the verdict, a schedule's average pay (the single-member dashed Average also leaves it out), rules or surplus. Deleting it works like any history row. Not the same as Surplus.
+_Avoid_: Extra pay, one-off pay, windfall
+
 **Surplus**:
 Pay that comes in well above a member's average (see Average pay), which the app offers to allocate to a goal. The dashboard also shows a weekly surplus, which is income left after bills.
-_Avoid_: Bonus, extra, leftover
+_Avoid_: Extra, leftover (a Bonus payment is a different thing: a one-off income, not a pay above average)
 
 ### Saving and planning
 
