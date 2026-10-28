@@ -100,9 +100,14 @@ export default function UpdatePasswordPage() {
 
       setSuccessMsg("Password updated successfully! Redirecting to sign in...");
       succeededRef.current = true;
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutErr) {
+        // The password is already changed; a failed sign-out must not show an error.
+        console.error("Sign out after password change failed:", signOutErr);
+      }
       setTimeout(() => {
-        router.replace("/login?message=password_reset_success");
+        window.location.assign("/login?message=password_reset_success");
       }, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "An error occurred";

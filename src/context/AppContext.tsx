@@ -984,8 +984,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // then erroring would be read as "B is already onboarded", leaving isOnboarded
   // true over user A's dbHouseholdId, household name and data arrays — B looking
   // at A's dashboard. AppProvider never unmounts across sign-out/sign-in (both
-  // are client-side router navigations, no page reload), so none of that state
-  // is cleared for us. A user-id mismatch therefore counts as "unknown".
+  // are client-side router navigations, no page reload), so that state is
+  // only cleared by resetHouseholdState (called on sign-out and on a user-id
+  // change). A user-id mismatch counts as "unknown" here as a second guard.
   // Cleared on sign-out (see loadData's no-session branch).
   const resolvedHouseholdUserIdRef = useRef<string | null>(null);
 
@@ -1047,6 +1048,26 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // top-level finally so every exit path (including the early "no session"
   // return) releases it.
   const loadDataInFlightRef = useRef(false);
+  // The user id the in-memory household data belongs to (null = nothing loaded).
+  // When the signed-in user differs from this, resetHouseholdState clears every
+  // household/user slice before anything new is loaded.
+  const dataOwnerUserIdRef = useRef<string | null>(null);
+  // Bumped by every resetHouseholdState. A loadData that started before a reset
+  // compares against it and discards its results instead of keeping them.
+  const loadGenerationRef = useRef(0);
+  // Number of createHousehold / joinHousehold calls running (a counter, so
+  // overlapping calls cannot clear it early). While it is above zero, a
+  // background loadData that reads membership before the write commits does not
+  // clear the household that call is setting up.
+  const householdWriteCountRef = useRef(0);
+  // Which user last finished one of those writes, and when. A load that reads
+  // membership just after the write finished may still be stale, so the same
+  // user keeps their household for a few seconds.
+  const justWroteHouseholdRef = useRef<{ userId: string | null; at: number } | null>(null);
+  // Bumped to re-run the loadData effect when a load was discarded because the
+  // user changed while it was in flight (the overlap guard may have skipped the
+  // new user's own call).
+  const [loadNonce, setLoadNonce] = useState(0);
 
   // Mirrors of the two values the loadData effect below depends on, as of the
   // last time an auth callback dispatched them. Both auth callbacks fire outside
@@ -1079,6 +1100,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       .then(({ data: { session } }) => {
         console.log('Auth useEffect - getSession result:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
         const loadDataWillRun = willRunLoadData(session);
+        resetIfUserChanged(session?.user?.id ?? null);
         lastDispatchedSessionRef.current = session;
         isAuthLoadingRef.current = false;
         setSession(session);
@@ -1119,6 +1141,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth useEffect - onAuthStateChange event:', _event, 'session:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
       const loadDataWillRun = willRunLoadData(session);
+      // Clear the previous user's data on sign-out or a direct user switch
+      // (auth-js can emit SIGNED_IN with no SIGNED_OUT first).
+      resetIfUserChanged(session?.user?.id ?? null);
       lastDispatchedSessionRef.current = session;
       isAuthLoadingRef.current = false;
       setSession(session);
@@ -1139,6 +1164,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; the reset helper uses only refs and stable setters
   }, []);
 
   function completeOnboarding() {
@@ -1178,6 +1204,58 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
    * reflected in the other. */
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
 
+  /* ── Reset household state ──────────────────── */
+  // Clears every household/user data slice back to its empty default, for when
+  // the signed-in user changes or signs out. AppProvider stays mounted across
+  // those events, so nothing else clears it. Uses only setters and refs, so it
+  // is safe to call from the frozen auth callbacks. Preferences that are not
+  // user data (theme) are left alone.
+  function resetHouseholdState() {
+    loadGenerationRef.current += 1;
+    dataOwnerUserIdRef.current = null;
+    resolvedHouseholdUserIdRef.current = null;
+    setIsOnboarded(false);
+    setHouseholdNameState("");
+    setDbHouseholdId(null);
+    setIsJointFund(false);
+    setHouseholdTimezone("Australia/Sydney");
+    setJoinCode(null);
+    setCodeExpiresAt(null);
+    setBills([]);
+    setExpenses([]);
+    setFunds([]);
+    setPaydays([]);
+    setMembers([]);
+    setBillSplits([]);
+    setExpenseSplits([]);
+    setPaySchedules([]);
+    setPayHistory([]);
+    setHouseholdContributions([]);
+    setContributionRules([]);
+    setNotifications([]);
+    setNotificationSettings(null);
+    setPushStatus(null);
+    setFinishSetup(null);
+    setToast(null);
+  }
+
+  // Resets when data is held for a different user than nextUserId (including
+  // null, i.e. signed out). No-op when nothing is loaded or the same user is
+  // still signed in, so token refreshes never clear anything.
+  function resetIfUserChanged(nextUserId: string | null) {
+    const owner = dataOwnerUserIdRef.current;
+    if (owner && owner !== nextUserId) resetHouseholdState();
+  }
+
+  // Throws if a different user (or a sign-out) took over the session since a
+  // create/join call started, so it cannot commit household state for the wrong user.
+  function assertSessionUserUnchanged(userId: string) {
+    const current = lastDispatchedSessionRef.current?.user?.id;
+    if (current && current !== userId) {
+      throw new Error("Your sign-in changed. Please try again.");
+    }
+  }
+
   /* ── Sync/Load Data ─────────────────────────── */
   // Only load data AFTER auth has resolved and we have a valid session.
   // This prevents a race condition where RLS returns empty results
@@ -1191,20 +1269,37 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       return;
     }
     loadDataInFlightRef.current = true;
+    // gen is the generation this call considers current. loadDataInner moves it
+    // forward after its own resets, so only a reset from elsewhere (user switch
+    // or sign-out during the load) leaves it behind.
+    const ctx = { gen: loadGenerationRef.current };
     try {
-      await loadDataInner(options);
+      await loadDataInner(options, ctx);
     } finally {
       loadDataInFlightRef.current = false;
     }
+    // The user changed or signed out while this load was in flight: whatever it
+    // wrote belongs to the previous user. Clear it and re-run for the current
+    // session (the new user's own call may have been skipped by the guard above).
+    if (ctx.gen !== loadGenerationRef.current) {
+      resetHouseholdState();
+      // With a session the re-run clears loading in its own finally; with none
+      // there is nothing to load, so loading must be cleared here.
+      setIsDataLoading(!!lastDispatchedSessionRef.current);
+      setLoadNonce((n) => n + 1);
+    }
   }
 
-  async function loadDataInner(options?: { assumeEmptyPreviousState?: boolean }) {
+  async function loadDataInner(options: { assumeEmptyPreviousState?: boolean } | undefined, ctx: { gen: number }) {
     if (isAuthLoading || !session?.user) {
       console.log('loadData skipped - isAuthLoading:', isAuthLoading, 'session:', session ? 'exists' : 'null');
       // No session means signed out (or never signed in): forget any household
       // we had resolved, so the next user through doesn't inherit this one's
       // "already onboarded" knowledge.
-      if (!isAuthLoading) resolvedHouseholdUserIdRef.current = null;
+      if (!isAuthLoading) {
+        resetHouseholdState();
+        ctx.gen = loadGenerationRef.current;
+      }
       setIsOnboarded(false);
       // Only clear the loading flag once auth has actually resolved. This effect
       // also fires on mount while isAuthLoading is still true; clearing it there
@@ -1216,15 +1311,26 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (!isAuthLoading) setIsDataLoading(false);
       return;
     }
+    // Data held for a different user must never be shown to this one. The reset
+    // setters do not update this render's closure values, so the loaders are told
+    // to treat the previous in-memory state as empty.
+    let assumeEmptyAfterReset = false;
+    if (dataOwnerUserIdRef.current && dataOwnerUserIdRef.current !== session.user.id) {
+      resetHouseholdState();
+      ctx.gen = loadGenerationRef.current;
+      assumeEmptyAfterReset = true;
+    }
+    dataOwnerUserIdRef.current = session.user.id;
     if (!dbHouseholdId && !isOnboarded) {
       setIsDataLoading(true);
     }
     console.log('loadData running with authenticated session, user:', session.user.id);
     // Do we already know THIS user has a household? Declared outside the try so
     // the catch below can see it too. Deliberately consults only the user-keyed
-    // ref: isOnboarded and dbHouseholdId are not user-scoped and are never reset,
-    // so after a same-tab user switch they still hold the *previous* user's
-    // values — exactly the evidence this guard must not trust (see
+    // ref: isOnboarded and dbHouseholdId are not user-scoped, and this render's
+    // copies can be stale right after resetHouseholdState (which clears them for
+    // a user switch or sign-out but cannot update values already closed over),
+    // so they are not the evidence this guard should trust (see
     // resolvedHouseholdUserIdRef's declaration). A same-user warm reload still
     // matches its own id, so a transient error there keeps every loaded value in
     // place, which is the whole point of the guard.
@@ -1269,11 +1375,24 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      // Signed out or switched user while the membership query was in flight.
+      if (ctx.gen !== loadGenerationRef.current) return;
+
       if (!membership?.household_id) {
         // Successful query, no membership row — the one result that genuinely
         // means "this user has no household yet".
         console.log('[loadData] No active household membership or user has no household yet');
-        resolvedHouseholdUserIdRef.current = null;
+        // Keep a household this same user is creating or joining right now.
+        const justWrote = justWroteHouseholdRef.current;
+        const keepOwnHousehold =
+          householdWriteCountRef.current > 0 ||
+          (!!justWrote && justWrote.userId === session.user.id && Date.now() - justWrote.at < 5000);
+        if (!keepOwnHousehold) {
+          // This user has no household (new, or removed from theirs): clear any leftovers.
+          resetHouseholdState();
+          ctx.gen = loadGenerationRef.current;
+          dataOwnerUserIdRef.current = session.user.id;
+        }
         setIsOnboarded(false);
         setIsDataLoading(false);
         return;
@@ -1301,8 +1420,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      if (ctx.gen !== loadGenerationRef.current) return;
+
       console.log('loadData - found household:', household.id, household.name, household.is_joint_fund);
       resolvedHouseholdUserIdRef.current = session.user.id;
+      dataOwnerUserIdRef.current = session.user.id;
       setDbHouseholdId(household.id);
       setHouseholdNameState(household.name);
       setIsJointFund(!!household.is_joint_fund);
@@ -1312,7 +1434,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsOnboarded(true);
 
       // Fetch related data
-      await loadHouseholdRelatedData(household.id, session.user.id, { ...options, timezone: household.timezone });
+      await loadHouseholdRelatedData(household.id, session.user.id, {
+        ...options,
+        assumeEmptyPreviousState: options?.assumeEmptyPreviousState || assumeEmptyAfterReset,
+        timezone: household.timezone,
+        gen: ctx.gen,
+      });
     } catch (err) {
       console.error('[loadData] Failed loading all household data:', err);
       if (isNetworkFailure(err)) {
@@ -1329,7 +1456,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         if (resolvedHouseholdUserIdRef.current !== session.user.id && !knownOnboarded) setIsOnboarded(false);
       }
     } finally {
-      if (!networkFailure) {
+      // A reset from elsewhere (user switch / sign-out) during this load makes it
+      // stale: leave the loading and network flags to the wrapper, which re-runs
+      // the load, so the new user never sees a gap where loading is false.
+      const staleLoad = ctx.gen !== loadGenerationRef.current;
+      if (!networkFailure && !staleLoad) {
         setIsDataLoading(false);
       }
       // Always resync, in both directions: flips true on a fresh network
@@ -1337,7 +1468,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // retry actually succeeds (or resolves to a definitive answer another
       // way), so the recovery effect below stops polling/listening the
       // instant it's no longer needed instead of running forever.
-      setIsNetworkStuck(networkFailure);
+      if (!staleLoad) setIsNetworkStuck(networkFailure);
       // This call's outcome is the direct answer to "did that retry attempt
       // fail?" — feed it to the escape-hatch generation counter regardless of
       // which trigger (manual button, poll, online, focus, visibilitychange)
@@ -1352,7 +1483,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   useEffect(() => {
     loadData();
-  }, [isAuthLoading, session]);
+  }, [isAuthLoading, session, loadNonce]);
 
   // Recovery for the "stuck on network failure" state above (#71 follow-up,
   // PR #121 iPhone re-report). The original fix relied solely on a single
@@ -1486,9 +1617,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function loadHouseholdRelatedData(
     householdId: string,
     userId: string,
-    options?: { assumeEmptyPreviousState?: boolean; timezone?: string | null }
+    options?: { assumeEmptyPreviousState?: boolean; timezone?: string | null; gen?: number }
   ) {
     const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
+    // Generation this load belongs to: a reset (user switch / sign-out) during
+    // any await below makes it stale, and stale results are never written.
+    const gen = options?.gen ?? loadGenerationRef.current;
+    const isStale = () => gen !== loadGenerationRef.current;
 
     const [billsRes, expensesRes, fundsRes, paydaysRes, membersRes, billSplitsRes, expenseSplitsRes] = await Promise.all([
       supabase.from("bills").select("*").eq("household_id", householdId),
@@ -1533,6 +1668,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       ),
     ]);
 
+    if (isStale()) return;
     if (resolvedBills) {
       // Slice 17 (#187) belt-and-braces catch-up: roll any Paid bill whose due
       // date has arrived (household timezone) before it reaches state, in case
@@ -1580,6 +1716,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           }
         })
       );
+      if (isStale()) return;
       setBills(billsForState.map(mapBillFromDb));
     }
     if (resolvedExpenses) {
@@ -1619,16 +1756,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return { data: filterSplitsToHousehold(refetched.data), error: refetched.error };
       }
     );
+    if (isStale()) return;
     if (resolvedBillSplits) {
       setBillSplits(resolvedBillSplits);
     }
 
     // Fetch payday schedule, history, contributions, and rules
     await Promise.all([
-      fetchPayData(householdId, { assumeEmptyPreviousState }),
-      fetchHouseholdContributions(householdId),
-      fetchContributionRules(householdId),
-      fetchNotifications(userId, householdId),
+      fetchPayData(householdId, { assumeEmptyPreviousState, gen }),
+      fetchHouseholdContributions(householdId, gen),
+      fetchContributionRules(householdId, gen),
+      fetchNotifications(userId, householdId, gen),
       loadFinishSetupDismissed(userId)
     ]);
   }
@@ -1679,7 +1817,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // delete-to-empty still lands: the re-fetch is also empty and is committed.
   // `assumeEmptyPreviousState` is passed through from loadHouseholdRelatedData
   // for the household-switch case (see the comment there).
-  async function fetchPayData(householdId?: string, options?: { assumeEmptyPreviousState?: boolean }) {
+  async function fetchPayData(householdId?: string, options?: { assumeEmptyPreviousState?: boolean; gen?: number }) {
     const hId = householdId || dbHouseholdId;
     if (!hId) return;
     const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
@@ -1697,6 +1835,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         resolveWarmReloadRace(assumeEmptyPreviousState ? [] : payHistory, historyRes, fetchHistory),
       ]);
 
+      if (options?.gen !== undefined && options.gen !== loadGenerationRef.current) return;
       if (resolvedSchedules) {
         setPaySchedules(resolvedSchedules);
       }
@@ -1725,8 +1864,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // .maybeSingle() error (PGRST116) on every later load, so the user's real
     // bills, funds and paydays are stranded under the original household_id with
     // no way back. The early return on dbHouseholdId above is not a membership
-    // check — dbHouseholdId is never reset to null anywhere, so it is stale after
-    // a same-tab user switch, and it is null on precisely the path that matters
+    // check — dbHouseholdId is cleared by resetHouseholdState on a user
+    // switch, but this render's copy can still be stale, and it is null on precisely the path that matters
     // (a wrongly-shown "create or join" screen after a failed membership query).
     if (userIdToUse) {
       const { data: existingMembership, error: membershipError } = await supabase
@@ -1767,6 +1906,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         }
 
         resolvedHouseholdUserIdRef.current = userIdToUse;
+        dataOwnerUserIdRef.current = userIdToUse;
         setDbHouseholdId(existing.id);
         setHouseholdNameState(existing.name);
         return existing.id;
@@ -1831,6 +1971,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // A membership row now exists for this user, so a later query failure must
       // not clear isOnboarded and route them to "create or join" (#75 item 3).
       resolvedHouseholdUserIdRef.current = currentSession.user.id;
+      dataOwnerUserIdRef.current = currentSession.user.id;
       // Same as createHousehold: this path skips loadHouseholdRelatedData (#333).
       await loadFinishSetupDismissed(currentSession.user.id);
     }
@@ -1840,6 +1981,16 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   /* ── Household Creation and Name Actions ────── */
   async function createHousehold(name: string, newIsJointFund = false): Promise<string> {
+    householdWriteCountRef.current += 1;
+    try {
+      return await createHouseholdImpl(name, newIsJointFund);
+    } finally {
+      householdWriteCountRef.current -= 1;
+      justWroteHouseholdRef.current = { userId: dataOwnerUserIdRef.current, at: Date.now() };
+    }
+  }
+
+  async function createHouseholdImpl(name: string, newIsJointFund = false): Promise<string> {
     try {
       const { data: { session: currentSession }, error: authError } = await supabase.auth.getSession();
       const activeUser = currentSession?.user || session?.user;
@@ -1856,6 +2007,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error('Pre-insert validation failed: Household name is required.');
       }
 
+      // Never build on another user's in-memory data (see resetHouseholdState).
+      resetIfUserChanged(activeUser.id);
+
       // #75 item 3, door 1: never create a second household for a user who
       // already belongs to one. Reaching this function does not prove the user
       // is new — a transient membership-query failure in loadData can route an
@@ -1869,9 +2023,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // ensureHousehold() runs its own equivalent membership check (:1072-1115),
       // but Onboarding bypasses that function entirely by calling here.
       //
-      // Deliberately does NOT seed from dbHouseholdId. That state is never reset
-      // to null anywhere, and AppProvider never unmounts across sign-out/sign-in,
-      // so after a same-tab user switch it still holds the PREVIOUS user's
+      // Deliberately does NOT seed from dbHouseholdId. That state is cleared by
+      // resetHouseholdState on a user switch, but AppProvider never unmounts across
+      // sign-out/sign-in and this render's copy can be stale, so after a same-tab user switch it still holds the PREVIOUS user's
       // household id. Seeding from it skipped this query altogether and sent user
       // B down the adopt branch below pointed at user A's household — which B has
       // no membership for, so the households lookup returns nothing, B is bounced
@@ -1979,7 +2133,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         try {
           await loadHouseholdRelatedData(existing.id, activeUser.id, { timezone: existing.timezone });
 
+          assertSessionUserUnchanged(activeUser.id);
           resolvedHouseholdUserIdRef.current = activeUser.id;
+          dataOwnerUserIdRef.current = activeUser.id;
           setDbHouseholdId(existing.id);
           setHouseholdNameState(existing.name);
           setIsJointFund(!!existing.is_joint_fund);
@@ -2052,7 +2208,23 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error(`Member insert failed: ${memberError.message}`);
       }
 
-      // Update state
+      // Update state. Start from a clean slate: clear anything held for a different
+      // user, and begin the data arrays empty for this new household.
+      assertSessionUserUnchanged(activeUser.id);
+      resetIfUserChanged(activeUser.id);
+      setBills([]);
+      setExpenses([]);
+      setFunds([]);
+      setPaydays([]);
+      setBillSplits([]);
+      setExpenseSplits([]);
+      setPaySchedules([]);
+      setPayHistory([]);
+      setHouseholdContributions([]);
+      setContributionRules([]);
+      setNotifications([]);
+      setMembers([]);
+      dataOwnerUserIdRef.current = activeUser.id;
       setDbHouseholdId(household.id);
       setHouseholdNameState(household.name);
       setIsJointFund(newIsJointFund);
@@ -3581,14 +3753,24 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   async function joinHousehold(code: string) {
+    householdWriteCountRef.current += 1;
+    try {
+      return await joinHouseholdImpl(code);
+    } finally {
+      householdWriteCountRef.current -= 1;
+      justWroteHouseholdRef.current = { userId: dataOwnerUserIdRef.current, at: Date.now() };
+    }
+  }
+
+  async function joinHouseholdImpl(code: string) {
     const sanitizedCode = code.trim().toUpperCase();
 
     // #75 item 3, door 2. Deliberately runs BEFORE the try block below.
     //
     // The question this gate has to answer is "do we already hold a household id
     // we can TRUST for THIS user?" — and the presence of dbHouseholdId cannot
-    // answer it. That value is never reset to null anywhere and AppProvider never
-    // unmounts across sign-out/sign-in (both are client-side router navigations,
+    // answer it. That value is cleared by resetHouseholdState on a user switch, but
+    // AppProvider never unmounts across sign-out/sign-in (both are client-side router navigations,
     // no page reload), so after a same-tab user switch it still holds the
     // PREVIOUS user's household. Gating on mere presence therefore skipped this
     // entire check for exactly the user who needed it: A uses the app, B signs in
@@ -3620,6 +3802,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // match .eq('user_id', …) — the edge function claims it with the service role.
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const userId = currentSession?.user?.id || session?.user?.id;
+    if (userId) resetIfUserChanged(userId);
     const holdsTrustedHousehold =
       !!dbHouseholdId && !!userId && resolvedHouseholdUserIdRef.current === userId;
 
@@ -3712,7 +3895,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         try {
           await loadHouseholdRelatedData(existing.id, userId, { timezone: existing.timezone });
 
+          assertSessionUserUnchanged(userId);
           resolvedHouseholdUserIdRef.current = userId;
+          dataOwnerUserIdRef.current = userId;
           setDbHouseholdId(existing.id);
           setHouseholdNameState(existing.name);
           setIsJointFund(!!existing.is_joint_fund);
@@ -4492,7 +4677,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     return averagePay(scheduleId, payHistory);
   }
 
-  async function fetchHouseholdContributions(householdId?: string) {
+  async function fetchHouseholdContributions(householdId?: string, gen?: number) {
     const hId = householdId || dbHouseholdId;
     if (!hId) return;
 
@@ -4507,6 +4692,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      if (gen !== undefined && gen !== loadGenerationRef.current) return;
       if (data) {
         setHouseholdContributions(data);
       }
@@ -4631,7 +4817,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function fetchContributionRules(householdId?: string) {
+  async function fetchContributionRules(householdId?: string, gen?: number) {
     const hId = householdId || dbHouseholdId;
     if (!hId) return;
 
@@ -4646,6 +4832,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      if (gen !== undefined && gen !== loadGenerationRef.current) return;
       if (data) {
         setContributionRules(data);
       }
@@ -4814,13 +5001,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Notifications ─────────────────────────── */
-  async function fetchNotifications(userId: string, householdId: string) {
+  async function fetchNotifications(userId: string, householdId: string, gen?: number) {
     try {
       const [notifsRes, settingsRes] = await Promise.all([
         supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('notification_settings').select('*').eq('user_id', userId).maybeSingle()
       ]);
 
+      const isStaleNow = () => gen !== undefined && gen !== loadGenerationRef.current;
+      if (isStaleNow()) return;
       if (notifsRes.data) setNotifications(notifsRes.data);
       if (settingsRes.data) {
         setNotificationSettings(settingsRes.data);
@@ -4840,7 +5029,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           overdue_bill_reminders: true,
         };
         const { data: newSettings } = await supabase.from('notification_settings').insert(defaultSettings).select().single();
-        if (newSettings) setNotificationSettings(newSettings);
+        if (newSettings && !isStaleNow()) setNotificationSettings(newSettings);
       }
     } catch (err) {
       console.error("Failed to fetch notifications:", err);

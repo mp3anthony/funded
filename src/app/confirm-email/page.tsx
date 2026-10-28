@@ -3,24 +3,18 @@
 import React from "react";
 import { Mail, ArrowLeft, Loader2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { signOutAndGoToLogin } from "@/lib/signOut";
 import AuthScreen, { AuthIcon } from "@/components/AuthScreen";
 import Button from "@/components/ui/Button";
 
 export default function ConfirmEmailPage() {
   const { session } = useApp();
-  const router = useRouter();
   const [loading, setLoading] = React.useState(false);
 
   const handleBackToLogin = async () => {
     setLoading(true);
     try {
-      await supabase.auth.signOut();
-      router.push("/login");
-    } catch (err) {
-      console.error("Sign out failed:", err);
-      router.push("/login");
+      await signOutAndGoToLogin();
     } finally {
       setLoading(false);
     }

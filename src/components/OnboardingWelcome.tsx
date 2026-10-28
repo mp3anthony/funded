@@ -4,7 +4,7 @@ import { Home, KeyRound } from "lucide-react";
 import Logo from "./Logo";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import { supabase } from "@/lib/supabase";
+import { signOutAndGoToLogin } from "@/lib/signOut";
 
 interface OnboardingWelcomeProps {
   onCreate: () => void;
@@ -22,7 +22,7 @@ export default function OnboardingWelcome({ onCreate, onJoin }: OnboardingWelcom
         className="flex shrink-0 justify-end px-4"
         style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
       >
-        <Button variant="ghost" className="px-4 text-sm" onClick={() => supabase.auth.signOut()}>
+        <Button variant="ghost" className="px-4 text-sm" onClick={() => signOutAndGoToLogin()}>
           Sign out
         </Button>
       </div>

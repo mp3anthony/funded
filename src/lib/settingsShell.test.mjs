@@ -75,8 +75,7 @@ test("Help card: Updates (with version), Getting started, Report an issue; no st
 });
 
 test("Log out sits above Leave household, which keeps its dialogs", () => {
-  assert.ok(code.indexOf("signOut()") < code.indexOf("onClick={openLeaveDialog}"));
-  assert.ok(code.includes('router.push("/login")'));
+  assert.ok(code.indexOf("signOutAndGoToLogin()") < code.indexOf("onClick={openLeaveDialog}"));
   for (const needle of ['"Leave household?"', '"Pick a new owner"', '"Delete household?"', "isDeleteConfirmed("]) {
     assert.ok(settings.includes(needle), `missing ${needle}`);
   }
@@ -113,7 +112,7 @@ test("Profile seeds the nickname from the saved name on every open and clears ol
   assert.ok(open.includes("setProfileError(null)") && open.includes("setProfileSaved(false)"));
 });
 
-test("Log out catches a failed sign-out and toasts instead of leaving the page", () => {
-  const out = fnBody(code, "const { error } = await supabase.auth.signOut();", "Leave household");
-  assert.ok(out.includes("showToast(") && out.includes("catch (err)"));
+test("Log out signs out and leaves with a full page navigation", () => {
+  assert.ok(code.includes("await signOutAndGoToLogin()"));
+  assert.ok(!code.includes("router.push(\"/login\")"));
 });

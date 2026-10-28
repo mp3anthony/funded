@@ -12,7 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { supabase } from "@/lib/supabase";
+import { signOutAndGoToLogin } from "@/lib/signOut";
 import { APP_VERSION } from "@/lib/version";
 import PaymentModeSheet from "@/components/PaymentModeSheet";
 import BugReportSheet from "@/components/BugReportSheet";
@@ -94,7 +94,6 @@ export default function SettingsClient() {
     householdName,
     setHouseholdName,
     session,
-    showToast,
     updateMember,
     updateMemberAvatar,
     theme,
@@ -408,14 +407,8 @@ export default function SettingsClient() {
       {/* ── Log out, then Leave household in its own red card ── */}
       <Card
         onClick={async () => {
-          try {
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
-            router.push("/login");
-          } catch (err) {
-            console.error("Log out failed:", err);
-            showToast({ message: "Couldn't log out. Check your connection and try again." });
-          }
+          // Full navigation so no in-memory data survives into the next sign-in.
+          await signOutAndGoToLogin();
         }}
         className="mt-6 flex min-h-11 items-center px-4 py-3 text-[15px] font-medium text-foreground"
       >
