@@ -59,7 +59,9 @@
 - Known, low priority, not ticketed: the repo has no CREATE TABLE for notifications, notification_settings, push_subscriptions, and bills/paydays/funds live only in `schema.sql`, so migrations alone can't rebuild a database.
 - Last active SPEC ticket: Slice 23 (#377), R35 built; waiting on Anthony's PR review feedback.
 
-## REMAINING TASKS (2026-10-26, read this first)
+## REMAINING TASKS (2026-10-28, read this first)
+
+**SESSION END 2026-10-28: #478 BUILT and CLOSE-AT-MERGE (commit 68373c7, PR #425).** A second login on one device showed the first account's data; cause was client-side (app kept the previous user's data in memory). Fixed: one reset of all household data on sign-out, user change and no household; stale loads discarded and re-run; create/join protected; Log out is a full reload with a local sign-out fallback. Four independent reviews approved; 674/674 tests, tsc pass; full build not run. Not yet checked on iPhone: log out then sign in as someone else in the same Home Screen app starts empty; same user stays signed in across reload; onboarding and join still land right. **A security audit was also run. Details are private, in `D:\Anthonys-HQ\business\hazardous-schematics\funded-private\security-audit-2026-10-28.md` (never put them in GitHub, commits or this file).** Anthony's go-ahead: build the rest on PR #425, order in the private file, in a fresh session; database, storage and edge-function changes are A1 (backward compatible with `main`, applied with the final merge checklist, ask before applying to production). Anthony to check "Confirm email" is ON in the Supabase Auth settings. Use neutral names ("hardening N") in migrations, PR text and comments.
 
 **Issue housekeeping 2026-10-26:** #471, #472, #473, #474, #475 (F07-F11) and the folded #432, #438, #440 were CLOSED at Anthony's ask, all recorded on PR #425 (#440 closed as accepted harmless). A failed live check reopens the issue. PR #425's body now carries the preview link https://funded-alpha-git-redesign-full-app-mp3anthonys-projects.vercel.app/ and the F11 check line; its F07-F11 lines were refreshed. Anthony reviews the whole PR and sends fix lists.
 
