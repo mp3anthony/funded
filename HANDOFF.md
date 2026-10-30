@@ -4,6 +4,8 @@
 
 ## Current state (2026-10-30)
 
+- **R36 ([#423](https://github.com/mp3anthony/funded/issues/423)) DONE, PR #483 (ca90a8a):** glossaries, `docs/lessons.md`, `docs/conventions.md` and `SPEC.md` cleaned (stale health-score and "Superseded" text trimmed, Part A untouched). The design doc artifact is republished (v17) and now holds design only. #423 closed.
+
 - **PR #425 MERGED to `main` as a9c5898 (squash):** redesign R01-R35, F01-F13, the #478 fix (second login on one device showed the first account's data) and the security hardening. Closed #377, #463, #478. Live on Vercel.
 - **Applied to production Supabase (funded-app) today:** `pay_history_is_bonus` (20261026120000), `households_update_owner_only` (R28, 20261024130000), `hardening_4_member_rows`, `hardening_5_storage_paths`, `hardening_6_join_attempts`. Earlier: `pay_history.amount` nullable. `join-household` edge function redeployed (v4). Post-merge `UPDATE pay_history SET amount = NULL WHERE status = 'pending' AND amount = 0;` ran, 0 rows matched. Storage policy list checked beforehand; stored avatar and screenshot paths match the new own-folder layout.
 - `hardeningGuards` test is now in `npm test` (688 tests).
@@ -27,13 +29,13 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 ## Next session, in order
 
 1. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
-2. **R36 ([#423](https://github.com/mp3anthony/funded/issues/423))**: move every issue-specific item out of the design doc into `docs/context/` and friends, so the doc is design only. Also trim the stale health-score text and "Superseded" line in `SPEC.md`.
-3. Remove the `redesign/full-app` branch if still present.
-4. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
+2. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
+3. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
+4. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
 
 ## Open issues
 
-[#423](https://github.com/mp3anthony/funded/issues/423) R36 cleanup (next planned job); [#479](https://github.com/mp3anthony/funded/issues/479) leave/delete household returns 500 where 401 fits; [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) parked, `needs-info`. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+[#479](https://github.com/mp3anthony/funded/issues/479) leave/delete household returns 500 where 401 fits; [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) parked, `needs-info`. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
@@ -46,4 +48,4 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 
 - Vocabulary: `CONTEXT-MAP.md` and `docs/context/`. Decisions: `docs/adr/`.
 - Conventions, lessons, environment and ops: `docs/conventions.md`, `docs/lessons.md`, `docs/environment.md`.
-- Requirements and guardrails: `SPEC.md`; open tickets are on GitHub; look and layout: `DESIGN-REFERENCE.md` (and the design doc until R36).
+- Requirements and guardrails: `SPEC.md`; open tickets are on GitHub; look and layout: `DESIGN-REFERENCE.md` (and the design doc, design only).
