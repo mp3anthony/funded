@@ -29,6 +29,21 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.0",
+    date: "October 2026",
+    highlights: [
+      "A whole new look for the entire app: a floating bottom bar, step-by-step screens for adding bills, goals and pay, and tap any row to edit just that one thing.",
+      "New tools: the Dashboard now tells you at a glance if your bills are covered or how much you are short each week, plus a Check impact calculator, Compare split, and bonus payments on Payday.",
+      "Payday has a Needs you strip for pays waiting on you, a card for each member, and a pay history chart you can filter.",
+      "Goals now show progress rings and a pace line, and Wish list goals sit in their own group. Bills and Goals both have a Filter.",
+      "Settings is tidied up, with your profile, notifications, household and help all in one clear place.",
+      "Sign-in, sign-up and password reset screens match the new look.",
+      "Only the household owner can change household settings such as the name, payment mode and join code.",
+      "Extra security protections were added behind the scenes.",
+      "Clearer messages when something fails to save, so you know to try again.",
+    ],
+  },
+  {
     version: "0.9.82",
     date: "October 2026",
     highlights: [
