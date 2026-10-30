@@ -3,7 +3,9 @@
  * so node:test can run them directly (see onboardingJoin.test.mjs).
  */
 
-export const JOIN_CODE_LENGTH = 6;
+/** Codes made before hardening 1 are 6 characters; new ones are 8. Both are accepted. */
+export const OLD_JOIN_CODE_LENGTH = 6;
+export const JOIN_CODE_LENGTH = 8;
 
 const GENERIC_JOIN_ERROR = "Couldn't join right now. Please check your connection and try again.";
 
@@ -12,14 +14,15 @@ export function sanitizeCode(raw: string): string {
   return raw.replace(/[^A-Za-z0-9]/g, "").slice(0, JOIN_CODE_LENGTH).toUpperCase();
 }
 
-/** The code as shown in the box: ABC-123 (dash after the third character). */
+/** The code as shown in the box: ABC-123 for old 6-character codes, ABCD-EFGH for 8. */
 export function formatCode(code: string): string {
+  if (code.length > OLD_JOIN_CODE_LENGTH) return `${code.slice(0, 4)}-${code.slice(4)}`;
   return code.length > 3 ? `${code.slice(0, 3)}-${code.slice(3)}` : code;
 }
 
-/** Join can run once the code is complete and no join is already running. */
+/** Join can run once the code is complete (6 or 8 characters) and no join is already running. */
 export function canJoin(code: string, joining: boolean): boolean {
-  return !joining && code.length === JOIN_CODE_LENGTH;
+  return !joining && (code.length === OLD_JOIN_CODE_LENGTH || code.length === JOIN_CODE_LENGTH);
 }
 
 /** Plain-English line for a failed join, from the message the join threw. */

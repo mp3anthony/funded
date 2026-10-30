@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { isAllowedPushEndpoint, isValidPushKey } from '@/lib/pushEndpoint';
 
 export async function POST(request: Request) {
   try {
     const subscription = await request.json();
     if (!subscription || !subscription.endpoint || !subscription.keys) {
       return NextResponse.json({ error: 'Invalid subscription object' }, { status: 400 });
+    }
+    if (!isAllowedPushEndpoint(subscription.endpoint)) {
+      return NextResponse.json({ error: 'Unsupported push endpoint' }, { status: 400 });
+    }
+    if (!isValidPushKey(subscription.keys.p256dh) || !isValidPushKey(subscription.keys.auth)) {
+      return NextResponse.json({ error: 'Invalid subscription keys' }, { status: 400 });
     }
 
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');

@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import {
+  MAX_REPORT_DESCRIPTION,
+  MAX_REPORT_TITLE,
+  isRateLimited,
+  safeScreenshotUrl,
+} from '@/lib/bugReportGuards';
 
 const GITHUB_REPO_OWNER = 'mp3anthony';
 const GITHUB_REPO_NAME = 'funded';
@@ -26,6 +32,9 @@ export async function POST(request: Request) {
     if (!title || !description) {
       return NextResponse.json({ error: 'Title and description are required.' }, { status: 400 });
     }
+    if (title.length > MAX_REPORT_TITLE || description.length > MAX_REPORT_DESCRIPTION) {
+      return NextResponse.json({ error: 'That report is too long. Please shorten it.' }, { status: 400 });
+    }
 
     // ── Auth: re-derive the user from their session token, never trust a client-supplied identity ──
     const token = request.headers.get('Authorization')?.replace('Bearer ', '');
@@ -47,6 +56,17 @@ export async function POST(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // The screenshot must live in this project's own screenshot bucket.
+    const safeShot = screenshotUrl ? safeScreenshotUrl(screenshotUrl, supabaseUrl, user.id) : null;
+    if (screenshotUrl && !safeShot) {
+      return NextResponse.json({ error: 'Invalid screenshot.' }, { status: 400 });
+    }
+
+    // Per-user limit (in memory, so per warm serverless instance: a speed bump only).
+    if (isRateLimited(user.id)) {
+      return NextResponse.json({ error: 'Too many reports. Please try again later.' }, { status: 429 });
     }
 
     const githubToken = process.env.GITHUB_BUG_REPORT_TOKEN;
@@ -94,14 +114,10 @@ export async function POST(request: Request) {
     }
 
     // ── Build the issue body ──
-    const bodyParts = [
-      description,
-      '',
-      '---',
-      `Submitted from the app by user ID \`${user.id}\`${user.email ? ` (${user.email})` : ''}.`,
-    ];
-    if (screenshotUrl) {
-      bodyParts.push('', `![Screenshot](${screenshotUrl})`);
+    // The reporter's email and user id are deliberately NOT included: this repo is public.
+    const bodyParts = [description, '', '---', 'Submitted from the app.'];
+    if (safeShot) {
+      bodyParts.push('', `![Screenshot](${safeShot})`);
     }
 
     const issueResponse = await fetch(

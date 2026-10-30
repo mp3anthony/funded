@@ -47,7 +47,7 @@ self.addEventListener('fetch', (event) => {
 
   // Avoid caching third-party or DB requests
   const url = event.request.url;
-  if (url.includes('/supabase.co') || url.includes('/auth/v1') || url.includes('localhost:3000/_next/webpack-hmr')) {
+  if (url.includes('.supabase.co') || url.includes('/auth/v1') || url.includes('localhost:3000/_next/webpack-hmr')) {
     return;
   }
 

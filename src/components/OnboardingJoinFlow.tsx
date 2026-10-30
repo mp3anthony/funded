@@ -86,7 +86,7 @@ export default function OnboardingJoinFlow({ onJoin, onExit }: OnboardingJoinFlo
             id="ob-join-code"
             type="text"
             inputMode="text"
-            placeholder="ABC-123"
+            placeholder="ABCD-EFGH"
             value={formatCode(code)}
             enterKeyHint="go"
             autoComplete="off"

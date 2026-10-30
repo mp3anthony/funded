@@ -9,10 +9,10 @@ import {
   joinErrorMessage,
 } from './onboardingJoin.ts';
 
-test('sanitizeCode: strips non-alphanumerics, upper-cases, caps at 6', () => {
-  assert.equal(JOIN_CODE_LENGTH, 6);
+test('sanitizeCode: strips non-alphanumerics, upper-cases, caps at 8', () => {
+  assert.equal(JOIN_CODE_LENGTH, 8);
   assert.equal(sanitizeCode('abc-123'), 'ABC123');
-  assert.equal(sanitizeCode(' a b!c 1234567'), 'ABC123');
+  assert.equal(sanitizeCode(' a b!c 1234567'), 'ABC12345');
   assert.equal(sanitizeCode(''), '');
 });
 
@@ -25,6 +25,7 @@ test('formatCode: dash after the third character', () => {
 
 test('canJoin: needs a full code and no join running', () => {
   assert.equal(canJoin('ABC12', false), false);
+  assert.equal(canJoin('ABCD1234', false), true);
   assert.equal(canJoin('ABC123', false), true);
   assert.equal(canJoin('ABC123', true), false);
 });

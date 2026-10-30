@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { CheckCircle, Clock, AlertCircle, Plane, Shield, Car, PiggyBank, Home, BookOpen, CreditCard, TrendingUp, HelpCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { generateJoinCode } from "@/lib/joinCode";
 import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import {
@@ -476,15 +477,6 @@ function getFundStyle(category: string) {
         icon: HelpCircle,
       };
   }
-}
-
-function generateRandomCode(): string {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return code;
 }
 
 function toLocalYmd(date: Date): string {
@@ -2155,7 +2147,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error('Session invalid: User no longer exists. Please sign out and sign up again.');
       }
 
-      const joinCodeValue = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const joinCodeValue = generateJoinCode();
 
       const timezone = resolveNewHouseholdTimezone();
 
@@ -3724,11 +3716,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function regenerateJoinCode() {
     if (!dbHouseholdId) return;
     try {
-      const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      let newCode = "";
-      for (let i = 0; i < 6; i++) {
-        newCode += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
+      const newCode = generateJoinCode();
 
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
@@ -5297,7 +5285,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
                    'Authorization': `Bearer ${session.access_token}`,
                  },
                  body: JSON.stringify({
-                   userId: notif.user_id,
                    title: notif.title,
                    body: notif.message,
                    url: getNotificationPushUrl(notif),

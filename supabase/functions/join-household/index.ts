@@ -20,7 +20,13 @@ serve(async (req) => {
     );
 
     // 2. Authenticate the requesting user via Authorization token
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
 
@@ -40,7 +46,33 @@ serve(async (req) => {
       });
     }
 
-    const sanitizedCode = code.trim().toUpperCase();
+    const sanitizedCode = String(code).trim().toUpperCase();
+
+    // Hardening 6: lockout after repeated wrong codes. Fails open if the attempts table is
+    // missing (migration not applied yet) so a deploy-order mistake cannot block joins.
+    const lockedResponse = () =>
+      new Response(JSON.stringify({ error: "Too many attempts. Please try again later." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    const { data: attemptRow, error: attemptReadError } = await supabaseClient
+      .from("join_attempts")
+      .select("locked_until")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (attemptReadError) {
+      console.error("join_attempts read failed (failing open)");
+    } else if (attemptRow?.locked_until && new Date(attemptRow.locked_until) > new Date()) {
+      return lockedResponse();
+    }
+    const registerFailure = async () => {
+      const { data: lockedUntil, error: rpcError } = await supabaseClient.rpc("join_attempt_register_failure", { p_user: user.id });
+      if (rpcError) {
+        console.error("join_attempt_register_failure failed (failing open)");
+        return false;
+      }
+      return Boolean(lockedUntil);
+    };
 
     // 4. Retrieve household matching the join code
     const { data: household, error: hError } = await supabaseClient
@@ -50,6 +82,7 @@ serve(async (req) => {
       .single();
 
     if (hError || !household) {
+      if (await registerFailure()) return lockedResponse();
       return new Response(JSON.stringify({ error: "Invalid join code" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -58,6 +91,7 @@ serve(async (req) => {
 
     // 5. Verify if the join code has expired
     if (new Date(household.code_expires_at) < new Date()) {
+      if (await registerFailure()) return lockedResponse();
       return new Response(JSON.stringify({ error: "Join code has expired" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -139,6 +173,9 @@ serve(async (req) => {
         });
       }
     }
+
+    // A successful join clears the user's failed-attempt record.
+    await supabaseClient.from("join_attempts").delete().eq("user_id", user.id);
 
     return new Response(JSON.stringify({ success: true, householdId: household.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
