@@ -132,8 +132,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
 
 *Rewritten 2026-09-02 in a full triage pass — every open GitHub issue folded
 into a slice below, decisions recorded in each issue's own comment thread.
-Slices for #70 (closed) and the old undecided #71/#37 open questions have
-been superseded/resolved. Part A is untouched.*
+Part A is untouched.*
 
 ### Slice 1: Single-household-per-user enforcement (Issue #93)
 
@@ -178,8 +177,8 @@ overwrite loaded `bills`/`funds`/`payHistory`/`members`/`billSplits` with `[]`
 when a successful-but-empty RLS query races an auth token that hasn't been
 applied yet. `AppShell`'s gate stays open during a warm reload (deliberately,
 to avoid a full-screen loading wheel on every token refresh), so the
-dashboard renders against the momentarily-empty state — the household health
-rank flaps to 85/"Fully Funded" and then snaps back on the next successful
+dashboard renders against the momentarily-empty state — the Dashboard
+verdict flaps to a wrong state and then snaps back on the next successful
 load.
 
 **Decision (2026-09-02):** Option 4 from the issue — treat an empty
@@ -251,48 +250,13 @@ standing lesson from #75). Label **`needs-manual-test`**.
 
 ### Slice 5: Empty-household health score display (Issue #87)
 
-**Problem:** A household with zero bills, zero goals, and zero contributions
-computes to exactly 85/"Fully Funded" under the current scoring formula —
-correct arithmetic, but a misleading message for a household that was never
-set up, as opposed to one that's genuinely fully funded.
-
-**Decision (2026-09-02):** Add a distinct "not set up yet" state. When bills
-= 0 AND goals = 0 AND contributions = 0, override the numeric score display
-with that message instead of computing/showing 85.
-
-**Acceptance criteria:**
-- A genuinely empty household (steady-state, fully loaded, no race involved)
-  shows a "not set up yet" message, not "Fully Funded".
-- A household with any bill, goal, or contribution set up computes and
-  displays the real score as before.
-- No change to the underlying `calculateHealthScore` formula or its use
-  elsewhere — this is a display-layer override, not a scoring change.
-- Kept independent of Slice 2/#73/#82 — those are loading-race bugs that
-  transiently produce the same 85 value; this issue is the deliberate
-  steady-state case only.
-
-**Testing:** Pure UI/display logic, deterministic given input state — fully
-pipeline-verifiable. Label **`needs-merge-approval`**.
+**Retired.** Built as a display override on the old health score, which the Dashboard verdict (R25, #412) replaced; an empty household now reads grey "Set up your pay" (see `docs/context/money.md`).
 
 ---
 
 ### Slice 6: Remove dead HouseholdHealth.tsx (Issue #112)
 
-**Problem:** `src/components/HouseholdHealth.tsx` exports a "Household
-Health" card that is never imported anywhere in the app (confirmed by a
-repo-wide grep during #110) — the live dashboard section with that name is
-actually in `HealthScoreCard.tsx`. #95 previously fixed this dead file's data
-source as if it were live, before the dead-code status was noticed.
-
-**Decision (2026-09-02):** Delete it. Confirmed unused; no functional
-change.
-
-**Acceptance criteria:** file removed, no import references remain, `tsc`/
-lint/build all clean with an identical or lower error/warning count vs. the
-pre-change baseline.
-
-**Testing:** Deletion of unreferenced code — fully pipeline-verifiable.
-Label **`needs-merge-approval`**.
+**Done.** The unused `HouseholdHealth.tsx` card was deleted; the live card it shadowed was later removed too (R25).
 
 ---
 
@@ -425,7 +389,7 @@ push subscription lifecycle) — platform-sensitive. Label
 reasonable local time for Sydney households. There is no real per-household
 or per-user schedule.
 
-**Decision (2026-09-02):** Switch the cron from daily to hourly; each run
+**Decision (2026-09-02):** Run the cron more often than daily; each run
 checks every household's current local hour (via `todayInZone`/the household
 timezone from Slice 8) against each user's chosen notify hour (from Slice
 9's time-of-day picker), sending only to matches.
@@ -436,8 +400,7 @@ promotes). Scheduling therefore runs on Supabase `pg_cron` via `pg_net`: a job
 every 15 minutes generates scheduled reminders (`/api/cron/push-reminders`)
 and a job every 5 minutes delivers due ones (`/api/cron/deliver-scheduled`).
 `vercel.json` keeps a single daily fallback cron (`0 15 * * *`). The
-"hourly cron" wording in this slice is superseded; the real schedule lives in
-the Supabase database, not the repo.
+real schedule lives in the Supabase database, not the repo.
 
 **Depends on:** Slice 8 (household timezone) and Slice 9 (per-user notify
 hour) — both must land first; this slice is the piece that makes them
@@ -475,15 +438,14 @@ change — Part A escalation trigger, Anthony's sign-off recorded in the issue.
 - **Direct Pay expenses support both whole-item assignment AND %-split,
   chosen per expense** — new pattern; Direct Pay bills today only do
   whole-item assignment via `assignee_id`.
-- Health score folds expenses into the existing budget-coverage half.
+- The Dashboard verdict counts expenses as bills.
 - #70's category ordering extends to expenses.
 - **One-time migration script** moves existing groceries/fuel bill-rows into
   the new `expenses` table.
 
 **This is the largest slice in this pass — recommend sub-slicing further at
 kickoff** (e.g. schema + migration first, then add/edit UI, then Direct Pay
-split logic, then weekly-draw calc integration, then health-score
-integration) rather than building it as one PR, per Anthony's original
+split logic, then Household total integration, then verdict integration) rather than building it as one PR, per Anthony's original
 instruction not to build #98 as one large change.
 
 **Acceptance criteria:** full detail recorded in the issue's decision
@@ -526,7 +488,7 @@ are popping in with zero animation today despite the code looking animated.
   pass done live with Anthony via the design canvas skill (2026-09-03) —
   landed on a **single "Notifications" row** (App section) opening one
   merged panel, replacing the three-row/two-dialog split.
-  **Superseded from presentation-only to a real functional merge, per
+  **A real functional merge, not presentation-only, per
   Anthony's explicit call during the design review**: today there are two
   separate "turn this on" controls for what he correctly identified as one
   concern — the `all_enabled` master toggle inside the Notifications dialog
@@ -803,8 +765,8 @@ problem/checklist on the issue.
   shows "One-off". The saved date stays in `due_date` for the edit form.
 - One-off autopay reminders follow the saved date only and stop once it passes;
   paused bills get none. The cron and the UI share `displayedDueDate`.
-- Bills showing a label are left out of the health score, the Household Health
-  weekly bills figure (the real behaviour change) and the contribution split, and
+- Bills showing a label are left out of the Dashboard verdict (formerly the health
+  score and Household Health weekly bills figure) and the contribution split, and
   appear on the Bills page only under All. The Total bar is unchanged (#267 decides).
 - No schema change. `adjustAutopayBillDate` is removed.
 - Full issues: https://github.com/mp3anthony/funded/issues/287 and https://github.com/mp3anthony/funded/issues/288
@@ -814,7 +776,7 @@ problem/checklist on the issue.
 **Problem:** the old wizard forced payday and a full bill on day one, could write duplicates on Back then Next, lost its place on small screens and had no goal step.
 
 **Decisions (grilled 2026-10-11, slice 1 of 2; slice 2 is #333):**
-- (Superseded by R31/R32, #418/#419.) Welcome, then Household name and Payment mode (required), then the optional Setup hub: rows Add your pay, Add a bill, Add a goal open the normal add flows and tick when saved; "Enter app" is always available. Originally 6 steps with a Setup Complete screen and "Skip for now".
+- Shape as rebuilt in R31/R32 (#418/#419): Welcome, then Household name and Payment mode (required), then the optional Setup hub: rows Add your pay, Add a bill, Add a goal open the normal add flows and tick when saved; "Enter app" is always available.
 - First bill step is name, amount, frequency (default monthly) and due date only; saved as category Other, Manual, assigned to the current user, no splits. Goal step is name and target only (category Savings, status not started, no deadline).
 - Hub rules in `src/lib/onboarding.ts`; the hub is `OnboardingHub`.
 - Back never writes twice: `createHousehold` runs once (guarded); the hub saves through the normal add flows.
@@ -870,12 +832,12 @@ problem/checklist on the issue.
 **Decisions (grilled page by page 2026-10-19; the look and every page layout live in the HTML design doc linked from the issue):**
 - The design doc (`project/pages/*.md`) is the source of truth for look and layout. This section holds only the binding build rules.
 - Seven pages agreed: Dashboard, Payday, Bills, Goals, Settings, Pop-ups, Onboarding and sign-in. The sub-issues of #377 are the slices R01 to R36, built in the order listed on the issue. This replaces the onboarding shape in Slice 18 (a hub instead of three skip screens; the household is created only once name and Payment mode are both chosen) and moves the Finish setting up card (Slice 19) into the Dashboard stats slot.
-- One long-lived branch `redesign/full-app` and one PR opened with the first slice; every slice commits to it. No per-slice version bump or patch note; one bump to `v0.10.0` and one patch-notes entry at the end (R35). Live `main` keeps the old app until that merge, so slices are checked on the branch's Vercel preview (an exception to "no preview testing"); Anthony approves the one final merge.
+- One long-lived branch `redesign/full-app` and one PR opened with the first slice; every slice commits to it. No per-slice version bump or patch note; one bump to `v0.1.0` and one patch-notes entry at the end (released as v0.1.0, PR #481). Live `main` keeps the old app until that merge, so slices are checked on the branch's Vercel preview (an exception to "no preview testing"); Anthony approves the one final merge.
 - Migrations on this branch stay compatible with the old code live on `main` (preview and production share one Supabase) and are applied when their slice is built.
 - R19 (#406, A1 signed off 2026-10-24): `pay_history.amount` is nullable (migration `20261024120000_pay_history_amount_nullable`; NULL only for a Pending pay with no known amount, enforced by a CHECK) and the cron route may create Pending pays with the service-role key (see Part A1). Averages are per pay schedule, last 4 confirmed pays, at least 2. Re-run the migration's backfill UPDATE once right after the final merge.
 - A1 slices, each needing Anthony's sign-off at plan time: R19 (`pay_history.amount` nullable), R28 (owner-only `households` UPDATE policy; today any member can write), R33 (#370 may need a policy or edge-function change), R14 (a per-person frequency preference may need a `user_preferences` column).
 - R21 (#408): Payday shows one card per member in the R04 Carousel; a member's sheet holds their pay schedules, Contribution (Joint Fund only; any member can edit it) and rules. "Contribution amounts" and `ContributionSettingsSheet` are gone from Settings; the Suggest Split panel is unchanged, in `SuggestSplitPanel.tsx`, opened from the Payday header "Compare split" pill (Joint Fund only until R23). No schema change.
-- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, the health score, goal suggestions and milestone reminders, and the Dashboard Goals carousel (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
+- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, goal suggestions and milestone reminders, and the Dashboard Goals carousel (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
 - R28 (#415, A1 signed off 2026-10-24): `households` UPDATE is owner-only (migration `20261024130000_households_update_owner_only`, applied right before the final merge because live `main` does not gate Payment mode / New code in the UI). Only owners change name, payment mode, timezone and join code; members can view and copy the join code. App writes ask for the changed rows back and fail loudly on 0 rows (`assertRowUpdated`).
 - Left out on purpose: #383 (change login email), #145 (parked).
 - Full issue: https://github.com/mp3anthony/funded/issues/377
@@ -895,8 +857,8 @@ reorder freely unless a specific dependency is called out.
 3. Slice 3 (#89) — joinHousehold stale snapshot. **Sequence directly after
    Slice 2** (reuses its helper).
 4. Slice 4 (#90) — cross-user notification write.
-5. Slice 5 (#87) — empty-household health score display.
-6. Slice 6 — delete dead `HouseholdHealth.tsx`.
+5. Slice 5 (#87) — empty-household display (retired with the health score, R25).
+6. Slice 6 — delete dead `HouseholdHealth.tsx` (done).
 7. Slice 7 (#71) — PWA cache-busting. Live bug affecting anyone with the app
    already installed; self-contained, no schema work.
 
@@ -920,7 +882,7 @@ weighting):**
     to wait).
 15. Slice 12 (#98) — bills vs expenses split. Largest, most structurally
     involved slice in this pass (schema + migration + Direct Pay split logic
-    + weekly-draw integration + health-score integration) — recommend
+    + Household total integration + verdict integration) — recommend
     sub-slicing further at its own kickoff rather than one PR. Sequenced
     last because it's the highest-risk/highest-effort item and benefits from
     everything else being settled first (in particular, doing the motion

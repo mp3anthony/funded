@@ -2,7 +2,7 @@
 
 The UI/UX source of truth for Funded. Start here for any screen, component or style work. It describes the app as built after the full-app redesign (#377), derived from the redesign design doc and checked against `src/app/globals.css` and `src/components/ui/`. Where this file and the code disagree, the code wins: fix this file.
 
-Page-by-page layout lives in the design doc (private artifact, https://claude.ai/artifact/WSUDn3pfUNTdDHcQXTwK7x, start at `project/README.md`). Vocabulary lives in `docs/context/`.
+Page-by-page layout lives in the design doc (private artifact, https://claude.ai/artifact/WSUDn3pfUNTdDHcQXTwK7x, start at `project/README.md`). The design doc holds design only (tokens, controls, motion, page layouts). Vocabulary lives in `docs/context/`, decisions in `docs/adr/`, lessons and known items in `docs/lessons.md`, build conventions in `docs/conventions.md`; issue and PR history is not kept in the design doc.
 
 ## Brand and tone
 
