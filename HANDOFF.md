@@ -7,8 +7,8 @@
 - **PR #425 MERGED to `main` as a9c5898 (squash):** redesign R01-R35, F01-F13, the #478 fix (second login on one device showed the first account's data) and the security hardening. Closed #377, #463, #478. Live on Vercel.
 - **Applied to production Supabase (funded-app) today:** `pay_history_is_bonus` (20261026120000), `households_update_owner_only` (R28, 20261024130000), `hardening_4_member_rows`, `hardening_5_storage_paths`, `hardening_6_join_attempts`. Earlier: `pay_history.amount` nullable. `join-household` edge function redeployed (v4). Post-merge `UPDATE pay_history SET amount = NULL WHERE status = 'pending' AND amount = 0;` ran, 0 rows matched. Storage policy list checked beforehand; stored avatar and screenshot paths match the new own-folder layout.
 - `hardeningGuards` test is now in `npm test` (688 tests).
+- **v0.1.0 RELEASED via PR #481 (c9c6d4f, 2026-10-30):** `APP_VERSION` 0.1.0, patch-notes entry added (9 bullets). Updates card verified by cause: it shows when last-seen differs from `APP_VERSION`; the earlier no-toast was only the missing bump. Anthony should see the card with the 0.1.0 notes on next open after Vercel deploys.
 - **Not done, owed:**
-  - **v0.1.0 release step** (Anthony calls it): `package.json` already 0.1.0, but `src/lib/version.ts` still 0.9.82 and there is no 0.1.0 patch note. Check `patchNotesWindow.ts` copes with 0.1.0 sorting below 0.9.82 (see `docs/lessons.md`).
   - Anthony to confirm Supabase Auth "Confirm email" is ON.
   - Claude cannot log in, so no smoke test was done of avatar upload/replace/remove, a logged-out avatar URL, report screenshot upload, or create/join household (8-character and old 6-character codes). These are Anthony's device checks.
   - Cron-created Pending pays and push reminders can only be tested now it is live.
@@ -29,6 +29,7 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 1. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
 2. **R36 ([#423](https://github.com/mp3anthony/funded/issues/423))**: move every issue-specific item out of the design doc into `docs/context/` and friends, so the doc is design only. Also trim the stale health-score text and "Superseded" line in `SPEC.md`.
 3. Remove the `redesign/full-app` branch if still present.
+4. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
 
 ## Open issues
 
