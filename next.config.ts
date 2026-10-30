@@ -3,9 +3,8 @@ import { securityHeaders } from "./src/lib/securityHeaders";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    instantNavigationDevToolsToggle: true,
-  },
+  // Keeps pre-16.4 prefetch behaviour; revisit when moving to the next major.
+  partialPrefetching: false,
   async headers() {
     return [
       {
