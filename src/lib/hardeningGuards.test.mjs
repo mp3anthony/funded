@@ -1,4 +1,4 @@
-// String-level guards for hardening 4-6 (member rows, storage paths, join lockout).
+// String-level guards for hardening 4-6 (member rows, storage paths, join lockout) and household function auth guards.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -42,4 +42,13 @@ test("join function: 401 without a header, lockout, failure counting", () => {
   assert.match(fn, /if \(!authHeader\)/);
   assert.match(fn, /status: 429/);
   assert.match(fn, /join_attempt_register_failure/);
+});
+
+test("leave and delete functions: 401 without a header", () => {
+  for (const p of ["supabase/functions/leave-household/index.ts", "supabase/functions/delete-household/index.ts"]) {
+    const src = read(p);
+    assert.doesNotMatch(src, /get\("Authorization"\)!/);
+    assert.match(src, /if \(!authHeader\)/);
+    assert.ok(src.indexOf("if (!authHeader)") < src.indexOf("auth.getUser("), p);
+  }
 });

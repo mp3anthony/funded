@@ -44,7 +44,10 @@ serve(async (req) => {
     );
 
     // 2. Authenticate the requesting user via Authorization token
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return json({ error: "Unauthorized" }, 401);
+    }
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
 

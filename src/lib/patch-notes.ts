@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.1",
+    date: "October 2026",
+    highlights: [
+      "Leaving or deleting a household now gives a clearer error if you have been signed out. No other visible change.",
+    ],
+  },
+  {
     version: "0.1.0",
     date: "October 2026",
     highlights: [
