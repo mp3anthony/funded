@@ -8,14 +8,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test src/lib/billCycle.test.mjs src/lib/knownIssues.test.mjs src/lib/patchNotesWindow.test.mjs src/lib/updatesCard.test.mjs src/lib/onboarding.test.mjs src/lib/householdTimezone.test.mjs src/lib/finishSetup.test.mjs src/lib/householdLeave.test.mjs src/lib/warmReloadRace.test.mjs"
+    "test": "node --test src/lib/billCycle.test.mjs src/lib/knownIssues.test.mjs src/lib/patchNotesWindow.test.mjs src/lib/updatesCard.test.mjs src/lib/onboarding.test.mjs src/lib/onboardingCreate.test.mjs src/lib/onboardingJoin.test.mjs src/lib/onboardingCreateShell.test.mjs src/lib/onboardingHubShell.test.mjs src/lib/householdTimezone.test.mjs src/lib/householdOwner.test.mjs src/lib/finishSetup.test.mjs src/lib/householdLeave.test.mjs src/lib/warmReloadRace.test.mjs src/lib/designTokens.test.mjs src/lib/coreControls.test.mjs src/lib/navSlots.test.mjs src/lib/appShell.test.mjs src/lib/carouselLogic.test.mjs src/lib/carousel.test.mjs src/lib/sheetSave.test.mjs src/lib/sheetShells.test.mjs src/lib/stepFlow.test.mjs src/lib/stepFlowShell.test.mjs src/lib/addFlow.test.mjs src/lib/addFlowShell.test.mjs src/lib/addGoalFlow.test.mjs src/lib/addGoalFlowShell.test.mjs src/lib/addPayFlow.test.mjs src/lib/addRuleFlow.test.mjs src/lib/payRuleFlowShell.test.mjs src/lib/itemEdit.test.mjs src/lib/detailSheets.test.mjs src/lib/goalPayRuleEdit.test.mjs src/lib/goalPayRuleSheets.test.mjs src/lib/reportIssue.test.mjs src/lib/singleCards.test.mjs src/lib/billsFilters.test.mjs src/lib/frequencyPreference.test.mjs src/lib/billRow.test.mjs src/lib/categoryCollapse.test.mjs src/lib/billRowShell.test.mjs src/lib/impactCalc.test.mjs src/lib/impactCalcShell.test.mjs src/lib/verdict.test.mjs src/lib/verdictShell.test.mjs src/lib/goalPace.test.mjs src/lib/goalsPageShell.test.mjs src/lib/payHistory.test.mjs src/lib/payHistoryShell.test.mjs src/lib/needsYou.test.mjs src/lib/needsYouShell.test.mjs src/lib/paydayCards.test.mjs src/lib/paydayCardsShell.test.mjs src/lib/payChart.test.mjs src/lib/payChartShell.test.mjs src/lib/suggestSplit.test.mjs src/lib/payHistoryDeleteShell.test.mjs src/lib/dashboardShell.test.mjs src/lib/dashboardCarousels.test.mjs src/lib/settingsShell.test.mjs src/lib/authScreensShell.test.mjs src/lib/frequencyMath.test.mjs src/lib/billsSheetLiftShell.test.mjs src/lib/appleTouchIcon.test.mjs src/lib/userSwitchReset.test.mjs src/lib/addBonusFlow.test.mjs src/lib/payNoteBonusShell.test.mjs src/lib/hardeningClient.test.mjs src/lib/hardeningGuards.test.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",
-    "next": "16.2.9",
+    "next": "16.4.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tailwind-merge": "^3.6.0",
@@ -29,7 +28,7 @@
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

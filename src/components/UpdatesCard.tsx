@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, X } from "lucide-react";
-import { useApp } from "@/context/AppContext";
+import IconCircle from "@/components/ui/IconCircle";
 import { APP_VERSION } from "@/lib/version";
 import { patchNotes, type PatchNoteEntry } from "@/lib/patch-notes";
 import { pickUpdatesCardEntry, updatesCardPreview, UPDATES_CARD_BULLETS } from "@/lib/updatesCard";
@@ -34,11 +34,9 @@ let pendingEntry: PatchNoteEntry | null = null;
  * trap, so the app stays usable underneath.
  *
  * The version is marked seen the moment the card is shown (not on dismiss),
- * so it appears once per version. While it shows it tells AppContext
- * (`isUpdatesCardVisible`) so the dashboard tips ticker steps aside.
+ * so it appears once per version.
  */
 export default function UpdatesCard() {
-  const { setUpdatesCardVisible } = useApp();
   const pathname = usePathname();
   const [entry, setEntry] = useState<PatchNoteEntry | null>(null);
 
@@ -46,7 +44,6 @@ export default function UpdatesCard() {
     // Remounted while a card was already showing: bring it straight back.
     if (pendingEntry) {
       setEntry(pendingEntry);
-      setUpdatesCardVisible(true);
       return;
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -73,7 +70,6 @@ export default function UpdatesCard() {
       timer = setTimeout(() => {
         pendingEntry = picked;
         setEntry(picked);
-        setUpdatesCardVisible(true);
         markSeen();
       }, SHOW_DELAY_MS);
     } catch {
@@ -83,24 +79,16 @@ export default function UpdatesCard() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [setUpdatesCardVisible]);
-
-  // Clear the flag if this unmounts while showing (e.g. sign-out), so the
-  // ticker isn't left hidden. The pending entry is kept for a remount.
-  useEffect(() => {
-    return () => setUpdatesCardVisible(false);
-  }, [setUpdatesCardVisible]);
+  }, []);
 
   function close() {
     pendingEntry = null;
     setEntry(null);
-    setUpdatesCardVisible(false);
   }
 
   // Already on the Updates page: the card has nothing left to point at.
   useEffect(() => {
     if (pathname === "/patch-notes" && pendingEntry) close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   if (!entry) return null;
@@ -111,30 +99,25 @@ export default function UpdatesCard() {
     <aside
       aria-label="Updates"
       className="fixed inset-x-0 z-[55] flex justify-center px-4 pointer-events-none"
-      style={{ bottom: "calc(5rem + 12px + env(safe-area-inset-bottom, 0px))" }}
+      style={{ bottom: "calc(var(--nav-clearance) + 12px)" }}
     >
-      <div className="pointer-events-auto w-full max-w-md rounded-[2px] border border-border-strong bg-surface-elevated shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none">
+      <div className="pointer-events-auto w-full max-w-md rounded-card border border-border-strong bg-surface-elevated shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-(--duration-feedback) motion-reduce:animate-none">
         <div className="flex items-center gap-2 pl-4 pr-1 pt-1">
-          <Sparkles size={16} className="text-primary shrink-0" />
-          <p className="flex-1 min-w-0 text-sm font-heading font-bold text-foreground">
+          <Sparkles size={16} className="text-primary-ink shrink-0" />
+          <p className="flex-1 min-w-0 text-sm font-bold text-foreground">
             Updates
-            <span className="ml-2 font-mono text-[11px] font-normal text-subtle">
+            <span className="ml-2 text-[11px] font-normal text-subtle">
               v{entry.version} · {entry.date}
             </span>
           </p>
-          <button
-            type="button"
-            onClick={close}
-            aria-label="Close updates"
-            className="shrink-0 flex h-11 w-11 items-center justify-center text-muted hover:text-foreground cursor-pointer touch-manipulation"
-          >
+          <IconCircle label="Close updates" onClick={close}>
             <X size={18} />
-          </button>
+          </IconCircle>
         </div>
         <ul className="flex flex-col gap-1.5 px-4 pb-1">
           {shown.map((line, i) => (
             <li key={i} className="text-[13px] font-body text-foreground/85 leading-snug flex gap-2">
-              <span className="text-primary shrink-0">•</span>
+              <span className="text-primary-ink shrink-0">•</span>
               <span className="line-clamp-2">{line}</span>
             </li>
           ))}
@@ -144,7 +127,7 @@ export default function UpdatesCard() {
           <Link
             href="/patch-notes"
             onClick={close}
-            className="flex min-h-[44px] items-center text-sm font-semibold text-primary hover:underline touch-manipulation"
+            className="flex min-h-[44px] items-center text-sm font-semibold text-primary-ink hover:underline touch-manipulation"
           >
             See updates
           </Link>

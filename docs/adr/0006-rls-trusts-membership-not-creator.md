@@ -7,3 +7,5 @@ Row-level security now grants household access from `household_members` only (`c
 Why: before this, about 19 live policies also matched `households.user_id = auth.uid()`, so a creator who was demoted and then removed kept full access, and deleting the creator's account cascaded away the whole household for everyone else. ADR 0005 moved the column when the creator left; that stays (the `leave-household` function still hands the column to a remaining owner, or nulls it), but access no longer depends on it.
 
 Rejected: keeping the creator branch and relying on the leave function alone (does not cover demotion, direct removal or admin changes). Consequences: a household with zero member rows stays visible to its creator (acceptable, it is the creation window); the helper cannot see rows from the same statement, so member rows are inserted one at a time; `households` UPDATE remains any-member (tightening to owners needs its own decision); migration `20261018180000_rls_membership_only` carries the rollback SQL in its header.
+
+Update (R28, #415): `households` UPDATE is now owner-only via `is_household_owner` (was any member).

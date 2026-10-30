@@ -11,6 +11,7 @@ import {
   computePaidRoll,
   computeUndoPaidRoll,
   canUndoPayment,
+  billPaidAction,
   computeUndoPayment,
   paidForLabel,
   billSendsReminders,
@@ -709,4 +710,14 @@ test('regression: rollover, paid roll and resume roll do nothing for a null due 
   assert.equal(computePaidRoll({ ...row, status: 'Due Soon' }, '2026-10-18'), null);
   assert.equal(computeResumeRoll({ ...row, is_paused: true }, '2026-10-18'), null);
   assert.equal(computeResumeRoll({ ...row, status: 'Due Soon', is_paused: true }, '2026-10-18'), null);
+});
+
+test('billPaidAction shows exactly one paid action (F03, #466)', () => {
+  assert.equal(billPaidAction({ isAutoPay: true, status: 'Upcoming', canUndo: false }), null);
+  assert.equal(billPaidAction({ isAutoPay: true, status: 'Paid', canUndo: true }), null);
+  assert.equal(billPaidAction({ isAutoPay: false, status: 'Paid', canUndo: false }), 'mark-unpaid');
+  // Paid early on a recurring bill: Undo payment replaces Mark as paid.
+  assert.equal(billPaidAction({ isAutoPay: false, status: 'Due Soon', canUndo: true }), 'undo-payment');
+  assert.equal(billPaidAction({ isAutoPay: false, status: 'Due Soon', canUndo: false }), 'mark-paid');
+  assert.equal(billPaidAction({ isAutoPay: false, status: 'Overdue', canUndo: false }), 'mark-paid');
 });

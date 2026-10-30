@@ -5,6 +5,12 @@
    FUNDED — Brand Tokens (Matching Prototype)
 ───────────────────────────────────────────── */
 :root {
+  /* Floating bottom nav (R03, #390): pill height, gap under it, and the space
+     pages and docked cards must clear. Never hard-code these. */
+  --nav-height: 66px;
+  --nav-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  --nav-clearance: calc(var(--nav-height) + var(--nav-bottom));
+
   /* Primary: Lime Green — the signature color */
   --color-primary: #c8ff00;
   --color-primary-light: rgba(200, 255, 0, 0.10);
@@ -25,7 +31,7 @@
   /* Destructive: Red */
   --color-destructive: #ff3d57;
   --color-destructive-light: rgba(255, 61, 87, 0.12);
-  --color-destructive-fg: #ffffff;
+  --color-destructive-fg: #000000;
 
   /* Success: Green */
   --color-success: #00e676;
@@ -40,19 +46,28 @@
   /* Text */
   --color-foreground: #f0f0f0;
   --color-muted: #999999;
-  --color-subtle: #666666;
+  --color-subtle: #858585;
 
   /* Border */
   --color-border: rgba(255, 255, 255, 0.07);
   --color-border-strong: rgba(255, 255, 255, 0.12);
 
+  /* Text-safe versions of the status colours (R35 contrast check). Same as
+     the fill colour in dark; darker in light so coloured text reaches 4.5:1
+     on the page and card surfaces. Used through the text-*-ink utilities for coloured text. */
+  --color-primary-ink: #c8ff00;
+  --color-accent-ink: #ffab00;
+  --color-success-ink: #00e676;
+  --color-destructive-ink: #ff3d57;
+
   /* ── Motion tokens (Slice 13, #99) — the one shared duration/easing
      scale for the whole app. Not color-dependent, so no per-theme
      duplication needed. ── */
-  --duration-fast: 120ms;   /* press feedback, toggle knobs, chevron/icon state */
-  --duration-base: 260ms;   /* dialog/sheet entrance, hover/color transitions, menus */
-  --duration-slow: 520ms;   /* expand/collapse-adjacent transitions, tier-color changes */
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); /* decelerate, no bounce — the "premium" curve */
+  --duration-quick: 150ms;      /* press feedback, toggle knobs, chevron/icon state */
+  --duration-feedback: 300ms;   /* dialog/sheet entrance, color transitions, menus */
+  --duration-structural: 550ms; /* expand/collapse, tier-color changes */
+  --ease-enter: cubic-bezier(0.22, 0.31, 0, 1);  /* decelerate, no bounce */
+  --ease-exit: cubic-bezier(0.69, 0, 0, 1);      /* accelerate out */
 }
 
 /* ─────────────────────────────────────────────
@@ -67,7 +82,7 @@
 
   --color-foreground: #f0f0f0;
   --color-muted: #999999;
-  --color-subtle: #666666;
+  --color-subtle: #858585;
 
   --color-border: rgba(255, 255, 255, 0.07);
   --color-border-strong: rgba(255, 255, 255, 0.12);
@@ -88,7 +103,7 @@
 
   --color-destructive: #ff3d57;
   --color-destructive-light: rgba(255, 61, 87, 0.12);
-  --color-destructive-fg: #ffffff;
+  --color-destructive-fg: #000000;
 
   --color-success: #00e676;
   --color-success-light: rgba(0, 230, 118, 0.12);
@@ -106,7 +121,7 @@
 
   --color-foreground: #0f0f0f;
   --color-muted: #444444;
-  --color-subtle: #777777;
+  --color-subtle: #5c5c5c;
 
   --color-border: rgba(0, 0, 0, 0.09);
   --color-border-strong: rgba(0, 0, 0, 0.15);
@@ -120,7 +135,12 @@
 
   --color-accent: #c07800;
   --color-destructive: #cc2233;
+  --color-destructive-fg: #ffffff;
   --color-success: #00994a;
+  --color-primary-ink: #456500;
+  --color-accent-ink: #8a5400;
+  --color-success-ink: #006b33;
+  --color-destructive-ink: #b81d2d;
 }
 
 @media (prefers-color-scheme: light) {
@@ -132,7 +152,7 @@
 
     --color-foreground: #0f0f0f;
     --color-muted: #444444;
-    --color-subtle: #777777;
+    --color-subtle: #5c5c5c;
 
     --color-border: rgba(0, 0, 0, 0.09);
     --color-border-strong: rgba(0, 0, 0, 0.15);
@@ -146,7 +166,12 @@
 
     --color-accent: #c07800;
     --color-destructive: #cc2233;
+    --color-destructive-fg: #ffffff;
     --color-success: #00994a;
+    --color-primary-ink: #456500;
+    --color-accent-ink: #8a5400;
+    --color-success-ink: #006b33;
+    --color-destructive-ink: #b81d2d;
   }
 }
 
@@ -157,13 +182,13 @@
   /* Fonts — matching prototype exactly */
   --font-heading: var(--font-heading);
   --font-body: var(--font-body);
-  --font-mono: var(--font-mono);
 
   /* Brand colors */
   --color-primary: var(--color-primary);
   --color-primary-light: var(--color-primary-light);
   --color-primary-mid: var(--color-primary-mid);
   --color-primary-fg: var(--color-primary-fg);
+  --color-primary-pressed: color-mix(in srgb, var(--color-primary) 85%, black);
 
   --color-secondary: var(--color-secondary);
   --color-secondary-light: var(--color-secondary-light);
@@ -177,6 +202,12 @@
   --color-destructive: var(--color-destructive);
   --color-destructive-light: var(--color-destructive-light);
   --color-destructive-fg: var(--color-destructive-fg);
+  --color-destructive-pressed: color-mix(in srgb, var(--color-destructive) 85%, black);
+
+  --color-primary-ink: var(--color-primary-ink);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-success-ink: var(--color-success-ink);
+  --color-destructive-ink: var(--color-destructive-ink);
 
   --color-success: var(--color-success);
   --color-success-light: var(--color-success-light);
@@ -195,6 +226,18 @@
   /* Border */
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
+
+  /* Default transition for any bare transition-* utility */
+  --default-transition-duration: var(--duration-quick);
+  --default-transition-timing-function: var(--ease-enter);
+}
+
+/* Radii (R01, #388). Pills and circles use rounded-full. Inner radius =
+   outer radius minus the padding between them. */
+@theme {
+  --radius-card: 16px;
+  --radius-sheet: 28px;
+  --radius-input: 12px;
 }
 
 /* ─────────────────────────────────────────────
@@ -204,6 +247,7 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -300,6 +344,16 @@ body.modal-open {
   padding-right: calc(16px + env(safe-area-inset-right, 0px)) !important;
 }
 
+/* Bottom sheets (R05): the pill sits ~8px above the keyboard. --keyboard-inset
+   already covers the home-bar area while the keyboard is up. Scoped to the
+   bottom placement so existing centred pop-ups are unchanged. */
+.modal-backdrop.modal-backdrop--bottom {
+  padding-bottom: max(
+    calc(16px + env(safe-area-inset-bottom, 0px)),
+    calc(var(--keyboard-inset, 0px) + 8px)
+  ) !important;
+}
+
 /* Limit modal content height and force scroll on mobile viewports */
 @media (max-width: 767px) {
   /* Turn bottom sheets into floating centered card dialogs */
@@ -313,6 +367,15 @@ body.modal-open {
     overflow-x: hidden !important;
   }
 
+  /* Bottom sheet (R05): floats at the bottom, keeping the 16px gap. */
+  .modal-backdrop.modal-backdrop--bottom {
+    align-items: flex-end !important;
+  }
+  /* Confirm dialog (R05): small centred card. */
+  .modal-backdrop.modal-backdrop--confirm > div:not(.absolute) {
+    max-width: 320px !important;
+  }
+
   .modal-backdrop > div:not(.absolute),
   .modal-backdrop > form {
     width: 100% !important;
@@ -322,10 +385,8 @@ body.modal-open {
        keyboard; dvh does not (it tracks the layout viewport), which let
        tall forms overflow a centred backdrop equally top and bottom. */
     max-height: 100% !important;
-    /* Editorial turn-3: squared cards. Radius stays 2px and we do NOT
-       force a full border here — the Dialog card carries its own hairline
-       border + lime gradient top-edge, which a forced border would clobber. */
-    border-radius: 2px !important;
+    /* No forced border or radius here — the Dialog card carries its own
+       hairline border + lime gradient top-edge and its own radius. */
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
     overflow: hidden !important;
     margin: 0 auto !important;
@@ -368,15 +429,98 @@ body.modal-open main {
   }
 }
 .dialog-backdrop-animate {
-  animation: dialog-backdrop-in var(--duration-base) ease-out both;
+  animation: dialog-backdrop-in var(--duration-feedback) ease-out both;
 }
 .dialog-card-animate {
-  animation: dialog-card-in 280ms var(--ease-standard) both;
+  animation: dialog-card-in var(--duration-feedback) var(--ease-enter) both;
+}
+@keyframes sheet-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.sheet-card-animate {
+  animation: sheet-card-in var(--duration-feedback) var(--ease-enter) both;
+}
+@keyframes step-card-in-forward {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes step-card-in-back {
+  from { opacity: 0; transform: translateX(-32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.step-card-forward {
+  animation: step-card-in-forward var(--duration-feedback) var(--ease-enter) both;
+}
+.step-card-back {
+  animation: step-card-in-back var(--duration-feedback) var(--ease-enter) both;
+}
+@keyframes dialog-card-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog-card-animate,
+  .sheet-card-animate,
+  .step-card-forward,
+  .step-card-back {
+    animation-name: dialog-card-fade;
+    animation-timing-function: ease-in-out;
+  }
+}
+
+/* ── Press feedback (R01, #388; first used from R02) ──
+   .press scales the element down while pressed (instant), springing back
+   over the quick duration. Uses the standalone scale property so it does not
+   compound with Tailwind's transform-based utilities. .press-tint adds a 6%
+   foreground tint while pressed. */
+@utility press {
+  transition: scale var(--duration-quick) var(--ease-enter);
+  &:active {
+    scale: 0.97;
+    transition-duration: 0ms;
+  }
+}
+@utility press-tint {
+  &:active {
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--color-foreground) 6%, transparent),
+      color-mix(in srgb, var(--color-foreground) 6%, transparent)
+    );
+  }
+}
+/* Carousel (R04, #391): hide the scrollbar on the swipe track. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .press:active {
+    scale: none;
+  }
+  /* tailwindcss-animate enter/exit utilities: keep fades, drop movement */
+  [class*="animate-in"],
+  [class*="animate-out"] {
+    --tw-enter-translate-x: 0 !important;
+    --tw-enter-translate-y: 0 !important;
+    --tw-exit-translate-x: 0 !important;
+    --tw-exit-translate-y: 0 !important;
+    --tw-enter-scale: 1 !important;
+    --tw-exit-scale: 1 !important;
+  }
 }
 
 /* ── Goal row entrance (Slice 99: motion overhaul) ──
-   Restrained fade + slight rise for goal rows on Funds and the dashboard's
-   ActiveGoalsCard when a list first appears/expands. Matches the dialog
+   Restrained fade + slight rise for goal rows on Funds and Bills
+   when a list first appears/expands. Matches the dialog
    entrance's shape (fade + small translate, standard ease, no bounce) at
    a smaller distance appropriate to a list row rather than a modal card. */
 @keyframes fund-row-in {
@@ -390,7 +534,7 @@ body.modal-open main {
   }
 }
 .fund-row-in {
-  animation: fund-row-in var(--duration-base) var(--ease-standard) both;
+  animation: fund-row-in var(--duration-feedback) var(--ease-enter) both;
   animation-delay: var(--row-delay, 0ms);
 }
 @media (prefers-reduced-motion: reduce) {
@@ -399,12 +543,63 @@ body.modal-open main {
   }
 }
 
+/* ── Pay history chart (R22, #409) ──
+   Lines draw in over the structural duration (pathLength is 1, so one dash
+   covers the whole line); the dots fade in behind them. Reduce Motion shows
+   both at once. */
+@keyframes chart-line-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes chart-dot-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.chart-line-draw {
+  stroke-dasharray: 1;
+  animation: chart-line-draw var(--duration-structural) var(--ease-enter) both;
+}
+.chart-dot-in {
+  animation: chart-dot-in var(--duration-structural) var(--ease-enter) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-line-draw,
+  .chart-dot-in {
+    animation: none !important;
+  }
+}
+
+/* ── New-row highlight (R07, #394) ──
+   A lime wash that fades out on the row just added. Colour only, no movement,
+   so Reduce Motion needs no entry. Put it on an inner wrapper, never on an
+   element that already animates. */
+@keyframes row-highlight {
+  from {
+    background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.row-highlight {
+  animation: row-highlight 1600ms ease-in-out both;
+  border-radius: var(--radius-input);
+}
+
 /* ── Popover/dropdown menu entrance (Slice 99: motion overhaul, PR #141
    review-fix) ──
    Matches the dialog entrance's shape (fade + translate, standard ease,
    no bounce) with a small scale added so the panel visibly "settles in"
    rather than sliding 4px — the previous tailwindcss-animate
-   fade-in/slide-in-from-top-1 at duration-fast (120ms) was too subtle to
+   fade-in/slide-in-from-top-1 at the quick duration was too subtle to
    read as motion. Used for the avatar dropdown menu. */
 @keyframes menu-panel-in {
   from {
@@ -417,70 +612,19 @@ body.modal-open main {
   }
 }
 .menu-panel-animate {
-  animation: menu-panel-in var(--duration-base) var(--ease-standard) both;
+  animation: menu-panel-in var(--duration-feedback) var(--ease-enter) both;
   transform-origin: top right;
 }
 /* Closing state (set via data-closing while the trigger holds the panel
-   mounted for one duration-base tick) plays the same keyframes in
+   mounted for one feedback-duration tick) plays the same keyframes in
    reverse, so the panel fades/shrinks back out instead of popping away
    the instant isOpen flips false. */
 .menu-panel-animate[data-closing="true"] {
   animation-direction: reverse;
+  animation-timing-function: var(--ease-exit);
 }
 @media (prefers-reduced-motion: reduce) {
   .menu-panel-animate {
     animation: none !important;
   }
-}
-
-/* ── Dashboard tips ticker (#151) ──
-   Continuous right-to-left marquee: the track renders the tip list twice
-   back-to-back and scrolls exactly -50% (one full copy's width), so the
-   loop point is invisible. Paused on hover/focus so a reader can finish a
-   tip. Respects prefers-reduced-motion by not animating at all — the
-   ticker component itself swaps to a static/crossfading single tip in
-   that case rather than relying on the animation being skipped here. */
-@keyframes ticker-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-.ticker-track {
-  animation: ticker-scroll 64s linear infinite;
-}
-.ticker-viewport:hover .ticker-track,
-.ticker-viewport:focus-within .ticker-track {
-  animation-play-state: paused;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ticker-track {
-    animation: none !important;
-  }
-}
-
-/* Slow crossfade used for the single-tip reduced-motion fallback. Opacity
-   only — no translation — so it stays within reduced-motion guidance while
-   still giving the tip content some life. */
-@keyframes ticker-tip-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.ticker-tip-fade {
-  animation: ticker-tip-fade 900ms ease-out both;
-}
-
-/* ── Floating Avatar Button ── */
-.floating-avatar {
-  position: fixed;
-  /* Align with PageHeader's px-4 pt-4 mt-2 + logo vertical center */
-  top: calc(env(safe-area-inset-top, 0px) + 24px);
-  right: 16px;
-  z-index: 60;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-/* Hide the floating avatar when a modal/sheet is open */
-html.modal-open .floating-avatar,
-body.modal-open .floating-avatar {
-  opacity: 0;
-  pointer-events: none;
 }

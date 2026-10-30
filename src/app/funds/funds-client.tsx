@@ -1,31 +1,38 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useId } from "react";
+import { flushSync } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, ChevronDown } from "lucide-react";
-import { useApp, useCurrentUser, type Fund } from "@/context/AppContext";
-import AddGoalSheet from "@/components/AddGoalSheet";
-import EditGoalSheet from "@/components/EditGoalSheet";
+import { ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
+import { useApp, type Fund } from "@/context/AppContext";
+import AddRuleFlow from "@/components/AddRuleFlow";
+import AddGoalFlow from "@/components/AddGoalFlow";
 import GoalDetailSheet from "@/components/GoalDetailSheet";
 import AddAmountModal from "@/components/AddAmountModal";
 import EditCategoryOrderModal from "@/components/EditCategoryOrderModal";
+import ImpactCalculator from "@/components/ImpactCalculator";
+import { stillToSave } from "@/lib/impactCalc";
 import PageHeader from "@/components/PageHeader";
-import SectionHeader from "@/components/ui/SectionHeader";
 import GoalRow from "@/components/GoalRow";
+import WishRow from "@/components/WishRow";
+import Button from "@/components/ui/Button";
+import Chip from "@/components/ui/Chip";
+import Dialog from "@/components/ui/Dialog";
 import { loadCategoryOrder, saveCategoryOrder } from "@/lib/categoryOrderPreferences";
 import { hasAddSheetParam, stripAddSheetParam } from "@/lib/finishSetup";
+import { applyToggle, loadCollapsed, saveCollapsed } from "@/lib/categoryCollapse";
+import { todayInZone } from "@/lib/notifications/timezone";
 import { useCountUp } from "@/hooks/useCountUp";
-
-const GOAL_CATEGORIES = [
-  "Home & Living",
-  "Vacation & Travel",
-  "Wish List",
-  "Education",
-  "Debt & Finance",
-  "Savings",
-  "Emergency",
-  "Other",
-];
+import { useRowHighlight } from "@/hooks/useRowHighlight";
+import { GOAL_CATEGORIES, displayCategory, goalRowKey, type AddedGoal } from "@/lib/addGoalFlow";
+import {
+  isTracking,
+  pace as paceFor,
+  savingGoals,
+  savingTotals,
+  sortByCost,
+  sortByProgress,
+} from "@/lib/goalPace";
 
 // Legacy goal category names → new 8-category scheme
 const GOAL_CATEGORY_REMAP: Record<string, string> = {
@@ -35,34 +42,73 @@ const GOAL_CATEGORY_REMAP: Record<string, string> = {
   "Transport": "Vacation & Travel",
   "Debt Payoff": "Debt & Finance",
   "Interest Free Payment": "Debt & Finance",
-  "Short-Term": "Wish List",
+  "Short-Term": "Other",
+  // "Wish List" is no longer a category: Type (Wish list) is the only switch.
+  "Wish List": "Other",
 };
 
+/** Goals keep their own remembered open/closed choices (a Bills category can share a name). */
+const COLLAPSE_SCOPE = "goals";
+/** The Wish list group's key in that list. Not a real category name, so it can never clash with one. */
+const WISH_KEY = "__wish_list__";
+
+const moneyFmt = (n: number) =>
+  `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export default function FundsClient() {
-  const { funds, deleteGoal, addToGoal, session, isDataLoading } = useApp();
-  const currentUser = useCurrentUser();
+  const { funds, session, isDataLoading, contributionRules, paySchedules, householdTimezone } = useApp();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   // ── Local UI state ────────────────────────────────────────────────
-  const [selectedGoal, setSelectedGoal] = useState<Fund | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  // R11: keep the id and look the goal up each render, so the sheet follows every
+  // save and closes by itself if the goal is deleted.
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const selectedGoal =
+    selectedGoalId === null ? null : (funds.find((f) => String(f.id) === selectedGoalId) ?? null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const { highlightKey, flash } = useRowHighlight();
   const [addAmountGoal, setAddAmountGoal] = useState<Fund | null>(null);
+  const addAmountInputId = useId();
 
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  // F04: the Category pick is a draft until Apply; re-seeded from the live filter each time the card opens.
+  const [draftCategory, setDraftCategory] = useState("All");
+  // R15 pattern: categories start open; only the ones a person closed are remembered (on this phone).
+  const [collapsed, setCollapsed] = useState<string[]>([]);
   const [isEditCategoryOrderOpen, setIsEditCategoryOrderOpen] = useState(false);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
+  // Check impact (F07): only from a Wish list goal's sheet, in goal mode. Its "Create rule" button
+  // opens the Add rule flow for that goal with the per-pay amount filled in.
+  const [isImpactOpen, setIsImpactOpen] = useState(false);
+  const [impactGoal, setImpactGoal] = useState<{ id: string; name: string; amount: number } | undefined>(undefined);
+  const [isRuleOpen, setIsRuleOpen] = useState(false);
+  const [ruleGoalId, setRuleGoalId] = useState<string | undefined>(undefined);
+  const [rulePerPay, setRulePerPay] = useState("");
+
   const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
+    const collapse = !collapsed.includes(category);
+    setCollapsed(collapse ? [...collapsed, category] : collapsed.filter((c) => c !== category));
+    // Persist from what is stored plus this one toggle, so categories opened by a
+    // new row are never saved as a choice.
+    const userId = session?.user?.id;
+    if (userId) saveCollapsed(userId, applyToggle(loadCollapsed(userId, COLLAPSE_SCOPE), category, collapse), COLLAPSE_SCOPE);
   };
+  // Opens a category in state only (a new row); never changes what is remembered.
+  const openCategory = (category: string) =>
+    setCollapsed((prev) => (prev.includes(category) ? prev.filter((c) => c !== category) : prev));
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+    // One-shot sync from localStorage, not a render cascade.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setCollapsed(loadCollapsed(userId, COLLAPSE_SCOPE));
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -95,8 +141,7 @@ export default function FundsClient() {
       // One-shot sync with an external input (the tapped link), guarded by
       // handledGoalLinkRef — not a render cascade.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedGoal(target);
-      setIsDetailOpen(true);
+      setSelectedGoalId(String(target.id));
     }
 
     const params = new URLSearchParams(searchParams.toString());
@@ -105,7 +150,7 @@ export default function FundsClient() {
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [isDataLoading, searchParams, funds, pathname, router]);
 
-  // Finish setting up card (#333): /funds?add=1 opens the Add Goal sheet once.
+  // Finish setting up card (#333): /funds?add=1 opens the Add Goal flow once.
   // Not gated on isDataLoading (the sheet needs no data). Waits while a goalId
   // link is pending so the two router.replace strips (each built from the
   // current params) can't resurrect each other's param.
@@ -124,257 +169,320 @@ export default function FundsClient() {
     router.replace(`${pathname}${rest ? `?${rest}` : ""}`, { scroll: false });
   }, [searchParams, pathname, router]);
 
-  // ── Derived summary values ────────────────────────────────────────
-  const totalSaved = funds.reduce((sum, f) => sum + f.currentAmount, 0);
-  const avgCompletion =
-    funds.length > 0
-      ? funds.reduce((sum, f) => sum + (f.currentAmount / f.targetAmount) * 100, 0) /
-        funds.length
-      : 0;
+  // ── Derived values ────────────────────────────────────────────────
+  // Only Active goals count towards the total and the pace; Wish list goals live in the Wish list.
+  const filterActive = categoryFilter !== "All";
 
-  // Slice 99: count the headline total up/down when it changes (adding an
-  // amount to a goal, deleting one, etc.) instead of popping to the new
-  // figure instantly.
-  const displayTotalSaved = useCountUp(totalSaved);
+  const saving = useMemo(() => savingGoals(funds), [funds]);
+  const listedSaving = useMemo(
+    () =>
+      saving.filter(
+        (f) => !filterActive || displayCategory(f.category) === categoryFilter,
+      ),
+    [saving, filterActive, categoryFilter],
+  );
+  // The Wish list is its own group (Type is the only switch), so the category Filter does not apply to it.
+  const listedWish = useMemo(() => sortByCost(funds.filter(isTracking)), [funds]);
 
-  const filteredFunds = useMemo(() => {
-    return funds.filter((f) => {
-      if (categoryFilter === "All") return true;
-      return (f.category || "Other") === categoryFilter;
-    });
-  }, [funds, categoryFilter]);
+  const totals = useMemo(() => savingTotals(listedSaving), [listedSaving]);
+  // Count the headline total up/down when it changes (adding money, deleting a goal)
+  // instead of popping to the new figure.
+  const displayTotalSaved = useCountUp(totals.saved);
 
-  const groupedFunds = useMemo(() => {
-    const groups: Record<string, typeof filteredFunds> = {};
-    filteredFunds.forEach((fund) => {
-      const cat = fund.category || "Other";
+  const groupedSaving = useMemo(() => {
+    const groups: Record<string, Fund[]> = {};
+    listedSaving.forEach((fund) => {
+      // A retired "Wish List" category on an old Active goal row reads as Other until its data is updated.
+      const cat = displayCategory(fund.category);
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(fund);
     });
-
     Object.keys(groups).forEach((cat) => {
-      groups[cat].sort((a, b) => b.currentAmount - a.currentAmount);
+      groups[cat] = sortByProgress(groups[cat]);
     });
-
     return groups;
-  }, [filteredFunds]);
+  }, [listedSaving]);
 
   const allCategories = useMemo(() => {
-    const currentCats = Object.keys(groupedFunds);
-    return Array.from(new Set([...categoryOrder, ...GOAL_CATEGORIES, ...currentCats]));
-  }, [groupedFunds, categoryOrder]);
+    const currentCats = Array.from(new Set(funds.map((f) => displayCategory(f.category))));
+    // "Wish List" is a retired category name some old rows still carry; it is not a choice any more.
+    return Array.from(new Set([...categoryOrder, ...GOAL_CATEGORIES, ...currentCats])).filter((c) => c !== "Wish List");
+  }, [funds, categoryOrder]);
+
+  const today = useMemo(() => todayInZone(householdTimezone || "Australia/Sydney"), [householdTimezone]);
+
+  const hasRows = listedSaving.length > 0 || listedWish.length > 0;
 
   // ── Handlers ──────────────────────────────────────────────────────
-  const handleDeleteGoal = async () => {
-    if (selectedGoal && confirm(`Are you sure you want to delete "${selectedGoal.name}"?`)) {
-      try {
-        await deleteGoal(selectedGoal.id);
-        setIsDetailOpen(false);
-        setSelectedGoal(null);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : "Unknown error";
-        alert("Failed to delete goal: " + errMsg);
-      }
-    }
+  // Open "Add to {goal}" and focus its box inside the same tap, so the iOS keyboard rises with it.
+  const openAddAmount = (fund: Fund) => {
+    flushSync(() => setAddAmountGoal(fund));
+    document.getElementById(addAmountInputId)?.focus();
+  };
+
+  const openImpact = (fund: Fund) => {
+    setImpactGoal({ id: String(fund.id), name: fund.name, amount: stillToSave(fund.targetAmount, fund.currentAmount) });
+    setIsImpactOpen(true);
+  };
+
+  // After an add: show the new goal (clear the category filter), open its group, then
+  // scroll to it and let it glow. The longer delay waits out the category expand animation
+  // (--duration-structural, 550ms) so the scroll lands on the settled row.
+  const handleAdded = (goal: AddedGoal) => {
+    setCategoryFilter("All");
+    openCategory(goal.category || "Other");
+    openCategory(WISH_KEY);
+    flash(goalRowKey(goal.id), 600);
+  };
+
+  const sortedCategories = (names: string[]) =>
+    [...names].sort((a, b) => {
+      const idxA = allCategories.indexOf(a);
+      const idxB = allCategories.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+  /** One group: a header button (name, count, optional subtotal) and a smoothly collapsing body. */
+  const renderGroup = (key: string, title: string, count: number, subtotal: string | null, rows: (isExpanded: boolean) => React.ReactNode) => {
+    const isExpanded = !collapsed.includes(key);
+    return (
+      <div key={key} className="flex flex-col">
+        <button
+          type="button"
+          onClick={() => toggleCategory(key)}
+          aria-expanded={isExpanded}
+          className="group flex min-h-11 w-full items-center gap-3 px-1 text-left focus:outline-none"
+        >
+          <span className="shrink-0 text-[15px] font-bold text-foreground transition-colors group-hover:text-primary-ink">
+            {title}
+          </span>
+          <span className="shrink-0 text-[11px] font-semibold text-subtle">({count})</span>
+          {subtotal && (
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted">{subtotal}</span>
+          )}
+          <span
+            className="h-0.5 flex-1 rounded-sm"
+            style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
+          />
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4 shrink-0 text-subtle transition-colors group-hover:text-foreground" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="h-4 w-4 shrink-0 text-subtle transition-colors group-hover:text-foreground" aria-hidden="true" />
+          )}
+        </button>
+
+        {/* Expand/collapse via grid-template-rows (Slice 99, same technique as the
+            dashboard's other collapsible cards) so rows grow/shrink smoothly. */}
+        <div
+          className="grid transition-[grid-template-rows] duration-(--duration-structural) ease-(--ease-enter)"
+          style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+        >
+          <div className="min-h-0 overflow-hidden" aria-hidden={!isExpanded} inert={!isExpanded ? true : undefined}>
+            <div className="mt-1 flex flex-col">{rows(isExpanded)}</div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12 space-y-6">
-      <PageHeader
-        title="Goals"
-        subtitle="Track your savings and financial targets"
-        action={
-          <button
-            onClick={() => setIsAddOpen(true)}
-            className="flex items-center gap-2 bg-secondary hover:bg-secondary-dark active:scale-95 text-secondary-fg text-xs font-semibold px-3 py-2 rounded-xl shadow-md shadow-secondary/15 transition-all duration-200"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New Goal</span>
-          </button>
-        }
-      />
+    <div className="flex-1 w-full max-w-4xl mx-auto px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12 space-y-4">
+      <PageHeader title="Goals" subtitle="What you are saving towards" onAdd={() => setIsAddOpen(true)} addLabel="New goal" />
 
-      {/* Summary bar — de-boxed editorial (live figures only) */}
+      {/* Total of Active goals only (Wish list goals are in the Wish list below) */}
       <div className="px-1">
-        <div className="text-3xl font-bold text-primary tracking-tight font-mono">
-          ${displayTotalSaved.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div className="text-xs font-bold uppercase tracking-wider text-subtle">
+          {filterActive ? "Filtered total" : "Total saved"}
         </div>
-        <div className="text-xs font-bold uppercase tracking-wider text-subtle mt-1">
-          Total Accumulated Savings
-        </div>
-        <div className="text-[11px] font-mono text-muted mt-2">
-          {funds.length} active goal{funds.length !== 1 ? "s" : ""} · {avgCompletion.toFixed(1)}% avg completion
-        </div>
+        <div className="mt-1 text-3xl font-bold tracking-tight text-primary-ink">{moneyFmt(displayTotalSaved)}</div>
+        <p className="mt-1 text-xs font-body text-muted">
+          {totals.count === 0 ? (
+            "No active goals yet"
+          ) : (
+            <>
+              {totals.count} goal{totals.count !== 1 ? "s" : ""} · {moneyFmt(totals.toGo)} still to go
+            </>
+          )}
+        </p>
       </div>
 
-      {/* Savings Goals */}
-      <div>
-        <SectionHeader
-          title="Savings Goals"
-          trailing={
-            <button
-              onClick={() => setIsEditCategoryOrderOpen(true)}
-              className="text-[10px] font-heading font-bold text-muted hover:text-foreground uppercase tracking-wider transition-colors"
-            >
-              Edit Order
-            </button>
-          }
-        />
+      {/* Filter */}
+      <div
+        role="group"
+        aria-label="Filters"
+        className="scrollbar-none -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
+      >
+        <Chip
+          onClick={() => {
+            setDraftCategory(categoryFilter);
+            setIsFilterOpen(true);
+          }}
+          aria-haspopup="dialog"
+        >
+          <span className="relative inline-flex">
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            {filterActive && (
+              <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+            )}
+          </span>
+          Filter
+          {filterActive && <span className="sr-only"> (filters chosen)</span>}
+        </Chip>
+      </div>
 
-        {/* Category filter — hairline underline select */}
-        <div className="px-1 mb-4 max-w-xs">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-muted uppercase tracking-wider ml-1">
-              Category
-            </label>
-            <div className="relative">
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full border-b border-border bg-transparent px-1 py-1.5 text-[11px] font-semibold text-foreground focus:border-primary focus:outline-none appearance-none cursor-pointer pr-5"
-              >
-                <option value="All">All</option>
-                <option value="Home & Living">Home & Living</option>
-                <option value="Debt & Finance">Debt & Finance</option>
-                <option value="Vacation & Travel">Vacation & Travel</option>
-                <option value="Savings">Savings</option>
-                <option value="Emergency">Emergency</option>
-                <option value="Wish List">Wish List</option>
-                <option value="Education">Education</option>
-                <option value="Other">Other</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-muted">
-                <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {filteredFunds.length === 0 ? (
-          <div className="py-10 text-center">
-            {categoryFilter !== "All" ? (
-              <p className="text-muted font-mono text-sm">No goals in {categoryFilter}</p>
+      {/* Goals */}
+      <div className="space-y-3">
+        {!hasRows ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            {funds.length === 0 ? (
+              <>
+                <p className="text-sm text-muted">No goals yet.</p>
+                <Button onClick={() => setIsAddOpen(true)}>Add your first goal</Button>
+              </>
             ) : (
               <>
-                <p className="text-muted font-mono text-sm">No goals configured yet.</p>
-                <p className="text-subtle text-xs mt-1 font-body">Tap + beside the page title to add your first goal.</p>
+                <p className="text-sm text-muted">No goals in {categoryFilter}</p>
+                <Button variant="ghost" onClick={() => setCategoryFilter("All")}>
+                  Clear filter
+                </Button>
               </>
             )}
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(groupedFunds)
-              .sort(([a], [b]) => {
-                const idxA = allCategories.indexOf(a);
-                const idxB = allCategories.indexOf(b);
-                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-                if (idxA !== -1) return -1;
-                if (idxB !== -1) return 1;
-                return a.localeCompare(b);
-              })
-              .map(([category, categoryFunds]) => {
-                const isExpanded = !!expandedCategories[category];
-                return (
-              <div key={category} className="flex flex-col">
-                <button
-                  onClick={() => toggleCategory(category)}
-                  className="flex items-center gap-3 w-full text-left px-1 focus:outline-none group"
-                >
-                  <span className="font-heading font-bold text-[15px] text-foreground shrink-0 group-hover:text-primary transition-colors">
-                    {category}
-                  </span>
-                  <span className="font-mono text-[11px] font-semibold text-subtle shrink-0">
-                    ({categoryFunds.length})
-                  </span>
-                  <span
-                    className="h-0.5 flex-1 rounded-sm"
-                    style={{ background: "linear-gradient(90deg, var(--color-primary), transparent)" }}
-                  />
-                  <ChevronDown
-                    className="h-4 w-4 text-subtle group-hover:text-foreground transition-[transform,color] duration-(--duration-slow) ease-(--ease-standard) shrink-0"
-                    style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
-                  />
-                </button>
-
-                {/* Expand/collapse via grid-template-rows (Slice 99 — same
-                    technique as the dashboard's HealthScoreCard) so rows
-                    grow/shrink smoothly instead of popping in and out. */}
-                <div
-                  className="grid transition-[grid-template-rows] duration-(--duration-slow) ease-(--ease-standard)"
-                  style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
-                >
+            {sortedCategories(Object.keys(groupedSaving)).map((category) => {
+              const categoryFunds = groupedSaving[category];
+              const subtotal = moneyFmt(categoryFunds.reduce((s, f) => s + f.currentAmount, 0));
+              return renderGroup(category, category, categoryFunds.length, subtotal, (isExpanded) =>
+                categoryFunds.map((fund, index) => (
+                  // Inner wrapper: the add highlight must not override fund-row-in.
                   <div
-                    className="overflow-hidden min-h-0"
-                    aria-hidden={!isExpanded}
-                    inert={!isExpanded ? true : undefined}
+                    key={fund.id}
+                    id={goalRowKey(fund.id)}
+                    className={highlightKey === goalRowKey(fund.id) ? "row-highlight" : undefined}
                   >
-                    <div className="flex flex-col mt-1">
-                      {categoryFunds.map((fund, index) => {
-                        const IconComponent = fund.icon;
-                        const percentage = Math.min((fund.currentAmount / fund.targetAmount) * 100, 100);
-                        const isComplete = fund.currentAmount >= fund.targetAmount;
-
-                        return (
-                          <GoalRow
-                            key={fund.id}
-                            fund={fund}
-                            IconComponent={IconComponent}
-                            percentage={percentage}
-                            isComplete={isComplete}
-                            staggerIndex={index}
-                            isExpanded={isExpanded}
-                            onOpen={() => {
-                              setSelectedGoal(fund);
-                              setIsDetailOpen(true);
-                            }}
-                            onAddAmount={() => setAddAmountGoal(fund)}
-                          />
-                        );
-                      })}
-                    </div>
+                    <GoalRow
+                      fund={fund}
+                      pace={paceFor(fund, contributionRules, paySchedules, today)}
+                      staggerIndex={index}
+                      isExpanded={isExpanded}
+                      onOpen={() => setSelectedGoalId(String(fund.id))}
+                      onAddAmount={() => openAddAmount(fund)}
+                    />
                   </div>
-                </div>
-              </div>
-                );
+                )),
+              );
             })}
+
+            {/* Wish list: goals, always last, whatever their category */}
+            {listedWish.length > 0 &&
+              renderGroup(WISH_KEY, "Wish list", listedWish.length, null, (isExpanded) =>
+                listedWish.map((fund, index) => (
+                  <div
+                    key={fund.id}
+                    id={goalRowKey(fund.id)}
+                    className={highlightKey === goalRowKey(fund.id) ? "row-highlight" : undefined}
+                  >
+                    <WishRow
+                      fund={fund}
+                      staggerIndex={index}
+                      isExpanded={isExpanded}
+                      onOpen={() => setSelectedGoalId(String(fund.id))}
+                    />
+                  </div>
+                )),
+              )}
           </div>
         )}
       </div>
+
+      <Dialog
+        open={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter"
+        placement="bottom"
+        footer={
+          <div className="flex w-full flex-col gap-2">
+            <Button
+              fullWidth
+              onClick={() => {
+                setCategoryFilter(draftCategory);
+                setIsFilterOpen(false);
+              }}
+            >
+              Apply
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                className="flex-1"
+                disabled={draftCategory === "All"}
+                onClick={() => setDraftCategory("All")}
+              >
+                Reset
+              </Button>
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => {
+                  setIsFilterOpen(false);
+                  setIsEditCategoryOrderOpen(true);
+                }}
+              >
+                Edit order
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div>
+          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-subtle">Category</div>
+          <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
+            {["All", ...allCategories].map((c) => (
+              <Chip key={c} selected={draftCategory === c} onClick={() => setDraftCategory(c)}>
+                {c}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      </Dialog>
 
       {/* Goal Detail Sheet — keyed so it genuinely remounts per open (the
           component itself is always mounted here; only its internal
           isOpen/goal check hides it), including reopening the same goal. */}
       <GoalDetailSheet
-        key={isDetailOpen ? `open-${selectedGoal?.id ?? "none"}` : "closed"}
-        isOpen={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false);
-          setSelectedGoal(null);
-        }}
+        key={selectedGoal ? `open-${selectedGoal.id}` : "closed"}
+        isOpen={selectedGoal !== null}
+        onClose={() => setSelectedGoalId(null)}
         goal={selectedGoal}
-        onEdit={() => {
-          setIsDetailOpen(false);
-          setIsEditOpen(true);
-        }}
-        onDelete={handleDeleteGoal}
+        onCheckImpact={openImpact}
       />
 
-      {/* Edit Goal Sheet */}
-      <EditGoalSheet
-        isOpen={isEditOpen}
-        onClose={() => {
-          setIsEditOpen(false);
-          setSelectedGoal(null);
+      {/* Add Goal flow */}
+      <AddGoalFlow open={isAddOpen} onClose={() => setIsAddOpen(false)} onAdded={handleAdded} />
+
+      {/* Check impact for one goal (F07): ends in Create rule */}
+      <ImpactCalculator
+        open={isImpactOpen}
+        onClose={() => setIsImpactOpen(false)}
+        mode="goal"
+        initial={impactGoal}
+        onCreateRule={(perPay) => {
+          setRuleGoalId(impactGoal?.id);
+          setRulePerPay(String(perPay));
+          setIsRuleOpen(true);
         }}
-        existingGoal={selectedGoal}
       />
 
-      {/* Add Goal Sheet */}
-      <AddGoalSheet
-        isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+      {/* Add rule for that goal, opened on its summary with the per-pay amount filled in */}
+      <AddRuleFlow
+        open={isRuleOpen}
+        onClose={() => setIsRuleOpen(false)}
+        goalId={ruleGoalId}
+        prefill={{ threshold: "0", amount: rulePerPay }}
       />
 
       {/* Add Amount Modal */}
@@ -382,11 +490,7 @@ export default function FundsClient() {
         isOpen={addAmountGoal !== null}
         onClose={() => setAddAmountGoal(null)}
         goal={addAmountGoal}
-        onConfirm={(amount) => {
-          if (addAmountGoal) {
-            addToGoal(addAmountGoal.id, amount);
-          }
-        }}
+        inputId={addAmountInputId}
       />
 
       {/* Edit Category Order Modal */}

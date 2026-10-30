@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { CheckCircle, Clock, AlertCircle, Plane, Shield, Car, PiggyBank, Home, BookOpen, CreditCard, TrendingUp, HelpCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { generateJoinCode } from "@/lib/joinCode";
 import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
 import {
@@ -25,6 +26,8 @@ import {
   nextDueDatePatch,
   nextDueToastMessage,
 } from "@/lib/billCycle";
+import { averagePay, buildPendingPayRows } from "@/lib/payHistory";
+import { directPaySplitRows } from "@/lib/suggestSplit";
 import { generateReminders } from "@/lib/notifications/generateReminders";
 import { getNotificationPushUrl } from "@/lib/notifications/destination";
 import { isAcceptedMember } from "@/lib/householdLeave";
@@ -32,6 +35,7 @@ import { resolveWarmReloadRace, type SupabaseArrayResult } from "@/lib/warmReloa
 import { todayInZone, hourInZone, zonedDateAtHour } from "@/lib/notifications/timezone";
 import { resolveNewHouseholdTimezone, isValidTimezone } from "@/lib/householdTimezone";
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
+import { assertRowUpdated } from "@/lib/householdOwner";
 
 
 /* ═══════════════════════════════════════════════
@@ -97,6 +101,11 @@ export interface Fund {
   owner_id?: string | null;
 }
 
+/** What addFund takes: the database assigns the id, so it is optional (Onboarding still passes a placeholder). */
+export type NewFund = Omit<Fund, "id" | "bgLight" | "barColor" | "accentText" | "icon"> & {
+  id?: string | number;
+};
+
 export interface Payday {
   id: string | number;
   date: string; // ISO YYYY-MM-DD
@@ -119,7 +128,8 @@ export interface PayHistory {
   household_id: string;
   member_id: string;
   pay_schedule_id: string | null;
-  amount: number;
+  /** NULL only for a Pending pay whose amount is not known yet (R19, #406). */
+  amount: number | null;
   pay_date: string; // YYYY-MM-DD
   notes: string | null;
   created_at: string;
@@ -127,6 +137,8 @@ export interface PayHistory {
   allocation_type: "goal" | "contribution" | null;
   allocation_target_id: string | null;
   status?: 'pending' | 'confirmed';
+  /** True for a one-off bonus payment logged from Payday (F13, #477). Absent until the migration is applied. */
+  is_bonus?: boolean;
 }
 
 export interface Member {
@@ -162,7 +174,7 @@ export interface BillSplit {
  * Issue #98 (Slice 1 of 6): variable, no-due-date spend (groceries, fuel, etc.), tracked
  * separately from `bills`. Schema/migration-only for now — no UI or business logic reads this
  * yet; later sub-slices of #98 add the add/edit UI (2), Direct Pay split logic (3), the
- * weekly-draw calc integration (4), health score integration (5), and #70 category ordering (6).
+ * weekly-draw calc integration (4), verdict integration (5), and #70 category ordering (6).
  */
 export interface Expense {
   id: string;
@@ -241,7 +253,7 @@ const INITIAL_BILLS: Bill[] = [
     amount: 1200.0,
     status: "Due Soon",
     frequency: "Monthly",
-    statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+    statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
     statusIcon: Clock,
     categoryColor: "bg-secondary/10 text-secondary",
     is_recurring: true,
@@ -254,9 +266,9 @@ const INITIAL_BILLS: Bill[] = [
     amount: 145.5,
     status: "Due Soon",
     frequency: "Monthly",
-    statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+    statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
     statusIcon: Clock,
-    categoryColor: "bg-accent/10 text-amber-600 dark:text-accent",
+    categoryColor: "bg-accent/10 text-amber-600 dark:text-accent-ink",
     is_recurring: true,
   },
   {
@@ -267,7 +279,7 @@ const INITIAL_BILLS: Bill[] = [
     amount: 79.99,
     status: "Due Soon",
     frequency: "Monthly",
-    statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+    statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
     statusIcon: Clock,
     categoryColor: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
     is_recurring: true,
@@ -333,9 +345,9 @@ const INITIAL_FUNDS: Fund[] = [
     category: "Safety Net",
     currentAmount: 7500.0,
     targetAmount: 10000.0,
-    bgLight: "bg-primary/10 text-primary",
+    bgLight: "bg-primary/10 text-primary-ink",
     barColor: "bg-primary",
-    accentText: "text-primary",
+    accentText: "text-primary-ink",
     icon: Shield,
     deadline: null,
     status: "in_progress",
@@ -346,9 +358,9 @@ const INITIAL_FUNDS: Fund[] = [
     category: "Transport",
     currentAmount: 1700.0,
     targetAmount: 15000.0,
-    bgLight: "bg-accent/10 text-accent",
+    bgLight: "bg-accent/10 text-accent-ink",
     barColor: "bg-accent",
-    accentText: "text-accent",
+    accentText: "text-accent-ink",
     icon: Car,
     deadline: null,
     status: "in_progress",
@@ -380,7 +392,7 @@ function getStatusStyle(status: string) {
     case "Due Soon":
     default:
       return {
-        statusColor: "text-amber-600 bg-accent/10 dark:text-accent",
+        statusColor: "text-amber-600 bg-accent/10 dark:text-accent-ink",
         statusIcon: Clock,
       };
   }
@@ -391,7 +403,7 @@ function getCategoryColor(category: string) {
     case "Household Bills":
       return "bg-secondary/10 text-secondary";
     case "Temporary":
-      return "bg-accent/10 text-amber-600 dark:text-accent";
+      return "bg-accent/10 text-amber-600 dark:text-accent-ink";
     case "Subscriptions":
       return "bg-purple-500/10 text-purple-600 dark:text-purple-400";
     case "Living Costs":
@@ -437,9 +449,9 @@ function getFundStyle(category: string) {
       };
     case "Emergency":
       return {
-        bgLight: "bg-primary/10 text-primary",
+        bgLight: "bg-primary/10 text-primary-ink",
         barColor: "bg-primary",
-        accentText: "text-primary",
+        accentText: "text-primary-ink",
         icon: Shield,
       };
     case "Wish List":
@@ -451,9 +463,9 @@ function getFundStyle(category: string) {
       };
     case "Education":
       return {
-        bgLight: "bg-accent/10 text-yellow-600 dark:text-accent",
+        bgLight: "bg-accent/10 text-yellow-600 dark:text-accent-ink",
         barColor: "bg-accent",
-        accentText: "text-yellow-600 dark:text-accent",
+        accentText: "text-yellow-600 dark:text-accent-ink",
         icon: BookOpen,
       };
     case "Other":
@@ -465,15 +477,6 @@ function getFundStyle(category: string) {
         icon: HelpCircle,
       };
   }
-}
-
-function generateRandomCode(): string {
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return code;
 }
 
 function toLocalYmd(date: Date): string {
@@ -693,8 +696,8 @@ interface AppContextValue {
   isOnboarded: boolean;
   completeOnboarding: () => void;
   householdName: string;
-  setHouseholdName: (name: string, userId?: string | null) => void;
-  createHousehold: (name: string) => Promise<string>;
+  setHouseholdName: (name: string) => Promise<void>;
+  createHousehold: (name: string, isJointFund?: boolean) => Promise<string>;
   isJointFund: boolean;
   updateHouseholdPaymentMode: (isJointFund: boolean) => Promise<void>;
   householdTimezone: string;
@@ -703,17 +706,19 @@ interface AppContextValue {
   /* Bills */
   bills: Bill[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addBill: (billData: any, splitsData?: any[]) => Promise<void>;
+  addBill: (billData: any, splitsData?: any[]) => Promise<string>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateBill: (billId: string | number, billData: any, splitsData: any[]) => Promise<void>;
+  /** R10: omit `splitsData` to leave the bill's splits alone; omit `dueDate`/`invoiceDate` to leave the saved dates alone. */
+  updateBill: (billId: string | number, billData: any, splitsData?: any[]) => Promise<void>;
   togglePaid: (id: string | number) => void;
-  markAsPaid: (bill: Bill) => Promise<void>;
+  /** R10: the four bill actions resolve true when saved, false when not (a failure, or the bill had already changed). */
+  markAsPaid: (bill: Bill) => Promise<boolean>;
   /** #250: Mark as Paid for a bill with no due date, answering the next-due question. */
   markDatelessBillPaid: (bill: Bill, choice: { nextDue: string } | { mute: true }) => Promise<boolean>;
-  markAsUnpaid: (bill: Bill) => Promise<void>;
-  undoPayment: (bill: Bill) => Promise<void>;
-  togglePauseBill: (id: string | number, isPaused: boolean) => Promise<void>;
-  deleteBill: (id: string | number) => void;
+  markAsUnpaid: (bill: Bill) => Promise<boolean>;
+  undoPayment: (bill: Bill) => Promise<boolean>;
+  togglePauseBill: (id: string | number, isPaused: boolean) => Promise<boolean>;
+  deleteBill: (id: string | number) => Promise<void>;
 
   /* Toast (#205) — rendered once by AppShell */
   toast: AppToast | null;
@@ -722,14 +727,11 @@ interface AppContextValue {
   /* Finish setting up card (#333): null = not loaded yet / load failed, so the card stays hidden */
   isFinishSetupDismissed: boolean | null;
   dismissFinishSetup: () => Promise<void>;
-  /* Updates card (#260) visibility, so the dashboard tips ticker can step aside */
-  isUpdatesCardVisible: boolean;
-  setUpdatesCardVisible: (visible: boolean) => void;
 
   /* Expenses (Issue #98, Slice 2 of 6; split logic added Slice 3 of 6) */
   expenses: Expense[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  addExpense: (expenseData: any) => Promise<void>;
+  addExpense: (expenseData: any) => Promise<string>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateExpense: (expenseId: string, expenseData: any) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
@@ -746,7 +748,7 @@ interface AppContextValue {
 
   /* Funds */
   funds: Fund[];
-  addFund: (fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) => Promise<void>;
+  addFund: (fund: NewFund) => Promise<string>;
   updateGoal: (id: string | number, goalData: any) => Promise<void>;
   deleteGoal: (id: string | number) => Promise<void>;
   updateFund: (id: string | number, fundData: any) => Promise<void>;
@@ -762,31 +764,39 @@ interface AppContextValue {
   /* Payday Schedule & History */
   paySchedules: PaySchedule[];
   payHistory: PayHistory[];
-  addPaySchedule: (data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
+  addPaySchedule: (data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<string>;
   updatePaySchedule: (id: string, data: Omit<PaySchedule, "id" | "household_id" | "created_at">) => Promise<void>;
   deletePaySchedule: (id: string) => Promise<void>;
   logPay: (payScheduleId: string, amount: number, date: string, notes: string | null, status?: 'pending' | 'confirmed') => Promise<PayHistory | null>;
-  confirmPay: (historyId: string) => Promise<void>;
+  /** Throws when the save fails (R20, #407). */
   confirmAndUpdatePay: (historyId: string, newAmount: number, notes?: string | null) => Promise<void>;
+  /** "Didn't get paid" on a due pay: moves the schedule to its next date and logs nothing. Throws on failure. */
+  skipDuePay: (payScheduleId: string) => Promise<void>;
+  /** "Didn't get paid" on a Pending pay: deletes that row only, leaving the schedule date alone. Throws on failure. */
+  skipPendingPay: (historyId: string) => Promise<void>;
   autoLogMissedPays: () => Promise<void>;
   deletePayHistory: (id: string) => Promise<void>;
-  calculateAveragePay: (memberId: string) => number | null;
+  updatePayNotes: (id: string, notes: string | null) => Promise<void>;
+  logBonus: (input: { memberId: string; amount: number; payDate: string; notes: string | null }) => Promise<string>;
+  /** Average of that schedule's last 4 confirmed pays; null with fewer than 2 (R19, #406). */
+  calculateAveragePay: (scheduleId: string) => number | null;
 
   /* Household Contributions */
   householdContributions: HouseholdContribution[];
   fetchHouseholdContributions: (householdId?: string) => Promise<void>;
   setContribution: (memberId: string, amount: number, frequency: "weekly" | "fortnightly" | "monthly") => Promise<void>;
+  applyDirectPaySplits: (billIds: string[], sharesByMember: Record<string, number>) => Promise<void>;
   deleteContribution: (id: string) => Promise<void>;
 
   /* Contribution Rules */
   contributionRules: ContributionRule[];
   fetchContributionRules: (householdId?: string) => Promise<void>;
-  addRule: (ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) => Promise<void>;
+  addRule: (ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) => Promise<string>;
   updateRule: (id: string, ruleData: Partial<Omit<ContributionRule, "id" | "household_id" | "created_at">>) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;
   toggleRuleActive: (id: string) => Promise<void>;
   checkAndApplyRules: (memberId: string, payAmount: number) => ContributionRule[];
-  applyRuleAllocation: (rule: ContributionRule, payHistoryId: string) => Promise<void>;
+  applyRuleAllocation: (rule: ContributionRule, payHistoryId: string, knownPayAmount?: number) => Promise<void>;
 
   /* Members */
   members: Member[];
@@ -894,6 +904,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
 
 
+      // Status bar / browser chrome colour follows the CHOSEN theme (F05, #468), not just the OS
+      // setting that the layout's media-query meta tags see. Uses the real background token.
+      const bg = getComputedStyle(root).getPropertyValue("--color-background").trim();
+      if (bg) {
+        document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", bg));
+      }
+
       console.log("[ThemeManager] applied:", activeTheme, "HTML classes:", root.className, "data-theme:", root.getAttribute("data-theme"));
     };
 
@@ -959,8 +976,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // then erroring would be read as "B is already onboarded", leaving isOnboarded
   // true over user A's dbHouseholdId, household name and data arrays — B looking
   // at A's dashboard. AppProvider never unmounts across sign-out/sign-in (both
-  // are client-side router navigations, no page reload), so none of that state
-  // is cleared for us. A user-id mismatch therefore counts as "unknown".
+  // are client-side router navigations, no page reload), so that state is
+  // only cleared by resetHouseholdState (called on sign-out and on a user-id
+  // change). A user-id mismatch counts as "unknown" here as a second guard.
   // Cleared on sign-out (see loadData's no-session branch).
   const resolvedHouseholdUserIdRef = useRef<string | null>(null);
 
@@ -971,8 +989,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // proves otherwise. AppShell's gate (src/components/AppShell.tsx:182) is the
   // app's single loading gate, so any render where this is wrongly false hands
   // every dashboard component empty arrays to compute against — the cold-open
-  // "Fully Funded" flash in #73 (empty state scores exactly 85, clearing the
-  // >= 80 threshold). The previous initialiser was
+  // false "all good" flash in #73 (an empty state used to score 85, the old
+  // Health score). The previous initialiser was
   // `!initialIsOnboarded && !!initialSession`, which evaluated to false for
   // every user unconditionally — not conditionally on onboarding. This
   // function's defaults are `initialSession = null, initialIsOnboarded = false`
@@ -1022,6 +1040,26 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // top-level finally so every exit path (including the early "no session"
   // return) releases it.
   const loadDataInFlightRef = useRef(false);
+  // The user id the in-memory household data belongs to (null = nothing loaded).
+  // When the signed-in user differs from this, resetHouseholdState clears every
+  // household/user slice before anything new is loaded.
+  const dataOwnerUserIdRef = useRef<string | null>(null);
+  // Bumped by every resetHouseholdState. A loadData that started before a reset
+  // compares against it and discards its results instead of keeping them.
+  const loadGenerationRef = useRef(0);
+  // Number of createHousehold / joinHousehold calls running (a counter, so
+  // overlapping calls cannot clear it early). While it is above zero, a
+  // background loadData that reads membership before the write commits does not
+  // clear the household that call is setting up.
+  const householdWriteCountRef = useRef(0);
+  // Which user last finished one of those writes, and when. A load that reads
+  // membership just after the write finished may still be stale, so the same
+  // user keeps their household for a few seconds.
+  const justWroteHouseholdRef = useRef<{ userId: string | null; at: number } | null>(null);
+  // Bumped to re-run the loadData effect when a load was discarded because the
+  // user changed while it was in flight (the overlap guard may have skipped the
+  // new user's own call).
+  const [loadNonce, setLoadNonce] = useState(0);
 
   // Mirrors of the two values the loadData effect below depends on, as of the
   // last time an auth callback dispatched them. Both auth callbacks fire outside
@@ -1054,6 +1092,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       .then(({ data: { session } }) => {
         console.log('Auth useEffect - getSession result:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
         const loadDataWillRun = willRunLoadData(session);
+        resetIfUserChanged(session?.user?.id ?? null);
         lastDispatchedSessionRef.current = session;
         isAuthLoadingRef.current = false;
         setSession(session);
@@ -1094,6 +1133,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth useEffect - onAuthStateChange event:', _event, 'session:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
       const loadDataWillRun = willRunLoadData(session);
+      // Clear the previous user's data on sign-out or a direct user switch
+      // (auth-js can emit SIGNED_IN with no SIGNED_OUT first).
+      resetIfUserChanged(session?.user?.id ?? null);
       lastDispatchedSessionRef.current = session;
       isAuthLoadingRef.current = false;
       setSession(session);
@@ -1114,6 +1156,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; the reset helper uses only refs and stable setters
   }, []);
 
   function completeOnboarding() {
@@ -1141,8 +1184,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   const [contributionRules, setContributionRules] = useState<ContributionRule[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toast, setToast] = useState<AppToast | null>(null);
-  // True while the Updates card (#260) is on screen; the dashboard tips ticker hides then.
-  const [isUpdatesCardVisible, setUpdatesCardVisible] = useState(false);
   const toastSeqRef = useRef(0);
   // Finish setting up card dismissal (#333), keyed by user id so a same-tab
   // account switch can't show the previous user's flag.
@@ -1154,6 +1195,58 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
    * re-enabling push from one instance's PushStatusDialog is immediately
    * reflected in the other. */
   const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
+
+  /* ── Reset household state ──────────────────── */
+  // Clears every household/user data slice back to its empty default, for when
+  // the signed-in user changes or signs out. AppProvider stays mounted across
+  // those events, so nothing else clears it. Uses only setters and refs, so it
+  // is safe to call from the frozen auth callbacks. Preferences that are not
+  // user data (theme) are left alone.
+  function resetHouseholdState() {
+    loadGenerationRef.current += 1;
+    dataOwnerUserIdRef.current = null;
+    resolvedHouseholdUserIdRef.current = null;
+    setIsOnboarded(false);
+    setHouseholdNameState("");
+    setDbHouseholdId(null);
+    setIsJointFund(false);
+    setHouseholdTimezone("Australia/Sydney");
+    setJoinCode(null);
+    setCodeExpiresAt(null);
+    setBills([]);
+    setExpenses([]);
+    setFunds([]);
+    setPaydays([]);
+    setMembers([]);
+    setBillSplits([]);
+    setExpenseSplits([]);
+    setPaySchedules([]);
+    setPayHistory([]);
+    setHouseholdContributions([]);
+    setContributionRules([]);
+    setNotifications([]);
+    setNotificationSettings(null);
+    setPushStatus(null);
+    setFinishSetup(null);
+    setToast(null);
+  }
+
+  // Resets when data is held for a different user than nextUserId (including
+  // null, i.e. signed out). No-op when nothing is loaded or the same user is
+  // still signed in, so token refreshes never clear anything.
+  function resetIfUserChanged(nextUserId: string | null) {
+    const owner = dataOwnerUserIdRef.current;
+    if (owner && owner !== nextUserId) resetHouseholdState();
+  }
+
+  // Throws if a different user (or a sign-out) took over the session since a
+  // create/join call started, so it cannot commit household state for the wrong user.
+  function assertSessionUserUnchanged(userId: string) {
+    const current = lastDispatchedSessionRef.current?.user?.id;
+    if (current && current !== userId) {
+      throw new Error("Your sign-in changed. Please try again.");
+    }
+  }
 
   /* ── Sync/Load Data ─────────────────────────── */
   // Only load data AFTER auth has resolved and we have a valid session.
@@ -1168,20 +1261,37 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       return;
     }
     loadDataInFlightRef.current = true;
+    // gen is the generation this call considers current. loadDataInner moves it
+    // forward after its own resets, so only a reset from elsewhere (user switch
+    // or sign-out during the load) leaves it behind.
+    const ctx = { gen: loadGenerationRef.current };
     try {
-      await loadDataInner(options);
+      await loadDataInner(options, ctx);
     } finally {
       loadDataInFlightRef.current = false;
     }
+    // The user changed or signed out while this load was in flight: whatever it
+    // wrote belongs to the previous user. Clear it and re-run for the current
+    // session (the new user's own call may have been skipped by the guard above).
+    if (ctx.gen !== loadGenerationRef.current) {
+      resetHouseholdState();
+      // With a session the re-run clears loading in its own finally; with none
+      // there is nothing to load, so loading must be cleared here.
+      setIsDataLoading(!!lastDispatchedSessionRef.current);
+      setLoadNonce((n) => n + 1);
+    }
   }
 
-  async function loadDataInner(options?: { assumeEmptyPreviousState?: boolean }) {
+  async function loadDataInner(options: { assumeEmptyPreviousState?: boolean } | undefined, ctx: { gen: number }) {
     if (isAuthLoading || !session?.user) {
       console.log('loadData skipped - isAuthLoading:', isAuthLoading, 'session:', session ? 'exists' : 'null');
       // No session means signed out (or never signed in): forget any household
       // we had resolved, so the next user through doesn't inherit this one's
       // "already onboarded" knowledge.
-      if (!isAuthLoading) resolvedHouseholdUserIdRef.current = null;
+      if (!isAuthLoading) {
+        resetHouseholdState();
+        ctx.gen = loadGenerationRef.current;
+      }
       setIsOnboarded(false);
       // Only clear the loading flag once auth has actually resolved. This effect
       // also fires on mount while isAuthLoading is still true; clearing it there
@@ -1193,15 +1303,26 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (!isAuthLoading) setIsDataLoading(false);
       return;
     }
+    // Data held for a different user must never be shown to this one. The reset
+    // setters do not update this render's closure values, so the loaders are told
+    // to treat the previous in-memory state as empty.
+    let assumeEmptyAfterReset = false;
+    if (dataOwnerUserIdRef.current && dataOwnerUserIdRef.current !== session.user.id) {
+      resetHouseholdState();
+      ctx.gen = loadGenerationRef.current;
+      assumeEmptyAfterReset = true;
+    }
+    dataOwnerUserIdRef.current = session.user.id;
     if (!dbHouseholdId && !isOnboarded) {
       setIsDataLoading(true);
     }
     console.log('loadData running with authenticated session, user:', session.user.id);
     // Do we already know THIS user has a household? Declared outside the try so
     // the catch below can see it too. Deliberately consults only the user-keyed
-    // ref: isOnboarded and dbHouseholdId are not user-scoped and are never reset,
-    // so after a same-tab user switch they still hold the *previous* user's
-    // values — exactly the evidence this guard must not trust (see
+    // ref: isOnboarded and dbHouseholdId are not user-scoped, and this render's
+    // copies can be stale right after resetHouseholdState (which clears them for
+    // a user switch or sign-out but cannot update values already closed over),
+    // so they are not the evidence this guard should trust (see
     // resolvedHouseholdUserIdRef's declaration). A same-user warm reload still
     // matches its own id, so a transient error there keeps every loaded value in
     // place, which is the whole point of the guard.
@@ -1246,11 +1367,24 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      // Signed out or switched user while the membership query was in flight.
+      if (ctx.gen !== loadGenerationRef.current) return;
+
       if (!membership?.household_id) {
         // Successful query, no membership row — the one result that genuinely
         // means "this user has no household yet".
         console.log('[loadData] No active household membership or user has no household yet');
-        resolvedHouseholdUserIdRef.current = null;
+        // Keep a household this same user is creating or joining right now.
+        const justWrote = justWroteHouseholdRef.current;
+        const keepOwnHousehold =
+          householdWriteCountRef.current > 0 ||
+          (!!justWrote && justWrote.userId === session.user.id && Date.now() - justWrote.at < 5000);
+        if (!keepOwnHousehold) {
+          // This user has no household (new, or removed from theirs): clear any leftovers.
+          resetHouseholdState();
+          ctx.gen = loadGenerationRef.current;
+          dataOwnerUserIdRef.current = session.user.id;
+        }
         setIsOnboarded(false);
         setIsDataLoading(false);
         return;
@@ -1278,8 +1412,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      if (ctx.gen !== loadGenerationRef.current) return;
+
       console.log('loadData - found household:', household.id, household.name, household.is_joint_fund);
       resolvedHouseholdUserIdRef.current = session.user.id;
+      dataOwnerUserIdRef.current = session.user.id;
       setDbHouseholdId(household.id);
       setHouseholdNameState(household.name);
       setIsJointFund(!!household.is_joint_fund);
@@ -1289,7 +1426,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setIsOnboarded(true);
 
       // Fetch related data
-      await loadHouseholdRelatedData(household.id, session.user.id, { ...options, timezone: household.timezone });
+      await loadHouseholdRelatedData(household.id, session.user.id, {
+        ...options,
+        assumeEmptyPreviousState: options?.assumeEmptyPreviousState || assumeEmptyAfterReset,
+        timezone: household.timezone,
+        gen: ctx.gen,
+      });
     } catch (err) {
       console.error('[loadData] Failed loading all household data:', err);
       if (isNetworkFailure(err)) {
@@ -1306,7 +1448,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         if (resolvedHouseholdUserIdRef.current !== session.user.id && !knownOnboarded) setIsOnboarded(false);
       }
     } finally {
-      if (!networkFailure) {
+      // A reset from elsewhere (user switch / sign-out) during this load makes it
+      // stale: leave the loading and network flags to the wrapper, which re-runs
+      // the load, so the new user never sees a gap where loading is false.
+      const staleLoad = ctx.gen !== loadGenerationRef.current;
+      if (!networkFailure && !staleLoad) {
         setIsDataLoading(false);
       }
       // Always resync, in both directions: flips true on a fresh network
@@ -1314,7 +1460,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // retry actually succeeds (or resolves to a definitive answer another
       // way), so the recovery effect below stops polling/listening the
       // instant it's no longer needed instead of running forever.
-      setIsNetworkStuck(networkFailure);
+      if (!staleLoad) setIsNetworkStuck(networkFailure);
       // This call's outcome is the direct answer to "did that retry attempt
       // fail?" — feed it to the escape-hatch generation counter regardless of
       // which trigger (manual button, poll, online, focus, visibilitychange)
@@ -1329,7 +1475,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   useEffect(() => {
     loadData();
-  }, [isAuthLoading, session]);
+  }, [isAuthLoading, session, loadNonce]);
 
   // Recovery for the "stuck on network failure" state above (#71 follow-up,
   // PR #121 iPhone re-report). The original fix relied solely on a single
@@ -1442,8 +1588,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // again (the very failure that put the user on "create or join" in the first
   // place) it returned early with the resolution ref now set: isOnboarded stayed
   // true, isDataLoading cleared, and the dashboard rendered with bills, funds,
-  // paydays and members all still [] — which computes to exactly 85 in
-  // calculateHealthScore and displays "Fully Funded" (#73's false positive).
+  // paydays and members all still [] — which the old Health score read as
+  // "Fully Funded" (#73's false positive; the verdict shows grey there).
   //
   // Takes userId explicitly rather than reading session: the adopt paths get a
   // fresher user from supabase.auth.getSession() than this render's closure.
@@ -1463,9 +1609,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function loadHouseholdRelatedData(
     householdId: string,
     userId: string,
-    options?: { assumeEmptyPreviousState?: boolean; timezone?: string | null }
+    options?: { assumeEmptyPreviousState?: boolean; timezone?: string | null; gen?: number }
   ) {
     const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
+    // Generation this load belongs to: a reset (user switch / sign-out) during
+    // any await below makes it stale, and stale results are never written.
+    const gen = options?.gen ?? loadGenerationRef.current;
+    const isStale = () => gen !== loadGenerationRef.current;
 
     const [billsRes, expensesRes, fundsRes, paydaysRes, membersRes, billSplitsRes, expenseSplitsRes] = await Promise.all([
       supabase.from("bills").select("*").eq("household_id", householdId),
@@ -1510,6 +1660,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       ),
     ]);
 
+    if (isStale()) return;
     if (resolvedBills) {
       // Slice 17 (#187) belt-and-braces catch-up: roll any Paid bill whose due
       // date has arrived (household timezone) before it reaches state, in case
@@ -1557,6 +1708,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           }
         })
       );
+      if (isStale()) return;
       setBills(billsForState.map(mapBillFromDb));
     }
     if (resolvedExpenses) {
@@ -1596,16 +1748,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return { data: filterSplitsToHousehold(refetched.data), error: refetched.error };
       }
     );
+    if (isStale()) return;
     if (resolvedBillSplits) {
       setBillSplits(resolvedBillSplits);
     }
 
     // Fetch payday schedule, history, contributions, and rules
     await Promise.all([
-      fetchPayData(householdId, { assumeEmptyPreviousState }),
-      fetchHouseholdContributions(householdId),
-      fetchContributionRules(householdId),
-      fetchNotifications(userId, householdId),
+      fetchPayData(householdId, { assumeEmptyPreviousState, gen }),
+      fetchHouseholdContributions(householdId, gen),
+      fetchContributionRules(householdId, gen),
+      fetchNotifications(userId, householdId, gen),
       loadFinishSetupDismissed(userId)
     ]);
   }
@@ -1652,11 +1805,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // Both slices go through resolveWarmReloadRace (#348), same as the
   // loadData slices: an empty-but-successful read only replaces loaded pay
   // data after one confirming re-fetch, so a warm reload can't briefly wipe
-  // it (Dashboard "Add your payday", wrong Household Health). A genuine
+  // it (Dashboard "Add your payday", wrong Dashboard verdict). A genuine
   // delete-to-empty still lands: the re-fetch is also empty and is committed.
   // `assumeEmptyPreviousState` is passed through from loadHouseholdRelatedData
   // for the household-switch case (see the comment there).
-  async function fetchPayData(householdId?: string, options?: { assumeEmptyPreviousState?: boolean }) {
+  async function fetchPayData(householdId?: string, options?: { assumeEmptyPreviousState?: boolean; gen?: number }) {
     const hId = householdId || dbHouseholdId;
     if (!hId) return;
     const assumeEmptyPreviousState = options?.assumeEmptyPreviousState ?? false;
@@ -1674,6 +1827,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         resolveWarmReloadRace(assumeEmptyPreviousState ? [] : payHistory, historyRes, fetchHistory),
       ]);
 
+      if (options?.gen !== undefined && options.gen !== loadGenerationRef.current) return;
       if (resolvedSchedules) {
         setPaySchedules(resolvedSchedules);
       }
@@ -1702,8 +1856,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // .maybeSingle() error (PGRST116) on every later load, so the user's real
     // bills, funds and paydays are stranded under the original household_id with
     // no way back. The early return on dbHouseholdId above is not a membership
-    // check — dbHouseholdId is never reset to null anywhere, so it is stale after
-    // a same-tab user switch, and it is null on precisely the path that matters
+    // check — dbHouseholdId is cleared by resetHouseholdState on a user
+    // switch, but this render's copy can still be stale, and it is null on precisely the path that matters
     // (a wrongly-shown "create or join" screen after a failed membership query).
     if (userIdToUse) {
       const { data: existingMembership, error: membershipError } = await supabase
@@ -1744,6 +1898,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         }
 
         resolvedHouseholdUserIdRef.current = userIdToUse;
+        dataOwnerUserIdRef.current = userIdToUse;
         setDbHouseholdId(existing.id);
         setHouseholdNameState(existing.name);
         return existing.id;
@@ -1808,6 +1963,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // A membership row now exists for this user, so a later query failure must
       // not clear isOnboarded and route them to "create or join" (#75 item 3).
       resolvedHouseholdUserIdRef.current = currentSession.user.id;
+      dataOwnerUserIdRef.current = currentSession.user.id;
       // Same as createHousehold: this path skips loadHouseholdRelatedData (#333).
       await loadFinishSetupDismissed(currentSession.user.id);
     }
@@ -1816,7 +1972,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Household Creation and Name Actions ────── */
-  async function createHousehold(name: string): Promise<string> {
+  async function createHousehold(name: string, newIsJointFund = false): Promise<string> {
+    householdWriteCountRef.current += 1;
+    try {
+      return await createHouseholdImpl(name, newIsJointFund);
+    } finally {
+      householdWriteCountRef.current -= 1;
+      justWroteHouseholdRef.current = { userId: dataOwnerUserIdRef.current, at: Date.now() };
+    }
+  }
+
+  async function createHouseholdImpl(name: string, newIsJointFund = false): Promise<string> {
     try {
       const { data: { session: currentSession }, error: authError } = await supabase.auth.getSession();
       const activeUser = currentSession?.user || session?.user;
@@ -1833,6 +1999,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error('Pre-insert validation failed: Household name is required.');
       }
 
+      // Never build on another user's in-memory data (see resetHouseholdState).
+      resetIfUserChanged(activeUser.id);
+
       // #75 item 3, door 1: never create a second household for a user who
       // already belongs to one. Reaching this function does not prove the user
       // is new — a transient membership-query failure in loadData can route an
@@ -1846,9 +2015,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // ensureHousehold() runs its own equivalent membership check (:1072-1115),
       // but Onboarding bypasses that function entirely by calling here.
       //
-      // Deliberately does NOT seed from dbHouseholdId. That state is never reset
-      // to null anywhere, and AppProvider never unmounts across sign-out/sign-in,
-      // so after a same-tab user switch it still holds the PREVIOUS user's
+      // Deliberately does NOT seed from dbHouseholdId. That state is cleared by
+      // resetHouseholdState on a user switch, but AppProvider never unmounts across
+      // sign-out/sign-in and this render's copy can be stale, so after a same-tab user switch it still holds the PREVIOUS user's
       // household id. Seeding from it skipped this query altogether and sent user
       // B down the adopt branch below pointed at user A's household — which B has
       // no membership for, so the households lookup returns nothing, B is bounced
@@ -1920,9 +2089,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         //    Onboarding, and nothing raises it again (loadData's own raise at
         //    :882 is skipped once dbHouseholdId and isOnboarded are both truthy).
         //    AppShell's gates therefore opened over bills/funds/paydays/members
-        //    still [], which computes to exactly 85 in calculateHealthScore
-        //    (src/lib/utils.ts:88) and clears the >= 80 "Fully Funded" threshold
-        //    (src/components/HealthScoreCard.tsx:34). Committing after the await
+        //    still [], which the old Health score read as "Fully Funded" (#73).
+        //    Committing after the await
         //    removes the window outright instead of covering it with a wheel.
         //
         // 2. loadHouseholdRelatedData has no try/catch and its Promise.all
@@ -1957,7 +2125,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         try {
           await loadHouseholdRelatedData(existing.id, activeUser.id, { timezone: existing.timezone });
 
+          assertSessionUserUnchanged(activeUser.id);
           resolvedHouseholdUserIdRef.current = activeUser.id;
+          dataOwnerUserIdRef.current = activeUser.id;
           setDbHouseholdId(existing.id);
           setHouseholdNameState(existing.name);
           setIsJointFund(!!existing.is_joint_fund);
@@ -1977,7 +2147,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error('Session invalid: User no longer exists. Please sign out and sign up again.');
       }
 
-      const joinCodeValue = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const joinCodeValue = generateJoinCode();
 
       const timezone = resolveNewHouseholdTimezone();
 
@@ -1990,7 +2160,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           user_id: activeUser.id,
           join_code: joinCodeValue,
           code_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          timezone
+          timezone,
+          is_joint_fund: newIsJointFund
         })
         .select()
         .single();
@@ -2029,10 +2200,26 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error(`Member insert failed: ${memberError.message}`);
       }
 
-      // Update state
+      // Update state. Start from a clean slate: clear anything held for a different
+      // user, and begin the data arrays empty for this new household.
+      assertSessionUserUnchanged(activeUser.id);
+      resetIfUserChanged(activeUser.id);
+      setBills([]);
+      setExpenses([]);
+      setFunds([]);
+      setPaydays([]);
+      setBillSplits([]);
+      setExpenseSplits([]);
+      setPaySchedules([]);
+      setPayHistory([]);
+      setHouseholdContributions([]);
+      setContributionRules([]);
+      setNotifications([]);
+      setMembers([]);
+      dataOwnerUserIdRef.current = activeUser.id;
       setDbHouseholdId(household.id);
       setHouseholdNameState(household.name);
-      setIsJointFund(false);
+      setIsJointFund(newIsJointFund);
       setJoinCode(household.join_code || null);
       setCodeExpiresAt(household.code_expires_at || null);
       setHouseholdTimezone(household.timezone || "Australia/Sydney");
@@ -2043,7 +2230,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // must not clear isOnboarded and send them back here (#75 item 3).
       resolvedHouseholdUserIdRef.current = activeUser.id;
       // Do NOT setIsOnboarded(true) here — that would unmount the onboarding
-      // wizard mid-flow (#78). completeOnboarding() on step 6's "Enter App" is
+      // wizard mid-flow (#78). completeOnboarding() on the hub's "Enter app" is
       // the only thing that should flip this.
 
       // This path never calls loadHouseholdRelatedData, so load the card flag here (#333).
@@ -2057,22 +2244,42 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function setHouseholdName(name: string) {
+  async function setHouseholdName(rawName: string) {
+    const name = rawName.trim();
+    if (!name) throw new Error("Household name can't be empty.");
+    const previousName = householdName;
     setHouseholdNameState(name);
     try {
       if (dbHouseholdId) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("households")
           .update({ name })
-          .eq("id", dbHouseholdId);
+          .eq("id", dbHouseholdId)
+          .select("id");
         if (error) throw error;
+        assertRowUpdated(data, "Only the household owner can change the name.");
       }
     } catch (err) {
+      setHouseholdNameState(previousName);
       console.error("Failed to update household name:", err);
+      throw err;
     }
   }
 
   /* ── Bills Actions ──────────────────────────── */
+  // F10 (#432): when an item saved but its splits did not, delete the item again so
+  // "Try again" cannot add a second copy. Returns true when the row is gone. (Its split
+  // rows cascade, and none were saved.)
+  async function rollBackInsertedItem(table: "bills" | "expenses", id: string | number): Promise<boolean> {
+    // .select() returns the deleted rows: RLS can match 0 rows without an error.
+    const { data, error } = await supabase.from(table).delete().eq("id", id).select();
+    if (error || !data?.length) {
+      console.error(`Could not roll back the new row in ${table} (id ${id}):`, error);
+      return false;
+    }
+    return true;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function addBill(billData: any, splitsData: any[] = []) {
     try {
@@ -2126,7 +2333,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           .select();
 
         if (splitsError) {
-          console.error("Error inserting bill splits (bill saved successfully):", splitsError);
+          console.error("Error inserting bill splits:", splitsError);
+          // F10 (#432): undo the bill so a retry is safe. If the undo fails too, keep the
+          // bill in local state so it is visible and can be fixed or deleted.
+          if (!(await rollBackInsertedItem("bills", newBill.id))) {
+            setBills((prev) => [...prev, mapBillFromDb(newBill)]);
+          }
           throw splitsError;
         }
         if (data) {
@@ -2140,6 +2352,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newSplits && newSplits.length > 0) {
         setBillSplits((prev) => [...prev, ...newSplits]);
       }
+      // R07: the Add flow highlights the new row by this id.
+      return String(newBill.id);
     } catch (err) {
       console.error("Failed to add bill:", err);
       throw err;
@@ -2147,7 +2361,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async function updateBill(billId: string | number, billData: any, splitsData: any[]) {
+  async function updateBill(billId: string | number, billData: any, splitsData?: any[]) {
     console.log('updateBill - Start - billId:', billId);
     console.log('updateBill - billData input:', billData);
     console.log('updateBill - splitsData input:', splitsData);
@@ -2165,8 +2379,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         name: billData.name,
         amount: billData.amount,
         // #250: a blank due date is stored as null (parseDateForDb("") returns "").
-        due_date: billData.dueDate || billData.due_date ? parseDateForDb(billData.dueDate || billData.due_date) : null,
-        invoice_date: billData.invoiceDate || billData.invoice_date ? parseDateForDb(billData.invoiceDate || billData.invoice_date) : null,
+        // R10: a date is written only when the caller passes the key, so saving a
+        // name or note no longer rewrites a rolled-forward autopay date.
+        ...("dueDate" in billData || "due_date" in billData
+          ? { due_date: billData.dueDate || billData.due_date ? parseDateForDb(billData.dueDate || billData.due_date) : null }
+          : {}),
+        ...("invoiceDate" in billData || "invoice_date" in billData
+          ? { invoice_date: billData.invoiceDate || billData.invoice_date ? parseDateForDb(billData.invoiceDate || billData.invoice_date) : null }
+          : {}),
         payment_type: billData.paymentType || billData.payment_type || "manual",
         assignee_id: billData.assignee || billData.assignee_id || null,
         category: billData.category || "Uncategorized",
@@ -2201,23 +2421,28 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         console.log('updateBill - successfully updated bills table row:', updatedBill);
       }
 
-      // Step 2: Delete Existing Splits
-      console.log('updateBill - deleting splits for bill_id:', billId);
-      const { error: deleteError } = await supabase
-        .from("bill_splits")
-        .delete()
-        .eq("bill_id", billId);
+      // R10: `splitsData` undefined = leave the bill's splits exactly as they are.
+      const touchSplits = splitsData !== undefined;
 
-      if (deleteError) {
-        console.error("updateBill - Error deleting existing bill splits:", deleteError);
-        throw deleteError;
-      } else {
-        console.log('updateBill - splits deleted successfully');
+      // Step 2: Delete Existing Splits
+      if (touchSplits) {
+        console.log('updateBill - deleting splits for bill_id:', billId);
+        const { error: deleteError } = await supabase
+          .from("bill_splits")
+          .delete()
+          .eq("bill_id", billId);
+
+        if (deleteError) {
+          console.error("updateBill - Error deleting existing bill splits:", deleteError);
+          throw deleteError;
+        } else {
+          console.log('updateBill - splits deleted successfully');
+        }
       }
 
       let newSplits = [];
       // Step 3: Insert New Splits
-      if (splitsData && splitsData.length > 0) {
+      if (touchSplits && splitsData && splitsData.length > 0) {
         const dbSplitsData = splitsData.map((split) => {
           if (!split.member_id || split.amount === undefined || isNaN(Number(split.amount))) {
             console.warn("updateBill - invalid split data detected:", split);
@@ -2257,10 +2482,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           prev.map((b) => (b.id === billId ? mapBillFromDb(updatedBill) : b))
         );
       }
-      setBillSplits((prev) => {
-        const filtered = prev.filter((s) => String(s.bill_id) !== String(billId));
-        return [...filtered, ...newSplits];
-      });
+      if (touchSplits) {
+        setBillSplits((prev) => {
+          const filtered = prev.filter((s) => String(s.bill_id) !== String(billId));
+          return [...filtered, ...newSplits];
+        });
+      }
 
     } catch (err) {
       console.error("updateBill - Fatal error during execution:", err);
@@ -2298,15 +2525,19 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       console.log(`updateHouseholdPaymentMode - updating to: ${jointFundVal}. isModeChanging: ${isModeChanging}`);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("households")
         .update({ is_joint_fund: jointFundVal })
-        .eq("id", hId);
+        .eq("id", hId)
+        .select("id");
 
       if (error) {
         console.error("Error updating household payment mode:", error);
         throw error;
       }
+      // R28: a blocked update changes 0 rows with no error. Assert BEFORE
+      // resetBillContributions so a non-owner can't wipe splits.
+      assertRowUpdated(data, "Only the household owner can change the payment mode.");
 
       setIsJointFund(jointFundVal);
 
@@ -2319,15 +2550,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  // #37. Owner-only, matching the ownership-gated pattern used for
-  // leave/delete-household — but unlike delete-household there is no
-  // server-side edge function backing this: households UPDATE RLS
-  // ("Users can update their household", fix_households_rls_recursion.sql)
-  // is deliberately member-wide, not owner-only, so this client-side check
-  // is the actual enforcement (same as the member-management "canManage"
-  // gating in settings-client.tsx — RLS there is member-wide too). The
-  // Settings UI also hides the control from non-owners so this should only
-  // ever be reached by an owner in normal use.
+  // #37. Owner-only. Since R28 (#415) the households UPDATE RLS policy
+  // ("Owners can update their household") enforces this server-side too; the
+  // client check below gives a clear message first. The Settings UI also
+  // hides the control from non-owners so this should only ever be reached by
+  // an owner in normal use.
   async function updateHouseholdTimezone(timezone: string) {
     try {
       const hId = await ensureHousehold();
@@ -2345,15 +2572,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw new Error("That doesn't look like a valid timezone.");
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("households")
         .update({ timezone })
-        .eq("id", hId);
+        .eq("id", hId)
+        .select("id");
 
       if (error) {
         console.error("Error updating household timezone:", error);
         throw error;
       }
+      assertRowUpdated(data, "Only the household owner can change the timezone.");
 
       setHouseholdTimezone(timezone);
     } catch (err) {
@@ -2488,8 +2717,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // The roll patch also records last_paid_for = the old due date (#211), in the
   // same guarded update. Pay-early / one-off / paused write status only.
   // Deliberately NOT routed through updateBill (it rewrites dates, splits and category).
-  async function markAsPaid(bill: Bill) {
-    if (bill.payment_type?.toLowerCase() === "auto") return;
+  async function markAsPaid(bill: Bill): Promise<boolean> {
+    if (bill.payment_type?.toLowerCase() === "auto") return false;
     try {
       // Fresh row, not UI state: the roll must start from the DB's due date
       // and today's household date.
@@ -2511,7 +2740,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (current && !sameDueDate(current.due_date, bill.due_date)) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       const today = todayInZone(householdTimezone || "Australia/Sydney");
@@ -2530,13 +2759,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
         if (rollError) {
           console.error("Error rolling bill on mark-as-paid:", rollError);
-          return;
+          showToast({ message: "Couldn't mark as paid, try again." });
+          return false;
         }
         if (!rolled) {
           // Someone else moved it first — show what's actually there.
           await refreshBillFromDb(bill.id);
           showToast({ message: "This bill was already updated — check it and try again." });
-          return;
+          return false;
         }
 
         // Before the bills state changes (so the reminder effect never sees
@@ -2553,7 +2783,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
             ? { actionLabel: "Undo", onAction: () => { void undoPaidRoll(bill.id, undoPatch, rolledDue, oldDue); } }
             : {}),
         });
-        return;
+        return true;
       }
 
       // Paying early / one-off / paused: status only, guarded on the cycle
@@ -2569,12 +2799,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating bill as paid:", error);
-        return;
+        showToast({ message: "Couldn't mark as paid, try again." });
+        return false;
       }
       if (!data) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       // Mark the paid cycle's reminders read (never delete, #209) before the
@@ -2584,8 +2815,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setBills((prev) =>
         prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b))
       );
+      // R15: paying early / one-off gets the same Undo toast as the roll path.
+      showToast({
+        message: "Marked as paid",
+        actionLabel: "Undo",
+        onAction: () => { void markAsUnpaid(mapBillFromDb(data)); },
+      });
+      return true;
     } catch (err) {
       console.error("Failed to mark as paid:", err);
+      showToast({ message: "Couldn't mark as paid, try again." });
+      return false;
     }
   }
 
@@ -2711,8 +2951,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // row and we just re-read the bill so the UI shows the rolled state.
   // Must never touch last_paid_for (#211): the previous record survives an
   // unpaid tap.
-  async function markAsUnpaid(bill: Bill) {
-    if (bill.payment_type?.toLowerCase() === "auto") return;
+  async function markAsUnpaid(bill: Bill): Promise<boolean> {
+    if (bill.payment_type?.toLowerCase() === "auto") return false;
     try {
       const { data, error } = await supabase
         .from("bills")
@@ -2724,10 +2964,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating bill as unpaid:", error);
-        return;
+        return false;
       }
 
       let row = data;
+      // No row matched: the bill is no longer Paid (the cron rolled it). The re-read below
+      // shows the rolled state, and that counts as done (nothing was left to undo).
       if (!row) {
         const { data: current, error: readError } = await supabase
           .from("bills")
@@ -2736,7 +2978,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           .maybeSingle();
         if (readError) {
           console.error("Error re-reading bill after unpaid no-op:", readError);
-          return;
+          return false;
         }
         row = current;
       }
@@ -2747,8 +2989,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           prev.map((b) => (b.id === bill.id ? mapBillFromDb(fresh) : b))
         );
       }
+      return true;
     } catch (err) {
       console.error("Failed to mark as unpaid:", err);
+      return false;
     }
   }
 
@@ -2758,8 +3002,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // due_date, last_paid_for and status we read (and not paused); if anything
   // changed, nothing is written. Writes no notifications (SPEC A2) and is NOT
   // routed through updateBill.
-  async function undoPayment(bill: Bill) {
-    if (bill.payment_type?.toLowerCase() === "auto") return;
+  // R10: resolves true when undone, false otherwise. A real failure shows no toast
+  // (the detail sheet shows a red line); the "already updated" cases keep theirs.
+  async function undoPayment(bill: Bill): Promise<boolean> {
+    if (bill.payment_type?.toLowerCase() === "auto") return false;
     try {
       const { data: current, error: readError } = await supabase
         .from("bills")
@@ -2768,8 +3014,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .maybeSingle();
       if (readError) {
         console.error("Error reading bill before undo payment:", readError);
-        showToast({ message: "Couldn't undo — please try again." });
-        return;
+        return false;
       }
 
       const patch = current ? computeUndoPayment(current) : null;
@@ -2781,7 +3026,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       ) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       let query = supabase
@@ -2796,13 +3041,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error undoing payment:", error);
-        showToast({ message: "Couldn't undo — please try again." });
-        return;
+        return false;
       }
       if (!data) {
         await refreshBillFromDb(bill.id);
         showToast({ message: "Couldn't undo — this bill has already changed." });
-        return;
+        return false;
       }
 
       setBills((prev) => prev.map((b) => (b.id === bill.id ? mapBillFromDb(data) : b)));
@@ -2810,9 +3054,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       const m = Number(dueYmd.slice(5, 7));
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       showToast({ message: `Payment undone — due ${monthNames[m - 1]} ${Number(dueYmd.slice(8, 10))} again` });
+      return true;
     } catch (err) {
       console.error("Failed to undo payment:", err);
-      showToast({ message: "Couldn't undo — please try again." });
+      return false;
     }
   }
 
@@ -2822,7 +3067,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   // to the first date on/after today (`computeResumeRoll`, missed cycles are
   // skipped) in the same guarded write as the un-pause. Deliberately NOT
   // routed through updateBill.
-  async function togglePauseBill(id: string | number, isPaused: boolean) {
+  // R10: resolves true when the bills write succeeded (not tied to marking reminders read),
+  // false otherwise. Success toasts ("Bill paused", "Resumed — next due …", "Bill resumed") live here.
+  async function togglePauseBill(id: string | number, isPaused: boolean): Promise<boolean> {
     try {
       if (isPaused) {
         const { data, error } = await supabase
@@ -2834,17 +3081,22 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
         if (error) {
           console.error("Error toggling pause status:", error);
-          return;
+          return false;
         }
 
         if (data) {
           // Before the bills state changes (same ordering reason as markAsPaid).
-          await markBillRemindersRead(id);
+          try {
+            await markBillRemindersRead(id);
+          } catch (readErr) {
+            console.error("Error marking reminders read on pause:", readErr);
+          }
           setBills((prev) =>
             prev.map((bill) => (bill.id === id ? mapBillFromDb(data) : bill))
           );
+          showToast({ message: "Bill paused" });
         }
-        return;
+        return true;
       }
 
       // Resume
@@ -2855,12 +3107,11 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .maybeSingle();
       if (readError) {
         console.error("Error reading bill before resume:", readError);
-        showToast({ message: "Couldn't resume — please try again." });
-        return;
+        return false;
       }
       if (!current || !current.is_paused) {
         await refreshBillFromDb(id);
-        return;
+        return true;
       }
 
       const today = todayInZone(householdTimezone || "Australia/Sydney");
@@ -2876,12 +3127,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error resuming bill:", error);
-        return;
+        return false;
       }
       if (!data) {
         await refreshBillFromDb(id);
         showToast({ message: "This bill was already updated — check it and try again." });
-        return;
+        return false;
       }
 
       if (patch?.due_date) {
@@ -2892,9 +3143,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         showToast({ message: `Resumed — next due ${monthNames[Number(dueYmd.slice(5, 7)) - 1]} ${Number(dueYmd.slice(8, 10))}` });
       } else {
         setBills((prev) => prev.map((b) => (b.id === id ? mapBillFromDb(data) : b)));
+        showToast({ message: "Bill resumed" });
       }
+      return true;
     } catch (err) {
       console.error("Failed to toggle pause status:", err);
+      return false;
     }
   }
 
@@ -2994,7 +3248,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           .select();
 
         if (splitsError) {
-          console.error("Error inserting expense splits (expense saved successfully):", splitsError);
+          console.error("Error inserting expense splits:", splitsError);
+          // F10 (#432): undo the expense so a retry is safe. If the undo fails too, keep it
+          // in local state so it is visible and can be fixed or deleted.
+          if (!(await rollBackInsertedItem("expenses", newExpense.id))) {
+            setExpenses((prev) => [...prev, mapExpenseFromDb(newExpense)]);
+          }
           throw splitsError;
         }
         if (data) {
@@ -3006,6 +3265,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (newSplits.length > 0) {
         setExpenseSplits((prev) => [...prev, ...newSplits.map(mapExpenseSplitFromDb)]);
       }
+      // R07: the Add flow highlights the new row by this id.
+      return String(newExpense.id);
     } catch (err) {
       console.error("Failed to add expense:", err);
       throw err;
@@ -3046,19 +3307,23 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       // "assignee" (cleans up now-orphaned rows) or "percentage" (about to
       // be replaced with the fresh set below). Mirrors updateBill's
       // delete-then-reinsert pattern for bill_splits.
-      const { error: deleteError } = await supabase
-        .from("expense_splits")
-        .delete()
-        .eq("expense_id", expenseId);
+      // R10: `expenseData.splits` undefined = leave the split rows exactly as they are.
+      const touchSplits = expenseData.splits !== undefined;
+      if (touchSplits) {
+        const { error: deleteError } = await supabase
+          .from("expense_splits")
+          .delete()
+          .eq("expense_id", expenseId);
 
-      if (deleteError) {
-        console.error("Error deleting existing expense splits:", deleteError);
-        throw deleteError;
+        if (deleteError) {
+          console.error("Error deleting existing expense splits:", deleteError);
+          throw deleteError;
+        }
       }
 
       let newSplits = [];
       const splitsInput: Array<{ member_id: string; percentage: number }> = expenseData.splits || [];
-      if (isPercentage && splitsInput.length > 0) {
+      if (touchSplits && isPercentage && splitsInput.length > 0) {
         const hId = await ensureHousehold();
         const dbSplitsData = splitsInput.map((split) => ({
           household_id: hId,
@@ -3084,10 +3349,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       setExpenses((prev) =>
         prev.map((e) => (e.id === expenseId ? mapExpenseFromDb(updatedExpense) : e))
       );
-      setExpenseSplits((prev) => {
-        const filtered = prev.filter((s) => String(s.expense_id) !== String(expenseId));
-        return [...filtered, ...newSplits.map(mapExpenseSplitFromDb)];
-      });
+      if (touchSplits) {
+        setExpenseSplits((prev) => {
+          const filtered = prev.filter((s) => String(s.expense_id) !== String(expenseId));
+          return [...filtered, ...newSplits.map(mapExpenseSplitFromDb)];
+        });
+      }
     } catch (err) {
       console.error("Failed to update expense:", err);
       throw err;
@@ -3197,7 +3464,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Funds Actions ──────────────────────────── */
-  async function addFund(fund: Omit<Fund, "bgLight" | "barColor" | "accentText" | "icon">) {
+  async function addFund(fund: NewFund): Promise<string> {
     try {
       const hId = await ensureHousehold();
 
@@ -3224,12 +3491,12 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error;
       }
 
-      if (data) {
-        setFunds((prev) => [...prev, mapFundFromDb(data)]);
-      }
+      if (!data) throw new Error("The goal was not saved. Please try again.");
+      setFunds((prev) => [...prev, mapFundFromDb(data)]);
+      return String(data.id);
     } catch (err) {
       console.error("Failed to add fund:", err);
-      throw err; // callers (AddGoalSheet, Onboarding) keep their UI open on failure
+      throw err; // callers (AddGoalFlow, Onboarding) keep their UI open on failure
     }
   }
 
@@ -3243,7 +3510,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         deadline: goalData.deadline ? parseDateForDb(goalData.deadline) : null,
         status: goalData.status || 'not_started',
         member_id: goalData.member_id || null,
-        owner_id: session?.user?.id || null,
+        // owner_id is set once, when the goal is added; an edit must not hand it to whoever edits (#442).
       };
 
       const { data, error } = await supabase
@@ -3255,7 +3522,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating goal/fund:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -3265,6 +3532,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update goal:", err);
+      throw err; // callers (GoalDetailSheet) keep their UI open and show the failure
     }
   }
 
@@ -3288,6 +3556,18 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         );
       }
       setFunds((prev) => prev.filter((f) => f.id !== id));
+
+      // The goal's rules go in one statement right after it (#440), so a failure part-way
+      // cannot leave some of them behind. A failure here is logged only: the goal is gone,
+      // and a rule pointing at nothing moves no money.
+      const { data: removed, error: ruleError } = await supabase
+        .from("contribution_rules")
+        .delete()
+        .eq("action_type", "goal")
+        .eq("action_target_id", String(id))
+        .select();
+      if (ruleError) console.error("Failed to delete rules of deleted goal:", ruleError);
+      else if (removed && removed.length > 0) setContributionRules((prev) => prev.filter((r) => !(r.action_type === "goal" && String(r.action_target_id) === String(id))));
     } catch (err) {
       console.error("Failed to delete goal:", err);
       throw err;
@@ -3299,8 +3579,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   async function addToGoal(id: string | number, amount: number) {
     try {
-      const fund = funds.find((f) => f.id === id);
-      if (!fund) return;
+      const fund = funds.find((f) => String(f.id) === String(id));
+      if (!fund) throw new Error("That goal is no longer there.");
 
       const newCurrentAmount = fund.currentAmount + amount;
 
@@ -3313,16 +3593,17 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error adding to goal:", error);
-        return;
+        throw error;
       }
 
       if (data) {
         setFunds((prev) =>
-          prev.map((f) => (f.id === id ? mapFundFromDb(data) : f))
+          prev.map((f) => (String(f.id) === String(id) ? mapFundFromDb(data) : f))
         );
       }
     } catch (err) {
       console.error("Failed to add money to goal:", err);
+      throw err; // callers (AddAmountModal, rule allocation, surplus) show or catch the failure
     }
   }
 
@@ -3435,23 +3716,21 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function regenerateJoinCode() {
     if (!dbHouseholdId) return;
     try {
-      const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      let newCode = "";
-      for (let i = 0; i < 6; i++) {
-        newCode += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
+      const newCode = generateJoinCode();
 
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("households")
         .update({
           join_code: newCode,
           code_expires_at: expiresAt,
         })
-        .eq("id", dbHouseholdId);
+        .eq("id", dbHouseholdId)
+        .select("id");
 
       if (error) throw error;
+      assertRowUpdated(data, "Only the household owner can change the join code.");
 
       setJoinCode(newCode);
       setCodeExpiresAt(expiresAt);
@@ -3462,16 +3741,24 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   async function joinHousehold(code: string) {
+    householdWriteCountRef.current += 1;
+    try {
+      return await joinHouseholdImpl(code);
+    } finally {
+      householdWriteCountRef.current -= 1;
+      justWroteHouseholdRef.current = { userId: dataOwnerUserIdRef.current, at: Date.now() };
+    }
+  }
+
+  async function joinHouseholdImpl(code: string) {
     const sanitizedCode = code.trim().toUpperCase();
 
-    // #75 item 3, door 2. Deliberately runs BEFORE the backupState/try block
-    // below: that block's catch rolls every household field back to the cached
-    // values, which would immediately undo the recovery this guard performs.
+    // #75 item 3, door 2. Deliberately runs BEFORE the try block below.
     //
     // The question this gate has to answer is "do we already hold a household id
     // we can TRUST for THIS user?" — and the presence of dbHouseholdId cannot
-    // answer it. That value is never reset to null anywhere and AppProvider never
-    // unmounts across sign-out/sign-in (both are client-side router navigations,
+    // answer it. That value is cleared by resetHouseholdState on a user switch, but
+    // AppProvider never unmounts across sign-out/sign-in (both are client-side router navigations,
     // no page reload), so after a same-tab user switch it still holds the
     // PREVIOUS user's household. Gating on mere presence therefore skipped this
     // entire check for exactly the user who needed it: A uses the app, B signs in
@@ -3500,9 +3787,10 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     // Two paths this must not disturb: a genuinely new user has no membership row
     // at all, so the query below finds nothing and the join proceeds untouched;
     // and an invited user's unclaimed record has user_id = null, so it cannot
-    // match .eq('user_id', …) — the claim/recovery logic further down still runs.
+    // match .eq('user_id', …) — the edge function claims it with the service role.
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const userId = currentSession?.user?.id || session?.user?.id;
+    if (userId) resetIfUserChanged(userId);
     const holdsTrustedHousehold =
       !!dbHouseholdId && !!userId && resolvedHouseholdUserIdRef.current === userId;
 
@@ -3552,8 +3840,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           // Committing dbHouseholdId and isOnboarded(true) regardless of the
           // lookup is what made the old code incoherent: it dropped AppShell's
           // Onboarding gate for a household with no name, no join code and no
-          // related data — the empty-arrays dashboard that computes to exactly
-          // 85 in calculateHealthScore and reads "Fully Funded" (#73). Leaving
+          // related data — the empty-arrays dashboard that used to read
+          // "Fully Funded" (#73). Leaving
           // state untouched keeps the user where they were, which is also why
           // this message is actually visible on the Onboarding path, unlike the
           // refusal below.
@@ -3561,8 +3849,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           // The join is still refused: throwing exits joinHousehold before the
           // edge function is invoked, so no second household_members row can be
           // created. Wording matches the sibling helpers and, like theirs,
-          // avoids JoinHouseholdSheet's "already a member" / "expired" /
-          // "Invalid" substring matches (src/components/JoinHouseholdSheet.tsx:76-84).
+          // avoids the join screen's "already a member" / "expired" /
+          // "invalid" substring matches (src/lib/onboardingJoin.ts).
           console.error("[joinHousehold] Failed to load the household this user already belongs to:", JSON.stringify(existingError, null, 2));
           throw new Error("Couldn't open your existing household. Please check your connection and try again.");
         }
@@ -3571,18 +3859,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // reasons as createHousehold's adopt branch (:1255-1311). Briefly: a
         // setIsOnboarded(true) before the await flushes mid-flight while
         // isDataLoading is false, opening AppShell's gates over empty arrays,
-        // which computes to exactly 85 in calculateHealthScore
-        // (src/lib/utils.ts:88) and reads "Fully Funded"
-        // (src/components/HealthScoreCard.tsx:34); and loadHouseholdRelatedData
+        // which used to read "Fully Funded" (#73); and loadHouseholdRelatedData
         // can throw, which committing-first made permanent. Committing after does
         // NOT make a failed hydration side-effect-free — the helper's first
         // Promise.all (:991) can commit bills/funds/paydays/members/billSplits
         // before the second (:1022) rejects. What it guarantees is that none of
         // the household state is committed: dbHouseholdId,
         // resolvedHouseholdUserIdRef and isOnboarded are untouched. Those three
-        // gate everything, so JoinHouseholdSheet is still mounted and its catch
-        // (src/components/JoinHouseholdSheet.tsx:73-84) shows the user what
-        // happened, and the retry starts from a clean slate.
+        // gate everything, so the join screen is still mounted and its catch
+        // shows the user what happened, and the retry starts from a clean slate.
         //
         // Leaving dbHouseholdId and the ref uncommitted on a failed hydration
         // also matters here specifically: setting them would make the door-2 gate
@@ -3598,7 +3883,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         try {
           await loadHouseholdRelatedData(existing.id, userId, { timezone: existing.timezone });
 
+          assertSessionUserUnchanged(userId);
           resolvedHouseholdUserIdRef.current = userId;
+          dataOwnerUserIdRef.current = userId;
           setDbHouseholdId(existing.id);
           setHouseholdNameState(existing.name);
           setIsJointFund(!!existing.is_joint_fund);
@@ -3614,236 +3901,59 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         // asked for. Reached only once the household above loaded AND hydrated
         // cleanly, so "we've reopened it" is literally true — both failure cases
         // threw their own, different messages earlier. The wording deliberately
-        // avoids JoinHouseholdSheet's "already a member" / "expired" / "Invalid"
-        // substring matches (src/components/JoinHouseholdSheet.tsx:76-84), which
-        // would otherwise rewrite it into a wrong explanation. That sheet only
-        // actually displays it on the Settings path; on the Onboarding path the
-        // setIsOnboarded(true) above unmounts the sheet before the throw lands,
-        // so the message is swallowed. Harmless — the user ends up in their real
-        // household either way — but don't rely on it being seen there.
+        // avoids the join screen's "already a member" / "expired" / "invalid"
+        // substring matches (src/lib/onboardingJoin.ts), which would otherwise
+        // rewrite it into a wrong explanation. The setIsOnboarded(true) above
+        // unmounts the join screen before the throw lands, so the message is
+        // swallowed. Harmless: the user ends up in their real household either
+        // way, but don't rely on it being seen there.
         throw new Error("You already belong to a household, so we've reopened it instead of joining a new one.");
       }
     }
 
-    // Cache backup state for potential rollback on failure
-    const backupState = {
-      dbHouseholdId,
-      householdName,
-      isJointFund,
-      householdTimezone,
-      bills,
-      expenses,
-      funds,
-      paydays,
-      members,
-      billSplits,
-      expenseSplits,
-      paySchedules,
-      payHistory,
-      householdContributions,
-      contributionRules,
-    };
-
+    // The edge function refuses anyone already in a household (the guard
+    // above covers the stale-state case), so there is no old household or
+    // membership to clean up here. It also claims an invited user_id = null
+    // member row with the service role.
+    const previousHouseholdId = dbHouseholdId;
     try {
-      // 1. Attempt to invoke the join-household Supabase Edge Function
       const { data, error } = await supabase.functions.invoke("join-household", {
         body: { code: sanitizedCode },
       });
 
-      let newHouseholdId = "";
-
-      if (!error && data && !data.error) {
-        newHouseholdId = data.householdId;
-      } else {
-        if (data?.error) {
-          throw new Error(data.error);
-        }
-        if (error) {
-          let parsedError: Error | null = null;
-          if ((error as any).context) {
-            try {
-              const contextClone = (error as any).context.clone();
-              const errText = await contextClone.text();
-              console.warn("[joinHousehold] Error context text response:", errText);
-              const errBody = JSON.parse(errText);
-              if (errBody && errBody.error) {
-                parsedError = new Error(errBody.error);
-              }
-            } catch (jsonErr) {
-              console.error("[joinHousehold] Failed to parse edge function error response:", jsonErr);
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      if (error) {
+        let parsedError: Error | null = null;
+        const errContext = (error as { context?: Response }).context;
+        if (errContext) {
+          try {
+            const errText = await errContext.clone().text();
+            const errBody = JSON.parse(errText);
+            if (errBody && errBody.error) {
+              parsedError = new Error(errBody.error);
             }
-          }
-
-          // Recovery Logic: If already a member, check if we can claim the user_id = null record
-          if (parsedError && parsedError.message === "You are already a member of this household") {
-            console.log("[joinHousehold] Already member error detected, attempting client-side claim of user_id = null record...");
-            const { data: household } = await supabase
-              .from("households")
-              .select("id")
-              .eq("join_code", sanitizedCode)
-              .maybeSingle();
-
-            console.log("[joinHousehold] Recovery household query result:", household);
-
-            if (household) {
-              const { data: { session: currentSession } } = await supabase.auth.getSession();
-              const userObj = currentSession?.user || session?.user;
-              console.log("[joinHousehold] Recovery userObj query result:", userObj?.id, userObj?.email);
-              if (userObj) {
-                const userEmail = userObj.email || "";
-                const { data: existingMember } = await supabase
-                  .from("household_members")
-                  .select("id, user_id, email, household_id")
-                  .eq("household_id", household.id)
-                  .ilike("email", userEmail)
-                  .maybeSingle();
-
-                console.log("[joinHousehold] Recovery existingMember query result:", existingMember);
-
-                if (existingMember && !existingMember.user_id) {
-                  console.log("[joinHousehold] Found unclaimed member record, claiming it now...");
-                  const { error: updateErr } = await supabase
-                    .from("household_members")
-                    .update({
-                      user_id: userObj.id,
-                      invitation_status: "accepted"
-                    })
-                    .eq("id", existingMember.id);
-
-                  if (!updateErr) {
-                    console.log("[joinHousehold] Successfully claimed membership record on client!");
-                    newHouseholdId = household.id;
-                    parsedError = null; // Clear error to skip throwing
-                  } else {
-                    console.error("[joinHousehold] Failed to claim membership on client:", updateErr);
-                  }
-                } else if (existingMember && existingMember.user_id) {
-                  console.log("[joinHousehold] Member record already has user_id:", existingMember.user_id);
-                } else {
-                  console.log("[joinHousehold] No matching member record found for email:", userEmail);
-                }
-              }
-            }
-          }
-
-          if (parsedError) {
-            throw parsedError;
-          }
-          if (!newHouseholdId) {
-            throw error;
+          } catch (jsonErr) {
+            console.error("[joinHousehold] Failed to parse edge function error response:", jsonErr);
           }
         }
+        throw parsedError || error;
       }
 
+      const newHouseholdId: string = data?.householdId || "";
       if (!newHouseholdId) {
         throw new Error("Couldn't join right now. Please check your connection and try again.");
       }
 
-      // 2. WIPE CURRENT USER DATA IN DATABASE FIRST
-      if (backupState.dbHouseholdId && backupState.dbHouseholdId !== newHouseholdId) {
-        const oldHouseholdId = backupState.dbHouseholdId;
-
-        // #89: this decision used to be made straight off `backupState.members`
-        // — a cached React state snapshot, not a fresh DB read. If that
-        // snapshot was itself the victim of the warm-reload RLS race (#74:
-        // successful query, zero rows, because the auth token hadn't
-        // attached yet), `currentUserInOldHousehold` resolved to `undefined`
-        // regardless of DB truth, and cascade-delete/own-membership-removal
-        // was silently skipped — orphaning the old household or membership
-        // row. Do a live read and run it through the same
-        // resolveWarmReloadRace reconciliation loadData uses, with
-        // `backupState.members` as the "previous state" side of that check,
-        // before trusting an empty/absent result.
-        const fetchOldHouseholdMembers = async (): Promise<SupabaseArrayResult<Member>> => {
-          const res = await supabase
-            .from("household_members")
-            .select("*")
-            .eq("household_id", oldHouseholdId);
-          return { data: res.data ? res.data.map(mapMemberFromDb) : null, error: res.error };
-        };
-
-        const freshOldHouseholdMembersRes = await fetchOldHouseholdMembers();
-        const confirmedOldHouseholdMembers = await resolveWarmReloadRace(
-          backupState.members,
-          freshOldHouseholdMembersRes,
-          fetchOldHouseholdMembers
-        );
-
-        if (confirmedOldHouseholdMembers) {
-          const currentUserInOldHousehold = confirmedOldHouseholdMembers.find(
-            (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
-          );
-
-          if (currentUserInOldHousehold && currentUserInOldHousehold.role === "owner") {
-            // Cascade delete current household from database
-            const { error: deleteError } = await supabase
-              .from("households")
-              .delete()
-              .eq("id", oldHouseholdId);
-            if (deleteError) {
-              console.error("Error deleting old household:", deleteError);
-            }
-          } else if (currentUserInOldHousehold) {
-            // Delete old membership record
-            await supabase
-              .from("household_members")
-              .delete()
-              .eq("id", currentUserInOldHousehold.id);
-          }
-        } else {
-          // Inconclusive (query failed, or the empty result couldn't be
-          // confirmed one way or the other) — don't guess. Skip the
-          // cascade-delete/membership-removal rather than risk deleting a
-          // household or row that's still genuinely in use.
-          console.error(
-            "Could not confirm old household membership state before join cleanup; skipping cascade-delete/membership removal for household",
-            oldHouseholdId
-          );
-        }
-      }
-
-      // 3. WIPE local state variables
-      setBills([]);
-      setExpenses([]);
-      setFunds([]);
-      setPaydays([]);
-      setMembers([]);
-      setBillSplits([]);
-      setExpenseSplits([]);
-      setPaySchedules([]);
-      setPayHistory([]);
-      setHouseholdContributions([]);
-      setContributionRules([]);
-
-      // 4. Fetch fresh data for the new household
       setDbHouseholdId(newHouseholdId);
-      // assumeEmptyPreviousState: true — the setX([]) calls just above wiped
-      // this local state, but loadData/loadHouseholdRelatedData read
-      // bills/funds/paydays/members/billSplits as plain closed-over
-      // variables from this render, which those setters don't retroactively
-      // update. Without this flag, resolveWarmReloadRace would see the OLD
-      // household's real, non-empty data as "previous state" while checking
-      // the NEW household's fetch, and needlessly re-fetch every slice
-      // that's honestly empty in the new household.
+      // assumeEmptyPreviousState: true, because this user had no household
+      // data, so the warm-reload check must not treat the new household's
+      // empty slices as suspicious.
       await loadData({ assumeEmptyPreviousState: true });
-    } catch (err: any) {
-      console.error("Failed to join household, rolling back state:", err);
-      // Rollback React states to cached values
-      setDbHouseholdId(backupState.dbHouseholdId);
-      setHouseholdNameState(backupState.householdName);
-      setIsJointFund(backupState.isJointFund);
-      setHouseholdTimezone(backupState.householdTimezone);
-      setBills(backupState.bills);
-      setExpenses(backupState.expenses);
-      setFunds(backupState.funds);
-      setPaydays(backupState.paydays);
-      setMembers(backupState.members);
-      setBillSplits(backupState.billSplits);
-      setExpenseSplits(backupState.expenseSplits);
-      setPaySchedules(backupState.paySchedules);
-      setPayHistory(backupState.payHistory);
-      setHouseholdContributions(backupState.householdContributions);
-      setContributionRules(backupState.contributionRules);
+    } catch (err) {
+      console.error("Failed to join household:", err);
+      setDbHouseholdId(previousHouseholdId);
       throw err;
     }
   }
@@ -4183,7 +4293,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Payday Schedule & History Actions ───────── */
-  async function addPaySchedule(data: Omit<PaySchedule, "id" | "household_id" | "created_at">) {
+  async function addPaySchedule(data: Omit<PaySchedule, "id" | "household_id" | "created_at">): Promise<string> {
     try {
       const hId = await ensureHousehold();
       const insertData = {
@@ -4206,9 +4316,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         throw error;
       }
 
-      if (newSchedule) {
-        setPaySchedules((prev) => [...prev, newSchedule]);
-      }
+      if (!newSchedule) throw new Error("The pay schedule was not saved.");
+      setPaySchedules((prev) => [...prev, newSchedule]);
+      return String(newSchedule.id);
     } catch (err) {
       console.error("Failed to add pay schedule:", err);
       throw err;
@@ -4337,30 +4447,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function confirmPay(historyId: string) {
-    try {
-      const { data, error } = await supabase
-        .from("pay_history")
-        .update({ status: "confirmed" })
-        .eq("id", historyId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error("confirmPay - failed to update pay history status:", error);
-        return;
-      }
-
-      if (data) {
-        setPayHistory((prev) =>
-          prev.map((h) => (h.id === historyId ? data : h))
-        );
-      }
-    } catch (err) {
-      console.error("Failed to confirm pay:", err);
-    }
-  }
-
   async function confirmAndUpdatePay(historyId: string, newAmount: number, notes?: string | null) {
     try {
       const updateData: any = {
@@ -4375,27 +4461,78 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .from("pay_history")
         .update(updateData)
         .eq("id", historyId)
+        // Only a Pending pay can be confirmed: a second phone or a double tap gets an error,
+        // so the rules and surplus suggestion that follow run once (#454).
+        .eq("status", "pending")
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("confirmAndUpdatePay - failed to update pay history:", error);
-        return;
+        throw error;
+      }
+      if (!data) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
       }
 
-      if (data) {
-        setPayHistory((prev) =>
-          prev.map((h) => (h.id === historyId ? data : h))
-        );
-      }
+      setPayHistory((prev) =>
+        prev.map((h) => (h.id === historyId ? data : h))
+      );
     } catch (err) {
       console.error("Failed to confirm and update pay:", err);
+      throw err;
+    }
+  }
+
+  async function skipDuePay(payScheduleId: string) {
+    try {
+      const schedule = paySchedules.find((s) => String(s.id) === String(payScheduleId));
+      if (!schedule) throw new Error("Pay schedule not found");
+      const next = nextPayDateAfterLog(schedule.next_pay_date, schedule.frequency);
+
+      // Conditional on the date we saw, like the auto-log claim: if another
+      // phone already moved it on, skipping again would jump a second cycle.
+      const { data, error } = await supabase
+        .from("pay_schedules")
+        .update({ next_pay_date: next })
+        .eq("id", schedule.id)
+        .eq("next_pay_date", schedule.next_pay_date)
+        .select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
+      }
+      setPaySchedules((prev) => prev.map((s) => (s.id === schedule.id ? data[0] : s)));
+    } catch (err) {
+      console.error("Failed to skip pay:", err);
+      throw err;
+    }
+  }
+
+  async function skipPendingPay(historyId: string) {
+    try {
+      // Delete the row only. The schedule date stays where it is, so the cron cannot make this pay again.
+      const { data, error } = await supabase
+        .from("pay_history")
+        .delete()
+        .eq("id", historyId)
+        .eq("status", "pending")
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("That pay has already changed. Check Payday and try again.");
+      }
+      setPayHistory((prev) => prev.filter((h) => h.id !== historyId));
+    } catch (err) {
+      console.error("Failed to skip pending pay:", err);
+      throw err;
     }
   }
 
   async function autoLogMissedPays() {
     try {
-      const todayYmd = toLocalYmd(new Date());
+      // Household-local day, so it agrees with the reminder cron (R19, #406).
+      const todayYmd = todayInZone(householdTimezone || "Australia/Sydney");
 
       const hId = await ensureHousehold();
 
@@ -4405,34 +4542,39 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         const { missed, next } = missedPayCatchUp(schedule.next_pay_date, schedule.frequency, todayYmd);
         if (missed.length === 0) continue; // Not missed
 
-        const missedRecords: any[] = missed.map((payDateStr) => ({
-          household_id: hId,
-          member_id: schedule.member_id,
-          pay_schedule_id: schedule.id,
-          amount: schedule.is_fixed_amount ? (schedule.amount || 0) : 0,
-          pay_date: payDateStr,
-          notes: schedule.is_fixed_amount
-            ? "Automatically logged missed pay"
-            : "Automatically logged missed pay — amount needs review",
-          status: "pending",
-        }));
+        // Claim first: move the date on only if nobody else has (the cron or
+        // another phone), so the same missed pays are never inserted twice.
+        const { data: claimed, error: claimErr } = await supabase
+          .from("pay_schedules")
+          .update({ next_pay_date: next })
+          .eq("id", schedule.id)
+          .eq("next_pay_date", schedule.next_pay_date)
+          .select("id");
+
+        if (claimErr) {
+          console.error(`Failed to claim missed pays for schedule ${schedule.id}:`, claimErr);
+          continue;
+        }
+        if (!claimed || claimed.length === 0) continue; // someone else got there first
 
         const { error: insertErr } = await supabase
           .from("pay_history")
-          .insert(missedRecords);
+          .insert(buildPendingPayRows(schedule, missed, hId));
 
         if (insertErr) {
           console.error(`Failed to insert missed pay history for schedule ${schedule.id}:`, insertErr);
-          continue;
-        }
-
-        const { error: updateErr } = await supabase
-          .from("pay_schedules")
-          .update({ next_pay_date: next })
-          .eq("id", schedule.id);
-
-        if (updateErr) {
-          console.error(`Failed to update next_pay_date for schedule ${schedule.id}:`, updateErr);
+          // Put the date back so the next load tries again.
+          const { error: revertErr } = await supabase
+            .from("pay_schedules")
+            .update({ next_pay_date: schedule.next_pay_date })
+            .eq("id", schedule.id)
+            .eq("next_pay_date", next);
+          if (revertErr) {
+            console.error(
+              `Missed pays lost: schedule ${schedule.id} next_pay_date moved from ${schedule.next_pay_date} to ${next} but the insert and the revert both failed:`,
+              revertErr,
+            );
+          }
         }
       }
 
@@ -4456,46 +4598,74 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
       setPayHistory((prev) => prev.filter((h) => h.id !== id));
 
-      // Rollback next pay date of the associated pay schedule if linked
-      if (historyItem.pay_schedule_id) {
-        const schedule = paySchedules.find((s) => s.id === historyItem.pay_schedule_id);
-        if (schedule) {
-          const prevPayDate = historyItem.pay_date;
-          const { data: updatedSchedule, error: scheduleErr } = await supabase
-            .from("pay_schedules")
-            .update({ next_pay_date: prevPayDate })
-            .eq("id", schedule.id)
-            .select()
-            .single();
-
-          if (scheduleErr) {
-            console.error("Failed to roll back pay schedule date:", scheduleErr);
-          } else if (updatedSchedule) {
-            setPaySchedules((prev) =>
-              prev.map((s) => (s.id === schedule.id ? updatedSchedule : s))
-            );
-          }
-        }
-      }
+      // The schedule's next pay date is never touched (R24, #411, folds #316):
+      // a row's pay_date is not always the scheduled date, so a rollback could
+      // land on the wrong day. Edit the schedule to change its date.
     } catch (err) {
       console.error("Failed to delete pay history:", err);
       throw err;
     }
   }
 
-  function calculateAveragePay(memberId: string): number | null {
-    const memberHistory = payHistory.filter(
-      (h) => String(h.member_id) === String(memberId)
-    );
-    if (memberHistory.length < 3) return null;
-
-    const sorted = [...memberHistory].sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime());
-    const last3 = sorted.slice(0, 3);
-    const sum = last3.reduce((s, entry) => s + Number(entry.amount), 0);
-    return sum / 3;
+  // Edit a pay's note (F12, #476). Notes only: no history of edits. An RLS-blocked UPDATE
+  // changes 0 rows without an error, so ask for the row back and treat none as a failure.
+  async function updatePayNotes(id: string, notes: string | null) {
+    const clean = notes === null || notes.trim() === "" ? null : notes.trim();
+    const { data, error } = await supabase
+      .from("pay_history")
+      .update({ notes: clean })
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      console.error("Failed to update pay note:", error);
+      throw error;
+    }
+    assertRowUpdated(data, "Couldn't save that note.");
+    setPayHistory((prev) => prev.map((h) => (h.id === id ? { ...h, notes: clean } : h)));
   }
 
-  async function fetchHouseholdContributions(householdId?: string) {
+  // Log a one-off bonus (F13, #477). A confirmed pay with no schedule and is_bonus true.
+  // Deliberately NOT logPay: no next pay date moves, and no rules or surplus suggestion run.
+  async function logBonus({
+    memberId,
+    amount,
+    payDate,
+    notes,
+  }: {
+    memberId: string;
+    amount: number;
+    payDate: string;
+    notes: string | null;
+  }): Promise<string> {
+    const hId = await ensureHousehold();
+    const { data, error } = await supabase
+      .from("pay_history")
+      .insert({
+        household_id: hId,
+        member_id: memberId,
+        pay_schedule_id: null,
+        amount,
+        pay_date: parseDateForDb(payDate),
+        notes,
+        status: "confirmed",
+        is_bonus: true,
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error("Failed to log bonus:", error);
+      throw error;
+    }
+    if (!data) throw new Error("Couldn't save that bonus.");
+    setPayHistory((prev) => [data, ...prev]);
+    return String(data.id);
+  }
+
+  function calculateAveragePay(scheduleId: string): number | null {
+    return averagePay(scheduleId, payHistory);
+  }
+
+  async function fetchHouseholdContributions(householdId?: string, gen?: number) {
     const hId = householdId || dbHouseholdId;
     if (!hId) return;
 
@@ -4510,6 +4680,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      if (gen !== undefined && gen !== loadGenerationRef.current) return;
       if (data) {
         setHouseholdContributions(data);
       }
@@ -4519,53 +4690,100 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   async function setContribution(memberId: string, amount: number, frequency: "weekly" | "fortnightly" | "monthly") {
+    // Throws on any failure (R23, #456) so the pop-up can show its red line.
+    const hId = await ensureHousehold();
+
+    // Clean up other frequencies for the same member to avoid orphaned cycles
+    const { error: deleteErr } = await supabase
+      .from("household_contributions")
+      .delete()
+      .eq("member_id", memberId)
+      .neq("frequency", frequency);
+
+    if (deleteErr) {
+      console.error("Error cleaning up other contributions:", deleteErr);
+      throw deleteErr;
+    }
+
+    const dbData = {
+      household_id: hId,
+      member_id: memberId,
+      amount,
+      frequency,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("household_contributions")
+      .upsert(dbData, { onConflict: "household_id,member_id,frequency" })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error upserting household contribution:", error);
+      throw error;
+    }
+
+    if (data) {
+      setHouseholdContributions((prev) => {
+        const filtered = prev.filter(
+          (c) => String(c.member_id) !== String(memberId) || c.frequency === frequency
+        );
+        const exists = filtered.some((c) => c.id === data.id);
+        if (exists) {
+          return filtered.map((c) => (c.id === data.id ? data : c));
+        }
+        return [...filtered, data];
+      });
+    }
+  }
+
+  /**
+   * Direct Pay "Apply" in Compare split (R23, #410): rewrites the split rows of
+   * the listed bills to the household shares (`sharesByMember`: member id to a
+   * 0-1 fraction). Only the listed bills are touched. Throws on any failure.
+   */
+  async function applyDirectPaySplits(billIds: string[], sharesByMember: Record<string, number>) {
+    const hId = await ensureHousehold();
+    let saved = 0;
     try {
-      const hId = await ensureHousehold();
+      for (const billId of billIds) {
+        const bill = bills.find((b) => String(b.id) === String(billId));
+        if (!bill || !bill.assignee_id) continue;
+        const existing = billSplits.filter((s) => String(s.bill_id) === String(billId));
+        const existingStatus: Record<string, string> = {};
+        for (const s of existing) if (s.status) existingStatus[String(s.member_id)] = s.status;
+        const rows = directPaySplitRows(bill, sharesByMember, String(bill.assignee_id), existingStatus);
 
-      // Clean up other frequencies for the same member to avoid orphaned cycles
-      const { error: deleteErr } = await supabase
-        .from("household_contributions")
-        .delete()
-        .eq("member_id", memberId)
-        .neq("frequency", frequency);
+        const { error: deleteError } = await supabase.from("bill_splits").delete().eq("bill_id", billId);
+        if (deleteError) throw deleteError;
 
-      if (deleteErr) {
-        console.error("Error cleaning up other contributions:", deleteErr);
-      }
+        const { data, error: insertError } = await supabase
+          .from("bill_splits")
+          .insert(rows.map((r) => ({ household_id: hId, bill_id: billId, ...r })))
+          .select();
+        if (insertError) throw insertError;
 
-      const dbData = {
-        household_id: hId,
-        member_id: memberId,
-        amount,
-        frequency,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase
-        .from("household_contributions")
-        .upsert(dbData, { onConflict: "household_id,member_id,frequency" })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error upserting household contribution:", error);
-        return;
-      }
-
-      if (data) {
-        setHouseholdContributions((prev) => {
-          const filtered = prev.filter(
-            (c) => String(c.member_id) !== String(memberId) || c.frequency === frequency
-          );
-          const exists = filtered.some((c) => c.id === data.id);
-          if (exists) {
-            return filtered.map((c) => (c.id === data.id ? data : c));
-          }
-          return [...filtered, data];
-        });
+        setBillSplits((prev) => [...prev.filter((s) => String(s.bill_id) !== String(billId)), ...(data ?? [])]);
+        saved += 1;
       }
     } catch (err) {
-      console.error("Failed to set household contribution:", err);
+      console.error("applyDirectPaySplits failed:", err);
+      // Put state back in line with the database before reporting.
+      try {
+        const ids = new Set(bills.map((b) => String(b.id)));
+        const { data } = await supabase.from("bill_splits").select("*");
+        if (data) setBillSplits(data.filter((s: { bill_id: string | number }) => ids.has(String(s.bill_id))));
+      } catch (refetchErr) {
+        console.error("applyDirectPaySplits refetch failed:", refetchErr);
+      }
+      if (saved > 0) {
+        const left = billIds.length - saved;
+        throw new Error(
+          `Saved ${saved} ${saved === 1 ? "bill" : "bills"}, but ${left} ${left === 1 ? "bill was" : "bills were"} not. Try again to finish.`
+        );
+      }
+      throw err;
     }
   }
 
@@ -4587,7 +4805,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function fetchContributionRules(householdId?: string) {
+  async function fetchContributionRules(householdId?: string, gen?: number) {
     const hId = householdId || dbHouseholdId;
     if (!hId) return;
 
@@ -4602,6 +4820,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         return;
       }
 
+      if (gen !== undefined && gen !== loadGenerationRef.current) return;
       if (data) {
         setContributionRules(data);
       }
@@ -4610,7 +4829,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
-  async function addRule(ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">) {
+  async function addRule(ruleData: Omit<ContributionRule, "id" | "household_id" | "created_at">): Promise<string> {
     try {
       const hId = await ensureHousehold();
       const insertData = {
@@ -4627,14 +4846,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error inserting contribution rule:", error);
-        return;
+        throw error;
       }
 
-      if (data) {
-        setContributionRules((prev) => [...prev, data]);
-      }
+      if (!data) throw new Error("The rule was not saved.");
+      setContributionRules((prev) => [...prev, data]);
+      return String(data.id);
     } catch (err) {
       console.error("Failed to add contribution rule:", err);
+      throw err;
     }
   }
 
@@ -4649,7 +4869,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (error) {
         console.error("Error updating contribution rule:", error);
-        return;
+        throw error;
       }
 
       if (data) {
@@ -4659,24 +4879,33 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
     } catch (err) {
       console.error("Failed to update contribution rule:", err);
+      throw err;
     }
   }
 
   async function deleteRule(id: string) {
     try {
-      const { error } = await supabase
+      // .select() returns the rows actually deleted; an empty result means the delete was blocked.
+      const { data, error } = await supabase
         .from("contribution_rules")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select();
 
       if (error) {
         console.error("Error deleting contribution rule:", error);
-        return;
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error(
+          "The rule couldn't be deleted — it may have already been removed, or you may not have permission to delete it."
+        );
       }
 
       setContributionRules((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       console.error("Failed to delete contribution rule:", err);
+      throw err;
     }
   }
 
@@ -4695,13 +4924,14 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     );
   }
 
-  async function applyRuleAllocation(rule: ContributionRule, payHistoryId: string) {
+  async function applyRuleAllocation(rule: ContributionRule, payHistoryId: string, knownPayAmount?: number) {
     try {
-      // Find the corresponding pay history item to get the logged pay amount
+      // Find the corresponding pay history item to get the logged pay amount.
+      // A pay confirmed this render passes its amount in: state may still hold the Pending amount (#454).
       let historyItem = payHistory.find((h) => h.id === payHistoryId);
-      let payAmount = historyItem ? Number(historyItem.amount) : 0;
+      let payAmount = knownPayAmount !== undefined ? knownPayAmount : historyItem ? Number(historyItem.amount) : 0;
 
-      if (!historyItem) {
+      if (!historyItem && knownPayAmount === undefined) {
         // Fallback: Query direct from database to prevent race conditions
         const { data, error } = await supabase
           .from("pay_history")
@@ -4759,13 +4989,15 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   }
 
   /* ── Notifications ─────────────────────────── */
-  async function fetchNotifications(userId: string, householdId: string) {
+  async function fetchNotifications(userId: string, householdId: string, gen?: number) {
     try {
       const [notifsRes, settingsRes] = await Promise.all([
         supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('notification_settings').select('*').eq('user_id', userId).maybeSingle()
       ]);
 
+      const isStaleNow = () => gen !== undefined && gen !== loadGenerationRef.current;
+      if (isStaleNow()) return;
       if (notifsRes.data) setNotifications(notifsRes.data);
       if (settingsRes.data) {
         setNotificationSettings(settingsRes.data);
@@ -4785,7 +5017,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           overdue_bill_reminders: true,
         };
         const { data: newSettings } = await supabase.from('notification_settings').insert(defaultSettings).select().single();
-        if (newSettings) setNotificationSettings(newSettings);
+        if (newSettings && !isStaleNow()) setNotificationSettings(newSettings);
       }
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
@@ -4841,8 +5073,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  /** Throws when the save fails (F05, #444), so callers can show it instead of reading as success. */
   async function updateNotificationSettings(settings: Partial<NotificationSettings>) {
-    if (!session?.user || !notificationSettings) return;
+    if (!session?.user || !notificationSettings) throw new Error("Notification settings are not loaded yet");
     try {
       const { data: updated, error } = await supabase
         .from('notification_settings')
@@ -4850,12 +5083,13 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         .eq('user_id', session.user.id)
         .select()
         .single();
-        
-      if (!error && updated) {
-        setNotificationSettings(updated);
-      }
+
+      if (error) throw error;
+      if (!updated) throw new Error("Notification settings were not saved");
+      setNotificationSettings(updated);
     } catch (err) {
       console.error("Failed to update notification settings:", err);
+      throw err;
     }
   }
 
@@ -5051,7 +5285,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
                    'Authorization': `Bearer ${session.access_token}`,
                  },
                  body: JSON.stringify({
-                   userId: notif.user_id,
                    title: notif.title,
                    body: notif.message,
                    url: getNotificationPushUrl(notif),
@@ -5093,8 +5326,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     dismissToast,
     isFinishSetupDismissed: finishSetup && finishSetup.userId === session?.user?.id ? finishSetup.dismissed : null,
     dismissFinishSetup,
-    isUpdatesCardVisible,
-    setUpdatesCardVisible,
     expenses,
     addExpense,
     updateExpense,
@@ -5142,14 +5373,18 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     updatePaySchedule,
     deletePaySchedule,
     logPay,
-    confirmPay,
     confirmAndUpdatePay,
+    skipDuePay,
+    skipPendingPay,
     autoLogMissedPays,
     deletePayHistory,
+    updatePayNotes,
+    logBonus,
     calculateAveragePay,
     householdContributions,
     fetchHouseholdContributions,
     setContribution,
+    applyDirectPaySplits,
     deleteContribution,
     contributionRules,
     fetchContributionRules,
@@ -5201,6 +5436,8 @@ export function useCurrentUser() {
     email: email,
     avatar: (currentMember?.name || email || "U").charAt(0).toUpperCase(),
     avatar_url: currentMember?.avatar_url || null,
+    // An accepted owner. False while members are still loading (no match yet).
+    isOwner: !!currentMember && currentMember.role === "owner" && isAcceptedMember(currentMember),
   };
 }
 

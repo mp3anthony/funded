@@ -10,7 +10,7 @@ Every session: read `HANDOFF.md`, then `CONTEXT-MAP.md`; open only the glossary 
 
 **Soft rule:** when a request touches an idea, term or behaviour the glossaries don't document, or seems to disagree with them, the orchestrator runs the `grilling` and `domain-modeling` skills together (that is all `/grill-with-docs` does) to align with Anthony, then updates `docs/context/` (and `docs/adr/` only for hard-to-reverse, surprising, trade-off decisions).
 
-**Where knowledge lives:** vocabulary `docs/context/` · build and process conventions, versioning and patch notes `docs/conventions.md` · lessons and known items `docs/lessons.md` · hosting, Supabase, env var names, testing policy, devices and tooling `docs/environment.md` · architectural decisions `docs/adr/` · requirements, technical guardrails and slices `SPEC.md` · out-of-spec inbox `CHANGE-LOG.md`.
+**Where knowledge lives:** vocabulary `docs/context/` · build and process conventions, versioning and patch notes `docs/conventions.md` · lessons and known items `docs/lessons.md` · hosting, Supabase, env var names, testing policy, devices and tooling `docs/environment.md` · architectural decisions `docs/adr/` · look, feel and UI rules `DESIGN-REFERENCE.md` (start here for any UI work) · requirements, technical guardrails and slices `SPEC.md` · out-of-spec inbox `CHANGE-LOG.md`.
 
 ## Rules
 
@@ -30,6 +30,12 @@ Every session: read `HANDOFF.md`, then `CONTEXT-MAP.md`; open only the glossary 
 **Orchestrator (main session), the only one Anthony talks to.** Project manager and the only entity that touches Git and GitHub (branches, issues, labels, PRs). Absorbs intake: scopes Anthony's problem or idea into an issue itself. Handles ADRs directly with him. **Golden rule:** before any non-trivial action it has no clear instructions for, it checks how to proceed unless Anthony already pre-empted it.
 
 The orchestrator plans and delegates. It never writes or edits code itself, and it never reviews code itself: all implementation goes to a Code Writer sub-agent and every diff review goes to a separate sub-agent. **No agent ever reviews or approves its own code**: implementation and review are always different agents, no exceptions.
+
+**HARD RULE, NO EXCEPTIONS, NEVER RATIONALISE AROUND IT:**
+- The orchestrator NEVER edits or writes code or tests. Not a one-liner, comment, whitespace or test tweak. Not "small" review-round follow-ups. Every change goes to a Code Writer sub-agent.
+- EVERY Code Writer diff is reviewed by a different, fresh sub-agent before commit or push. That includes each fix after a review and each follow-up tweak: a fix after a review is a new diff and needs its own review.
+- Nothing is committed or pushed until the review of the LATEST diff is done.
+- The orchestrator relays the reviewer's findings. It never judges its own or the writer's work as reviewed.
 
 **Subagents** are spun up by the orchestrator, do one job, report back, stop; none talk to Anthony. **Investigator** (read-only research/diagnosis), **Code Reviewer** (never shares a session with the Investigator), **Planner** (writes the implementation plan), **Code Writer** (implements the approved plan), **Docs** (documentation, glossary upkeep), **Intake** (read-only: context-map lookup and duplicate/related-issue search on every new issue; session model). Brief subagents directly rather than relying on relay files.
 

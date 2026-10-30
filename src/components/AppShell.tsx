@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useApp, useCurrentUser } from "@/context/AppContext";
 import BottomNav from "@/components/BottomNav";
@@ -9,9 +9,8 @@ import EmailVerifiedModal from "@/components/EmailVerifiedModal";
 import UpdatesCard from "@/components/UpdatesCard";
 import Toast from "@/components/ui/Toast";
 import Logo from "./Logo";
-import AvatarDropdown from "./AvatarDropdown";
 import NotificationCenter from "./NotificationCenter";
-import { Bell } from "lucide-react";
+import { ShellInboxContext } from "./ShellInboxContext";
 import { useVisualViewportVars } from "@/hooks/useVisualViewportVars";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -26,7 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMounted: boolean }) {
-  const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, notifications, pushStatus, setPushStatus } = useApp();
+  const { isOnboarded, session, isAuthLoading, isDataLoading, showOfflineRetry, retryLoadData, pushStatus, setPushStatus } = useApp();
   const router = useRouter();
   const pathname = usePathname();
   const currentUser = useCurrentUser();
@@ -40,8 +39,8 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
 
   useVisualViewportVars();
 
-  // Compute visible notification count (excludes read/dismissed)
-  const visibleNotificationCount = notifications.filter(n => !n.is_read).length;
+  // The bell lives in the page header (HeaderActions); it opens this single inbox via context.
+  const inboxValue = useMemo(() => ({ openInbox: () => setIsNotificationCenterOpen(true) }), []);
 
   // 2. Global Scroll Lock (MutationObserver)
   useEffect(() => {
@@ -145,42 +144,11 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
   const isLoading = !isMounted || isAuthLoading || (session && isDataLoading) || !session;
 
   return (
-    <>
-      <div 
-        className="flex-1 flex flex-col w-full relative overflow-hidden text-foreground"
+    <ShellInboxContext.Provider value={inboxValue}>
+      <div
+        className="flex-1 flex flex-col w-full relative overflow-hidden bg-background text-foreground"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        {/* Floating Avatar + Bell — fixed position, always visible when authenticated */}
-        {!isLoading && currentUser && (
-          <div className="floating-avatar flex items-center gap-2">
-            {/* Notification Bell — only visible when there are unread notifications */}
-            {visibleNotificationCount > 0 && (
-              <button
-                id="notification-bell-btn"
-                onClick={() => setIsNotificationCenterOpen(true)}
-                aria-label={`Open notifications (${visibleNotificationCount})`}
-                className="relative h-9 w-9 rounded-xl flex items-center justify-center text-primary transition-transform duration-200 active:scale-95 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
-                style={{ background: 'var(--color-primary-light)', border: '2px solid var(--color-primary-mid)' }}
-              >
-                <Bell size={18} fill="currentColor" className="text-primary" />
-                {/* Notification count badge */}
-                {visibleNotificationCount > 0 && (
-                  <span
-                    className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center leading-none"
-                    style={{
-                      background: 'var(--color-primary)',
-                      color: 'var(--color-primary-fg)',
-                    }}
-                  >
-                    {visibleNotificationCount > 99 ? '99+' : visibleNotificationCount}
-                  </span>
-                )}
-              </button>
-            )}
-            <AvatarDropdown user={currentUser} />
-          </div>
-        )}
-
         {/* Notification Center Modal */}
         <NotificationCenter
           isOpen={isNotificationCenterOpen}
@@ -192,7 +160,7 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
         {/* Main Content */}
         <main 
           className="flex-1 overflow-y-auto w-full relative z-10"
-          style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+          style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(var(--nav-clearance) + 16px)' }}
         >
           {isLoading ? (
             <div className="flex h-full w-full items-center justify-center">
@@ -232,13 +200,13 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
 
       {/* Bottom Nav — rendered OUTSIDE the overflow-hidden container so
           position:fixed works against the viewport on iOS WebKit */}
-      {(!isLoading || session) && <BottomNav />}
+      {!isLoading && <BottomNav />}
 
       <EmailVerifiedModal isOpen={showVerifiedModal} onClose={() => setShowVerifiedModal(false)} />
       {!isLoading && currentUser && <UpdatesCard />}
       {/* App-wide toast (#205), sits just above the bottom nav. Always mounted
           so its aria-live region exists before the first message. */}
       <Toast />
-    </>
+    </ShellInboxContext.Provider>
   );
 }

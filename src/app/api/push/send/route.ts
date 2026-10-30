@@ -5,9 +5,9 @@ import { sendPushToSubscriptions } from '@/lib/push';
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
-    const { userId, title, body, url, icon } = payload;
+    const { title, body, url, icon } = payload;
 
-    if (!userId || !title || !body) {
+    if (typeof title !== "string" || typeof body !== "string" || !title || !body) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -30,14 +30,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only allow users to trigger sends or it could be a secured server endpoint.
-    // For now, any authenticated user can trigger a send (matching existing logic)
-
-    // Fetch target user's subscriptions
+    // Hardening 9: a caller can only ever push to their own devices. There is no
+    // target parameter; the recipient is always the authenticated user.
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
       .select('id, endpoint, p256dh, auth')
-      .eq('user_id', userId);
+      .eq('user_id', user.id);
 
     if (error) {
       console.error('Error fetching subscriptions:', error);

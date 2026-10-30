@@ -1,4 +1,5 @@
-// Manual-test redeploy trigger — see PR #121, no functional change
+// Service worker: caches the app shell and serves /offline when the network is down.
+// CACHE_NAME below is rewritten at build time by scripts/stamp-sw.mjs.
 const CACHE_NAME = 'funded-pwa-cache-179-light-icon';
 const OFFLINE_URL = '/offline';
 
@@ -46,7 +47,7 @@ self.addEventListener('fetch', (event) => {
 
   // Avoid caching third-party or DB requests
   const url = event.request.url;
-  if (url.includes('/supabase.co') || url.includes('/auth/v1') || url.includes('localhost:3000/_next/webpack-hmr')) {
+  if (url.includes('.supabase.co') || url.includes('/auth/v1') || url.includes('localhost:3000/_next/webpack-hmr')) {
     return;
   }
 

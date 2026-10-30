@@ -1,4 +1,4 @@
-import { Syne, Instrument_Sans, JetBrains_Mono } from 'next/font/google';
+import { Syne, Instrument_Sans } from 'next/font/google';
 
 const syne = Syne({
   subsets: ['latin'],
@@ -10,26 +10,29 @@ const syne = Syne({
 const instrument = Instrument_Sans({
   subsets: ['latin'],
   variable: '--font-body',
-  weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
-  display: 'swap'
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  weight: ['400', '500', '600'],
   display: 'swap'
 });
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import AppShell from "@/components/AppShell";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+// iOS ignores the apple-touch-icon when fetched by URL on some hosts (F11,
+// #475), so the 180x180 PNG is embedded as a data URI. Read once, cached.
+const APPLE_TOUCH_ICON = `data:image/png;base64,${readFileSync(
+  join(process.cwd(), "public", "apple-touch-icon.png"),
+).toString("base64")}`;
 
 export const metadata: Metadata = {
   title: "Funded",
   description: "Household Finance Control Center",
   manifest: "/manifest.json?v=3",
+  icons: {
+    apple: [{ url: APPLE_TOUCH_ICON, sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -57,7 +60,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased bg-background">
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-light-512x512.png?v=3" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script
@@ -90,10 +92,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`h-[100dvh] w-screen flex flex-col overflow-hidden bg-background ${syne.variable} ${instrument.variable} ${jetbrains.variable} font-body relative`}>
-        {/* Green Haze Background */}
-        <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-primary opacity-[0.08] dark:opacity-15 blur-[150px] pointer-events-none -z-10 translate-x-1/4 translate-y-1/4 rounded-full" />
-        
+      <body className={`h-[100dvh] w-screen flex flex-col overflow-hidden bg-background ${syne.variable} ${instrument.variable} font-body relative`}>
         {/* Session is resolved client-side in AppProvider (see AppContext).
             No server-side session prefetch here — reading cookies() in the
             root layout would force the entire app to render dynamically under

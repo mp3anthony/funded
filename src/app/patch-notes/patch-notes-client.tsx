@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, CloudOff, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
@@ -30,6 +31,7 @@ const visibleNotes = recentPatchNotes(patchNotes);
  * state message.
  */
 export default function PatchNotesClient() {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("notes");
   const [known, setKnown] = useState<"loading" | KnownIssuesResult>("loading");
 
@@ -52,13 +54,15 @@ export default function PatchNotesClient() {
 
   const tabClass = (active: boolean) =>
     `pb-2 px-1 text-sm font-semibold transition-colors relative ${
-      active ? "text-primary" : "text-muted hover:text-foreground"
+      active ? "text-primary-ink" : "text-muted hover:text-foreground"
     }`;
 
   return (
     <div className="flex-1 w-full max-w-2xl mx-auto px-6 pt-4 pb-10 md:pt-6">
       <PageHeader
         title="Updates"
+        showAvatar={false}
+        onBack={() => router.push("/settings")}
         subtitle={
           tab === "notes"
             ? "Patch notes for the funded. app, newest first."
@@ -108,7 +112,7 @@ export default function PatchNotesClient() {
                 <SectionHeader
                   title={`v${entry.version}`}
                   trailing={
-                    <span className="font-mono text-[11px] text-subtle shrink-0">{entry.date}</span>
+                    <span className="text-[11px] text-subtle shrink-0">{entry.date}</span>
                   }
                 />
                 <ul className="flex flex-col gap-2 pl-1">
@@ -117,7 +121,7 @@ export default function PatchNotesClient() {
                       key={i}
                       className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
                     >
-                      <span className="text-primary shrink-0">•</span>
+                      <span className="text-primary-ink shrink-0">•</span>
                       <span>{line}</span>
                     </li>
                   ))}
@@ -151,7 +155,7 @@ export default function PatchNotesClient() {
               key={issue.number}
               className="text-[13px] font-body text-foreground/85 leading-relaxed flex gap-2"
             >
-              <span className="text-primary shrink-0">•</span>
+              <span className="text-primary-ink shrink-0">•</span>
               <span>
                 {issue.paragraphs.map((p, i) => (
                   <span key={i} className="block">

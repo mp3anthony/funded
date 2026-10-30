@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Bell } from "lucide-react";
-import Dialog, { DialogButton } from "@/components/ui/Dialog";
+import { useId, useState } from "react";
+import Field from "@/components/ui/Field";
+import Select from "@/components/ui/Select";
+import SingleCard from "@/components/ui/SingleCard";
 
 /* ── Slice 9 (#97): per-user notify-hour picker ───────────────────
    "Notify me around X o'clock" — independent per user (unlike the
@@ -10,9 +11,10 @@ import Dialog, { DialogButton } from "@/components/ui/Dialog";
    own hour rather than only the owner. Stored on notification_settings.
    notify_hour (0-23, local to the household's timezone).
 
-   NOTE: this only stores the preference. Actually consuming notify_hour to
-   change *when* push notifications are sent is Slice 11's job (the cron
-   rewrite) — not wired up yet. */
+   The push-reminders cron reads notify_hour to send each member's
+   reminders (Slice 11); this dialog only edits the stored preference.
+   A failed save throws from onSave, so the card stays open with its red
+   line (F05, #444). */
 
 interface NotifyHourDialogProps {
   isOpen: boolean;
@@ -35,9 +37,8 @@ export default function NotifyHourDialog({
   currentHour,
   onSave,
 }: NotifyHourDialogProps) {
+  const selectId = useId();
   const [selected, setSelected] = useState(currentHour);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Reset local state whenever the dialog is (re)opened — same
   // adjusting-state-during-render pattern as TimezoneDialog, so a previous
@@ -45,84 +46,36 @@ export default function NotifyHourDialog({
   const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
   if (isOpen !== prevIsOpen) {
     setPrevIsOpen(isOpen);
-    if (isOpen) {
-      setSelected(currentHour);
-      setError(null);
-    }
-  }
-
-  async function handleSave() {
-    if (selected === currentHour) {
-      onClose();
-      return;
-    }
-    setError(null);
-    setIsSaving(true);
-    try {
-      await onSave(selected);
-      onClose();
-    } catch (err) {
-      setError((err as Error)?.message || "Failed to update notify time. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
+    if (isOpen) setSelected(currentHour);
   }
 
   return (
-    <Dialog
+    <SingleCard
       open={isOpen}
       onClose={onClose}
       title="Notify me at"
-      icon={<Bell className="h-5 w-5 text-primary" />}
-      subheader={
-        <div className="px-5 pb-4">
-          <p className="text-sm text-muted">
-            Your preferred hour for reminders — independent of other household members.
-          </p>
-        </div>
-      }
-      footer={
-        <>
-          <DialogButton variant="ghost" onClick={onClose} disabled={isSaving}>
-            Cancel
-          </DialogButton>
-          <DialogButton
-            variant="primary"
-            onClick={handleSave}
-            disabled={isSaving || selected === currentHour}
-          >
-            {isSaving ? "Saving…" : "Save"}
-          </DialogButton>
-        </>
-      }
+      submitLabel="Save"
+      canSubmit={selected !== currentHour}
+      onSubmit={() => onSave(selected)}
     >
-      <div className="flex flex-col gap-1">
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/50 rounded-[2px] p-3 mb-2 text-destructive text-xs font-mono break-words whitespace-pre-wrap">
-            <span className="font-bold">Failed to update notify time:</span>
-            <br />
-            {error}
-          </div>
-        )}
-        {HOURS.map((hour) => {
-          const active = hour === selected;
-          return (
-            <button
-              key={hour}
-              type="button"
-              onClick={() => setSelected(hour)}
-              className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
-                active
-                  ? "border-primary/60 bg-primary/10 text-foreground"
-                  : "border-transparent text-muted hover:text-foreground hover:bg-surface-raised"
-              }`}
-            >
-              <span className="text-sm font-semibold truncate">{formatHourLabel(hour)}</span>
-              {active && <Check className="h-4 w-4 text-primary shrink-0" />}
-            </button>
-          );
-        })}
-      </div>
-    </Dialog>
+      <Field
+        id={selectId}
+        label="Hour"
+        description="Your preferred hour for reminders, independent of other household members."
+      >
+        <Select
+          id={selectId}
+          value={selected}
+          onChange={(e) => setSelected(Number(e.target.value))}
+          aria-describedby={`${selectId}-desc`}
+        >
+          {HOURS.map((hour) => (
+            <option key={hour} value={hour}>
+              {formatHourLabel(hour)}
+            </option>
+          ))}
+        </Select>
+      </Field>
+    </SingleCard>
   );
 }

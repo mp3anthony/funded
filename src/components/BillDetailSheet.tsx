@@ -1,61 +1,142 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Calendar, AlertTriangle } from "lucide-react";
-import { useApp, type Bill, type BillSplit, type Member } from "@/context/AppContext";
-import Dialog, { DialogSection } from "@/components/ui/Dialog";
+import React, { useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { useApp, useCurrentUser, type Bill, type BillSplit, type Member } from "@/context/AppContext";
+import Button from "@/components/ui/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DetailSheet from "@/components/ui/DetailSheet";
+import Row from "@/components/ui/Row";
 import NextDueDateDialog from "@/components/NextDueDateDialog";
+import ItemFieldCard, { fieldTakesKeyboard } from "@/components/ItemFieldCard";
+import { useSheetSave } from "@/hooks/useSheetSave";
+import { primaryPillLabel } from "@/lib/sheetSave";
 import { todayInZone } from "@/lib/notifications/timezone";
-import { canUndoPayment, paidForLabel, isDateless, dueDateHint, shouldAskNextDueDate } from "@/lib/billCycle";
+import {
+  UNPAID_STATUS,
+  billPaidAction,
+  canUndoPayment,
+  dueDateHint,
+  isDateless,
+  paidForLabel,
+  shouldAskNextDueDate,
+} from "@/lib/billCycle";
+import {
+  FREQUENCY_OPTIONS,
+  amountLabel,
+  billFieldError,
+  billUpdate,
+  dueDateLabel,
+  optionLabel,
+  splitBreakdownLabel,
+  valuesFromBill,
+  type BillField,
+  type EditValues,
+  type SplitContext,
+} from "@/lib/addFlow";
 
 interface BillDetailSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  /** The live bill (parents look it up by id so it follows every save). */
   bill: Bill | null;
   splits: BillSplit[];
   householdMembers: Member[];
-  /** `focusDueDate` (#250): open the edit form scrolled to the due date. */
-  onEdit: (opts?: { focusDueDate?: boolean }) => void;
-  onDelete: () => void;
+  /** Open straight on one field's card ("Add due date" passes "dueDate"). */
+  startField?: BillField;
 }
 
+/** A row value that keeps long text on one line. */
+function Val({ children, accent }: { children: React.ReactNode; accent?: boolean }) {
+  return (
+    <span
+      className={
+        accent
+          ? "block max-w-[55vw] truncate text-[13px] font-semibold text-accent-ink"
+          : "block max-w-[55vw] truncate text-[13px] text-muted"
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Bill detail sheet (R10, #397): a status line, one tappable row per field (each opens
+ * a one-field card) and a pinned footer (F03): the one paid action, Pause, red Delete.
+ * The old Edit button and edit form are gone. Rules live in `lib/addFlow.ts`.
+ */
 export default function BillDetailSheet({
   isOpen,
   onClose,
   bill,
   splits,
   householdMembers,
-  onEdit,
-  onDelete,
+  startField,
 }: BillDetailSheetProps) {
-  const { isJointFund, markAsPaid, markDatelessBillPaid, markAsUnpaid, undoPayment, togglePauseBill, householdTimezone } = useApp();
+  const uid = useId();
+  const inputId = `${uid}-input`;
+  const {
+    isJointFund,
+    markAsPaid,
+    markDatelessBillPaid,
+    markAsUnpaid,
+    undoPayment,
+    togglePauseBill,
+    updateBill,
+    deleteBill,
+    householdTimezone,
+  } = useApp();
+  const currentUser = useCurrentUser();
+  const currentId = currentUser.id ? String(currentUser.id) : "";
+
   // #250: the "When is it next due?" question, shown instead of the sheet. Above the early return (hook order).
   const [askingNextDue, setAskingNextDue] = useState(false);
   const [nextDueBusy, setNextDueBusy] = useState(false);
   // Blocks a fast double tap before the busy state has re-rendered the buttons disabled.
   const nextDueInFlightRef = useRef(false);
-  // Reset whenever the sheet is closed from outside, so it never reopens on the question.
-  if (!isOpen && (askingNextDue || nextDueBusy)) {
+
+  const [undoOpen, setUndoOpen] = useState(false);
+  // Captured when the dialog opens: a successful undo clears last_paid_for before the dialog closes.
+  const [undoText, setUndoText] = useState<{ month: string; message?: string }>({ month: "" });
+  // The field card: which field, and the draft of every field (seeded from the live bill when it opens).
+  const [editing, setEditing] = useState<BillField | null>(null);
+  const [draft, setDraft] = useState<EditValues | null>(null);
+
+  // Mark as Paid / Unpaid closes the sheet on success; Pause keeps it open (the toast says what happened).
+  const payHook = useSheetSave({ onSuccess: onClose });
+  const pauseHook = useSheetSave({ onSuccess: () => {} });
+
+  const memberList = householdMembers.map((m) => ({ id: String(m.id), name: m.name }));
+  const ctx: SplitContext = {
+    memberIds: memberList.map((m) => m.id),
+    isJointFund,
+    fallbackAssigneeId: currentId,
+  };
+
+  // Fresh state every time the sheet opens, and cleared when it closes (derived-state reset, no effect).
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen);
+    payHook.reset();
+    pauseHook.reset();
+    setUndoOpen(false);
     setAskingNextDue(false);
     setNextDueBusy(false);
+    if (isOpen && bill && startField) {
+      setDraft(valuesFromBill(bill, splits, ctx));
+      setEditing(startField);
+    } else {
+      setEditing(null);
+      setDraft(null);
+    }
   }
 
   if (!isOpen || !bill) return null;
 
-  // Find assignee
-  const assigneeSplit = splits.find((s) => s.is_assignee);
-  const assigneeId = bill.assignee_id || (assigneeSplit?.member_id);
-  const assignee = householdMembers.find((m) => String(m.id) === String(assigneeId));
-
-  // Auto/Manual formatted text
   const isAutoPay = bill.payment_type?.toLowerCase() === "auto";
-  const paymentTypeStr = isAutoPay ? "Auto-Pay" : "Manual";
-
-  // Format amount
-  const formattedAmount = Number(bill.amount).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const seed = valuesFromBill(bill, splits, ctx);
+  const assigneeName = memberList.find((m) => m.id === seed.assignee)?.name;
 
   // #211: month last paid for (from the due date while Paid, else the record).
   const todayYmd = todayInZone(householdTimezone || "Australia/Sydney");
@@ -75,9 +156,18 @@ export default function BillDetailSheet({
       invoice_date: bill.invoice_date,
     });
 
-  // #250: what the Due Date cell shows for a bill with no due date (a dueLabel still wins).
+  // #250: what the Due date row shows for a bill with no due date (a dueLabel still wins).
   const dateless = !bill.dueLabel && isDateless(bill);
   const hint = dateless ? dueDateHint(bill, new Date().getTime()) : "none";
+
+  const statusLine = [
+    bill.is_paused ? "Paused" : isAutoPay ? "Auto-Pay" : bill.status,
+    paidLabel,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const anySaving = payHook.status === "saving" || pauseHook.status === "saving";
 
   // #250: each answer saves. On success the sheet closes; if the save failed (the
   // toast says why) it goes back to the bill instead. Cancel just goes back to the bill.
@@ -106,263 +196,227 @@ export default function BillDetailSheet({
         busy={nextDueBusy}
         onCancel={() => setAskingNextDue(false)}
         onSave={(ymd) => void answerNextDue(() => markDatelessBillPaid(datelessBill, { nextDue: ymd }))}
-        onSkip={() => void answerNextDue(async () => {
-          // Skip is the plain Mark as Paid, which has no success signal (same as today).
-          await markAsPaid(datelessBill);
-          return true;
-        })}
+        // Skip is the plain Mark as paid: back to the sheet, where its pill shows Saving… or a red line.
+        onSkip={() => {
+          setAskingNextDue(false);
+          void payHook.run(() => markAsPaid(datelessBill));
+        }}
         onMute={() => void answerNextDue(() => markDatelessBillPaid(datelessBill, { mute: true }))}
       />
     );
   }
 
-  function handleUndoPayment() {
-    if (!bill || !bill.last_paid_for) return;
-    const paidMonth = new Date(bill.last_paid_for + "T00:00:00").toLocaleDateString("en-US", { month: "long" });
+  const openField = (f: BillField) => {
+    // Render the card inside this tap, then focus its box, so the iOS keyboard opens with it.
+    flushSync(() => {
+      setDraft(valuesFromBill(bill, splits, ctx));
+      setEditing(f);
+    });
+    if (fieldTakesKeyboard(f)) document.getElementById(inputId)?.focus();
+  };
+
+  const patchDraft = (p: Partial<EditValues>) => setDraft((d) => (d ? { ...d, ...p } : d));
+
+  const saveField = async () => {
+    if (!draft || !editing) return false;
+    const { data, splits: rebuilt } = billUpdate({
+      field: editing,
+      values: draft,
+      ctx,
+      hadSplits: splits.length > 0,
+      bill: { status: bill.status, hadDueDate: !isDateless(bill) },
+      unpaidStatus: UNPAID_STATUS,
+    });
+    await updateBill(bill.id, data, rebuilt);
+  };
+
+  const undoMessage = (() => {
+    if (!bill.last_paid_for) return undefined;
     const backDate = new Date(bill.last_paid_for + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-    const message =
-      bill.last_paid_for < todayYmd
-        ? `Undo the ${paidMonth} payment? This bill goes back to being due ${backDate}. That date has passed, so it will show as Overdue and overdue reminders will start again.`
-        : `Undo the ${paidMonth} payment? This bill goes back to being due today.`;
-    if (!window.confirm(message)) return;
-    void undoPayment(bill);
-    onClose();
-  }
+    return bill.last_paid_for < todayYmd
+      ? `This bill goes back to being due ${backDate}. That date has passed, so it will show as Overdue and overdue reminders will start again.`
+      : "This bill goes back to being due today.";
+  })();
+  const undoMonth = bill.last_paid_for
+    ? new Date(bill.last_paid_for + "T00:00:00").toLocaleDateString("en-US", { month: "long" })
+    : "";
+
+  const paidAction = billPaidAction({
+    isAutoPay,
+    status: bill.status,
+    canUndo: showUndoPayment,
+  });
+
+  // One paid/unpaid action only (F03): Mark as paid, Mark as unpaid or Undo payment. #187: autopay has none.
+  const primary =
+    paidAction === "mark-unpaid" ? (
+      <Button
+        variant="ghost"
+        fullWidth
+        disabled={anySaving}
+        onClick={() => {
+          pauseHook.reset();
+          void payHook.run(() => markAsUnpaid(bill));
+        }}
+      >
+        {primaryPillLabel(payHook.status, "Mark as unpaid")}
+      </Button>
+    ) : paidAction === "undo-payment" ? (
+      <Button
+        variant="ghost"
+        fullWidth
+        disabled={anySaving}
+        onClick={() => {
+          setUndoText({ month: undoMonth, message: undoMessage });
+          setUndoOpen(true);
+        }}
+      >
+        Undo payment
+      </Button>
+    ) : paidAction === "mark-paid" ? (
+      <Button
+        fullWidth
+        disabled={anySaving}
+        onClick={() => {
+          pauseHook.reset();
+          if (shouldAskNextDueDate(bill)) {
+            setAskingNextDue(true);
+            return;
+          }
+          void payHook.run(() => markAsPaid(bill));
+        }}
+      >
+        {primaryPillLabel(payHook.status, "Mark as paid")}
+      </Button>
+    ) : undefined;
+
+  const secondary = bill.is_recurring
+    ? [
+        <Button
+          key="pause"
+          variant="ghost"
+          disabled={anySaving}
+          onClick={() => {
+            payHook.reset();
+            void pauseHook.run(() => togglePauseBill(bill.id, !bill.is_paused));
+          }}
+        >
+          {primaryPillLabel(pauseHook.status, bill.is_paused ? "Resume" : "Pause")}
+        </Button>,
+      ]
+    : undefined;
+
+  const noteLine = (bill.notes ?? "").split("\n")[0].trim();
 
   return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      title="Bill Details"
-      footer={
-        <div className="w-full flex flex-col space-y-3">
-          {/* #187: autopay bills pay themselves — no Paid/Unpaid action. */}
-          {isAutoPay ? null : bill.status === "Paid" ? (
-            <button
-              onClick={() => {
-                markAsUnpaid(bill);
-                onClose();
-              }}
-              className="w-full rounded-[2px] py-3.5 bg-accent/20 text-accent border border-accent/30 font-heading font-bold uppercase tracking-wider text-xs hover:bg-accent hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
-            >
-              Mark as Unpaid
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                if (shouldAskNextDueDate(bill)) {
-                  setAskingNextDue(true);
-                  return;
-                }
-                markAsPaid(bill);
-                onClose();
-              }}
-              className="w-full rounded-[2px] py-3.5 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-heading font-bold uppercase tracking-wider text-xs hover:bg-emerald-500 hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
-            >
-              Mark as Paid
-            </button>
-          )}
-
-          <div className="flex space-x-2 w-full">
-            <button
-              onClick={onDelete}
-              className="flex-1 rounded-[2px] py-3 bg-destructive/15 text-destructive border border-destructive/20 font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-destructive hover:text-foreground transition-all active:scale-[0.98] cursor-pointer"
-            >
-              Delete
-            </button>
-            <button
-              onClick={() => onEdit()}
-              className="flex-1 rounded-[2px] py-3 bg-primary text-primary-fg font-heading font-bold uppercase tracking-wider text-[10px] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              Edit
-            </button>
-            {bill.is_recurring && (
-              <button
-                onClick={() => {
-                  togglePauseBill(bill.id, !bill.is_paused);
-                }}
-                className="flex-1 rounded-[2px] py-3 bg-surface-elevated text-foreground border border-border font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
-              >
-                {bill.is_paused ? "Resume" : "Pause"}
-              </button>
-            )}
-          </div>
-        </div>
-      }
-    >
-      {/* Content Body */}
-      <div className="space-y-6">
-
-          {/* Bill Title, Badges & Amount */}
-          <div className="flex flex-col space-y-4">
-            
-            {/* Title */}
-            <h3 className="font-heading font-bold text-3xl text-foreground tracking-wide break-words">
-              {bill.name}
-            </h3>
-
-            {/* Badges Section */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span 
-                className={`rounded-full px-3 py-1 text-[10px] font-heading font-bold uppercase tracking-widest ${
-                  isAutoPay 
-                    ? "bg-primary/10 text-primary border border-primary/20" 
-                    : "bg-surface-elevated text-muted border border-border"
-                }`}
-              >
-                {paymentTypeStr}
-              </span>
-              <span
-                className="rounded-full px-3 py-1 text-[10px] font-heading font-bold uppercase tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/20"
-              >
-                {bill.category || "Other"}
-              </span>
-            </div>
-
-            {/* Amount */}
-            <div className="flex flex-col items-start pt-2">
-              <span className="text-4xl font-heading font-extrabold text-foreground tracking-tight">
-                ${formattedAmount}
-              </span>
-              <span className="text-sm text-muted font-mono mt-1">
-                (originally ${formattedAmount} {bill.frequency?.toLowerCase() || 'monthly'})
-              </span>
-            </div>
-          </div>
-
-          {/* Dates & Assignee Row Grid */}
-          <div className="grid grid-cols-2 gap-4 border-t border-b border-border py-4 font-mono text-xs">
-            <div className="space-y-1">
-              <span className="text-subtle uppercase font-semibold">Due Date</span>
-              <div className="flex items-center space-x-1.5 text-foreground">
-                {hint === "add-due-date" ? (
-                  <button
-                    type="button"
-                    onClick={() => onEdit({ focusDueDate: true })}
-                    aria-label={`Add due date for ${bill.name}`}
-                    className="min-h-[44px] -my-3 font-mono text-xs font-bold uppercase tracking-wider text-accent hover:underline cursor-pointer"
-                  >
-                    Add due date
-                  </button>
-                ) : dateless ? (
-                  <span className="text-muted">{hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"}</span>
-                ) : (
-                  <>
-                    <Calendar size={14} className="text-muted animate-pulse" />
-                    <span className={bill.dueLabel ? "text-muted" : undefined}>{bill.dueLabel ?? bill.dueDate}</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {bill.invoice_date && (
-              <div className="space-y-1">
-                <span className="text-subtle uppercase font-semibold">Invoice Date</span>
-                <div className="flex items-center space-x-1.5 text-foreground">
-                  <Calendar size={14} className="text-muted" />
-                  <span>{new Date(bill.invoice_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" })}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="col-span-2 space-y-1">
-              <span className="text-subtle uppercase font-semibold">Assignee (Payer)</span>
-              <div className="flex items-center space-x-2 text-foreground">
-                <div className="h-6 w-6 rounded-full bg-surface-elevated border border-border flex items-center justify-center font-bold text-[10px]">
-                  {assignee?.avatar || "P"}
-                </div>
-                <span className="text-sm font-semibold">{assignee?.name || "Unassigned"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Splits Breakdown */}
-          <div className="space-y-3">
-            <DialogSection label="Paid By" />
-
-            {splits.length === 0 ? (
-              <div className="flex items-center space-x-2.5 p-3.5 bg-surface-raised rounded-[2px] border border-border">
-                {isJointFund ? (
-                  <>
-                    <div className="h-2 w-2 rounded-full bg-primary animate-pulse shrink-0" />
-                    <p className="text-xs text-muted font-mono">Paid directly from the household Joint Fund.</p>
-                  </>
-                ) : (
-                  <>
-                    <AlertTriangle size={15} className="text-muted shrink-0" />
-                    <p className="text-xs text-muted font-mono">No splits configured. Assignee pays 100%.</p>
-                  </>
-                )}
-              </div>
+    <>
+      <DetailSheet
+        open={isOpen}
+        onClose={onClose}
+        title={bill.name}
+        primary={primary}
+        secondary={secondary}
+        actionError={payHook.error ?? pauseHook.error}
+        busy={anySaving || editing !== null || undoOpen}
+        onDelete={() => deleteBill(bill.id)}
+        deleteConfirm={{
+          title: "Delete this bill?",
+          message: `"${bill.name}" and its splits will be removed.`,
+          confirmLabel: "Delete",
+        }}
+        deletedToast="Bill deleted"
+      >
+        {statusLine && <p className="mb-1 text-sm text-muted">{statusLine}</p>}
+        <div className="flex flex-col">
+          <Row divider tall chevron label="Name" onClick={() => openField("name")}>
+            <Val>{bill.name}</Val>
+          </Row>
+          <Row divider tall chevron label="Amount" value={amountLabel(Number(bill.amount))} onClick={() => openField("amount")} />
+          <Row
+            divider
+            tall
+            chevron
+            label="How often"
+            value={optionLabel(FREQUENCY_OPTIONS, seed.frequency)}
+            onClick={() => openField("frequency")}
+          />
+          <Row divider tall chevron label="Due date" onClick={() => openField("dueDate")}>
+            {hint === "add-due-date" ? (
+              <Val accent>Add due date</Val>
+            ) : dateless ? (
+              <Val>{hint === "paid-no-due-date" ? "Paid · no due date" : "No due date"}</Val>
             ) : (
-              <div className="space-y-2">
-                {splits.map((split) => {
-                  const member = householdMembers.find((m) => String(m.id) === String(split.member_id));
-                  const splitPercent = bill.amount > 0 ? Math.round((split.amount / bill.amount) * 100) : 0;
-                  
-                  return (
-                    <div 
-                      key={split.id}
-                      className={`flex items-center justify-between p-3 rounded-[2px] bg-surface-raised border border-border ${
-                        split.is_assignee ? "border-l-2 border-l-primary" : ""
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <div className="h-6 w-6 rounded-full bg-surface-elevated flex items-center justify-center font-bold text-[10px]">
-                          {member?.avatar || "M"}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm text-foreground font-semibold">
-                            {member?.name || "Unknown"}
-                          </span>
-                          {split.is_assignee && (
-                            <span className="text-[9px] font-heading font-semibold text-primary uppercase">
-                              Assignee
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-foreground font-mono">
-                          ${Number(split.amount).toFixed(2)}
-                        </span>
-                        <span className="block text-[10px] text-muted font-mono">
-                          {splitPercent}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <Val>{bill.dueLabel ?? (bill.due_date ? dueDateLabel(bill.due_date.slice(0, 10)) : bill.dueDate)}</Val>
             )}
+          </Row>
+          <Row
+            divider
+            tall
+            chevron
+            label="Invoice date"
+            value={bill.invoice_date ? dueDateLabel(bill.invoice_date.slice(0, 10)) : "None"}
+            onClick={() => openField("invoiceDate")}
+          />
+          <Row divider tall chevron label="Category" value={bill.category || "Other"} onClick={() => openField("category")} />
+          <Row
+            divider
+            tall
+            chevron
+            label="Assigned to"
+            value={assigneeName ?? "Unassigned"}
+            onClick={() => openField("assignee")}
+          />
+          <Row divider tall chevron label="Split" onClick={() => openField("split")}>
+            <Val>
+              {splitBreakdownLabel(
+                splits.map((s) => ({ member_id: String(s.member_id), amount: Number(s.amount) })),
+                memberList,
+                { isJointFund, assigneeName }
+              )}
+            </Val>
+          </Row>
+          <Row
+            divider
+            tall
+            chevron
+            label="Auto-Pay"
+            value={isAutoPay ? "Auto-Pay" : "Manual"}
+            onClick={() => openField("autoPay")}
+          />
+          <Row divider tall chevron label="Notes" onClick={() => openField("notes")}>
+            <Val>{noteLine || "None"}</Val>
+          </Row>
+        </div>
+      </DetailSheet>
 
-            {paidLabel && (
-              <p className="text-xs text-muted font-mono">{paidLabel}</p>
-            )}
+      {draft && (
+        <ItemFieldCard
+          field={editing}
+          kind="bill"
+          onClose={() => setEditing(null)}
+          values={draft}
+          onChange={patchDraft}
+          ctx={ctx}
+          members={memberList}
+          inputId={inputId}
+          error={editing ? billFieldError(editing, draft, ctx) : null}
+          onSubmit={saveField}
+          successToast="Bill updated"
+        />
+      )}
 
-            {showUndoPayment && (
-              <button
-                type="button"
-                onClick={handleUndoPayment}
-                className="min-h-[44px] w-full rounded-[2px] px-4 py-2.5 bg-surface-elevated text-foreground border border-border font-heading font-bold uppercase tracking-wider text-[10px] hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
-              >
-                Undo payment
-              </button>
-            )}
-          </div>
-
-          {/* Notes Section */}
-          {bill.notes && (
-            <div className="space-y-2 pt-2">
-              <DialogSection label="Notes" />
-              <p className="text-sm text-muted bg-surface p-3 rounded-[2px] border border-border-strong font-mono leading-relaxed whitespace-pre-wrap">
-                {bill.notes}
-              </p>
-            </div>
-          )}
-
-      </div>
-    </Dialog>
+      <ConfirmDialog
+        open={undoOpen}
+        title={`Undo the ${undoText.month} payment?`}
+        message={undoText.message}
+        confirmLabel="Undo payment"
+        onConfirm={() => undoPayment(bill)}
+        onCancel={() => setUndoOpen(false)}
+        onDone={() => {
+          setUndoOpen(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }

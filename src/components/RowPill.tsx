@@ -15,9 +15,9 @@ export interface RowPillProps {
 }
 
 const VARIANT_CLASSES: Record<RowPillVariant, string> = {
-  primary: "bg-primary/10 text-primary border border-primary/20",
-  accent: "bg-accent/10 text-accent border border-accent/20",
-  success: "bg-success/10 text-success border border-success/20",
+  primary: "bg-primary/10 text-primary-ink border border-primary/20",
+  accent: "bg-accent/10 text-accent-ink border border-accent/20",
+  success: "bg-success/10 text-success-ink border border-success/20",
   neutral: "bg-surface-elevated text-muted border border-border",
 };
 
@@ -31,7 +31,7 @@ const VARIANT_CLASSES: Record<RowPillVariant, string> = {
 export default function RowPill({ label, variant = "neutral" }: RowPillProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-heading font-bold uppercase tracking-wider shrink-0 ${VARIANT_CLASSES[variant]}`}
+      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 ${VARIANT_CLASSES[variant]}`}
     >
       {label}
     </span>
