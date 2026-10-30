@@ -5,7 +5,10 @@ import { readFileSync } from "node:fs";
 
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), "utf8");
 const members = read("supabase/migrations/20261030120000_hardening_4_member_rows.sql");
-const storageSql = read("supabase/migrations/20261030120100_hardening_5_storage_paths.sql");
+const storageSql = read("supabase/migrations/20261030120100_hardening_5_storage_paths.sql")
+  .split("\n")
+  .filter((l) => !l.trim().startsWith("--"))
+  .join("\n");
 const attempts = read("supabase/migrations/20261030120200_hardening_6_join_attempts.sql");
 const fn = read("supabase/functions/join-household/index.ts");
 const storageTs = read("src/lib/storage.ts");
