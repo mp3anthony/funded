@@ -4,6 +4,7 @@
 
 ## Current state (2026-10-31)
 
+- **[#495](https://github.com/mp3anthony/funded/issues/495) launch video filed 2026-11-01:** out-of-spec (logged in `CHANGE-LOG.md`), label `ready-for-agent`. Brief fully agreed in a grilling session and held in the issue. A fresh session builds it via `/brag` with no further prompting; output goes outside the repo to `D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\<timestamp>`.
 - **#488 DONE, PR #489 squash-merged to `main` as e96f943 (v0.1.2):** every web push now sends `urgency: 'high'` and a 12h TTL (`src/lib/push.ts`), guard test `src/lib/push.test.mjs` (690 tests), `docs/lessons.md` updated. Live on production. Part of [#145](https://github.com/mp3anthony/funded/issues/145), which stays open.
 - **#145 findings (full write-up in the issue's 2026-10-31 comments):** a seeded test push to Hannah at 20:00 NZ was stamped delivered, the Vercel run logged no push error, so FCM accepted it; it showed in the app inbox but **no pop-up reached her phone**. Phone checks (battery, Sleeping apps, Samsung Internet site switch, Android app switch, DND) all fine. She was on **Samsung Internet** (home-screen shortcut). She has now installed Funded from **Chrome**, but cannot sign in (forgot password).
 - **[#490](https://github.com/mp3anthony/funded/issues/490) BUILT, PR #493 squash-merged to `main` as 39c16d4 (v0.1.3):** reset links now always land on the set-a-new-password page (recovery flag stamped before `createClient`; update page needs the flag; AppShell forwards signed-in recovery landings; flag cleared on invalid/ready/success/SIGNED_OUT/login). Independent review approved, 701 tests. Global sign-out after reset kept. **Issue stays open:** not yet verified on Hannah's Android, and the likely root cause (Supabase Redirect URLs allow-list missing `/reset-password/update`) is still unchecked; plan in [this #490 comment](https://github.com/mp3anthony/funded/issues/490#issuecomment-6540635952). Live check: reset link shows the new-password screen with no Home flash; set password lands on sign-in; same link again says invalid or expired.
@@ -35,16 +36,17 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 
 ## Next session, in order
 
-1. **#490** (built, v0.1.3): Anthony does the dashboard check (Supabase Auth > URL Configuration; steps in the plan comment) and picks wildcard vs exact redirect URLs. Then Hannah resets her password via the emailed link as the live test; close #490 if it works.
-2. **#145:** once Hannah is signed in on the Chrome install, seed another `TEST-` push (method in `docs/lessons.md`) and ask whether the pop-up arrives. If Chrome also fails: add a diagnostic and/or persist push failures (migration, A1 escalation, Anthony's call).
-3. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
-4. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
-5. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
-6. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
+1. **#495** (launch video): a fresh session just reads #495 and runs `/brag`. Nothing is committed to the repo for it.
+2. **#490** (built, v0.1.3): Anthony does the dashboard check (Supabase Auth > URL Configuration; steps in the plan comment) and picks wildcard vs exact redirect URLs. Then Hannah resets her password via the emailed link as the live test; close #490 if it works.
+3. **#145:** once Hannah is signed in on the Chrome install, seed another `TEST-` push (method in `docs/lessons.md`) and ask whether the pop-up arrives. If Chrome also fails: add a diagnostic and/or persist push failures (migration, A1 escalation, Anthony's call).
+4. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
+5. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
+6. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
+7. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
 
 ## Open issues
 
-[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) `needs-info`, **Android only** (Hannah's Samsung S25FE): urgency/TTL shipped (#488), server side confirmed fine, pop-up still missing on Samsung Internet; Chrome install test pending; [#490](https://github.com/mp3anthony/funded/issues/490) reset-link fix shipped (v0.1.3), awaiting dashboard check and Hannah's live test. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+[#495](https://github.com/mp3anthony/funded/issues/495) launch video via `/brag`, `ready-for-agent`, out-of-spec, output outside the repo; [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) `needs-info`, **Android only** (Hannah's Samsung S25FE): urgency/TTL shipped (#488), server side confirmed fine, pop-up still missing on Samsung Internet; Chrome install test pending; [#490](https://github.com/mp3anthony/funded/issues/490) reset-link fix shipped (v0.1.3), awaiting dashboard check and Hannah's live test. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
