@@ -2,7 +2,7 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-10-30)
+## Current state (2026-10-31)
 
 - **#479 DONE, PR #485 squash-merged to `main` as 1b150b8:** `leave-household` and `delete-household` edge functions now return 401 (not 500) on a missing Authorization header, matching `join-household`. Guard test added in `hardeningGuards` (689 tests). `APP_VERSION` 0.1.1 with patch note. #479 closed. Both functions redeployed to production Supabase (funded-app): leave-household v3, delete-household v3 (deployed source verified to have the guard). The live `delete-household` used a `respond()` helper before; behaviour was identical to the repo, now replaced by the repo version.
 - **R36 ([#423](https://github.com/mp3anthony/funded/issues/423)) DONE, PR #483 (ca90a8a):** glossaries, `docs/lessons.md`, `docs/conventions.md` and `SPEC.md` cleaned (stale health-score and "Superseded" text trimmed, Part A untouched). The design doc artifact is republished (v17) and now holds design only. #423 closed.
@@ -38,7 +38,7 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 
 ## Open issues
 
-[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) parked, `needs-info`. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) parked, `needs-info`, **Android only** (Hannah's Samsung S25FE): likely cause is her phone's battery saver restricting Chrome, unverified. Nothing actioned; checks and options are in the issue comments (2026-10-31). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
