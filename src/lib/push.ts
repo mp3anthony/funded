@@ -4,6 +4,14 @@ const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_CONTACT_EMAIL = process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@example.com';
 
+// Android Doze / battery saver defers normal-priority pushes, so send them as
+// high urgency to wake the device. TTL is 12h: a missed reminder is not
+// retried, and a same-day reminder is still useful, but should not arrive
+// days later. Neither setting guarantees delivery timing.
+const PUSH_URGENCY = 'high' as const;
+const PUSH_TTL_SECONDS = 12 * 60 * 60;
+const PUSH_OPTIONS = { urgency: PUSH_URGENCY, TTL: PUSH_TTL_SECONDS };
+
 let isConfigured = false;
 
 function configureWebPush() {
@@ -61,7 +69,8 @@ export async function sendPushToSubscriptions(
             auth: sub.auth,
           },
         },
-        payloadString
+        payloadString,
+        PUSH_OPTIONS
       ).then(() => sub.id) // Return the subscription ID on success
     )
   );
