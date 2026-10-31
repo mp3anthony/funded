@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { CheckCircle, Clock, AlertCircle, Plane, Shield, Car, PiggyBank, Home, BookOpen, CreditCard, TrendingUp, HelpCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { clearRecoverySignal } from "@/lib/recoveryLink";
 import { generateJoinCode } from "@/lib/joinCode";
 import { type Session } from "@supabase/supabase-js";
 import { type HouseholdContribution, type ContributionRule } from "@/types";
@@ -1132,6 +1133,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth useEffect - onAuthStateChange event:', _event, 'session:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
+      // A signed-out user has no recovery in flight (#490).
+      if (_event === "SIGNED_OUT") clearRecoverySignal();
       const loadDataWillRun = willRunLoadData(session);
       // Clear the previous user's data on sign-out or a direct user switch
       // (auth-js can emit SIGNED_IN with no SIGNED_OUT first).

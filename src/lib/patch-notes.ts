@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.3",
+    date: "October 2026",
+    highlights: [
+      "Password reset links now open the set-a-new-password screen instead of signing you straight in.",
+      "After you set a new password you're asked to sign in again with it.",
+    ],
+  },
+  {
     version: "0.1.2",
     date: "October 2026",
     highlights: [

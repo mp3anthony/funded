@@ -14,6 +14,10 @@ _Avoid_: Website, PWA (in user-facing copy), web app, native app
 The logo with a spinner shown while the household's data loads, with a manual Retry if the connection fails.
 _Avoid_: Splash screen, skeleton, spinner (as a name)
 
+**Reset link landing** (#490):
+A password reset link always ends on the new-password page, wherever it first lands, and never opens the app. Setting the new password signs the person out everywhere; they sign in again with it.
+_Avoid_: Recovery login
+
 **Toast**:
 The brief message that appears above the bottom navigation after an action, sometimes with one button such as Undo.
 _Avoid_: Snackbar, banner, alert

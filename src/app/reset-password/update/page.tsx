@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import AuthScreen, { AuthNotice, PasswordField } from "@/components/AuthScreen";
 import Button from "@/components/ui/Button";
+import { hasRecoverySignal, clearRecoverySignal } from "@/lib/recoveryLink";
 
 function getParam(name: string, search: URLSearchParams, hash: URLSearchParams) {
   return search.get(name) || hash.get(name);
@@ -21,7 +22,9 @@ export default function UpdatePasswordPage() {
   // The recovery link establishes a session on this page via Supabase's
   // detectSessionInUrl. Wait for that session before enabling the form so a
   // fast submit can't fire updateUser() before we're authenticated. If no
-  // session ever appears, the link was invalid/expired.
+  // session ever appears, the link was invalid/expired. A session alone is not
+  // enough (#490): it must also carry the recovery signal stamped in
+  // supabase.ts, or a normal signed-in visit would be treated as a reset.
   const [linkState, setLinkState] = useState<"checking" | "ready" | "invalid">("checking");
   const succeededRef = useRef(false);
 
@@ -30,11 +33,15 @@ export default function UpdatePasswordPage() {
     const markReady = () => {
       if (settled) return;
       settled = true;
+      // The signal has done its job once the form is showing; clearing it now
+      // stops AppShell forwarding later navigations back here.
+      clearRecoverySignal();
       setLinkState("ready");
     };
     const markInvalid = () => {
       if (settled) return;
       settled = true;
+      clearRecoverySignal();
       setLinkState("invalid");
       supabase.auth.signOut();
     };
@@ -52,13 +59,17 @@ export default function UpdatePasswordPage() {
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) markReady();
+      if (!session) return;
+      if (hasRecoverySignal()) markReady();
+      else markInvalid();
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) markReady();
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) return;
+      if (event === "PASSWORD_RECOVERY" || hasRecoverySignal()) markReady();
+      else if (event === "INITIAL_SESSION" || event === "SIGNED_IN") markInvalid();
     });
 
     // Give Supabase a moment to consume the recovery hash before deciding the
@@ -70,6 +81,7 @@ export default function UpdatePasswordPage() {
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
+      clearRecoverySignal();
       // Leaving without a successful password change shouldn't leave a
       // recovery session behind.
       if (!succeededRef.current) supabase.auth.signOut();
@@ -100,6 +112,7 @@ export default function UpdatePasswordPage() {
 
       setSuccessMsg("Password updated successfully! Redirecting to sign in...");
       succeededRef.current = true;
+      clearRecoverySignal();
       try {
         await supabase.auth.signOut();
       } catch (signOutErr) {

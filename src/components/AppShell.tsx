@@ -12,6 +12,7 @@ import Logo from "./Logo";
 import NotificationCenter from "./NotificationCenter";
 import { ShellInboxContext } from "./ShellInboxContext";
 import { useVisualViewportVars } from "@/hooks/useVisualViewportVars";
+import { shouldForwardToRecovery } from "@/lib/recoveryLink";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -38,6 +39,14 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
   const isGettingStartedPage = pathname === "/getting-started";
 
   useVisualViewportVars();
+
+  // A password-recovery link that landed anywhere but the update page (for
+  // example the Site URL fallback, or a reset sent from the dashboard) still
+  // carries a session. Send it to the new-password page instead of the app (#490).
+  const recoveryForward = isMounted && !isAuthLoading && shouldForwardToRecovery(!!session, pathname);
+  useEffect(() => {
+    if (recoveryForward) router.replace("/reset-password/update");
+  }, [recoveryForward, router]);
 
   // The bell lives in the page header (HeaderActions); it opens this single inbox via context.
   const inboxValue = useMemo(() => ({ openInbox: () => setIsNotificationCenterOpen(true) }), []);
@@ -104,6 +113,15 @@ function AppShellBody({ children, isMounted }: { children: React.ReactNode; isMo
       }
     }
   }, [isMounted, isAuthLoading, session, isLoginPage, isConfirmEmailPage, isResetPasswordPage, isGettingStartedPage, router]);
+
+  // Show only the wheel while forwarding, so Home, the nav and Onboarding never paint.
+  if (recoveryForward) {
+    return (
+      <div className="flex flex-1 h-full w-full items-center justify-center bg-background">
+        <Logo size="large" showWordmark={true} />
+      </div>
+    );
+  }
 
   // Let the login, email confirmation, reset password, or auth callback page render
   // fullscreen immediately — these must mount and run their own logic even if a
