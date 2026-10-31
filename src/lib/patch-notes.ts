@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.2",
+    date: "October 2026",
+    highlights: [
+      "Reminders should now reach Android phones more reliably when the phone is idle.",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "October 2026",
     highlights: [
