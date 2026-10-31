@@ -4,6 +4,10 @@
 
 ## Current state (2026-10-31)
 
+- **#488 DONE, PR #489 squash-merged to `main` as e96f943 (v0.1.2):** every web push now sends `urgency: 'high'` and a 12h TTL (`src/lib/push.ts`), guard test `src/lib/push.test.mjs` (690 tests), `docs/lessons.md` updated. Live on production. Part of [#145](https://github.com/mp3anthony/funded/issues/145), which stays open.
+- **#145 findings (full write-up in the issue's 2026-10-31 comments):** a seeded test push to Hannah at 20:00 NZ was stamped delivered, the Vercel run logged no push error, so FCM accepted it; it showed in the app inbox but **no pop-up reached her phone**. Phone checks (battery, Sleeping apps, Samsung Internet site switch, Android app switch, DND) all fine. She was on **Samsung Internet** (home-screen shortcut). She has now installed Funded from **Chrome**, but cannot sign in (forgot password).
+- **Filed [#490](https://github.com/mp3anthony/funded/issues/490):** password-reset link signs the user in on her household instead of showing the new-password page (Android). Suspects in the issue (`src/app/auth/callback/page.tsx` treats any session as a verification success). Not investigated yet; touches auth, check SPEC A1.
+- Test row `TEST-145-hannah-push` was deleted. Hannah's password was never read or set by Claude (hash only; Anthony resets it himself).
 - **#479 DONE, PR #485 squash-merged to `main` as 1b150b8:** `leave-household` and `delete-household` edge functions now return 401 (not 500) on a missing Authorization header, matching `join-household`. Guard test added in `hardeningGuards` (689 tests). `APP_VERSION` 0.1.1 with patch note. #479 closed. Both functions redeployed to production Supabase (funded-app): leave-household v3, delete-household v3 (deployed source verified to have the guard). The live `delete-household` used a `respond()` helper before; behaviour was identical to the repo, now replaced by the repo version.
 - **R36 ([#423](https://github.com/mp3anthony/funded/issues/423)) DONE, PR #483 (ca90a8a):** glossaries, `docs/lessons.md`, `docs/conventions.md` and `SPEC.md` cleaned (stale health-score and "Superseded" text trimmed, Part A untouched). The design doc artifact is republished (v17) and now holds design only. #423 closed.
 
@@ -31,14 +35,16 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 
 ## Next session, in order
 
-1. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
-2. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
-3. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
-4. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
+1. **#490** (reset link): Intake, Investigator, fix. Then Hannah resets her password properly as the test that it is fixed.
+2. **#145:** once Hannah is signed in on the Chrome install, seed another `TEST-` push (method in `docs/lessons.md`) and ask whether the pop-up arrives. If Chrome also fails: add a diagnostic and/or persist push failures (migration, A1 escalation, Anthony's call).
+3. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
+4. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
+5. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
+6. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
 
 ## Open issues
 
-[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) parked, `needs-info`, **Android only** (Hannah's Samsung S25FE): likely cause is her phone's battery saver restricting Chrome, unverified. Nothing actioned; checks and options are in the issue comments (2026-10-31). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) `needs-info`, **Android only** (Hannah's Samsung S25FE): urgency/TTL shipped (#488), server side confirmed fine, pop-up still missing on Samsung Internet; Chrome install test pending; [#490](https://github.com/mp3anthony/funded/issues/490) reset-link bug blocks her sign-in. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
