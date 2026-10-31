@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { clearRecoverySignal } from "@/lib/recoveryLink";
 import { Loader2 } from "lucide-react";
 import AuthScreen, { AuthNotice, PasswordField } from "@/components/AuthScreen";
 import Button from "@/components/ui/Button";
@@ -79,6 +80,9 @@ export default function LoginPage() {
           router.replace("/");
         }
       } else if (mode === "signin") {
+        // A fresh sign-in ends any abandoned reset (#490); otherwise AppShell
+        // would forward this session to the new-password page.
+        clearRecoverySignal();
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         router.replace("/");
