@@ -10,7 +10,7 @@ Every session: read `HANDOFF.md`, then `CONTEXT-MAP.md`; open only the glossary 
 
 **Soft rule:** when a request touches an idea, term or behaviour the glossaries don't document, or seems to disagree with them, the orchestrator runs the `grilling` and `domain-modeling` skills together (that is all `/grill-with-docs` does) to align with Anthony, then updates `docs/context/` (and `docs/adr/` only for hard-to-reverse, surprising, trade-off decisions).
 
-**Where knowledge lives:** vocabulary `docs/context/` · build and process conventions, versioning and patch notes `docs/conventions.md` · lessons and known items `docs/lessons.md` · hosting, Supabase, env var names, testing policy, devices and tooling `docs/environment.md` · architectural decisions `docs/adr/` · look, feel and UI rules `DESIGN-REFERENCE.md` (start here for any UI work) · requirements, technical guardrails and slices `SPEC.md` · out-of-spec inbox `CHANGE-LOG.md`.
+**Where knowledge lives:** vocabulary `docs/context/` · build and process conventions, versioning and patch notes `docs/conventions.md` · lessons and known items `docs/lessons.md` · hosting, Supabase, env var names, testing policy, devices and tooling `docs/environment.md` · architectural decisions `docs/adr/` · look, feel and UI rules `DESIGN-REFERENCE.md` (start here for any UI work) · requirements, technical guardrails and slices `SPEC.md` · out-of-spec inbox `CHANGE-LOG.md` · issue tracker, triage labels and domain-docs config `docs/agents/` · setup `README.md`.
 
 ## Rules
 
