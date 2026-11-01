@@ -4,6 +4,7 @@
 
 ## Current state (2026-11-01)
 
+- **Branches cleaned 2026-11-01:** `main` is the only branch, local and on origin (66 local and 33 origin branches deleted, including `redesign/full-app`; all merged via PRs or old and superseded).
 - **[#495](https://github.com/mp3anthony/funded/issues/495) launch video DONE, closed 2026-11-01:** final version (Anthony approved) is outside the repo in `D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-11-01-115132` (`brag-9x16.mp4`, `brag-16x9.mp4`, posters, `share-copy.txt`, generators in `tools/`); the first run `2026-11-01-105753` is kept. The rework clipped all content to the phone screen, made the banners opaque and fixed the Join code chevron. Nothing committed to the repo.
 - **#488 DONE, PR #489 squash-merged to `main` as e96f943 (v0.1.2):** every web push now sends `urgency: 'high'` and a 12h TTL (`src/lib/push.ts`), guard test `src/lib/push.test.mjs` (690 tests), `docs/lessons.md` updated. Live on production. Part of [#145](https://github.com/mp3anthony/funded/issues/145), now closed.
 - **[#145](https://github.com/mp3anthony/funded/issues/145) DONE, closed 2026-11-01 (Android push):** Hannah installed Funded from **Chrome** on her Samsung (Samsung Internet is ruled out, not supported for us), turned on Chrome notifications in phone settings, and **received push notifications on 2026-11-01**. Earlier finding (issue's 2026-10-31 comments): on Samsung Internet a seeded push was accepted by FCM and reached the app inbox but never popped up. Urgency/TTL (#488) shipped along the way. Lesson: Android users should install from Chrome with Chrome notifications on.
@@ -37,14 +38,13 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 ## Next session, in order
 
 1. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
-2. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
+2. **[#501](https://github.com/mp3anthony/funded/issues/501) repo cleanup (`needs-info`):** short question run with Anthony first (7 decisions listed in the issue, each with a suggested answer), then build batches 1-9 as small docs/tooling PRs (Code Writer, independent reviewer, no version bump). Root was found clean; the work is stale/duplicated docs, `supabase/.temp/` tracked by mistake, an orphan 105MB `.claude/worktrees` folder (needs Anthony's OK to delete), and a lean HANDOFF rewrite last. SPEC Part A untouched.
 3. Optional: Supabase Auth > URL Configuration, check the Redirect URLs allow-list includes `/reset-password/update` (the suspected root cause of #490; the fix works either way). Plan in [this #490 comment](https://github.com/mp3anthony/funded/issues/490#issuecomment-6540635952).
-4. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
-5. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
+(The v0.10.0 milestone wording and the leftover R/F tags and "health score" wording are folded into #501.)
 
 ## Open issues
 
-[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). That is the only one. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#501](https://github.com/mp3anthony/funded/issues/501) repo cleanup, `needs-info`. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
