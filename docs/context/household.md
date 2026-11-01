@@ -24,12 +24,12 @@ _Avoid_: Family name, group name
 
 **Join code**:
 The temporary six-digit code an existing member shares so someone else can join the household. It expires and can be regenerated.
-Any member can view and copy it; only owners can change it, and only owners see the "+" on Members that opens it. Only owners also change the household name, payment mode and timezone (the database enforces this, R28 #415).
+Any member can view and copy it; only owners can change it, and only owners see the "+" on Members that opens it. Only owners also change the household name, payment mode and timezone (the database enforces this).
 _Avoid_: Invite link, invite code, PIN, password
 
 **Onboarding**:
 The first-run setup that either creates a new household or joins one by join code. Creating starts on a full-screen Welcome (Create a household / Join with a code), then one-question screens for Household name and Payment mode (Direct Pay by default); the household is created once, when Next is tapped on Payment mode, and quitting before that creates nothing. Then the Setup hub, where a first payday, bill and goal are all optional; household name and payment mode are not. Anything left unticked shows on the owner's Finish setting up card. Joining by code opens a full-screen join screen (one question: the join code, eight letters or digits shown as ABCD-EFGH; older six-character codes still work) and then goes straight into the app.
-Built (R31, #418; R32, #419): the full-screen Welcome, Household name, Payment mode and the optional **Setup hub** with Add your pay, Add a bill, Add a goal rows (each opens the normal step flow over the hub and ticks when saved; a ticked row stays tappable) and an always-available "Enter app" plus a Getting started guide link. The household is created only once name and Payment mode are both chosen, in one write; quitting earlier restarts at Welcome. A joiner types the code on the full-screen join screen (R33, #420; Back returns to Welcome) and goes straight into the app (their nudge is the Dashboard's "Set up your pay"). A wrong or expired code shows an inline red line on the join screen and changes nothing.
+The full-screen Welcome, Household name, Payment mode and the optional **Setup hub** with Add your pay, Add a bill, Add a goal rows (each opens the normal step flow over the hub and ticks when saved; a ticked row stays tappable) and an always-available "Enter app" plus a Getting started guide link. The household is created only once name and Payment mode are both chosen, in one write; quitting earlier restarts at Welcome. A joiner types the code on the full-screen join screen (Back returns to Welcome) and goes straight into the app (their nudge is the Dashboard's "Set up your pay"). A wrong or expired code shows an inline red line on the join screen and changes nothing.
 _Avoid_: Sign-up wizard, tutorial, welcome flow
 
 **Setup hub**:
