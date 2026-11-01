@@ -2,10 +2,7 @@
 
 Household bills/goals budgeting app. React/Next.js on Vercel, Supabase backend.
 
-This spec was seeded by folding the 3 currently-open GitHub issues into vertical
-slices, rather than writing a retroactive CRD for an app that already exists.
-A CRD interview is only needed for *new* future feature ideas, layered on top
-of this spec.
+Binding requirements for the app: Part A holds the locked invariants and standing rules, Part B the vertical slices (one per issue; numbers are cited elsewhere, so they never change).
 
 ---
 
@@ -516,8 +513,7 @@ as a quick preliminary fix ahead of the rest of this slice's full polish
 pass, rather than bundling it into the same PR as the whole-app motion work.
 
 **Acceptance criteria:** full detail in the issue's decision comment
-(`research/issue-99-100-motion-dashboard-research.md` has the full research
-writeup) — pull from there at implementation time.
+(the research write-up was removed from the repo; the issue comment is the record).
 
 **Testing:** Visual/motion changes across the whole app — inherently needs
 hands-on device verification. Label **`needs-manual-test`**.
@@ -829,66 +825,13 @@ problem/checklist on the issue.
 
 ### Slice 23: Full app redesign (Issue #377)
 
-**Decisions (grilled page by page 2026-10-19; the look and every page layout live in the HTML design doc linked from the issue):**
-- The design doc (`project/pages/*.md`) is the source of truth for look and layout. This section holds only the binding build rules.
-- Seven pages agreed: Dashboard, Payday, Bills, Goals, Settings, Pop-ups, Onboarding and sign-in. The sub-issues of #377 are the slices R01 to R36, built in the order listed on the issue. This replaces the onboarding shape in Slice 18 (a hub instead of three skip screens; the household is created only once name and Payment mode are both chosen) and moves the Finish setting up card (Slice 19) into the Dashboard stats slot.
-- One long-lived branch `redesign/full-app` and one PR opened with the first slice; every slice commits to it. No per-slice version bump or patch note; one bump to `v0.1.0` and one patch-notes entry at the end (released as v0.1.0, PR #481). Live `main` keeps the old app until that merge, so slices are checked on the branch's Vercel preview (an exception to "no preview testing"); Anthony approves the one final merge.
-- Migrations on this branch stay compatible with the old code live on `main` (preview and production share one Supabase) and are applied when their slice is built.
-- R19 (#406, A1 signed off 2026-10-24): `pay_history.amount` is nullable (migration `20261024120000_pay_history_amount_nullable`; NULL only for a Pending pay with no known amount, enforced by a CHECK) and the cron route may create Pending pays with the service-role key (see Part A1). Averages are per pay schedule, last 4 confirmed pays, at least 2. Re-run the migration's backfill UPDATE once right after the final merge.
-- A1 slices, each needing Anthony's sign-off at plan time: R19 (`pay_history.amount` nullable), R28 (owner-only `households` UPDATE policy; today any member can write), R33 (#370 may need a policy or edge-function change), R14 (a per-person frequency preference may need a `user_preferences` column).
-- R21 (#408): Payday shows one card per member in the R04 Carousel; a member's sheet holds their pay schedules, Contribution (Joint Fund only; any member can edit it) and rules. "Contribution amounts" and `ContributionSettingsSheet` are gone from Settings; the Suggest Split panel is unchanged, in `SuggestSplitPanel.tsx`, opened from the Payday header "Compare split" pill (Joint Fund only until R23). No schema change.
-- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, goal suggestions and milestone reminders, and the Dashboard Goals carousel (built in R17, #404; the Dashboard restyle is R25 to R27). Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
-- R28 (#415, A1 signed off 2026-10-24): `households` UPDATE is owner-only (migration `20261024130000_households_update_owner_only`, applied right before the final merge because live `main` does not gate Payment mode / New code in the UI). Only owners change name, payment mode, timezone and join code; members can view and copy the join code. App writes ask for the changed rows back and fail loudly on 0 rows (`assertRowUpdated`).
-- Left out on purpose: #383 (change login email), #145 (parked).
+**Shipped on `main` (PR #425, v0.1.0, released via PR #481).** The build ran on a long-lived `redesign/full-app` branch, now gone. Look and layout live in the private design doc (see `DESIGN-REFERENCE.md`); this section keeps only what stays binding.
+
+**Decisions (grilled page by page 2026-10-19):**
+- Seven pages: Dashboard, Payday, Bills, Goals, Settings, Pop-ups, Onboarding and sign-in. This replaces the onboarding shape in Slice 18 (a hub instead of three skip screens; the household is created only once name and Payment mode are both chosen) and moves the Finish setting up card (Slice 19) into the Dashboard stats slot.
+- `pay_history.amount` is nullable (migration `20261024120000_pay_history_amount_nullable`; NULL only for a Pending pay with no known amount, enforced by a CHECK) and the cron route may create Pending pays with the service-role key (see Part A1). Averages are per pay schedule, last 4 confirmed pays, at least 2.
+- Payday shows one card per member in the Carousel; a member's sheet holds their pay schedules, Contribution (Joint Fund only; any member can edit it) and rules. "Contribution amounts" and `ContributionSettingsSheet` are gone from Settings; the Suggest Split panel is in `SuggestSplitPanel.tsx`, opened from the Payday header "Compare split" pill (Joint Fund only).
+- Goals: Just tracking is the existing `paused` status (no schema change); paused goals stop counting toward totals, goal suggestions and milestone reminders, and the Dashboard Goals carousel. Pace on the Goals page uses only fixed-dollar rules on fixed-amount pay.
+- `households` UPDATE is owner-only (migration `20261024130000_households_update_owner_only`). Only owners change name, payment mode, timezone and join code; members can view and copy the join code. App writes ask for the changed rows back and fail loudly on 0 rows (`assertRowUpdated`).
+- Left out on purpose: #383 (change login email).
 - Full issue: https://github.com/mp3anthony/funded/issues/377
-
----
-
-## Part C — Suggested Milestone Order (for confirmation, not final)
-
-Grouped by dependency, not strict sequence — slices within a group can
-reorder freely unless a specific dependency is called out.
-
-**Group 1 — foundational fixes, low risk, no dependencies:**
-1. Slice 1 (#93) — single-household-per-user (schema-level, other slices
-   don't strictly depend on it, but membership semantics are cleanest locked
-   down early).
-2. Slice 2 (#74) — warm-reload race fix.
-3. Slice 3 (#89) — joinHousehold stale snapshot. **Sequence directly after
-   Slice 2** (reuses its helper).
-4. Slice 4 (#90) — cross-user notification write.
-5. Slice 5 (#87) — empty-household display (retired with the health score, R25).
-6. Slice 6 — delete dead `HouseholdHealth.tsx` (done).
-7. Slice 7 (#71) — PWA cache-busting. Live bug affecting anyone with the app
-   already installed; self-contained, no schema work.
-
-**Group 2 — high-priority new features (Anthony's explicit build-order
-weighting):**
-8. Slice 14 — patch notes page.
-9. Slice 15 — in-app bug reporting.
-
-**Group 3 — settings/notifications, sequential dependency chain:**
-10. Slice 8 (#37) — per-household timezone. **Must land before Slice 9.**
-11. Slice 9 (#97) — notifications overhaul. **Depends on Slice 8.**
-12. Slice 10 (#96 half A) — dead-subscription detection. Independent, can
-    slot in anywhere in this group.
-13. Slice 11 (#96 half B) — per-timezone scheduled delivery (pg_cron). **Depends on Slices 8
-    and 9 both.**
-
-**Group 4 — larger feature/design work, sequence last:**
-14. Slice 13 (#99/#100) — motion/visual overhaul, *except* pull the
-    `tailwindcss-animate` install fix forward as a standalone quick fix
-    ahead of this group (cheap, fixes an already-broken feature, no reason
-    to wait).
-15. Slice 12 (#98) — bills vs expenses split. Largest, most structurally
-    involved slice in this pass (schema + migration + Direct Pay split logic
-    + Household total integration + verdict integration) — recommend
-    sub-slicing further at its own kickoff rather than one PR. Sequenced
-    last because it's the highest-risk/highest-effort item and benefits from
-    everything else being settled first (in particular, doing the motion
-    pass before #98 means #98's new UI ships already matching the new
-    animation patterns, rather than needing a second pass).
-
-Not sequenced into this build order (per HANDOFF): once the app is stable
-under this spec, licensing + app-store distribution evaluation is next,
-running in parallel with opening testing beyond Anthony/Hannah.
