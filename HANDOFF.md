@@ -5,9 +5,9 @@
 ## Current state (2026-11-01)
 
 - **[#495](https://github.com/mp3anthony/funded/issues/495) launch video DONE, closed 2026-11-01:** final version (Anthony approved) is outside the repo in `D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-11-01-115132` (`brag-9x16.mp4`, `brag-16x9.mp4`, posters, `share-copy.txt`, generators in `tools/`); the first run `2026-11-01-105753` is kept. The rework clipped all content to the phone screen, made the banners opaque and fixed the Join code chevron. Nothing committed to the repo.
-- **#488 DONE, PR #489 squash-merged to `main` as e96f943 (v0.1.2):** every web push now sends `urgency: 'high'` and a 12h TTL (`src/lib/push.ts`), guard test `src/lib/push.test.mjs` (690 tests), `docs/lessons.md` updated. Live on production. Part of [#145](https://github.com/mp3anthony/funded/issues/145), which stays open.
-- **#145 findings (full write-up in the issue's 2026-10-31 comments):** a seeded test push to Hannah at 20:00 NZ was stamped delivered, the Vercel run logged no push error, so FCM accepted it; it showed in the app inbox but **no pop-up reached her phone**. Phone checks (battery, Sleeping apps, Samsung Internet site switch, Android app switch, DND) all fine. She was on **Samsung Internet** (home-screen shortcut). She has now installed Funded from **Chrome**, but cannot sign in (forgot password).
-- **[#490](https://github.com/mp3anthony/funded/issues/490) BUILT, PR #493 squash-merged to `main` as 39c16d4 (v0.1.3):** reset links now always land on the set-a-new-password page (recovery flag stamped before `createClient`; update page needs the flag; AppShell forwards signed-in recovery landings; flag cleared on invalid/ready/success/SIGNED_OUT/login). Independent review approved, 701 tests. Global sign-out after reset kept. **Issue stays open:** not yet verified on Hannah's Android, and the likely root cause (Supabase Redirect URLs allow-list missing `/reset-password/update`) is still unchecked; plan in [this #490 comment](https://github.com/mp3anthony/funded/issues/490#issuecomment-6540635952). Live check: reset link shows the new-password screen with no Home flash; set password lands on sign-in; same link again says invalid or expired.
+- **#488 DONE, PR #489 squash-merged to `main` as e96f943 (v0.1.2):** every web push now sends `urgency: 'high'` and a 12h TTL (`src/lib/push.ts`), guard test `src/lib/push.test.mjs` (690 tests), `docs/lessons.md` updated. Live on production. Part of [#145](https://github.com/mp3anthony/funded/issues/145), now closed.
+- **[#145](https://github.com/mp3anthony/funded/issues/145) DONE, closed 2026-11-01 (Android push):** Hannah installed Funded from **Chrome** on her Samsung (Samsung Internet is ruled out, not supported for us), turned on Chrome notifications in phone settings, and **received push notifications on 2026-11-01**. Earlier finding (issue's 2026-10-31 comments): on Samsung Internet a seeded push was accepted by FCM and reached the app inbox but never popped up. Urgency/TTL (#488) shipped along the way. Lesson: Android users should install from Chrome with Chrome notifications on.
+- **[#490](https://github.com/mp3anthony/funded/issues/490) DONE, closed 2026-10-31, PR #493 squash-merged to `main` as 39c16d4 (v0.1.3):** reset links now always land on the set-a-new-password page (recovery flag stamped before `createClient`; update page needs the flag; AppShell forwards signed-in recovery landings; flag cleared on invalid/ready/success/SIGNED_OUT/login). Independent review approved, 701 tests. Global sign-out after reset kept. **Verified live:** Hannah reset her password on Android via the emailed link and it worked (2026-11-01).
 - Test row `TEST-145-hannah-push` was deleted. Hannah's password was never read or set by Claude.
 - **#479 DONE, PR #485 squash-merged to `main` as 1b150b8:** `leave-household` and `delete-household` edge functions now return 401 (not 500) on a missing Authorization header, matching `join-household`. Guard test added in `hardeningGuards` (689 tests). `APP_VERSION` 0.1.1 with patch note. #479 closed. Both functions redeployed to production Supabase (funded-app): leave-household v3, delete-household v3 (deployed source verified to have the guard). The live `delete-household` used a `respond()` helper before; behaviour was identical to the repo, now replaced by the repo version.
 - **R36 ([#423](https://github.com/mp3anthony/funded/issues/423)) DONE, PR #483 (ca90a8a):** glossaries, `docs/lessons.md`, `docs/conventions.md` and `SPEC.md` cleaned (stale health-score and "Superseded" text trimmed, Part A untouched). The design doc artifact is republished (v17) and now holds design only. #423 closed.
@@ -36,21 +36,20 @@ Every "Not yet checked on iPhone" item from the R/F slices is open (git history 
 
 ## Next session, in order
 
-1. **#490** (built, v0.1.3): Anthony does the dashboard check (Supabase Auth > URL Configuration; steps in the plan comment) and picks wildcard vs exact redirect URLs. Then Hannah resets her password via the emailed link as the live test; close #490 if it works.
-2. **#145:** once Hannah is signed in on the Chrome install, seed another `TEST-` push (method in `docs/lessons.md`) and ask whether the pop-up arrives. If Chrome also fails: add a diagnostic and/or persist push failures (migration, A1 escalation, Anthony's call).
-3. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
-4. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
-5. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
-6. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
+1. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
+2. Remove the `redesign/full-app` branch (local and origin; squash-merged in PR #425). Not deleted yet, needs Anthony's go-ahead.
+3. Optional: Supabase Auth > URL Configuration, check the Redirect URLs allow-list includes `/reset-password/update` (the suspected root cause of #490; the fix works either way). Plan in [this #490 comment](https://github.com/mp3anthony/funded/issues/490#issuecomment-6540635952).
+4. Optional: the `docs/conventions.md` "Milestones" line and the README milestone table still mention v0.10.0 for wider testers; Anthony to decide the wording.
+5. Optional cosmetic: leftover "R27 built" / "(F09)" tags in `docs/context/app-shell.md` and old "health score" wording in `docs/lessons.md`.
 
 ## Open issues
 
-[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#145](https://github.com/mp3anthony/funded/issues/145) `needs-info`, **Android only** (Hannah's Samsung S25FE): urgency/TTL shipped (#488), server side confirmed fine, pop-up still missing on Samsung Internet; Chrome install test pending; [#490](https://github.com/mp3anthony/funded/issues/490) reset-link fix shipped (v0.1.3), awaiting dashboard check and Hannah's live test. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). That is the only one. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
 - No spawned sessions: build here, or Anthony wraps and clears for a fresh one.
-- A docs-only PR (such as a `HANDOFF.md` wrap-up) is reviewed by a sub-agent and merged straight away.
+- A `HANDOFF.md`-only wrap-up goes on its own `docs/handoff-*` PR and is merged straight away (no sub-agent review, no approval ask).
 - The orchestrator never writes code; every diff, however small, goes to a Code Writer then an independent reviewer before commit or push.
 - Security findings stay in the private notes file, never in GitHub, commits or this file.
 
