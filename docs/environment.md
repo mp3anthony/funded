@@ -23,7 +23,7 @@ Names only; never put secret values. Repo is public: no emails, full ids or toke
 
 ## Env var names
 
-Names only. Client-safe: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`. Server-only: `VAPID_PRIVATE_KEY`, `VAPID_CONTACT_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS; the cron routes only), `CRON_SECRET`, `GENERATION_CRON_SECRET`, `DELIVER_CRON_SECRET`, `GITHUB_BUG_REPORT_TOKEN`. `GITHUB_BUG_REPORT_TOKEN` is Production-scope only, which is correct because only real users file reports; Preview correctly shows "not configured". The variables are documented in `README.md` (Environment variables) and set in `.env.local` locally, which is git-ignored: never open or print it. Never prefix a server secret with `NEXT_PUBLIC_`.
+Names only. Client-safe: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`. Server-only: `VAPID_PRIVATE_KEY`, `VAPID_CONTACT_EMAIL`, `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS; the cron routes only), `CRON_SECRET`, `GENERATION_CRON_SECRET`, `DELIVER_CRON_SECRET`, `GITHUB_BUG_REPORT_TOKEN`. `GITHUB_BUG_REPORT_TOKEN` is Production-scope only, which is correct because only real users file reports; Preview correctly shows "not configured". The variables are documented, with a comment each, in `.env.local.example` and set in `.env.local` locally, which is git-ignored: never open or print it. Never prefix a server secret with `NEXT_PUBLIC_`.
 
 ## Testing policy
 

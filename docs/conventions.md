@@ -4,18 +4,21 @@ Binding build and process rules. Vocabulary lives in `docs/context/`; this file 
 
 ## Document roles
 
-- `SPEC.md`: requirements, technical guardrails (Part A: A1 escalation gates, A2 standing rules) and the vertical slices. The working reference during builds. There is no separate CRD or design-reference document.
+- `SPEC.md`: requirements, technical guardrails (Part A: A1 escalation gates, A2 standing rules) and the vertical slices. The working reference during builds. There is no separate CRD.
+- `DESIGN-REFERENCE.md`: the source of truth for look, feel and UI rules. Start here for any UI work.
 - New features: file a to-spec issue, agree it with Anthony, then fold it into `SPEC.md`.
 - `CHANGE-LOG.md`: append-only inbox for out-of-spec requests, triaged on demand.
+- `README.md`: setup and pointers only (install, run, database setup, project structure). See "README upkeep".
+- `docs/agents/`: tracker, label and domain-doc setup for the agent skills (`issue-tracker.md`, `triage-labels.md`, `domain.md`).
 - `HANDOFF.md`: current state only (where we left off, what is next). Durable facts go to their home in `CLAUDE.md`'s "Where knowledge lives", never into `HANDOFF.md`. There is no archive file; git history holds prior versions.
 - `docs/context/` holds vocabulary, `docs/adr/` holds hard-to-reverse decisions, `docs/lessons.md` and `docs/environment.md` hold lessons and operations.
 
 ## Versioning
 
 - `src/lib/version.ts` (`APP_VERSION`) is the single source of truth for the display version. The `version` field in `package.json` is unused npm metadata and is not the source.
-- Bump `+0.0.1` per build (`v0.9.x` while pre-testing; `v0.9.0` was deliberately skipped). Do not bump as a side effect of an unrelated change. A rework commit on the same open PR does not re-bump; a new build cycle does.
+- Bump `+0.0.1` per build. Every bump carries a patch-notes entry in the same PR (see "Patch notes"). Do not bump as a side effect of an unrelated change. A rework commit on the same open PR does not re-bump; a new build cycle does.
 - Confirm the exact resulting version with Anthony immediately before merging to `main`. He can waive a bump. When parallel PRs collide on the version, renumber and confirm again.
-- Milestones: `v0.10.0` when the app is ready for wider testers, `v1.0.0` for public beta. This is a loose guideline; the version applied at each merge is decided with Anthony at merge time.
+- `v1.0.0` is the public beta. The version applied at each merge is decided with Anthony at merge time.
 - The version shows at the bottom of Settings and on the Updates card, both read from `APP_VERSION`; never restate the current version in a doc.
 - **Long-lived feature branch exception (used once, the #377 redesign, released as v0.1.0 in PR #481):** a long-lived branch carries no per-slice bump or patch note; one bump and one patch-notes entry (written from the closed slices' "What's changing") happen in the final slice before the single merge. Anthony may check each slice on the branch's Vercel preview, and each slice's commit range gets an independent sub-agent review. Migrations on such a branch must stay compatible with the old code still live on `main`, because preview and production share one Supabase.
 - Merge conflicts on `version.ts` and `src/lib/patch-notes.ts` are common when two same-day PRs both bump: keep the higher version and both entries. If both land on the same version number, combine the bullets under one entry.
@@ -34,7 +37,8 @@ The Updates card (a compact non-blocking card above the bottom nav, #260) shows 
 
 ## README upkeep
 
-- Every PR that changes project structure, screens, setup, env vars or key logic either updates `README.md` or states "README: checked, no change" in its description. The independent reviewer checks that line.
+- `README.md` is setup plus pointers: install and run steps, tech stack, database setup, the project-structure tree. Every PR that changes project structure (folders in the tree), setup steps, scripts or the tech stack either updates `README.md` or states "README: checked, no change" in its description. The independent reviewer checks that line.
+- Screens, design, key logic and env var details do not live in the README: they belong in `SPEC.md`, `DESIGN-REFERENCE.md`, `docs/context/` and `.env.local.example` / `docs/environment.md`. Update those homes instead.
 - Docs-only and tooling-only PRs are exempt unless they change something README describes.
 - README never restates the current version (see the versioning rules above).
 
