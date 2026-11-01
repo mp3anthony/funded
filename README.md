@@ -15,9 +15,7 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 - [Environment variables](#environment-variables)
 - [Database setup](#database-setup)
 - [Project structure](#project-structure)
-- [Screens](#screens)
-- [Design system](#design-system)
-- [Key logic](#key-logic)
+- [Where things are documented](#where-things-are-documented)
 - [PWA support](#pwa-support)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
@@ -108,41 +106,9 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Environment variables
 
-Copy `.env.local.example` to `.env.local` (or create the file) with the following values:
+Copy `.env.local.example` to `.env.local` and fill it in. The example file lists every variable with a comment saying what it is for; the names are also listed in [`docs/environment.md`](docs/environment.md). Server-only secrets must never be prefixed with `NEXT_PUBLIC_`.
 
-```env
-# ── Client (safe to expose to the browser) ──
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-
-# ── Web push (VAPID) ──
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
-VAPID_PRIVATE_KEY=your-vapid-private-key
-VAPID_CONTACT_EMAIL=mailto:admin@example.com
-
-# ── Server-only: reminder crons (never prefix with NEXT_PUBLIC_) ──
-# Service-role key bypasses RLS; used only by the server cron routes. Keep secret.
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-# Shared secret Vercel Cron sends as the Authorization bearer token.
-CRON_SECRET=a-long-random-string
-# Separate bearer secrets for the Supabase pg_cron jobs (one per route).
-GENERATION_CRON_SECRET=another-long-random-string
-DELIVER_CRON_SECRET=yet-another-long-random-string
-
-# ── Server-only, optional: in-app bug reports ──
-# Token that can create issues on the repo; production only.
-GITHUB_BUG_REPORT_TOKEN=your-github-token
-```
-
-The Supabase URL and anon key are available in your Supabase project dashboard
-under **Settings → API**. The `SUPABASE_SERVICE_ROLE_KEY` is on the same page —
-treat it like a password and never expose it to the client. `CRON_SECRET`,
-`GENERATION_CRON_SECRET` and `DELIVER_CRON_SECRET` are any long random strings,
-set to the same values in Vercel and in the matching scheduler.
-`/api/cron/push-reminders` accepts either `CRON_SECRET` or `GENERATION_CRON_SECRET`;
-`/api/cron/deliver-scheduled` uses `DELIVER_CRON_SECRET`. `GITHUB_BUG_REPORT_TOKEN`
-is only needed by the in-app bug report route (`/api/bug-report`); without it that
-route reports not configured.
+The Supabase URL and anon key are in your Supabase project dashboard under **Settings → API**. `CRON_SECRET`, `GENERATION_CRON_SECRET` and `DELIVER_CRON_SECRET` are any long random strings, set to the same values in Vercel and in the matching scheduler. `GITHUB_BUG_REPORT_TOKEN` is optional (production only); without it the in-app bug report route reports not configured.
 
 > **Note:** `.env*` files are git-ignored, except the placeholder file `.env.local.example`. Never commit real credentials.
 
@@ -152,13 +118,13 @@ route reports not configured.
 
 The Supabase schema is defined in the `supabase/` directory. Run these SQL files in order via the Supabase SQL Editor:
 
-1. **`supabase/schema.sql`** — core tables: `households`, `bills`, `funds`, `paydays`
-2. **`supabase/household_members_table.sql`** — the `household_members` table
-3. **`supabase/rls_policies.sql`** — row-level security policies
-4. **`supabase/secure_rls_policies.sql`** — additional hardened RLS rules
-5. **`supabase/migrations/`** — apply each migration file in order. The un-dated files come first (pay schedules, pay history, bill splits, household contributions, contribution rules, user ID constraints, join codes, RLS fixes), then the date-prefixed files in filename order (timezone and notification columns, expenses, user preferences, storage buckets, RLS declarations and hardening, and so on).
+1. **`supabase/legacy/schema.sql`** — core tables: `households`, `bills`, `funds`, `paydays`
+2. **`supabase/legacy/household_members_table.sql`** — the `household_members` table
+3. **`supabase/legacy/rls_policies.sql`** — row-level security policies
+4. **`supabase/legacy/secure_rls_policies.sql`** — additional hardened RLS rules
+5. **`supabase/migrations/`** — apply each migration file in order. The un-dated files come first, then the date-prefixed files in filename order.
 
-> **Note:** the migrations alone cannot rebuild a database from scratch. Some tables (for example notifications, notification settings and push subscriptions) have no `CREATE TABLE` in the repo.
+> **Note:** the legacy SQL files and the migrations together cannot rebuild a database from scratch. Some tables (for example notifications, notification settings and push subscriptions) have no `CREATE TABLE` in the repo. The live Supabase project is the source of truth; see [`docs/environment.md`](docs/environment.md) for how it is managed.
 
 ### Edge Functions
 
@@ -178,7 +144,7 @@ Two Storage buckets are used: `avatars` (public, for avatar image uploads) and `
 
 ### Scheduling
 
-Reminders are generated and delivered by two cron routes (see [Key logic](#key-logic)). In production a Supabase `pg_cron` job calls each of them every few minutes; `vercel.json` also carries a once-a-day Vercel Cron on `/api/cron/push-reminders` as a fallback.
+Reminders are generated and delivered by two cron routes (see [`docs/context/notifications.md`](docs/context/notifications.md)). In production a Supabase `pg_cron` job calls each of them every few minutes; `vercel.json` also carries a once-a-day Vercel Cron on `/api/cron/push-reminders` as a fallback.
 
 ---
 
@@ -249,10 +215,7 @@ funded-nextjs/
 │   └── types/
 │       └── index.ts          # Shared TypeScript interfaces
 ├── supabase/
-│   ├── schema.sql            # Core database schema
-│   ├── household_members_table.sql
-│   ├── rls_policies.sql      # Row-level security
-│   ├── secure_rls_policies.sql
+│   ├── legacy/               # Early schema and RLS SQL (cannot rebuild the database alone)
 │   ├── migrations/           # Incremental schema migrations
 │   ├── email-templates/      # Auth email HTML (pasted into Supabase by hand)
 │   └── functions/            # Supabase Edge Functions
@@ -268,106 +231,17 @@ funded-nextjs/
 
 ---
 
-## Screens
+## Where things are documented
 
-| Route | Screen | Purpose |
-|-------|--------|---------|
-| `/` | **Dashboard** | Verdict header (covered or short), tip strip, stats carousel (or Finish setting up card), manual bills and Active goals carousels |
-| `/payday` | **Payday** | Needs you strip (due and pending pays), a card per member, Compare split, pay history chart, surplus rule triggers |
-| `/bills` | **Bills** | All household bills and expenses with countdowns, category groups, filters, search, a frequency choice and Check impact |
-| `/funds` | **Goals** | Savings goals with progress rings and pace, manual top-ups, and the Wish list |
-| `/settings` | **Settings** | Profile, notifications (including notify hour and push status), appearance (Light / Dark / System), members and join code, household name, payment mode and timezone, Updates, Getting started, Report an issue, Log out, Leave or delete household |
-| `/login` | **Login** | Email/password authentication (sign in or sign up) |
-| `/confirm-email` | **Confirm Email** | Email verification landing page |
-| `/reset-password/update` | **Reset Password** | Password update page reached via Supabase reset email link |
-| `/auth/callback` | **Auth Callback** | Supabase auth redirect handler |
-| `/getting-started` | **Getting Started** | Public guide of optional missions covering the basics (no sign-in needed) |
-| `/patch-notes` | **Updates** | What changed in each version, plus a Known Issues tab (reached from Settings as "Updates") |
-| `/offline` | **Offline** | PWA offline fallback page |
-
-### User flow
-
-1. **Sign up** → email confirmation → **Onboarding** (Welcome: create a household or join with a code; creating asks for a name and payment mode, then an optional Setup hub with Add your pay, Add a bill, Add a goal)
-2. **Dashboard** says at a glance whether bills are covered
-3. **Payday** to log income when paid — surplus rules fire automatically; surplus suggestion modal prompts allocation
-4. **Bills** to manage household costs
-5. **Goals** to track savings targets
-6. **Settings** to invite members, change the household and set notification preferences
-7. **Forgot password** → reset email → `/reset-password/update` to set a new password
-
----
-
-## Design system
-
-### Typography
-
-Fonts are loaded via `next/font/google` for optimal performance (no external CDN requests at runtime).
-
-| Font | CSS Variable | Use |
-|------|-------------|-----|
-| **Syne** (400–800) | `--font-heading` | Page-header titles only (the `h1`) |
-| **Instrument Sans** (variable, 400–700) | `--font-body` | Everything else, including all numbers (tabular figures set on `body`) |
-
-### Colour tokens
-
-All colours are defined as CSS custom properties in `globals.css` and mapped into Tailwind v4 via `@theme inline`.
-
-| Token | Dark mode | Light mode |
-|-------|-----------|------------|
-| `--color-primary` (lime) | `#c8ff00` | `#7aaa00` |
-| `--color-background` | `#0a0a0a` | `#f2f2ee` |
-| `--color-success` (green) | `#00e676` | `#00994a` |
-| `--color-accent` (amber) | `#ffab00` | `#c07800` |
-| `--color-destructive` (red) | `#ff3d57` | `#cc2233` |
-| `--color-surface` | `#111111` | `#e8e8e4` |
-| `--color-foreground` | `#f0f0f0` | `#0f0f0f` |
-| `--color-muted` | `#999999` | `#444444` |
-| `--color-border` | `rgba(255,255,255,0.07)` | `rgba(0,0,0,0.09)` |
-
-Coloured text (lime, amber, green, red) uses the `text-*-ink` utilities, whose light-theme values are darker so they reach 4.5:1 on the page and card surfaces. The plain colours stay for fills and borders. The full design rules are in [`DESIGN-REFERENCE.md`](DESIGN-REFERENCE.md).
-
-### Theme switching
-
-- **Automatic:** CSS `@media (prefers-color-scheme: light)` sets light tokens on `:root` when no class is present
-- **Manual:** toggle in Settings writes `.dark` or `.light` class to `<html>`, overriding the media query
-- **Layered surfaces:** `--color-surface`, `--color-surface-raised`, `--color-surface-elevated` provide depth
-
-### Mobile-first considerations
-
-- `viewport-fit=cover` and `env(safe-area-inset-*)` padding for notched devices
-- All inputs forced to `font-size: 16px` to prevent iOS Safari auto-zoom
-- `touch-action: manipulation` on interactive elements to eliminate tap delay
-
----
-
-## Key logic
-
-### Frequency conversion
-
-`convertAmount(amount, fromFrequency, toFrequency)` normalises any amount between `weekly`, `fortnightly`, `monthly`, and `yearly` using exact payments-per-year factors (52 weekly, 26 fortnightly, 12 monthly).
-
-### Dashboard verdict
-
-`src/lib/verdict.ts` works everything out weekly and the worse of two halves wins: pay against bills and expenses, and (Joint Fund) contributions against the same, or (Direct Pay) the bills and expenses nobody is assigned to cover. Result: green "Bills covered", red "Short $X a week", or grey "Set up your pay" / "Set up contributions" / "Add your bills".
-
-### Payment modes
-
-| Mode | Behaviour |
-|------|-----------|
-| **Joint Fund** | All contributors pay into a shared pot; contributions are compared against total bills |
-| **Direct Pay** | Bills are split between specific members via `BillSplit` records; each person pays their assigned share |
-
-### Contribution rules
-
-When a pay entry exceeds a rule's threshold, a percentage or fixed amount is allocated to the rule's goal. Rules are added from a goal or from a member's Payday card.
-
-### Known Issues
-
-The Known Issues tab on the patch notes page lists open GitHub issues carrying the `known-issue` label. It shows only each issue's "User-facing blurb" section (the last section of the issue body), never the title or number, parsed by `src/lib/knownIssues.ts`. The client fetches `/api/known-issues`, which calls the public GitHub API without a token and caches the result for about 15 minutes (5 after a failure); the service worker skips `/api/` so the data stays live. If GitHub cannot be reached the tab shows a friendly message instead of an error.
-
-### Reminders
-
-Reminders are a two-step pipeline. `/api/cron/push-reminders` generates due-bill, auto-pay, pending-pay, payday and goal reminders for each household member, stamped with a delivery time that follows the household timezone and the member's notify hour (duplicates are prevented by a dedupe key). `/api/cron/deliver-scheduled` then pushes every reminder whose time has arrived and that is still unread. Both routes require a bearer secret (see Environment variables).
+| Looking for | Go to |
+|-------------|-------|
+| Screens, routes and requirements | [`SPEC.md`](SPEC.md) |
+| Look, feel and UI rules (fonts, colour tokens, themes, mobile rules) | [`DESIGN-REFERENCE.md`](DESIGN-REFERENCE.md) |
+| Vocabulary and key logic (verdict, payment modes, pay rules, reminders) | [`CONTEXT-MAP.md`](CONTEXT-MAP.md) and [`docs/context/`](docs/context/) |
+| Build and process conventions, versioning, patch notes | [`docs/conventions.md`](docs/conventions.md) |
+| Hosting, Supabase, env var names, testing | [`docs/environment.md`](docs/environment.md) |
+| Lessons and known items | [`docs/lessons.md`](docs/lessons.md) |
+| Architectural decisions | [`docs/adr/`](docs/adr/) |
 
 ---
 
@@ -399,43 +273,19 @@ npm run build
 
 ### Environment variables
 
-Ensure every variable listed under [Environment variables](#environment-variables) is configured in your deployment platform's environment settings (`GITHUB_BUG_REPORT_TOKEN` in production only). `vercel.json` registers a once-a-day cron on `/api/cron/push-reminders`; the more frequent schedules run from Supabase `pg_cron`.
+Ensure every variable in `.env.local.example` is configured in your deployment platform's environment settings (`GITHUB_BUG_REPORT_TOKEN` in production only). `vercel.json` registers a once-a-day cron on `/api/cron/push-reminders`; the more frequent schedules run from Supabase `pg_cron`. Hosting details are in [`docs/environment.md`](docs/environment.md).
 
 ---
 
 ## Contributing
 
-This is a solo project developed under a structured **Lead Developer Liaison Protocol**: a single orchestrator session is the sole point of contact and delegates to a sub-agent team, but never merges or approves its own code. The full protocol lives in [`CLAUDE.md`](CLAUDE.md) — the short version:
-
-- **Issues & PRDs** are tracked as GitHub issues on `mp3anthony/funded` via the `gh` CLI, triaged with canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `needs-merge-approval`).
-- **Problem Agreement** — the problem is scoped and the issue filed (with a plain-terms "What's changing" section) after an Intake sub-agent checks the context map and existing issues — is reached before any work starts.
-- **Once a plan is approved, the agent team works autonomously**, only interrupting for database migrations/RLS changes or locked architecture decisions.
-- **Every change goes on a branch and PR**; an independent review runs and the orchestrator advises whether it is clean.
-- **Changes are checked by Anthony in the live app after merge**, not on previews unless he asks for a preview review (`needs-manual-test`) (the app is open only to invited testers). Code must work on both iOS and Android; live-check notes target iPhone only. Code PRs are labelled `needs-merge-approval` by default (`needs-manual-test` when he asks for a preview review); Anthony approves each merge.
-- **Anthony's explicit go-ahead is the trigger to merge** into `main`; the issue closes after the merge. The version number is confirmed with Anthony at merge time (see Versioning).
-
-### Code conventions
-
-- **TypeScript** — strict types, no `any` unless explicitly suppressed with a comment
-- **Components** — one component per file, `PascalCase` filenames
-- **State** — centralised in `AppContext.tsx`; pages consume via `useApp()` and `useCurrentUser()` hooks
-- **Styling** — Tailwind utility classes referencing CSS custom property tokens; avoid hard-coded colour values
+This is a solo project built by an orchestrator session and a sub-agent team under Anthony's direction. The workflow, rules and roles live in [`CLAUDE.md`](CLAUDE.md); build conventions are in [`docs/conventions.md`](docs/conventions.md). Every change goes on a branch and PR with an independent review, and Anthony approves each merge.
 
 ---
 
 ## Versioning
 
-The current version is shown in Settings under Updates and sourced from `src/lib/version.ts` (`APP_VERSION`), not `package.json` — not restated here, so this doc can't drift out of sync with it. Until the app is declared ready for wider testing, each merged change bumps the **last decimal** (`v0.9.x` → `v0.9.x+1` …). `v0.9.0` was deliberately skipped.
-
-> **Note:** This table is a loose guideline, not an enforced rule. The actual version applied at each
-> merge is decided with Anthony directly at merge time, per the Versioning section in
-> [`docs/conventions.md`](docs/conventions.md).
-
-| Milestone | Version |
-|-----------|---------|
-| Ongoing pre-testing changes | last-decimal bump (`v0.9.x`) |
-| Ready for wider testers | `v0.10.0` |
-| Public beta | `v1.0.0` |
+The version shown in Settings under Updates comes from `src/lib/version.ts` (`APP_VERSION`), not `package.json`. The bump and patch-notes rules are in [`docs/conventions.md`](docs/conventions.md) (Versioning, Patch notes); this README does not restate the current version.
 
 ---
 
