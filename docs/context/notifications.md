@@ -19,7 +19,7 @@ Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal mile
 _Avoid_: Categories, alert kinds
 
 **Confirm Pending Pay reminder**:
-The reminder, titled "Payment Requires Confirmation", that a logged pay is still pending and needs confirming. Its tap leads to the Confirm Pending Pay modal on the Payday page. The code key `lodge_payment` and some UI text still say "lodge"; that is legacy naming pending #216. Built in R19 (#406): it repeats daily until the pay is confirmed or deleted ("You haven't logged last week's pay"); the dedupe key ends in the day (`<pay_history id>-lodge_payment-<YYYY-MM-DD>`). The cron also creates the Pending pay itself when a pay day passes unlogged.
+The reminder, titled "Payment Requires Confirmation", that a logged pay is still pending and needs confirming. Its tap leads to the Confirm Pending Pay modal on the Payday page. The code key `lodge_payment` and some UI text still say "lodge"; that is legacy naming pending #216. It repeats daily until the pay is confirmed or deleted ("You haven't logged last week's pay"); the dedupe key ends in the day (`<pay_history id>-lodge_payment-<YYYY-MM-DD>`). The cron also creates the Pending pay itself when a pay day passes unlogged.
 _Avoid_: Lodge payment, payment reminder, confirm reminder
 
 **Goal milestone**:
