@@ -22,3 +22,5 @@ Glossary convention: a planned term (agreed but not built) stays in its glossary
 Workflow and process terms (orchestrator, subagents, labels, tickets, wrap-up) live in `CLAUDE.md`. Architectural decisions live in `docs/adr/`.
 
 Non-glossary knowledge: binding build rules in `docs/conventions.md`, hard-won lessons and known items in `docs/lessons.md`, hosting, database and operations facts in `docs/environment.md`. Locked invariants and standing technical rules are in `SPEC.md` Part A.
+
+Where else: UI rules in `DESIGN-REFERENCE.md`, the out-of-spec inbox in `CHANGE-LOG.md`, issue tracker, triage labels and domain-docs config in `docs/agents/`, setup in `README.md`.
