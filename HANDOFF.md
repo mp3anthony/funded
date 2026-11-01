@@ -1,50 +1,45 @@
 # HANDOFF
 
-> Where we left off. Rewritten at every wrap-up; current state only. Durable knowledge lives in the places listed at the bottom.
+> Where we left off. Rewritten at every wrap-up; current state only. Done work lives in git and GitHub; durable knowledge lives in the places listed at the bottom.
 
 ## Current state (2026-11-01)
 
-- **Branches cleaned 2026-11-01:** `main` is the only branch, local and on origin (66 local and 33 origin branches deleted, including `redesign/full-app`; all merged via PRs or old and superseded).
-- **[#495](https://github.com/mp3anthony/funded/issues/495) launch video DONE, closed 2026-11-01:** final version (Anthony approved) is outside the repo in `D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-11-01-115132` (`brag-9x16.mp4`, `brag-16x9.mp4`, posters, `share-copy.txt`, generators in `tools/`); the first run `2026-11-01-105753` is kept. The rework clipped all content to the phone screen, made the banners opaque and fixed the Join code chevron. Nothing committed to the repo.
-- **#488 DONE, PR #489 squash-merged to `main` as e96f943 (v0.1.2):** every web push now sends `urgency: 'high'` and a 12h TTL (`src/lib/push.ts`), guard test `src/lib/push.test.mjs` (690 tests), `docs/lessons.md` updated. Live on production. Part of [#145](https://github.com/mp3anthony/funded/issues/145), now closed.
-- **[#145](https://github.com/mp3anthony/funded/issues/145) DONE, closed 2026-11-01 (Android push):** Hannah installed Funded from **Chrome** on her Samsung (Samsung Internet is ruled out, not supported for us), turned on Chrome notifications in phone settings, and **received push notifications on 2026-11-01**. Earlier finding (issue's 2026-10-31 comments): on Samsung Internet a seeded push was accepted by FCM and reached the app inbox but never popped up. Urgency/TTL (#488) shipped along the way. Lesson: Android users should install from Chrome with Chrome notifications on.
-- **[#490](https://github.com/mp3anthony/funded/issues/490) DONE, closed 2026-10-31, PR #493 squash-merged to `main` as 39c16d4 (v0.1.3):** reset links now always land on the set-a-new-password page (recovery flag stamped before `createClient`; update page needs the flag; AppShell forwards signed-in recovery landings; flag cleared on invalid/ready/success/SIGNED_OUT/login). Independent review approved, 701 tests. Global sign-out after reset kept. **Verified live:** Hannah reset her password on Android via the emailed link and it worked (2026-11-01).
-- Test row `TEST-145-hannah-push` was deleted. Hannah's password was never read or set by Claude.
-- **#479 DONE, PR #485 squash-merged to `main` as 1b150b8:** `leave-household` and `delete-household` edge functions now return 401 (not 500) on a missing Authorization header, matching `join-household`. Guard test added in `hardeningGuards` (689 tests). `APP_VERSION` 0.1.1 with patch note. #479 closed. Both functions redeployed to production Supabase (funded-app): leave-household v3, delete-household v3 (deployed source verified to have the guard). The live `delete-household` used a `respond()` helper before; behaviour was identical to the repo, now replaced by the repo version.
-- **R36 ([#423](https://github.com/mp3anthony/funded/issues/423)) DONE, PR #483 (ca90a8a):** glossaries, `docs/lessons.md`, `docs/conventions.md` and `SPEC.md` cleaned (stale health-score and "Superseded" text trimmed, Part A untouched). The design doc artifact is republished (v17) and now holds design only. #423 closed.
+- `main` is the only branch (local and origin). App is live on Vercel at `APP_VERSION` 0.1.3. No open PRs.
+- **Repo cleanup ([#501](https://github.com/mp3anthony/funded/issues/501)) done** (PRs #503-#507): `supabase/.temp/` untracked, old research file removed, legacy SQL moved to `supabase/legacy/`, README slimmed to setup plus pointers, SPEC.md slimmed (Part A untouched), lessons and glossaries pruned of stale items and R/F tags, pointers added to `CONTEXT-MAP.md` and `CLAUDE.md`.
+- Android push ([#145](https://github.com/mp3anthony/funded/issues/145)) and password-reset links ([#490](https://github.com/mp3anthony/funded/issues/490)) are fixed and verified live on Hannah's Android (install from Chrome with Chrome notifications on).
+- Launch video ([#495](https://github.com/mp3anthony/funded/issues/495)) is done, outside the repo in `D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-11-01-115132`.
 
-- **PR #425 MERGED to `main` as a9c5898 (squash):** redesign R01-R35, F01-F13, the #478 fix (second login on one device showed the first account's data) and the security hardening. Closed #377, #463, #478. Live on Vercel.
-- **Applied to production Supabase (funded-app) earlier:** `pay_history_is_bonus` (20261026120000), `households_update_owner_only` (R28, 20261024130000), `hardening_4_member_rows`, `hardening_5_storage_paths`, `hardening_6_join_attempts`. Earlier: `pay_history.amount` nullable. `join-household` edge function redeployed (v4). Post-merge `UPDATE pay_history SET amount = NULL WHERE status = 'pending' AND amount = 0;` ran, 0 rows matched. Storage policy list checked beforehand; stored avatar and screenshot paths match the new own-folder layout.
-- `hardeningGuards` test is in `npm test`.
-- **v0.1.0 RELEASED via PR #481 (c9c6d4f, 2026-10-30):** `APP_VERSION` 0.1.0, patch-notes entry added (9 bullets). Updates card verified by cause: it shows when last-seen differs from `APP_VERSION`; the earlier no-toast was only the missing bump. Anthony should see the card with the 0.1.0 notes on next open after Vercel deploys.
-- **Not done, owed:**
-  - Anthony to confirm Supabase Auth "Confirm email" is ON.
-  - Claude cannot log in, so no smoke test was done of avatar upload/replace/remove, a logged-out avatar URL, report screenshot upload, or create/join household (8-character and old 6-character codes). These are Anthony's device checks.
-  - Cron-created Pending pays and push reminders can only be tested now it is live.
-  - v0.1.1 and v0.1.2 updates card should show the new patch notes on next open after Vercel deploys.
+## Owed (Anthony)
+
+- Confirm Supabase Auth "Confirm email" is ON.
+- Delete the orphan folder `.claude/worktrees/250-blank-due-date-a65f79` (105MB, local only, git-ignored; the delete was blocked for Claude). Optional: `.next` can be wiped to reclaim space.
+- Decide whether `SPEC.md` Part A lines ~30 and ~63 (locked) should be updated: they name `supabase/rls_policies.sql`, `secure_rls_policies.sql` and `schema.sql`, which now live in `supabase/legacy/`.
+- Optional: Supabase Auth > URL Configuration, check the Redirect URLs allow-list includes `/reset-password/update` (suspected root cause of #490; the fix works either way). Notes in [this #490 comment](https://github.com/mp3anthony/funded/issues/490#issuecomment-6540635952).
+- Optional: the `docs/context` glossaries still point at a private design-doc path (`project/pages/*.md`); align with `DESIGN-REFERENCE.md` in a later docs pass.
 
 ## Device checks still open (Anthony, one pass on iPhone)
 
-Every "Not yet checked on iPhone" item from the R/F slices is open (git history of this file holds the full lists). Notable ones:
+Claude cannot log in, so none of these are smoke-tested:
 
 - No CSP console errors anywhere in the Home Screen app (sign in, realtime, avatar crop/upload, report screenshot, push enrol on web.push.apple.com, service worker and offline page, fonts and icon).
 - Log out then sign in as someone else in the same Home Screen app starts empty (#478).
-- Light-theme contrast (R35); Dashboard fits one screen at 375px; header layout (F06).
-- Bonus flow (F13) and Payday note icon (F12); confirming a Pending pay runs rules (#454).
-- Home Screen icon shows the lime "f." after deleting and re-saving from Safari (F11).
-- Create household shows an 8-character code that copies; joining with a new and an old code works.
+- Light-theme contrast; Dashboard fits one screen at 375px; header layout.
+- Bonus flow and Payday note icon; confirming a Pending pay runs rules (#454).
+- Home Screen icon shows the lime "f." after deleting and re-saving from Safari.
+- Create household shows an 8-character code that copies; joining with a new and an old (6-character) code works.
+- Avatar upload/replace/remove, a logged-out avatar URL, report screenshot upload.
 - Leaving a household and deleting a household (as owner) still work (seed a `TEST-` household).
+- Cron-created Pending pays and push reminders (can only be tested live).
+- Updates card shows the 0.1.1-0.1.3 patch notes on next open.
 
 ## Next session, in order
 
-1. Anthony reports device-check findings; fix list goes through Intake, Code Writer and independent review as usual.
-2. **[#501](https://github.com/mp3anthony/funded/issues/501) repo cleanup (`needs-info`):** short question run with Anthony first (7 decisions listed in the issue, each with a suggested answer), then build batches 1-9 as small docs/tooling PRs (Code Writer, independent reviewer, no version bump). Root was found clean; the work is stale/duplicated docs, `supabase/.temp/` tracked by mistake, an orphan 105MB `.claude/worktrees` folder (needs Anthony's OK to delete), and a lean HANDOFF rewrite last. SPEC Part A untouched.
-3. Optional: Supabase Auth > URL Configuration, check the Redirect URLs allow-list includes `/reset-password/update` (the suspected root cause of #490; the fix works either way). Plan in [this #490 comment](https://github.com/mp3anthony/funded/issues/490#issuecomment-6540635952).
-(The v0.10.0 milestone wording and the leftover R/F tags and "health score" wording are folded into #501.)
+1. Anthony reports device-check findings; the fix list goes through Intake, Code Writer and independent review as usual.
+2. Otherwise pick from the open issues below.
 
 ## Open issues
 
-[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul); [#501](https://github.com/mp3anthony/funded/issues/501) repo cleanup, `needs-info`. Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
