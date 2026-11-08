@@ -1,9 +1,10 @@
 /**
- * Pure helpers for Leave / Delete household (#251). Import-free so node:test
- * can run them directly (see householdLeave.test.mjs). The leave-household
- * edge function recomputes the same rules server-side (Deno cannot import
- * from src), so keep the two in step: accepted = has a user_id and is not
- * pending; owner = role "owner" AND accepted.
+ * Pure helpers for Leave / Delete household (#251) and Delete my account
+ * (#509). Import-free so node:test can run them directly (see
+ * householdLeave.test.mjs). The leave-household and delete-account edge
+ * functions recompute the same rules server-side (Deno cannot import from
+ * src), so keep them in step: accepted = has a user_id and is not pending;
+ * owner = role "owner" AND accepted.
  */
 
 export interface LeaveMember {
@@ -44,6 +45,29 @@ export function leaveModeFor(members: readonly LeaveMember[], leaver: LeaveMembe
 /** Another accepted owner exists, so the leaver's owner rights can safely go. */
 export function canDemote(members: readonly LeaveMember[], memberId: string | number): boolean {
   return members.some((m) => String(m.id) !== String(memberId) && isAcceptedOwner(m));
+}
+
+export type DeleteAccountMode = "no-household" | "leave" | "transfer" | "delete-household";
+
+/**
+ * What Delete my account does to the caller's household (#509). Mirrors the
+ * delete-account edge function.
+ * no-household: no member row.
+ * leave: caller's row not accepted yet, a regular member, or an owner while
+ *   another accepted owner remains.
+ * transfer: only owner with other accepted members: pick a new owner first.
+ * delete-household: no other accepted member (the household goes too).
+ */
+export function deleteAccountModeFor(
+  members: readonly LeaveMember[],
+  me: LeaveMember | null | undefined,
+): DeleteAccountMode {
+  if (!me) return "no-household";
+  if (!isAcceptedMember(me)) return "leave";
+  const others = members.filter((m) => String(m.id) !== String(me.id));
+  if (!others.some(isAcceptedMember)) return "delete-household";
+  if (me.role === "owner" && !others.some(isAcceptedOwner)) return "transfer";
+  return "leave";
 }
 
 export function isDeleteConfirmed(text: string): boolean {

@@ -7,6 +7,7 @@ import {
   canDemote,
   isDeleteConfirmed,
   nextCreatorUserId,
+  deleteAccountModeFor,
 } from "./householdLeave.ts";
 
 const owner = { id: "o1", role: "owner", user_id: "u1", invitation_status: "accepted", created_at: "2026-01-01" };
@@ -75,4 +76,35 @@ test("nextCreatorUserId: creator who is not an owner leaves, owners remain", () 
 test("nextCreatorUserId: no accepted owner left returns null, never a pending row", () => {
   assert.equal(nextCreatorUserId([member, pendingOwner], member), null);
   assert.equal(nextCreatorUserId([owner, pending], owner, "p1"), null);
+});
+
+test("deleteAccountModeFor: no member row is no-household", () => {
+  assert.equal(deleteAccountModeFor([], null), "no-household");
+  assert.equal(deleteAccountModeFor([owner], undefined), "no-household");
+});
+test("deleteAccountModeFor: sole owner deletes the household", () => {
+  assert.equal(deleteAccountModeFor([owner], owner), "delete-household");
+});
+test("deleteAccountModeFor: owner with only pending members deletes the household", () => {
+  assert.equal(deleteAccountModeFor([owner, pending], owner), "delete-household");
+});
+test("deleteAccountModeFor: sole accepted member with no owner deletes the household", () => {
+  assert.equal(deleteAccountModeFor([member, pending], member), "delete-household");
+});
+test("deleteAccountModeFor: only owner with an accepted member must transfer", () => {
+  assert.equal(deleteAccountModeFor([owner, member], owner), "transfer");
+});
+test("deleteAccountModeFor: a pending owner does not count, still transfer", () => {
+  assert.equal(deleteAccountModeFor([owner, pendingOwner, member], owner), "transfer");
+});
+test("deleteAccountModeFor: owner with another accepted owner leaves", () => {
+  assert.equal(deleteAccountModeFor([owner, owner2], owner), "leave");
+});
+test("deleteAccountModeFor: regular member leaves", () => {
+  assert.equal(deleteAccountModeFor([owner, member], member), "leave");
+});
+test("deleteAccountModeFor: caller row with a user id but still pending just leaves", () => {
+  const pendingMe = { id: "p3", role: "owner", user_id: "u5", invitation_status: "pending", created_at: "2026-06-01" };
+  assert.equal(deleteAccountModeFor([pendingMe], pendingMe), "leave");
+  assert.equal(deleteAccountModeFor([pendingMe, pending], pendingMe), "leave");
 });

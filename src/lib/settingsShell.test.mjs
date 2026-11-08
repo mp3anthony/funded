@@ -82,6 +82,25 @@ test("Log out sits above Leave household, which keeps its dialogs", () => {
   assert.ok(settings.includes("border-destructive/40"), "its own red card");
 });
 
+test("Delete my account sits below Leave household and opens its own flow", () => {
+  assert.ok(code.includes("Delete my account"));
+  assert.ok(code.indexOf("onClick={openLeaveDialog}") < code.indexOf("Delete my account"));
+  assert.ok(code.indexOf("onClick={openLeaveDialog}") < code.indexOf("<DeleteAccountFlow"));
+  const flow = stripComments(read("components/DeleteAccountFlow.tsx"));
+  for (const needle of [
+    "isDeleteConfirmed(",
+    "deleteAccountModeFor(",
+    "deleteAccount(",
+    "await signOutAndGoToLogin()",
+    "keepBusyOnSuccess",
+    '"Pick a new owner"',
+  ]) {
+    assert.ok(flow.includes(needle), `missing ${needle}`);
+  }
+  assert.ok(!/(^|[^\w])confirm\(/.test(flow));
+  assert.ok(read("context/AppContext.tsx").includes('"delete-account"'));
+});
+
 test("Payment mode is one pop-up: two cards, inline warning, red Switch pill", () => {
   assert.ok(settings.includes("<PaymentModeSheet"));
   const t = read("components/PaymentModeSheet.tsx");

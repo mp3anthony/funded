@@ -22,6 +22,7 @@ import RemoveMemberModal from "@/components/RemoveMemberModal";
 import EditMemberModal from "@/components/EditMemberModal";
 import NotificationCenter from "@/components/NotificationCenter";
 import TimezoneDialog from "@/components/TimezoneDialog";
+import DeleteAccountFlow from "@/components/DeleteAccountFlow";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Row from "@/components/ui/Row";
 import Card from "@/components/ui/Card";
@@ -130,6 +131,9 @@ export default function SettingsClient() {
   const [leaveHouseholdError, setLeaveHouseholdError] = useState<string | null>(null);
   const [newOwnerId, setNewOwnerId] = useState<string | number | null>(null);
   const [deleteText, setDeleteText] = useState("");
+
+  /* Delete my account (#509) */
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   /* Deep-link: open the Profile dialog when arriving via /settings?modal=profile
      (e.g. a link to /settings?modal=profile). Reactive to the query param so
@@ -404,7 +408,7 @@ export default function SettingsClient() {
         <Row label="Report an issue" onClick={() => setIsBugReportOpen(true)} chevron tall divider />
       </Card>
 
-      {/* ── Log out, then Leave household in its own red card ── */}
+      {/* ── Log out, then Leave household and Delete my account in their own red cards ── */}
       <Card
         onClick={async () => {
           // Full navigation so no in-memory data survives into the next sign-in.
@@ -419,6 +423,12 @@ export default function SettingsClient() {
         className="mt-10 flex min-h-11 items-center border-destructive/40 px-4 py-3 text-[15px] font-semibold text-destructive-ink"
       >
         {leaveMode === "delete-only" ? "Delete household" : "Leave household"}
+      </Card>
+      <Card
+        onClick={() => setShowDeleteAccount(true)}
+        className="mt-3 flex min-h-11 items-center border-destructive/40 px-4 py-3 text-[15px] font-semibold text-destructive-ink"
+      >
+        Delete my account
       </Card>
 
       <div className="pt-8 pb-2 text-center text-[10px] text-subtle/60">© 2026 HazardousSchematics.com</div>
@@ -706,6 +716,13 @@ export default function SettingsClient() {
           />
         </Field>
       </ConfirmDialog>
+
+      {/* Delete my account (#509): pick a new owner if needed, then type DELETE */}
+      <DeleteAccountFlow
+        open={showDeleteAccount}
+        onClose={() => setShowDeleteAccount(false)}
+        householdName={householdName}
+      />
 
       {/* Timezone (owner-only; the Row above only opens this for owners) */}
       <TimezoneDialog

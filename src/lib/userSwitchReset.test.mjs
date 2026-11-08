@@ -80,7 +80,7 @@ test("log out and other sign-out buttons end with a full page navigation", () =>
   assert.match(helper, /window\.location\.assign\(/);
   assert.match(helper, /catch/);
   assert.ok(helper.includes('signOut({ scope: "local" })'));
-  for (const f of ["src/app/settings/settings-client.tsx", "src/app/confirm-email/page.tsx", "src/components/OnboardingWelcome.tsx"]) {
+  for (const f of ["src/app/settings/settings-client.tsx", "src/app/confirm-email/page.tsx", "src/components/OnboardingWelcome.tsx", "src/components/DeleteAccountFlow.tsx"]) {
     const src = read(f);
     assert.match(src, /signOutAndGoToLogin/, f);
     assert.doesNotMatch(src, /auth\.signOut\(/, f);

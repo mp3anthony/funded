@@ -45,10 +45,41 @@ test("join function: 401 without a header, lockout, failure counting", () => {
 });
 
 test("leave and delete functions: 401 without a header", () => {
-  for (const p of ["supabase/functions/leave-household/index.ts", "supabase/functions/delete-household/index.ts"]) {
+  for (const p of [
+    "supabase/functions/leave-household/index.ts",
+    "supabase/functions/delete-household/index.ts",
+    "supabase/functions/delete-account/index.ts",
+  ]) {
     const src = read(p);
     assert.doesNotMatch(src, /get\("Authorization"\)!/);
     assert.match(src, /if \(!authHeader\)/);
     assert.ok(src.indexOf("if (!authHeader)") < src.indexOf("auth.getUser("), p);
+  }
+});
+
+test("delete-account function: login deleted last, storage paths from the auth id only", () => {
+  const src = read("supabase/functions/delete-account/index.ts");
+  const deleteUserCalls = src.match(/auth\.admin\.deleteUser\(/g) ?? [];
+  assert.equal(deleteUserCalls.length, 1);
+  const deleteUserAt = src.indexOf("auth.admin.deleteUser(");
+  assert.ok(src.indexOf(".remove(") > -1 && src.indexOf(".remove(") < deleteUserAt);
+  assert.ok(src.lastIndexOf('.from("households")') < deleteUserAt);
+  assert.doesNotMatch(src, /householdId/);
+  assert.doesNotMatch(src, /avatar_url/);
+  assert.doesNotMatch(src, /getUserById\(/);
+  assert.match(src, /`avatars\/\$\{user\.id\}`/);
+  assert.match(src, /`screenshots\/\$\{user\.id\}`/);
+  // No storage folder is built from a member row id.
+  assert.doesNotMatch(src, /`(avatars|screenshots)\/\$\{(?!user\.id\})/);
+  assert.doesNotMatch(src, /me\.id\}/);
+  for (const name of [
+    "push_subscriptions",
+    "notification_settings",
+    "user_preferences",
+    "join_attempts",
+    '"avatars"',
+    '"bug-report-screenshots"',
+  ]) {
+    assert.ok(src.includes(name), name);
   }
 });

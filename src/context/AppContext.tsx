@@ -812,6 +812,7 @@ interface AppContextValue {
   joinHousehold: (code: string) => Promise<void>;
   leaveHousehold: (newOwnerMemberId?: string | number) => Promise<void>;
   deleteHousehold: () => Promise<void>;
+  deleteAccount: (newOwnerMemberId?: string | number) => Promise<void>;
 
   /* Bill Splits */
   billSplits: BillSplit[];
@@ -3963,7 +3964,8 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   // Calls a household edge function and unwraps its plain-English error
   // (the function replies { error } with a 4xx/5xx, which supabase-js hides
-  // inside error.context). Shared by leaveHousehold and deleteHousehold.
+  // inside error.context). Shared by leaveHousehold, deleteHousehold and
+  // deleteAccount.
   async function invokeHouseholdFunction(name: string, body: Record<string, unknown>, fallback: string) {
     const { data, error } = await supabase.functions.invoke(name, { body });
 
@@ -4044,6 +4046,26 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       await invokeHouseholdFunction("delete-household", { householdId: dbHouseholdId }, "Failed to delete household.");
     } catch (err) {
       console.error("Failed to delete household:", err);
+      throw err;
+    }
+  }
+
+  // #509. Delete the signed-in user's own account through the delete-account
+  // edge function (service role). The function works out the household from
+  // the caller's login (no household id is sent), applies the Leave household
+  // owner rules server-side (the only owner must pass newOwnerMemberId; a sole
+  // member's household is deleted), removes their storage files and personal
+  // rows, then deletes the login last. No state change here: the caller
+  // (DeleteAccountFlow) signs out with a full navigation on success.
+  async function deleteAccount(newOwnerMemberId?: string | number) {
+    try {
+      await invokeHouseholdFunction(
+        "delete-account",
+        { newOwnerMemberId: newOwnerMemberId ?? null },
+        "Failed to delete your account.",
+      );
+    } catch (err) {
+      console.error("Failed to delete account:", err);
       throw err;
     }
   }
@@ -5365,6 +5387,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     joinHousehold,
     leaveHousehold,
     deleteHousehold,
+    deleteAccount,
     billSplits,
     setBillSplits,
     addBillSplit,
