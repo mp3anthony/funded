@@ -2,7 +2,9 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Done work lives in git and GitHub; durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-11-01)
+## Current state (2026-11-09)
+
+- **Google Play push filed 2026-11-07** (from hazardous-schematics-website#158): [#509](https://github.com/mp3anthony/funded/issues/509) delete my account, [#510](https://github.com/mp3anthony/funded/issues/510) privacy policy page, [#511](https://github.com/mp3anthony/funded/issues/511) Android wrapper (TWA) and assetlinks.json, [#512](https://github.com/mp3anthony/funded/issues/512) store listing assets and copy, [#513](https://github.com/mp3anthony/funded/issues/513) Play declarations (draft answers). All `needs-triage`; none started. #511 submission is blocked by #509 and #510.
 
 - `main` is the only branch (local and origin). App is live on Vercel at `APP_VERSION` 0.1.3. No open PRs.
 - **Repo cleanup ([#501](https://github.com/mp3anthony/funded/issues/501)) done** (PRs #503-#507): `supabase/.temp/` untracked, old research file removed, legacy SQL moved to `supabase/legacy/`, README slimmed to setup plus pointers, SPEC.md slimmed (Part A untouched), lessons and glossaries pruned of stale items and R/F tags, pointers added to `CONTEXT-MAP.md` and `CLAUDE.md`.
@@ -35,11 +37,11 @@ Claude cannot log in, so none of these are smoke-tested:
 ## Next session, in order
 
 1. Anthony reports device-check findings; the fix list goes through Intake, Code Writer and independent review as usual.
-2. Otherwise pick from the open issues below.
+2. Google Play work. Decisions needed from Anthony first: where the privacy policy (#510) and the public account-deletion page (#509) live (Funded's site or the Hazardous Schematics site). #509 touches auth and data deletion, so it likely hits an A1 escalation and gets the plan pause. #513 drafts and #512 copy can run without him; #511 and #512 screenshots need him (signing key, Play Console, logged-in app, Android device).
 
 ## Open issues
 
-[#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+#509-#513 Google Play (above). [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
