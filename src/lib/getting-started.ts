@@ -165,7 +165,7 @@ export const pageGuide: GuidePage[] = [
   {
     name: "Settings",
     description:
-      "Tap your avatar at the top right. Your profile, notifications, appearance, members, household settings, Updates, Report an issue, Log out and Leave household.",
+      "Tap your avatar at the top right. Your profile, notifications, appearance, members, household settings, Updates, Report an issue, Log out, Leave household and Delete my account.",
   },
   {
     name: "Bell",

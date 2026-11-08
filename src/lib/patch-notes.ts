@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.4",
+    date: "November 2026",
+    highlights: [
+      "You can now delete your account from Settings. Type DELETE to confirm.",
+      "If you're the only owner, you pick who takes over first. If you're the only one in your household, it's deleted with your account.",
+    ],
+  },
+  {
     version: "0.1.3",
     date: "October 2026",
     highlights: [

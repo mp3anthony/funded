@@ -38,11 +38,15 @@ _Avoid_: Checklist, Setup Complete
 
 **Leave household**:
 Removing yourself from your household. A regular member, or an owner while another owner remains, leaves and the household carries on. An owner who is the only owner while other accepted members remain must either make an accepted member the new owner and then leave, or delete the household. A sole member can only delete, and so can an only owner whose only other members are pending (they are not in the household yet, so cannot be given ownership).
-_Avoid_: Delete account, quit, unsubscribe
+_Avoid_: quit, unsubscribe (not the same as Delete my account)
 
 **Delete household**:
 The owner-only action that permanently removes the household and everything in it for every member. Only available to an owner with no other owner, and it needs DELETE typed to confirm. Other members get no notice; they land on the create-or-join screen the next time they open the app.
-_Avoid_: Delete account
+_Avoid_: Delete account (that is Delete my account, which removes your login)
+
+**Delete my account**:
+Permanently deleting your own Funded login from Settings, with DELETE typed to confirm. It follows the Leave household owner rules: the only owner while other accepted members remain picks a new owner first; if no other accepted member remains, the household is deleted with the account; anyone else just leaves and the household carries on. Your profile photo, report screenshots, notifications, pay schedule, pay history, bill splits and contributions are deleted; bills, expenses and goals you were assigned stay, but unassigned. Cannot be undone.
+_Avoid_: Delete account, close account, deactivate
 
 ### Settling bills
 

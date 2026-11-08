@@ -35,8 +35,11 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   paid bills and, since R19 #406, may also create Pending pays: a `pay_history`
   insert and a `pay_schedules.next_pay_date` advance for paydays that passed
   unlogged) and the household edge functions
-  (`join-household`, `delete-household`, `leave-household`; the last moves
-  `households.user_id` to a remaining owner or nulls it, ADR 0005/0006). Any new use, or any code path
+  (`join-household`, `delete-household`, `leave-household`, `delete-account`;
+  `leave-household` moves `households.user_id` to a remaining owner or nulls
+  it, ADR 0005/0006; `delete-account` deletes the caller's own auth user via
+  `auth.admin.deleteUser` after removing their storage files and personal rows
+  and applying the Leave household owner rules server-side, #509). Any new use, or any code path
   that reads it outside a server-side route, requires approval first. If it
   reaches client code, every user gets full read/write on the database. Highest
   consequence rule in this spec.
