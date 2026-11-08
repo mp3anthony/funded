@@ -4,9 +4,11 @@
 
 ## Current state (2026-11-09)
 
-- **Google Play push filed 2026-11-07** (from hazardous-schematics-website#158): [#509](https://github.com/mp3anthony/funded/issues/509) delete my account, [#510](https://github.com/mp3anthony/funded/issues/510) privacy policy page, [#511](https://github.com/mp3anthony/funded/issues/511) Android wrapper (TWA) and assetlinks.json, [#512](https://github.com/mp3anthony/funded/issues/512) store listing assets and copy, [#513](https://github.com/mp3anthony/funded/issues/513) Play declarations (draft answers). All `needs-triage`; none started. #511 submission is blocked by #509 and #510.
-
-- `main` is the only branch (local and origin). App is live on Vercel at `APP_VERSION` 0.1.3. No open PRs.
+- `main` is the only branch (local and origin). App is live on Vercel at `APP_VERSION` 0.1.4. No open PRs.
+- **Delete my account ([#509](https://github.com/mp3anthony/funded/issues/509)) shipped** in PR [#518](https://github.com/mp3anthony/funded/pull/518) (v0.1.4): Settings button under Leave household, typed DELETE, Leave household owner rules. New `delete-account` edge function (service role, A1 approved by Anthony) deployed to Supabase, ACTIVE, verify_jwt on. Plan in [this #509 comment](https://github.com/mp3anthony/funded/issues/509#issuecomment-6720809202). Not yet live-checked.
+- **Google Play push still open:** [#510](https://github.com/mp3anthony/funded/issues/510) privacy policy, [#511](https://github.com/mp3anthony/funded/issues/511) Android wrapper (TWA), [#512](https://github.com/mp3anthony/funded/issues/512) listing assets and copy, [#513](https://github.com/mp3anthony/funded/issues/513) Play declarations, [#515](https://github.com/mp3anthony/funded/issues/515) public deletion page (split from #509; where it lives deferred, contact email placeholder). #511 submission needs #510 and #515.
+- New from #509: [#516](https://github.com/mp3anthony/funded/issues/516) profile photo upload likely failing (wrong folder id), [#517](https://github.com/mp3anthony/funded/issues/517) one-off clean-up of old member-id photo folders (prod storage, confirm first), [#519](https://github.com/mp3anthony/funded/issues/519) Delete my account edge-case polish.
+- New private security note (2026-11-09) in the private notes folder; needs Anthony's decision.
 - **Repo cleanup ([#501](https://github.com/mp3anthony/funded/issues/501)) done** (PRs #503-#507): `supabase/.temp/` untracked, old research file removed, legacy SQL moved to `supabase/legacy/`, README slimmed to setup plus pointers, SPEC.md slimmed (Part A untouched), lessons and glossaries pruned of stale items and R/F tags, pointers added to `CONTEXT-MAP.md` and `CLAUDE.md`.
 - Android push ([#145](https://github.com/mp3anthony/funded/issues/145)) and password-reset links ([#490](https://github.com/mp3anthony/funded/issues/490)) are fixed and verified live on Hannah's Android (install from Chrome with Chrome notifications on).
 - Launch video ([#495](https://github.com/mp3anthony/funded/issues/495)) is done, outside the repo in `D:\Anthonys-HQ\business\hazardous-schematics\brag-output\funded\2026-11-01-115132`.
@@ -32,16 +34,18 @@ Claude cannot log in, so none of these are smoke-tested:
 - Avatar upload/replace/remove, a logged-out avatar URL, report screenshot upload.
 - Leaving a household and deleting a household (as owner) still work (seed a `TEST-` household).
 - Cron-created Pending pays and push reminders (can only be tested live).
-- Updates card shows the 0.1.1-0.1.3 patch notes on next open.
+- Updates card shows the 0.1.1-0.1.4 patch notes on next open.
+- Delete my account (#509): sign up a throwaway, create a `TEST-` household, Settings > Delete my account, type DELETE: lands on Log in and that email no longer signs in. Optional: throwaway as only owner with you as member: it asks who takes over, then you're owner.
 
 ## Next session, in order
 
 1. Anthony reports device-check findings; the fix list goes through Intake, Code Writer and independent review as usual.
-2. Google Play work. Decisions needed from Anthony first: where the privacy policy (#510) and the public account-deletion page (#509) live (Funded's site or the Hazardous Schematics site). #509 touches auth and data deletion, so it likely hits an A1 escalation and gets the plan pause. #513 drafts and #512 copy can run without him; #511 and #512 screenshots need him (signing key, Play Console, logged-in app, Android device).
+2. Anthony reviews the private security note from 2026-11-09.
+3. Google Play work. Decision needed: where the privacy policy (#510) and public deletion page (#515) live. #513 drafts and #512 copy can run without him; #511 and #512 screenshots need him. #516 (photo upload) is a clear bug fix and can go any time.
 
 ## Open issues
 
-#509-#513 Google Play (above). [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+#510-#513, #515 Google Play; #516, #517, #519 (above). [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
