@@ -2,7 +2,9 @@
 
 > Where we left off. Rewritten at every wrap-up; current state only. Done work lives in git and GitHub; durable knowledge lives in the places listed at the bottom.
 
-## Current state (2026-11-09)
+## Current state (2026-11-13)
+
+- **New idea logged: bank statement import ([#521](https://github.com/mp3anthony/funded/issues/521))**: upload bank transactions, auto-create Bills from recurring payments. Out of spec (`CHANGE-LOG.md` line added, status pending), labelled `needs-triage`, `out-of-spec`, `needs-info`. Intake done (findings on the issue). Not actioned: the next session that picks it up starts with a grilling session (`grilling` + `domain-modeling`), then research (CSV/OFX per bank vs Akahu open banking, privacy). Likely A1 touches: new table + RLS, new dependency.
 
 - `main` is the only branch (local and origin). App is live on Vercel at `APP_VERSION` 0.1.4. No open PRs.
 - **Delete my account ([#509](https://github.com/mp3anthony/funded/issues/509)) shipped** in PR [#518](https://github.com/mp3anthony/funded/pull/518) (v0.1.4): Settings button under Leave household, typed DELETE, Leave household owner rules. New `delete-account` edge function (service role, A1 approved by Anthony) deployed to Supabase, ACTIVE, verify_jwt on. Plan in [this #509 comment](https://github.com/mp3anthony/funded/issues/509#issuecomment-6720809202). Not yet live-checked.
@@ -42,10 +44,11 @@ Claude cannot log in, so none of these are smoke-tested:
 1. Anthony reports device-check findings; the fix list goes through Intake, Code Writer and independent review as usual.
 2. Anthony reviews the private security note from 2026-11-09.
 3. Google Play work. Decision needed: where the privacy policy (#510) and public deletion page (#515) live. #513 drafts and #512 copy can run without him; #511 and #512 screenshots need him. #516 (photo upload) is a clear bug fix and can go any time.
+4. When Anthony picks up #521 (bank statement import): grilling session first, decisions listed on the issue.
 
 ## Open issues
 
-#510-#513, #515 Google Play; #516, #517, #519 (above). [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
+#510-#513, #515 Google Play; #516, #517, #519 (above); #521 bank statement import (out of spec, needs grilling). [#383](https://github.com/mp3anthony/funded/issues/383) change login email (after the overhaul). Repo interaction limit (collaborators only) runs until 2027-04-09 (#276); renew then.
 
 ## Process notes
 
