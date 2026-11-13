@@ -6,11 +6,11 @@
 
 - **New idea logged: bank statement import ([#521](https://github.com/mp3anthony/funded/issues/521))**: upload bank transactions, auto-create Bills from recurring payments. Out of spec (`CHANGE-LOG.md` line added, status pending), labelled `needs-triage`, `out-of-spec`, `needs-info`. Intake done (findings on the issue). Not actioned: the next session that picks it up starts with a grilling session (`grilling` + `domain-modeling`), then research (CSV/OFX per bank vs Akahu open banking, privacy). Likely A1 touches: new table + RLS, new dependency.
 
-- `main` is the only branch (local and origin). App is live on Vercel at `APP_VERSION` 0.1.4. No open PRs.
+- App is live on Vercel at `APP_VERSION` 0.1.4. Open PR [#524](https://github.com/mp3anthony/funded/pull/524) on `fix/516-avatar-auth-folder` (v0.1.5, `needs-merge-approval`, closes #516).
 - **Delete my account ([#509](https://github.com/mp3anthony/funded/issues/509)) shipped** in PR [#518](https://github.com/mp3anthony/funded/pull/518) (v0.1.4): Settings button under Leave household, typed DELETE, Leave household owner rules. New `delete-account` edge function (service role, A1 approved by Anthony) deployed to Supabase, ACTIVE, verify_jwt on. Plan in [this #509 comment](https://github.com/mp3anthony/funded/issues/509#issuecomment-6720809202). Not yet live-checked.
 - **Google Play push still open:** [#510](https://github.com/mp3anthony/funded/issues/510) privacy policy, [#511](https://github.com/mp3anthony/funded/issues/511) Android wrapper (TWA), [#512](https://github.com/mp3anthony/funded/issues/512) listing assets and copy, [#513](https://github.com/mp3anthony/funded/issues/513) Play declarations, [#515](https://github.com/mp3anthony/funded/issues/515) public deletion page (split from #509; where it lives deferred, contact email placeholder). #511 submission needs #510 and #515.
-- **Profile photo bug ([#516](https://github.com/mp3anthony/funded/issues/516)) confirmed and planned**: every profile photo upload, replace and remove has been refused since the 2026-10-30 hardening (the wrong id is passed to the avatar folder). Reviewed plan posted in [this #516 comment](https://github.com/mp3anthony/funded/issues/516#issuecomment-6842148363); labelled `ready-for-agent` (`needs-triage` removed). The comment lists three decisions with defaults. Next session builds it from that comment.
-- [#517](https://github.com/mp3anthony/funded/issues/517) one-off clean-up of old member-id photo folders (prod storage): only after #516 ships, with Anthony's go-ahead on the exact file list. [#519](https://github.com/mp3anthony/funded/issues/519) Delete my account edge-case polish.
+- **Profile photo bug ([#516](https://github.com/mp3anthony/funded/issues/516)) built**: commit 0c800c4, PR [#524](https://github.com/mp3anthony/funded/pull/524). Settings passes the auth user id to the avatar upload; own-folder guard `src/lib/avatarPath.ts` (legacy files skipped, left for #517); Replace and Remove save `avatar_url` first, then delete the old file; `updateMemberAvatar` now throws on error or 0 rows. Three reviews, verdict ship; 719 tests pass, tsc clean, build passes. Waiting on Anthony to confirm v0.1.5 and say go to merge, then the iPhone live check. The #516 issue body still wrongly says #509's delete-account sweeps both folder shapes; fix that issue text.
+- [#517](https://github.com/mp3anthony/funded/issues/517) one-off clean-up of old member-id photo folders (prod storage): plan posted in [this #517 comment](https://github.com/mp3anthony/funded/issues/517#issuecomment-6842568474), labelled `ready-for-agent`. Runs only after #516 is merged and live-checked, with Anthony's go on the plan (one-off local script with the service-role key, three decisions, recommend yes to each). Prod inventory: 5 avatar objects, 2 live to move, 3 orphans to delete. [#519](https://github.com/mp3anthony/funded/issues/519) Delete my account edge-case polish.
 - New private security note (2026-11-09) in the private notes folder; needs Anthony's decision.
 - **Repo cleanup ([#501](https://github.com/mp3anthony/funded/issues/501)) done** (PRs #503-#507): `supabase/.temp/` untracked, old research file removed, legacy SQL moved to `supabase/legacy/`, README slimmed to setup plus pointers, SPEC.md slimmed (Part A untouched), lessons and glossaries pruned of stale items and R/F tags, pointers added to `CONTEXT-MAP.md` and `CLAUDE.md`.
 - Android push ([#145](https://github.com/mp3anthony/funded/issues/145)) and password-reset links ([#490](https://github.com/mp3anthony/funded/issues/490)) are fixed and verified live on Hannah's Android (install from Chrome with Chrome notifications on).
@@ -34,7 +34,7 @@ Claude cannot log in, so none of these are smoke-tested:
 - Bonus flow and Payday note icon; confirming a Pending pay runs rules (#454).
 - Home Screen icon shows the lime "f." after deleting and re-saving from Safari.
 - Create household shows an 8-character code that copies; joining with a new and an old (6-character) code works.
-- Avatar upload/replace/remove, a logged-out avatar URL, report screenshot upload.
+- Avatar upload/replace/remove (covered by the #516 live check), a logged-out avatar URL, report screenshot upload.
 - Leaving a household and deleting a household (as owner) still work (seed a `TEST-` household).
 - Cron-created Pending pays and push reminders (can only be tested live).
 - Updates card shows the 0.1.1-0.1.4 patch notes on next open.
@@ -42,7 +42,7 @@ Claude cannot log in, so none of these are smoke-tested:
 
 ## Next session, in order
 
-1. Build #516 in a fresh session from [the plan comment](https://github.com/mp3anthony/funded/issues/516#issuecomment-6842148363) (Code Writer, independent review, merge advice). Then #517 with Anthony's go-ahead on the exact file list.
+1. Anthony confirms v0.1.5 and says go; merge PR #524; Anthony live-checks photo upload/replace/remove on iPhone; then #517 from [its plan comment](https://github.com/mp3anthony/funded/issues/517#issuecomment-6842568474) on his go.
 2. Anthony reports device-check findings; the fix list goes through Intake, Code Writer and independent review as usual.
 3. Anthony reviews the private security note from 2026-11-09.
 4. Google Play work. Decision needed: where the privacy policy (#510) and public deletion page (#515) live. #513 drafts and #512 copy can run without him; #511 and #512 screenshots need him.
