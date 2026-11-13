@@ -4229,26 +4229,24 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     }
   }
 
+  // Throws on failure (#516) so callers never delete the old photo when the save did not land.
   async function updateMemberAvatar(memberId: string | number, avatarUrl: string | null) {
-    try {
-      const { error } = await supabase
-        .from("household_members")
-        .update({ avatar_url: avatarUrl })
-        .eq("id", memberId);
+    const { data, error } = await supabase
+      .from("household_members")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", memberId)
+      .select("id");
 
-      if (error) {
-        console.error("Error updating member avatar:", error);
-        return;
-      }
-
-      setMembers((prev) =>
-        prev.map((m) =>
-          String(m.id) === String(memberId) ? { ...m, avatar_url: avatarUrl } : m
-        )
-      );
-    } catch (err) {
-      console.error("Failed to update member avatar:", err);
+    if (error || !data || data.length === 0) {
+      console.error("Error updating member avatar:", error ?? "no rows updated");
+      throw new Error("Could not save your photo. Please try again.");
     }
+
+    setMembers((prev) =>
+      prev.map((m) =>
+        String(m.id) === String(memberId) ? { ...m, avatar_url: avatarUrl } : m
+      )
+    );
   }
 
   /* ── Bill Splits Actions ────────────────────── */

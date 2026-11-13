@@ -65,6 +65,30 @@ test("Members: owner-only round Invite member button, role and Pending pills", (
   assert.ok(settings.includes("rounded-full"), "avatars are round");
 });
 
+test("Profile photo uses the signed-in user's auth id, not the member row id (#516)", () => {
+  assert.ok(code.includes("authUserId={session.user.id}"), "Settings passes session.user.id");
+  assert.ok(code.includes("currentMember && session?.user?.id && ("), "avatar only renders with a session");
+  assert.ok(!settings.includes("userId={String(currentMember.id)}"));
+  const avatar = stripComments(read("components/AvatarUpload.tsx"));
+  assert.ok(avatar.includes("authUserId: string") && !/\buserId\b/.test(avatar));
+  const replace = fnBody(avatar, "const handleCropComplete", "const handleRemove");
+  const up = replace.indexOf("uploadAvatar(authUserId");
+  const saved = replace.indexOf("await onAvatarChange(publicUrl)");
+  const del = replace.indexOf("deleteAvatar(authUserId, oldAvatarUrl)");
+  assert.ok(up > -1 && saved > up && del > saved, "Replace uploads and saves the new photo before deleting the old one");
+  const remove = fnBody(avatar, "const handleRemove", "const triggerFileInput");
+  const cleared = remove.indexOf("await onAvatarChange(null)");
+  assert.ok(cleared > -1 && remove.indexOf("deleteAvatar(") > cleared, "Remove clears the saved photo before deleting the file");
+  const ctx = stripComments(read("context/AppContext.tsx"));
+  const save = fnBody(ctx, "async function updateMemberAvatar", "async function addBillSplit");
+  assert.ok(save.includes('.select("id")') && save.includes("data.length === 0"), "save checks a row was updated");
+  assert.ok(save.includes("throw new Error(") && !/return;/.test(save), "save failure throws, no silent return");
+  assert.ok(save.indexOf("throw new Error(") < save.indexOf("setMembers("), "local state only updates after a successful save");
+  const storage = read("lib/storage.ts");
+  assert.match(storage, /`avatars\/\$\{userId\}\//);
+  assert.ok(storage.includes("isOwnAvatarPath(filePath, userId)"), "deleteAvatar only removes own-folder files");
+});
+
 test("Help card: Updates (with version), Getting started, Report an issue; no standalone version line", () => {
   assert.ok(settings.includes('label="Updates"') && settings.includes("`v${APP_VERSION}`") && settings.includes('href="/patch-notes"'));
   assert.ok(settings.includes('label="Getting started"') && settings.includes('href="/getting-started"'));
