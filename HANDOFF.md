@@ -9,7 +9,8 @@
 - `main` is the only branch (local and origin). App is live on Vercel at `APP_VERSION` 0.1.4. No open PRs.
 - **Delete my account ([#509](https://github.com/mp3anthony/funded/issues/509)) shipped** in PR [#518](https://github.com/mp3anthony/funded/pull/518) (v0.1.4): Settings button under Leave household, typed DELETE, Leave household owner rules. New `delete-account` edge function (service role, A1 approved by Anthony) deployed to Supabase, ACTIVE, verify_jwt on. Plan in [this #509 comment](https://github.com/mp3anthony/funded/issues/509#issuecomment-6720809202). Not yet live-checked.
 - **Google Play push still open:** [#510](https://github.com/mp3anthony/funded/issues/510) privacy policy, [#511](https://github.com/mp3anthony/funded/issues/511) Android wrapper (TWA), [#512](https://github.com/mp3anthony/funded/issues/512) listing assets and copy, [#513](https://github.com/mp3anthony/funded/issues/513) Play declarations, [#515](https://github.com/mp3anthony/funded/issues/515) public deletion page (split from #509; where it lives deferred, contact email placeholder). #511 submission needs #510 and #515.
-- New from #509: [#516](https://github.com/mp3anthony/funded/issues/516) profile photo upload likely failing (wrong folder id), [#517](https://github.com/mp3anthony/funded/issues/517) one-off clean-up of old member-id photo folders (prod storage, confirm first), [#519](https://github.com/mp3anthony/funded/issues/519) Delete my account edge-case polish.
+- **Profile photo bug ([#516](https://github.com/mp3anthony/funded/issues/516)) confirmed and planned**: every profile photo upload, replace and remove has been refused since the 2026-10-30 hardening (the wrong id is passed to the avatar folder). Reviewed plan posted in [this #516 comment](https://github.com/mp3anthony/funded/issues/516#issuecomment-6842148363); labelled `ready-for-agent` (`needs-triage` removed). The comment lists three decisions with defaults. Next session builds it from that comment.
+- [#517](https://github.com/mp3anthony/funded/issues/517) one-off clean-up of old member-id photo folders (prod storage): only after #516 ships, with Anthony's go-ahead on the exact file list. [#519](https://github.com/mp3anthony/funded/issues/519) Delete my account edge-case polish.
 - New private security note (2026-11-09) in the private notes folder; needs Anthony's decision.
 - **Repo cleanup ([#501](https://github.com/mp3anthony/funded/issues/501)) done** (PRs #503-#507): `supabase/.temp/` untracked, old research file removed, legacy SQL moved to `supabase/legacy/`, README slimmed to setup plus pointers, SPEC.md slimmed (Part A untouched), lessons and glossaries pruned of stale items and R/F tags, pointers added to `CONTEXT-MAP.md` and `CLAUDE.md`.
 - Android push ([#145](https://github.com/mp3anthony/funded/issues/145)) and password-reset links ([#490](https://github.com/mp3anthony/funded/issues/490)) are fixed and verified live on Hannah's Android (install from Chrome with Chrome notifications on).
@@ -41,10 +42,11 @@ Claude cannot log in, so none of these are smoke-tested:
 
 ## Next session, in order
 
-1. Anthony reports device-check findings; the fix list goes through Intake, Code Writer and independent review as usual.
-2. Anthony reviews the private security note from 2026-11-09.
-3. Google Play work. Decision needed: where the privacy policy (#510) and public deletion page (#515) live. #513 drafts and #512 copy can run without him; #511 and #512 screenshots need him. #516 (photo upload) is a clear bug fix and can go any time.
-4. When Anthony picks up #521 (bank statement import): grilling session first, decisions listed on the issue.
+1. Build #516 in a fresh session from [the plan comment](https://github.com/mp3anthony/funded/issues/516#issuecomment-6842148363) (Code Writer, independent review, merge advice). Then #517 with Anthony's go-ahead on the exact file list.
+2. Anthony reports device-check findings; the fix list goes through Intake, Code Writer and independent review as usual.
+3. Anthony reviews the private security note from 2026-11-09.
+4. Google Play work. Decision needed: where the privacy policy (#510) and public deletion page (#515) live. #513 drafts and #512 copy can run without him; #511 and #512 screenshots need him.
+5. When Anthony picks up #521 (bank statement import): grilling session first, decisions listed on the issue.
 
 ## Open issues
 
