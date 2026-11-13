@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { signOutAndGoToLogin } from "@/lib/signOut";
@@ -8,7 +8,13 @@ import Dialog, { DialogButton } from "@/components/ui/Dialog";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Field from "@/components/ui/Field";
 import Input from "@/components/ui/Input";
-import { deleteAccountModeFor, eligibleNewOwners, isDeleteConfirmed } from "@/lib/householdLeave";
+import {
+  deleteAccountModeFor,
+  eligibleNewOwners,
+  isDeleteConfirmed,
+  isPickNewOwnerReply,
+  isUnauthorizedReply,
+} from "@/lib/householdLeave";
 
 interface DeleteAccountFlowProps {
   open: boolean;
@@ -22,26 +28,33 @@ interface DeleteAccountFlowProps {
  * re-checks it server-side, so a stale screen just gets a plain-English error
  * in the dialog. The only owner picks a new owner first. Success signs out
  * with a full navigation.
+ * #519: if the server says pick a new owner (stale screen), the flow reloads
+ * and moves to the picker; a 401 on a retry means the earlier attempt already
+ * deleted the login (its reply was lost), so it signs out like a success.
  */
 export default function DeleteAccountFlow({ open, onClose, householdName }: DeleteAccountFlowProps) {
-  const { members, session, deleteAccount } = useApp();
+  const { members, session, deleteAccount, retryLoadData } = useApp();
 
   const currentMember = members.find(
     (m) => String(m.email).toLowerCase() === String(session?.user?.email).toLowerCase()
   );
-  const mode = deleteAccountModeFor(members, currentMember);
-  const eligibleOwners = currentMember ? eligibleNewOwners(members, currentMember.id) : [];
-
   const [step, setStep] = useState<"transfer" | "confirm">("confirm");
   const [newOwnerId, setNewOwnerId] = useState<string | number | null>(null);
   const [deleteText, setDeleteText] = useState("");
+  // A delete request has been sent at least once (kept across reopen).
+  const attemptedRef = useRef(false);
+
+  // A picked new owner means transfer, even if stale members still say leave.
+  const memberMode = deleteAccountModeFor(members, currentMember);
+  const mode = newOwnerId !== null ? "transfer" : memberMode;
+  const eligibleOwners = currentMember ? eligibleNewOwners(members, currentMember.id) : [];
 
   // Fresh state each time the flow opens (derived-state reset, no effect).
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      setStep(mode === "transfer" ? "transfer" : "confirm");
+      setStep(memberMode === "transfer" ? "transfer" : "confirm");
       setNewOwnerId(null);
       setDeleteText("");
     }
@@ -132,7 +145,21 @@ export default function DeleteAccountFlow({ open, onClose, householdName }: Dele
         errorMessage="That didn't work. Please check your connection and try again."
         onCancel={onClose}
         onConfirm={async () => {
-          await deleteAccount(mode === "transfer" ? newOwnerId ?? undefined : undefined);
+          const isRetry = attemptedRef.current;
+          attemptedRef.current = true;
+          try {
+            await deleteAccount(mode === "transfer" ? newOwnerId ?? undefined : undefined);
+          } catch (err) {
+            if (isPickNewOwnerReply(err)) {
+              // Stale screen: nothing was deleted. Refresh and show the picker.
+              retryLoadData();
+              setNewOwnerId(null);
+              setStep("transfer");
+              return;
+            }
+            // Lost reply: the earlier attempt already deleted the login.
+            if (!(isRetry && isUnauthorizedReply(err))) throw err;
+          }
           await signOutAndGoToLogin();
         }}
         message={

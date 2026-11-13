@@ -125,6 +125,18 @@ test("Delete my account sits below Leave household and opens its own flow", () =
   assert.ok(read("context/AppContext.tsx").includes('"delete-account"'));
 });
 
+test("Delete my account recovers from a stale screen and a lost reply (#519)", () => {
+  const flow = stripComments(read("components/DeleteAccountFlow.tsx"));
+  // Only-owner reply: reload and move to the picker instead of a dead-end error.
+  const pick = flow.slice(flow.indexOf("isPickNewOwnerReply(err)"));
+  assert.ok(pick.length > 0 && flow.includes("isPickNewOwnerReply(err)"));
+  assert.ok(pick.indexOf("retryLoadData()") < pick.indexOf("return;"));
+  assert.ok(pick.indexOf('setStep("transfer")') < pick.indexOf("return;"));
+  // 401 only counts as done on a retry, then signs out like a success.
+  assert.ok(flow.includes("isRetry && isUnauthorizedReply(err)"));
+  assert.ok(flow.indexOf("isUnauthorizedReply(err)") < flow.lastIndexOf("await signOutAndGoToLogin()"));
+});
+
 test("Payment mode is one pop-up: two cards, inline warning, red Switch pill", () => {
   assert.ok(settings.includes("<PaymentModeSheet"));
   const t = read("components/PaymentModeSheet.tsx");

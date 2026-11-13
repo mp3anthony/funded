@@ -74,6 +74,25 @@ export function isDeleteConfirmed(text: string): boolean {
   return text.trim() === "DELETE";
 }
 
+/** The delete-account function's reply when the caller is the only owner (#519). Keep in step with it. */
+export const PICK_NEW_OWNER_ERROR = "Pick a new owner before you delete your account.";
+
+/** The server says pick a new owner first: the screen thought this was a plain leave (#519). */
+export function isPickNewOwnerReply(err: unknown): boolean {
+  return err instanceof Error && err.message === PICK_NEW_OWNER_ERROR;
+}
+
+/**
+ * A 401 from delete-account: the function's own "Unauthorized" reply, or a
+ * non-2xx whose response status is 401. On a retry this means the earlier
+ * attempt already deleted the login and only its reply was lost (#519).
+ */
+export function isUnauthorizedReply(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { message?: unknown; context?: { status?: unknown } };
+  return e.message === "Unauthorized" || e.context?.status === 401;
+}
+
 /**
  * Who `households.user_id` (the creator record; RLS no longer trusts it, #350)
  * should point at after `leaver` goes. Mirrors the edge function. null = no

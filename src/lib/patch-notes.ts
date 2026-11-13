@@ -29,6 +29,14 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.6",
+    date: "November 2026",
+    highlights: [
+      "Delete my account: if you turn out to be the only owner, it now takes you straight to picking a new owner.",
+      "Delete my account: if your account was deleted but the reply got lost, tapping again now signs you out instead of showing an error.",
+    ],
+  },
+  {
     version: "0.1.5",
     date: "November 2026",
     highlights: [

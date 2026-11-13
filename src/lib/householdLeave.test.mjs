@@ -8,7 +8,11 @@ import {
   isDeleteConfirmed,
   nextCreatorUserId,
   deleteAccountModeFor,
+  isPickNewOwnerReply,
+  isUnauthorizedReply,
+  PICK_NEW_OWNER_ERROR,
 } from "./householdLeave.ts";
+import { readFileSync } from "node:fs";
 
 const owner = { id: "o1", role: "owner", user_id: "u1", invitation_status: "accepted", created_at: "2026-01-01" };
 const owner2 = { id: "o2", role: "owner", user_id: "u2", invitation_status: "accepted", created_at: "2026-02-01" };
@@ -107,4 +111,21 @@ test("deleteAccountModeFor: caller row with a user id but still pending just lea
   const pendingMe = { id: "p3", role: "owner", user_id: "u5", invitation_status: "pending", created_at: "2026-06-01" };
   assert.equal(deleteAccountModeFor([pendingMe], pendingMe), "leave");
   assert.equal(deleteAccountModeFor([pendingMe, pending], pendingMe), "leave");
+});
+
+test("isPickNewOwnerReply: matches the delete-account only-owner reply (#519)", () => {
+  assert.equal(isPickNewOwnerReply(new Error(PICK_NEW_OWNER_ERROR)), true);
+  assert.equal(isPickNewOwnerReply(new Error("That person can't take over as owner.")), false);
+  assert.equal(isPickNewOwnerReply(PICK_NEW_OWNER_ERROR), false);
+  assert.equal(isPickNewOwnerReply(null), false);
+  const fn = readFileSync(new URL("../../supabase/functions/delete-account/index.ts", import.meta.url), "utf8");
+  assert.ok(fn.includes(JSON.stringify(PICK_NEW_OWNER_ERROR)), "edge function reply text drifted");
+});
+
+test("isUnauthorizedReply: function's Unauthorized body or a 401 status (#519)", () => {
+  assert.equal(isUnauthorizedReply(new Error("Unauthorized")), true);
+  assert.equal(isUnauthorizedReply(Object.assign(new Error("Edge Function returned a non-2xx status code"), { context: { status: 401 } })), true);
+  assert.equal(isUnauthorizedReply(Object.assign(new Error("Edge Function returned a non-2xx status code"), { context: { status: 500 } })), false);
+  assert.equal(isUnauthorizedReply(new Error("Failed to delete your account.")), false);
+  assert.equal(isUnauthorizedReply(undefined), false);
 });
