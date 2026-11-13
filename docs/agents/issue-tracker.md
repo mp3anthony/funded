@@ -38,7 +38,7 @@ Run `gh issue view <number> --comments`.
 This repo's own liaison protocol (`CLAUDE.md`) uses three additional labels the generic skill vocabulary doesn't have roles for — apply them per `CLAUDE.md`'s own rules, not via the `triage` skill:
 
 - `needs-manual-test` — on request only (since 2026-10-11 the default is live-app checks after merge): Anthony wants a hands-on preview review before merge, e.g. one PR and one version bump covering a set of issues
-- `needs-merge-approval` — default for every code PR once review is done; orchestrator gives clean/not-clean advice, Anthony approves the merge
+- `needs-merge-approval`: only on a code PR actually waiting on Anthony (review not clean or ambiguous, A1 touch, or the orchestrator wants him to look); since 2026-11-13 a clean PR is merged by the orchestrator without it
 - `out-of-spec` — falls outside current `SPEC.md`; logged to `CHANGE-LOG.md`, not scoped until triaged
 
 (The repo also has a `ready-for-testing` label on GitHub that isn't referenced anywhere in `CLAUDE.md` — left alone; not part of this workflow.)
