@@ -1,7 +1,11 @@
 import { supabase } from "./supabase";
+import { isOwnAvatarPath } from "./avatarPath";
 
 /**
  * Uploads a user avatar to Supabase Storage and returns the public CDN URL.
+ * `userId` must be the signed-in user's auth id (session.user.id), never a
+ * household member row id: the avatars storage policies only allow
+ * `avatars/<auth id>/`.
  */
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
   // Prefer the MIME type for the extension; fall back to the file name only
@@ -36,7 +40,10 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 }
 
 /**
- * Deletes a user avatar from Supabase Storage.
+ * Deletes a user avatar from Supabase Storage. `userId` is the signed-in
+ * user's auth id. Only files in the caller's own folder are removed; anything
+ * else (legacy member-id photos, odd URLs) is skipped and left for a separate
+ * clean-up, because storage would refuse it anyway.
  */
 export async function deleteAvatar(userId: string, imageUrl: string): Promise<void> {
   const bucketName = "avatars";
@@ -45,13 +52,20 @@ export async function deleteAvatar(userId: string, imageUrl: string): Promise<vo
   if (index === -1) return;
 
   const filePath = imageUrl.substring(index + marker.length);
+  if (!isOwnAvatarPath(filePath, userId)) {
+    console.warn("Skipped deleting an avatar outside your own folder.");
+    return;
+  }
 
-  const { error } = await supabase.storage
+  const { data, error } = await supabase.storage
     .from(bucketName)
     .remove([filePath]);
 
   if (error) {
     throw error;
+  }
+  if (!data || data.length === 0) {
+    console.warn("Avatar delete removed nothing.");
   }
 }
 

@@ -13,14 +13,15 @@ const MAX_PRECROP_BYTES = 30 * 1024 * 1024;
 interface AvatarUploadProps {
   currentAvatarUrl: string | null;
   memberName: string;
-  userId: string;
-  onAvatarChange: (url: string | null) => void;
+  /** The signed-in user's auth id (session.user.id), not a member row id. */
+  authUserId: string;
+  onAvatarChange: (url: string | null) => void | Promise<void>;
 }
 
 export default function AvatarUpload({
   currentAvatarUrl,
   memberName,
-  userId,
+  authUserId,
   onAvatarChange,
 }: AvatarUploadProps) {
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,7 @@ export default function AvatarUpload({
   const handleCropComplete = async (blob: Blob) => {
     closeCropModal();
 
-    const processedFile = new File([blob], `${userId}-${Date.now()}.jpg`, {
+    const processedFile = new File([blob], `${authUserId}-${Date.now()}.jpg`, {
       type: "image/jpeg",
     });
 
@@ -72,17 +73,20 @@ export default function AvatarUpload({
     setLoading(true);
 
     try {
-      // If there's an existing avatar, delete it from storage first
-      if (currentAvatarUrl) {
+      // Upload and save the new photo first, so a failed upload never leaves
+      // the profile pointing at a deleted file.
+      const oldAvatarUrl = currentAvatarUrl;
+      const publicUrl = await uploadAvatar(authUserId, processedFile);
+      await onAvatarChange(publicUrl);
+
+      // Then clean up the old photo. A failed clean-up is not shown to the user.
+      if (oldAvatarUrl && oldAvatarUrl !== publicUrl) {
         try {
-          await deleteAvatar(userId, currentAvatarUrl);
+          await deleteAvatar(authUserId, oldAvatarUrl);
         } catch (delErr) {
           console.warn("Could not delete old avatar from storage:", delErr);
         }
       }
-
-      const publicUrl = await uploadAvatar(userId, processedFile);
-      onAvatarChange(publicUrl);
     } catch (err: any) {
       console.error("Avatar upload failed:", err);
       setError(err.message || "Failed to upload avatar.");
@@ -98,9 +102,17 @@ export default function AvatarUpload({
     setLoading(true);
     setError(null);
     try {
-      await deleteAvatar(userId, currentAvatarUrl);
-      onAvatarChange(null);
+      // Clear the saved photo first; only then clean up the old file.
+      const oldAvatarUrl = currentAvatarUrl;
+      await onAvatarChange(null);
       setPreviewUrl(null);
+
+      // A failed clean-up is not shown to the user.
+      try {
+        await deleteAvatar(authUserId, oldAvatarUrl);
+      } catch (delErr) {
+        console.warn("Could not delete old avatar from storage:", delErr);
+      }
     } catch (err: any) {
       console.error("Failed to remove avatar:", err);
       setError(err.message || "Failed to remove avatar.");

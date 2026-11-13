@@ -465,11 +465,11 @@ export default function SettingsClient() {
       >
         <div className="flex flex-col gap-5">
           <div className="flex justify-center">
-            {currentMember && (
+            {currentMember && session?.user?.id && (
               <AvatarUpload
                 currentAvatarUrl={currentMember.avatar_url || null}
                 memberName={currentMember.name}
-                userId={String(currentMember.id)}
+                authUserId={session.user.id}
                 onAvatarChange={async (newUrl) => {
                   await updateMemberAvatar(currentMember.id, newUrl);
                 }}

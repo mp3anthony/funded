@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.5",
+    date: "November 2026",
+    highlights: [
+      "Uploading, changing and removing your profile photo in Settings works again.",
+    ],
+  },
+  {
     version: "0.1.4",
     date: "November 2026",
     highlights: [
