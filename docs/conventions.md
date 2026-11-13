@@ -17,8 +17,8 @@ Binding build and process rules. Vocabulary lives in `docs/context/`; this file 
 
 - `src/lib/version.ts` (`APP_VERSION`) is the single source of truth for the display version. The `version` field in `package.json` is unused npm metadata and is not the source.
 - Bump `+0.0.1` per build. Every bump carries a patch-notes entry in the same PR (see "Patch notes"). Do not bump as a side effect of an unrelated change. A rework commit on the same open PR does not re-bump; a new build cycle does.
-- Confirm the exact resulting version with Anthony immediately before merging to `main`. He can waive a bump. When parallel PRs collide on the version, renumber and confirm again.
-- `v1.0.0` is the public beta. The version applied at each merge is decided with Anthony at merge time.
+- The orchestrator applies the normal next patch version in the PR without asking. Only a minor or major bump is confirmed with Anthony before merge. He can waive a bump. When parallel PRs collide on the version, renumber before merging.
+- `v1.0.0` is the public beta; when to make that (or any minor) bump is Anthony's call.
 - The version shows at the bottom of Settings and on the Updates card, both read from `APP_VERSION`; never restate the current version in a doc.
 - **Long-lived feature branch exception (used once, the #377 redesign, released as v0.1.0 in PR #481):** a long-lived branch carries no per-slice bump or patch note; one bump and one patch-notes entry (written from the closed slices' "What's changing") happen in the final slice before the single merge. Anthony may check each slice on the branch's Vercel preview, and each slice's commit range gets an independent sub-agent review. Migrations on such a branch must stay compatible with the old code still live on `main`, because preview and production share one Supabase.
 - Merge conflicts on `version.ts` and `src/lib/patch-notes.ts` are common when two same-day PRs both bump: keep the higher version and both entries. If both land on the same version number, combine the bullets under one entry.
@@ -66,12 +66,12 @@ The Updates card (a compact non-blocking card above the bottom nav, #260) shows 
 - **Safari and backdrop-filter:** Safari does not animate opacity on an element that also carries `backdrop-filter`; put the dim and blur on an inner element.
 - **Dashboard tips** live in `dashboard-tips.ts` (plain string array). Update the tips whenever a shipped feature changes user-facing behaviour. The tips show one at a time in the Dashboard tip strip (R26).
 - **Icons (#174):** the tab favicon and the home-screen icon (apple-touch-icon and manifest icons) are the light icon with a `?v=3` cache-bust; leave the manifest `theme_color`, `background_color` and the viewport `themeColor` alone. Trade-offs are in `docs/lessons.md`.
-- **Live-check notes (replaces the manual-test checklist, 2026-10-11):** Anthony checks changes in production after merge, not on previews, unless he asks for a preview review (`needs-manual-test`, which then carries the checklist format in CLAUDE.md). Merge advice carries 1-3 plain-language lines on what to glance at (iPhone only); no checklist on the issue. Every issue has a "What's changing" section in plain terms.
+- **Live-check notes (replaces the manual-test checklist, 2026-10-11):** Anthony checks changes in production after merge, not on previews, unless he asks for a preview review (`needs-manual-test`, which then carries the checklist format in CLAUDE.md). The orchestrator's post-merge message (or its ask-first message) carries 1-3 plain-language lines on what to check (iPhone only); no checklist on the issue. Every issue has a "What's changing" section in plain terms.
 - **Live-check notes target iPhone (iOS Safari) only,** never Android. Code must still work on iOS and Android.
 
 ## Standing constraints
 
 - **Funded is a mobile app.** It is an installed home-screen app (iPhone for Anthony; Hannah uses Android in real life). Never lead with, test or ask about desktop behaviour.
-- **Never commit directly to `main`;** work on milestone branches only. Issue closure triggers merge.
+- **Never commit directly to `main`;** work on milestone branches only. Who merges is in `CLAUDE.md` (Review and merge approval); the issue closes after the merge.
 - The hard technical invariants (RLS mandatory, service-role key server-only, stack changes, the standing rules) live in `SPEC.md` Part A1 and A2. They are binding and are not copied here.
 - **Goals, not Funds:** the `/funds` route is the Goals page. Say Goals in anything Anthony reads; the route and code names are unchanged and there is no app-wide rename.

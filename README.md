@@ -279,7 +279,7 @@ Ensure every variable in `.env.local.example` is configured in your deployment p
 
 ## Contributing
 
-This is a solo project built by an orchestrator session and a sub-agent team under Anthony's direction. The workflow, rules and roles live in [`CLAUDE.md`](CLAUDE.md); build conventions are in [`docs/conventions.md`](docs/conventions.md). Every change goes on a branch and PR with an independent review, and Anthony approves each merge.
+This is a solo project built by an orchestrator session and a sub-agent team under Anthony's direction. The workflow, rules and roles live in [`CLAUDE.md`](CLAUDE.md); build conventions are in [`docs/conventions.md`](docs/conventions.md). Every change goes on a branch and PR with an independent review; the orchestrator merges a clean PR and asks Anthony first about anything else.
 
 ---
 
