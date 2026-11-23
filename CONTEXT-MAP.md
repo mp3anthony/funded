@@ -19,7 +19,7 @@ Funded is a household bills and goals budgeting app, installed on a phone, where
 
 Glossary convention: a planned term (agreed but not built) stays in its glossary tagged "(planned, #ticket)" while a GitHub issue exists for it. Remove the tag when it ships; delete the entry if the ticket is dropped.
 
-Workflow and process terms (orchestrator, subagents, labels, tickets, wrap-up) live in `CLAUDE.md`. Architectural decisions live in `docs/adr/`.
+Workflow and process terms (orchestrator, subagents, labels, tickets, wrap-up) live in `CLAUDE.md` and `docs/workflow.md`. Architectural decisions live in `docs/adr/`.
 
 Non-glossary knowledge: binding build rules in `docs/conventions.md`, hard-won lessons and known items in `docs/lessons.md`, hosting, database and operations facts in `docs/environment.md`. Locked invariants and standing technical rules are in `SPEC.md` Part A.
 

@@ -71,7 +71,7 @@ The Updates card (a compact non-blocking card above the bottom nav, #260) shows 
 
 ## Standing constraints
 
-- **Funded is a mobile app.** It is an installed home-screen app (iPhone for Anthony; Hannah uses Android in real life). Never lead with, test or ask about desktop behaviour.
+- **Funded is a mobile app.** It is an installed home-screen app (iPhone for Anthony; real users also run Android). Never lead with, test or ask about desktop behaviour.
 - **Never commit directly to `main`;** work on milestone branches only. Who merges is in `CLAUDE.md` (Review and merge approval); the issue closes after the merge.
 - The hard technical invariants (RLS mandatory, service-role key server-only, stack changes, the standing rules) live in `SPEC.md` Part A1 and A2. They are binding and are not copied here.
 - **Goals, not Funds:** the `/funds` route is the Goals page. Say Goals in anything Anthony reads; the route and code names are unchanged and there is no app-wide rename.

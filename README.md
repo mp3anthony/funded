@@ -27,21 +27,7 @@ Funded is a household cash-flow app that answers one question per payday: *how m
 
 ## Features
 
-- **Payday transfers** — enter income per contributor and the app calculates exact weekly transfer amounts to cover household bills in full
-- **Bill tracking** — manage bills across any frequency (weekly, fortnightly, monthly, yearly) with paid/due-soon/overdue status tracking, plus pausing, auto-pay bills and a permanent "Undo payment" on the last paid cycle
-- **Expenses** — variable spending (groceries, fuel) that counts toward the household total as a weekly amount
-- **Frequency normalisation** — all bills convert to a common frequency for apples-to-apples comparison
-- **Savings goals** — targets with progress rings, a pace line, manual top-ups, and a Wish list of goals you are not saving towards yet
-- **Pay rules** — rules that send a share of pay above a threshold to a goal, set per goal or per member
-- **Payment modes** — choose between Joint Fund (pooled pot) or Direct Pay (split bills between members)
-- **Multi-member households** — invite members via join code, manage roles (owner/member), and assign bill splits
-- **Dashboard verdict** — one line at the top says "Bills covered" or "Short $X a week", worked out weekly from your pay (or contributions) against bills and expenses
-- **Check impact** — a calculator on Bills and Goals that shows what a new payment plan or subscription would do to the household total, and can turn it into a bill
-- **Notifications** — in-app notification centre plus web push reminders (bills, pending pay, payday, goals), read/unread state, per-type settings, a per-member notify hour and a household timezone
-- **Light and dark mode** — automatic via `prefers-color-scheme` CSS media query, with a manual Light / Dark / System choice under Appearance in Settings (applied as a `.dark` / `.light` class)
-- **PWA** — installable as a home screen app on iOS Safari and Android Chrome with an offline fallback page
-- **In-app help** — a public Getting started guide, an Updates page (patch notes) with a Known Issues tab, a first-open Updates card, and in-app bug reporting
-- **Authentication** — email/password auth via Supabase (implicit flow, session persisted in `localStorage`), email confirmation, and password reset
+Funded helps a household cover its bills from everyone's pay: bills and expenses, savings goals and pay rules, a dashboard verdict, reminders and push notifications, light and dark mode, and an installable home-screen app. The full screen-by-screen list is in [`SPEC.md`](SPEC.md); vocabulary is in [`CONTEXT-MAP.md`](CONTEXT-MAP.md).
 
 ---
 
@@ -130,6 +116,7 @@ The Supabase schema is defined in the `supabase/` directory. Run these SQL files
 
 - **`supabase/functions/join-household/`** — serverless function that handles household join code validation and member addition
 - **`supabase/functions/delete-household/`** — serverless function that handles deleting a household
+- **`supabase/functions/delete-account/`**: serverless function that deletes the signed-in user's account (storage, household step, personal rows, then the login last)
 - **`supabase/functions/leave-household/`** — serverless function that lets a member leave; an only owner must hand ownership to an accepted member first (moves `households.user_id` to a remaining owner)
 
 Edge Functions are deployed separately from the app (`supabase functions deploy`).
@@ -150,84 +137,15 @@ Reminders are generated and delivered by two cron routes (see [`docs/context/not
 
 ## Project structure
 
-```
-funded-nextjs/
-├── public/
-│   ├── icons/                # PWA and app icons, logos
-│   ├── email/                # Images used by the auth email templates
-│   ├── manifest.json         # PWA manifest
-│   └── sw.js                 # Service worker (offline support)
-├── scripts/
-│   └── stamp-sw.mjs          # Stamps the service worker cache name at build time
-├── src/
-│   ├── app/                  # Next.js App Router pages
-│   │   ├── layout.tsx        # Root layout (fonts, metadata, providers)
-│   │   ├── globals.css       # Design tokens + Tailwind v4 theme
-│   │   ├── page.tsx          # Dashboard (home; UI in page-client.tsx)
-│   │   ├── api/              # Route handlers
-│   │   │   ├── bug-report/             # Files a GitHub issue from an in-app bug report
-│   │   │   ├── known-issues/           # Cached feed of GitHub issues labelled known-issue (Known Issues tab)
-│   │   │   ├── cron/push-reminders/    # Generates scheduled reminders
-│   │   │   ├── cron/deliver-scheduled/ # Pushes reminders that have come due
-│   │   │   └── push/                   # Push subscribe / send
-│   │   ├── auth/callback/    # Auth redirect handler
-│   │   ├── bills/            # Bills and expenses page
-│   │   ├── confirm-email/    # Email confirmation page
-│   │   ├── funds/            # Goals page (route is /funds)
-│   │   ├── getting-started/  # Public Getting started guide
-│   │   ├── login/            # Login / sign-up page
-│   │   ├── offline/          # Offline fallback page
-│   │   ├── patch-notes/      # Updates page (patch notes + known issues)
-│   │   ├── payday/           # Pay schedules, pay logging and history page
-│   │   ├── reset-password/update/  # Set a new password (reached from the reset email)
-│   │   └── settings/         # Account, app, household and member settings
-│   ├── components/           # Reusable UI components (about 70, plus ui/)
-│   │   ├── AppShell.tsx      # Auth guard, onboarding gate, bottom nav shell
-│   │   ├── Onboarding.tsx    # Onboarding: Welcome, create or join, then the Setup hub
-│   │   ├── BottomNav.tsx     # Floating 4-slot pill nav (slots in lib/navSlots.ts)
-│   │   ├── PageHeader.tsx    # Shared page header: title, back circle, + circle, bell, avatar
-│   │   ├── HeaderActions.tsx # Bell (unread only) and avatar for the page header
-│   │   ├── ShellInboxContext.tsx # Lets the header bell open the AppShell notification inbox
-│   │   ├── NotificationCenter.tsx # In-app notification centre (alerts, settings)
-│   │   ├── *Sheet / *Modal / *Dialog.tsx  # Bottom sheets and dialogs (bills, goals, pay, members, bug report, push, timezone)
-│   │   ├── Dashboard*.tsx    # Dashboard stats, bills and goals carousels, tip strip
-│   │   ├── *Card.tsx         # List and pay cards (bills, expenses, member pay, finish setup)
-│   │   └── ui/               # Shared primitives (Dialog, DetailSheet, SingleCard, StepFlow, Row, Toast, Button, IconCircle/BackCircle/CloseCircle, Chip, Card, Input/Select/Textarea, Carousel, ProgressRing)
-│   ├── context/
-│   │   └── AppContext.tsx    # Global state provider (auth, data, CRUD)
-│   ├── hooks/                # Small shared hooks (viewport vars, keyboard-open for the nav fade)
-│   ├── lib/
-│   │   ├── supabase.ts       # Supabase client initialisation
-│   │   ├── storage.ts        # Avatar upload/delete/get utilities
-│   │   ├── utils.ts          # Shared helpers (date, frequency conversion)
-│   │   ├── verdict.ts        # Dashboard verdict and stats maths (tests in verdict.test.mjs)
-│   │   ├── navSlots.ts       # Bottom-nav slots and path-to-slot lookup (tests in navSlots.test.mjs, appShell.test.mjs)
-│   │   ├── carousel.ts       # Carousel maths: snap targets, active slide, auto-rotate rule (tests in carouselLogic.test.mjs, carousel.test.mjs)
-│   │   ├── billCycle.ts      # Bill rollover logic (tests in billCycle.test.mjs)
-│   │   ├── finishSetup.ts    # Finish setting up card rules and the `?add=1` link param that opens a page's add sheet (tests in finishSetup.test.mjs)
-│   │   ├── push.ts / pushClient.ts  # Web push (server send, client subscribe)
-│   │   ├── notifications/    # Reminder generation, timezone, tap destinations
-│   │   ├── patch-notes.ts    # Patch notes content
-│   │   ├── patchNotesWindow.ts # Which patch notes the page shows (newest month only; tests in patchNotesWindow.test.mjs)
-│   │   ├── knownIssues.ts / knownIssuesFetch.ts  # Known Issues blurb parsing (tests in knownIssues.test.mjs) and cached GitHub fetch
-│   │   ├── getting-started.ts # Getting started guide content
-│   │   └── version.ts        # APP_VERSION
-│   └── types/
-│       └── index.ts          # Shared TypeScript interfaces
-├── supabase/
-│   ├── legacy/               # Early schema and RLS SQL (cannot rebuild the database alone)
-│   ├── migrations/           # Incremental schema migrations
-│   ├── email-templates/      # Auth email HTML (pasted into Supabase by hand)
-│   └── functions/            # Supabase Edge Functions
-├── docs/                     # Conventions, environment notes, lessons, glossaries, ADRs
-├── vercel.json               # Vercel Cron fallback for reminder generation
-├── next.config.ts            # Next.js configuration
-├── tsconfig.json             # TypeScript configuration
-├── postcss.config.mjs        # PostCSS (Tailwind v4)
-├── eslint.config.mjs         # ESLint configuration
-├── .env.local                # Environment variables (git-ignored)
-└── package.json
-```
+- `src/app/` Next.js App Router pages and `api/` route handlers (bug report, known issues, cron, push)
+- `src/components/` UI components, with shared primitives in `ui/`
+- `src/context/AppContext.tsx` global state (auth, data, CRUD)
+- `src/lib/` shared logic (verdict maths, bill cycles, notifications, push, patch notes, `version.ts`)
+- `src/types/` shared TypeScript types
+- `supabase/` `migrations/`, `functions/` (Edge Functions), `email-templates/`, `legacy/`
+- `public/` icons, manifest, service worker (`sw.js`), email images
+- `scripts/` build helpers
+- `docs/` conventions, environment notes, lessons, glossaries, ADRs
 
 ---
 
@@ -299,5 +217,4 @@ Private — all rights reserved.
 
 ```
 © 2026 HazardousSchematics.com
-Built with Antigravity IDE
 ```
