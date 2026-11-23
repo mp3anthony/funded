@@ -2,7 +2,7 @@
 
 **Fund the house first. Everything else comes second.**
 
-Funded is a household cash-flow app that answers one question per payday: *how much should each person transfer to cover the bills?* It isn't a budgeting tool that tracks every coffee — it calculates each contributor's share of household expenses so bills are covered before personal spending begins.
+Funded is a household cash-flow app that answers one question per payday: *how much should each person transfer to cover the bills?* It isn't a budgeting tool that tracks every coffee, it calculates each contributor's share of household expenses so bills are covered before personal spending begins.
 
 ---
 
@@ -104,20 +104,20 @@ The Supabase URL and anon key are in your Supabase project dashboard under **Set
 
 The Supabase schema is defined in the `supabase/` directory. Run these SQL files in order via the Supabase SQL Editor:
 
-1. **`supabase/legacy/schema.sql`** — core tables: `households`, `bills`, `funds`, `paydays`
-2. **`supabase/legacy/household_members_table.sql`** — the `household_members` table
-3. **`supabase/legacy/rls_policies.sql`** — row-level security policies
-4. **`supabase/legacy/secure_rls_policies.sql`** — additional hardened RLS rules
-5. **`supabase/migrations/`** — apply each migration file in order. The un-dated files come first, then the date-prefixed files in filename order.
+1. **`supabase/legacy/schema.sql`**, core tables: `households`, `bills`, `funds`, `paydays`
+2. **`supabase/legacy/household_members_table.sql`**, the `household_members` table
+3. **`supabase/legacy/rls_policies.sql`**, row-level security policies
+4. **`supabase/legacy/secure_rls_policies.sql`**, additional hardened RLS rules
+5. **`supabase/migrations/`**, apply each migration file in order. The un-dated files come first, then the date-prefixed files in filename order.
 
 > **Note:** the legacy SQL files and the migrations together cannot rebuild a database from scratch. Some tables (for example notifications, notification settings and push subscriptions) have no `CREATE TABLE` in the repo. The live Supabase project is the source of truth; see [`docs/environment.md`](docs/environment.md) for how it is managed.
 
 ### Edge Functions
 
-- **`supabase/functions/join-household/`** — serverless function that handles household join code validation and member addition
-- **`supabase/functions/delete-household/`** — serverless function that handles deleting a household
+- **`supabase/functions/join-household/`**, serverless function that handles household join code validation and member addition
+- **`supabase/functions/delete-household/`**, serverless function that handles deleting a household
 - **`supabase/functions/delete-account/`**: serverless function that deletes the signed-in user's account (storage, household step, personal rows, then the login last)
-- **`supabase/functions/leave-household/`** — serverless function that lets a member leave; an only owner must hand ownership to an accepted member first (moves `households.user_id` to a remaining owner)
+- **`supabase/functions/leave-household/`**, serverless function that lets a member leave; an only owner must hand ownership to an accepted member first (moves `households.user_id` to a remaining owner)
 
 Edge Functions are deployed separately from the app (`supabase functions deploy`).
 
@@ -131,7 +131,7 @@ Two Storage buckets are used: `avatars` (public, for avatar image uploads) and `
 
 ### Scheduling
 
-Reminders are generated and delivered by two cron routes (see [`docs/context/notifications.md`](docs/context/notifications.md)). In production a Supabase `pg_cron` job calls each of them every few minutes; `vercel.json` also carries a once-a-day Vercel Cron on `/api/cron/push-reminders` as a fallback.
+Reminders are generated and delivered by two cron routes (see [`docs/context/notifications/notifications.md`](docs/context/notifications/notifications.md)). In production a Supabase `pg_cron` job calls each of them every few minutes; `vercel.json` also carries a once-a-day Vercel Cron on `/api/cron/push-reminders` as a fallback.
 
 ---
 
@@ -209,7 +209,7 @@ The version shown in Settings under Updates comes from `src/lib/version.ts` (`AP
 
 ## License
 
-Private — all rights reserved.
+Private, all rights reserved.
 
 ---
 

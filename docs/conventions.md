@@ -10,7 +10,7 @@ Binding build and process rules. Vocabulary lives in `docs/context/`; this file 
 - `CHANGE-LOG.md`: append-only inbox for out-of-spec requests, triaged on demand.
 - `README.md`: setup and pointers only (install, run, database setup, project structure). See "README upkeep".
 - `docs/agents/`: tracker, label and domain-doc setup for the agent skills (`issue-tracker.md`, `triage-labels.md`, `domain.md`).
-- `HANDOFF.md`: current state only (where we left off, what is next). Durable facts go to their home in `CLAUDE.md`'s "Where knowledge lives", never into `HANDOFF.md`. There is no archive file; git history holds prior versions.
+- `HANDOFF.md`: current state only (where we left off, what is next). Durable facts go to their home in the "Knowledge lives in" bullet of `CLAUDE.md` (Start here), never into `HANDOFF.md`. There is no archive file; git history holds prior versions.
 - `docs/context/` holds vocabulary, `docs/adr/` holds hard-to-reverse decisions, `docs/lessons.md` and `docs/environment.md` hold lessons and operations.
 
 ## Versioning
@@ -66,12 +66,12 @@ The Updates card (a compact non-blocking card above the bottom nav, #260) shows 
 - **Safari and backdrop-filter:** Safari does not animate opacity on an element that also carries `backdrop-filter`; put the dim and blur on an inner element.
 - **Dashboard tips** live in `dashboard-tips.ts` (plain string array). Update the tips whenever a shipped feature changes user-facing behaviour. The tips show one at a time in the Dashboard tip strip (R26).
 - **Icons (#174):** the tab favicon and the home-screen icon (apple-touch-icon and manifest icons) are the light icon with a `?v=3` cache-bust; leave the manifest `theme_color`, `background_color` and the viewport `themeColor` alone. Trade-offs are in `docs/lessons.md`.
-- **Live-check notes (replaces the manual-test checklist, 2026-10-11):** Anthony checks changes in production after merge, not on previews, unless he asks for a preview review (`needs-manual-test`, which then carries the checklist format in CLAUDE.md). The orchestrator's post-merge message (or its ask-first message) carries 1-3 plain-language lines on what to check (iPhone only); no checklist on the issue. Every issue has a "What's changing" section in plain terms.
+- **Live-check notes (replaces the manual-test checklist, 2026-10-11):** Anthony checks changes in production after merge, not on previews, unless he asks for a preview review (`needs-manual-test`, which then carries the checklist format in `docs/workflow.md`, Review and merge approval). The orchestrator's post-merge message (or its ask-first message) carries 1-3 plain-language lines on what to check (iPhone only); no checklist on the issue. Every issue has a "What's changing" section in plain terms.
 - **Live-check notes target iPhone (iOS Safari) only,** never Android. Code must still work on iOS and Android.
 
 ## Standing constraints
 
 - **Funded is a mobile app.** It is an installed home-screen app (iPhone for Anthony; real users also run Android). Never lead with, test or ask about desktop behaviour.
-- **Never commit directly to `main`;** work on milestone branches only. Who merges is in `CLAUDE.md` (Review and merge approval); the issue closes after the merge.
+- **Never commit directly to `main`;** work on milestone branches only. Who merges is in `docs/workflow.md` (Review and merge approval); the issue closes after the merge.
 - The hard technical invariants (RLS mandatory, service-role key server-only, stack changes, the standing rules) live in `SPEC.md` Part A1 and A2. They are binding and are not copied here.
 - **Goals, not Funds:** the `/funds` route is the Goals page. Say Goals in anything Anthony reads; the route and code names are unchanged and there is no app-wide rename.

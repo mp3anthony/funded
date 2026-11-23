@@ -5,11 +5,11 @@
 ## Current state (2026-11-24)
 
 - Live on Vercel at `APP_VERSION` 0.1.6 (last code change: #519, PR #527). Not yet live-checked: #509 and #519 Delete my account (need throwaway accounts).
-- Repo tidy-up (home#16, epic home#20): Session A done, merged in PR #530 (purpose paragraph, `CLAUDE.md` 35 lines, new `docs/workflow.md`, stale history trimmed). Docs-only tidy PRs need no version bump.
-- Session B next (steps 4 to 8): rebuild `CONTEXT-MAP.md` as a lane index (`docs/context/<lane>/` folders; `money.md` 169 lines and `app-shell.md` 114 are near the 200 cap, check line length too); `docs/environment.md` lists secret NAMES only, no private paths; context check of every pointer; doctor run by separate subagents; wrap-up. The home#16 slice split recording is Anthony's.
-- Carry: `SPEC.md` Slices 1-22 untrimmed (optional later); file a GitHub issue for `console.log` lines logging user ids in `AppContext.tsx` (not yet filed); README still has some em dashes.
+- Repo tidy-up (home#16, epic home#20): Session B done on branch `docs/tidy-up-b` (PR pending merge) (context lanes under `docs/context/<lane>/`, `CONTEXT-MAP.md` as lane index, `docs/environment.md` names only, docs dashes fixed). Tidy-up is complete for funded once that PR merges; Anthony records the slices on home#16 and home#20.
+- Carry: `SPEC.md` Slices 1-22 untrimmed (optional); `SPEC.md` still has about 91 em dashes (optional cleanup); file a GitHub issue for `console.log` lines logging user ids in `AppContext.tsx` (not yet filed).
+- Small code ticket needed: stale comments in `src` (`verdict.ts` points at `docs/context/money.md`; "AGENTS.md invariant #2" in `globals.css` and `Dialog.tsx`).
 - Google Play (#510-#513, #515) on hold. #521 bank statement import: out of spec, `needs-info`, starts with a grilling session.
-- Key rotation not done; tracked privately. Private security note (2026-11-09) needs Anthony's decision.
+- Key rotation not done; tracked privately. Private security note needs Anthony's decision.
 
 ## Owed (Anthony)
 - Confirm Supabase Auth "Confirm email" is ON; optionally check Redirect URLs include `/reset-password/update` (#490).
@@ -22,8 +22,7 @@
 - Delete my account (#509, #519): throwaway plus `TEST-` household, type DELETE, lands on Log in; only-owner case asks who takes over.
 
 ## Next session, in order
-1. Tidy-up Session B (above).
-2. Delete my account checks once a throwaway account exists; device-check findings go through Intake, Code Writer, independent review. Open issues: #510-#513, #515, #521, #383. Interaction limit (#276) renew 2027-04-09.
+1. Delete my account checks once a throwaway account exists; device-check findings go through Intake, Code Writer, independent review. Open issues: #510-#513, #515, #521, #383. Interaction limit (#276) renew 2027-04-09.
 
 ## Process notes
 - No spawned sessions: build here, or Anthony wraps and clears. Orchestrator never writes code; every diff goes Code Writer then independent reviewer. A `HANDOFF.md`-only wrap-up goes on its own `docs/handoff-*` PR, merged straight away.
