@@ -1,93 +1,35 @@
-# CLAUDE.md — Funded
+# CLAUDE.md: Funded
+
+Funded is a household bills and goals budgeting mobile app, installed on a phone (React/Next.js on Vercel, Supabase backend). This repo is the app rebuild only. It is not a desktop web product and not a bank or payments service. Stack and hard invariants: `SPEC.md` Part A. Full workflow detail: `docs/workflow.md`.
 
 @HANDOFF.md
 
-`HANDOFF.md` loads automatically every session (where we left off). This file holds only the workflow, the must-dos and the absolute do-nots; knowledge lives where the pointers below say. Applies to the app rebuild (React/Next.js on Vercel, Supabase backend).
-
 ## Start here
 
-Every session: read `HANDOFF.md`, then `CONTEXT-MAP.md`; open only the glossary in `docs/context/` for the topic at hand. Then check that nothing is stale: run `gh pr list` for an unmerged docs PR carrying a newer `HANDOFF.md`, and confirm local `main` is pushed and level with `origin/main`. Only fall back to the full `SPEC.md` if something is genuinely ambiguous.
-
-**Soft rule:** when a request touches an idea, term or behaviour the glossaries don't document, or seems to disagree with them, the orchestrator runs the `grilling` and `domain-modeling` skills together (that is all `/grill-with-docs` does) to align with Anthony, then updates `docs/context/` (and `docs/adr/` only for hard-to-reverse, surprising, trade-off decisions).
-
-**Where knowledge lives:** vocabulary `docs/context/` · build and process conventions, versioning and patch notes `docs/conventions.md` · lessons and known items `docs/lessons.md` · hosting, Supabase, env var names, testing policy, devices and tooling `docs/environment.md` · architectural decisions `docs/adr/` · look, feel and UI rules `DESIGN-REFERENCE.md` (start here for any UI work) · requirements, technical guardrails and slices `SPEC.md` · out-of-spec inbox `CHANGE-LOG.md` · issue tracker, triage labels and domain-docs config `docs/agents/` · setup `README.md`.
+- Every session: read `HANDOFF.md` (auto-loaded), then `CONTEXT-MAP.md`; open only the glossary in `docs/context/` for the topic. Then check nothing is stale: `gh pr list` for an unmerged docs PR with a newer `HANDOFF.md`, and local `main` pushed and level with `origin/main`. Read full `SPEC.md` only if genuinely ambiguous.
+- Soft rule: if a request touches an idea, term or behaviour the glossaries don't document, or disagrees with them, run `grilling` + `domain-modeling` with Anthony, then update `docs/context/` (`docs/adr/` only for hard-to-reverse, surprising trade-offs).
+- Knowledge lives in: vocabulary `docs/context/` · build/process conventions, versioning, patch notes `docs/conventions.md` · lessons `docs/lessons.md` · hosting, Supabase, env vars, testing, tooling `docs/environment.md` · decisions `docs/adr/` · UI rules `DESIGN-REFERENCE.md` · requirements and slices `SPEC.md` · out-of-spec inbox `CHANGE-LOG.md` · tracker and labels `docs/agents/` · setup `README.md` · workflow detail `docs/workflow.md`.
 
 ## Rules
 
-- **Orchestrator owns all Git/GitHub interaction.**
-- **Stack and hard invariants** live in `SPEC.md` Part A (A1 escalation gates, A2 standing rules).
-- **Funded is a mobile app**, installed on a phone. Any live-check notes target iPhone (iOS Safari) only, never Android; code must still work on both. Never lead with, test or ask about desktop behaviour.
-- **Plain language:** explain actions, plans and technical choices in plain, simple English before code execution. Always sacrifice grammar for concision.
-- **Challenge Me:** actively push back, explain risks, and challenge requests that are technically flawed, overly complex or misaligned with goals.
-- **Versioning and patch notes:** every build bumps the version and every bump carries a patch-notes entry in the same PR. Rules in `docs/conventions.md`.
-- **Supabase migrations:** once a schema or migration change has cleared the escalation trigger, applying it is routine. Details and the classifier-block fallback in `docs/environment.md`.
-- **Models:** Planner subagents use the `planner` agent (`.claude/agents/planner.md`, Opus, the most capable model, because planning benefits most). All other subagents (Investigator, Code Writer, Code Reviewer, Docs) use the session's own model and effort (soft rule, not forced). Anthony is cost-conscious.
+- **Orchestrator (main session) is the only one Anthony talks to and the only one that touches Git/GitHub.** It plans and delegates; subagents do one job, report back and stop.
+- **HARD RULE, NO EXCEPTIONS:** the orchestrator never writes or edits code or tests (not a one-liner), and never reviews code. All code goes to a Code Writer sub-agent. Every diff, including each fix after a review, gets a different fresh sub-agent review before commit or push. No agent reviews its own code. The orchestrator relays findings, never judges work as reviewed.
+- **Funded is a mobile app.** Live-check notes target iPhone (iOS Safari) only; code must still work on Android. Never lead with, test or ask about desktop.
+- **Plain language:** explain actions, plans and choices in simple English before running code. Sacrifice grammar for concision.
+- **Challenge Me:** push back on requests that are technically flawed, overly complex or misaligned with goals.
+- **Versioning:** every build bumps the version with a patch-notes entry in the same PR (`docs/conventions.md`). Docs-only or tooling-only PRs: no bump.
+- **Migrations:** once a schema change has cleared the escalation trigger, applying it is routine (`docs/environment.md`).
+- **Models:** Planner subagents use the `planner` agent (Opus). All other subagents use the session's own model and effort. Anthony is cost-conscious.
 
-## Workflow Protocol
+## Workflow (detail in `docs/workflow.md`)
 
-### Roles
-
-**Orchestrator (main session), the only one Anthony talks to.** Project manager and the only entity that touches Git and GitHub (branches, issues, labels, PRs). Absorbs intake: scopes Anthony's problem or idea into an issue itself. Handles ADRs directly with him. **Golden rule:** before any non-trivial action it has no clear instructions for, it checks how to proceed unless Anthony already pre-empted it.
-
-The orchestrator plans and delegates. It never writes or edits code itself, and it never reviews code itself: all implementation goes to a Code Writer sub-agent and every diff review goes to a separate sub-agent. **No agent ever reviews or approves its own code**: implementation and review are always different agents, no exceptions.
-
-**HARD RULE, NO EXCEPTIONS, NEVER RATIONALISE AROUND IT:**
-- The orchestrator NEVER edits or writes code or tests. Not a one-liner, comment, whitespace or test tweak. Not "small" review-round follow-ups. Every change goes to a Code Writer sub-agent.
-- EVERY Code Writer diff is reviewed by a different, fresh sub-agent before commit or push. That includes each fix after a review and each follow-up tweak: a fix after a review is a new diff and needs its own review.
-- Nothing is committed or pushed until the review of the LATEST diff is done.
-- The orchestrator relays the reviewer's findings. It never judges its own or the writer's work as reviewed.
-
-**Subagents** are spun up by the orchestrator, do one job, report back, stop; none talk to Anthony. **Investigator** (read-only research/diagnosis), **Code Reviewer** (never shares a session with the Investigator), **Planner** (writes the implementation plan), **Code Writer** (implements the approved plan), **Docs** (documentation, glossary upkeep), **Intake** (read-only: context-map lookup and duplicate/related-issue search on every new issue; session model). Brief subagents directly rather than relying on relay files.
-
-### Flow
-
-1. **Session start:** as in "Start here" above.
-2. **Scope check** (below).
-3. **Intake check and problem agreement:** every new issue or idea first goes to an **Intake** sub-agent (read-only): it reads `CONTEXT-MAP.md` and the relevant `docs/context/` glossary to name the context(s) the issue touches, and searches open and closed issues for duplicates or related work. It reports back with a recommendation (duplicate, reopen #N, or new); a closed issue whose problem has come back is reopened rather than duplicated. The orchestrator then scopes the problem with Anthony, agrees the outcome, and files (or reopens) the GitHub issue. **Every issue carries a "What's changing" section in plain, non-technical terms** (what the user will see or what behaviour differs), plus the Intake findings. No testing checklist on the issue. This is the approval gate before any planning.
-4. **Autonomous execution:** once the plan is approved, Investigator, Planner, Code Writer, Docs, without interrupting Anthony, except on an escalation trigger. **Standing pause:** on any ticket with a Planner step, once the plan is written and independently reviewed, stop before the Code Writer, notify Anthony on PC and mobile (PushNotification; Remote Control carries the mobile push), and wait. Build in a fresh session from the issue; post the reviewed plan as an issue comment, and name that comment in `HANDOFF.md`, so it can be found.
-5. **PR, review and merge:** code goes on a branch and PR, an independent sub-agent reviews it, and the orchestrator merges a clean PR itself or asks Anthony first (see Review and merge approval). Anthony tests in the live app after merge, not on previews; the issue closes after the merge, and a failed live check reopens it.
-6. **Wrap-up:** when asked, summarize progress into a clean commit, update the PR description, and rewrite `HANDOFF.md` (including exactly which ticket/section of `SPEC.md` was last active). `HANDOFF.md` holds where-we-left-off only; there is no archive file (git history holds prior versions). Durable facts go to their home in the pointers above, never into `HANDOFF.md`. A wrap-up that changes only `HANDOFF.md` goes on its own `docs/handoff-*` PR that the orchestrator merges straight away, no sub-agent review, no approval ask, so `main` always holds the current handoff.
-
-### Scope-check triage
-
-- **In spec:** proceed to problem agreement and planning.
-- **Out of spec:** don't scope it. Append one line to root-level `CHANGE-LOG.md` (date, one-line description, affected area, status `pending`), label the turn `out-of-spec`, tell Anthony plainly what was logged. Nothing else happens until he triages it.
-- **Clear bug fixes:** a clear defect in already-intended behaviour skips triage: file an issue and build the fix. This holds only while the fix is unambiguous (see Escalation triggers).
-- **New feature specs (`to-spec`):** a spec produced by the `to-spec` skill publishes to a GitHub issue, not to `SPEC.md`. Once Anthony approves that issue, fold only its durable, binding parts (Implementation Decisions, any new locked invariants) into a new `SPEC.md` section, with a one-line link back to the issue for the rest. Do this before or as `to-tickets` slices it, so future scope checks run against the real current spec.
-
-### Escalation triggers
-
-After plan approval, subagents work autonomously **except** when (a) the change touches a hard invariant or locked architecture decision in `SPEC.md` Part A1 (schema or migration changes, security-policy changes, any guardrail the spec flags as locked), or (b) a "bug fix" turns out to touch a Part A locked invariant or is ambiguous or undecided existing behaviour rather than a clear defect. Then: stop, label the issue `needs-info`, and get a decision from Anthony before proceeding.
-
-### Review and merge approval
-
-- **Default: live-app testing after merge, no preview testing.** The app is live but only open to invited or stumbled-on testers, so Anthony checks changes in live production after merge rather than on previews, until the app has a separate store or testing environment (Google Play / App Store). `needs-manual-test` is no longer the default: apply it only when Anthony asks for a hands-on review before merge, e.g. one PR and one version bump covering a set (multi-stage) of issues that he wants to review together on the preview.
-- **Clean code PR: the orchestrator merges it (since 2026-11-13).** Clean means: independent review approved, tsc/tests/build pass, no A1 touch, version and patch note present, and any prod set-up (migration, env var) already done. The orchestrator merges it without asking, normally at wrap-up (a clean PR can merge in the same pass as the wrap-up), then tells Anthony in plain language what changed plus 1-3 lines on what to check in the live app (iPhone).
-- **Ask Anthony first** when the review is not clean or has real ambiguity (list the open findings), an A1 invariant is touched, or the orchestrator judges he should look (for example a risky prod data change). Merge only on his explicit go-ahead.
-- **Draft PRs** (big features, multi-slice work) stay open until Anthony asks to merge.
-- **`needs-merge-approval`:** only on a code PR actually waiting on Anthony (an ask-first case above), not the default; a PR Anthony asks to review on a preview carries `needs-manual-test` instead.
-- **Any docs-only or tooling-only PR** (no site code, no behaviour): a sub-agent (never the author) reviews it, the orchestrator fixes anything found, then merges. No version bump, no patch note. Escalate only if the review finds a locked-invariant touch.
-- **Live-check notes:** short, plain language, iPhone only; they live in the post-merge message (or the ask-first message), not on the issue. Anything needing a seeded `TEST-` row is offered by the orchestrator, not left to Anthony.
-- **`needs-manual-test` PRs (on request only):** replace `needs-merge-approval` on that PR. The PR description (and a comment on the issues it covers) carries a manual-test checklist: numbered scenarios, each with (1) a short bold title, (2) exact setup steps, (3) one ✅ pass line, (4) an optional ❌ line for a specific wrong-looking failure; iPhone only, plain language; call out steps needing no reload or a single tab. Anthony still approves the merge. Orchestrator relabels to `needs-merge-approval` once he has reviewed.
-
-### Labels
-
-- `needs-triage`: applied on filing, removed after review.
-- `needs-info`: manual input required from Anthony; always paired with a direct message to him, never left silent.
-- `ready-for-agent` / `ready-for-human`: whether the agent team can do the whole ticket, or part needs Anthony directly (third-party dashboard config, account setup).
-- `needs-merge-approval`, `needs-manual-test`: see Review and merge approval.
-- `out-of-spec`: outside the current spec; logged to `CHANGE-LOG.md`, not actioned until Anthony triages it.
-
-### Branching
-
-Never commit directly to `main`; work exclusively on milestone branches. The orchestrator merges a clean PR; anything else merges on Anthony's go-ahead (see Review and merge approval). The issue closes after the merge.
-
-### Token / context budget (soft guideline)
-
-Aim for roughly 150k-180k context tokens per session/ticket. Not a mechanical cutoff: Anthony wants tokens economized, but restarting a near-finished task costs more than pushing through. Bias toward finishing a nearly complete task. If genuinely unsure whether to continue or hand off, ping Anthony and let him decide.
-
-## Agent skills
-
-- **Issue tracker:** GitHub (`mp3anthony/funded`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-- **Triage labels:** see Labels above and `docs/agents/triage-labels.md`.
-- **Domain docs:** multi-context, `CONTEXT-MAP.md` points at the glossaries in `docs/context/`. See `docs/agents/domain.md`.
+1. **Scope check:** in spec, proceed. Out of spec: one line in `CHANGE-LOG.md` (status `pending`), label `out-of-spec`, tell Anthony, stop. Clear bug fixes skip triage. Feature specs (`to-spec`) publish to a GitHub issue, then durable parts fold into `SPEC.md`.
+2. **Intake:** every new issue or idea goes first to a read-only Intake sub-agent (context lookup, duplicates). Orchestrator agrees the problem with Anthony, then files or reopens the issue with a plain "What's changing" section. This is the approval gate before planning.
+3. **Autonomous execution:** Investigator, Planner, Code Writer, Docs without interrupting Anthony, except on an escalation trigger. Standing pause: after a Planner plan is written and independently reviewed, stop before the Code Writer, notify Anthony (PushNotification), build in a fresh session; post the plan as an issue comment and name it in `HANDOFF.md`.
+4. **Escalation:** stop, label `needs-info`, get Anthony's decision if the change touches a hard invariant or locked decision in `SPEC.md` Part A1 (schema or migration, security policy, locked guardrails), or a "bug fix" proves ambiguous or touches Part A.
+5. **PR and merge:** branch plus PR, independent sub-agent review, tsc/tests/build pass. Orchestrator merges a clean PR itself (independent review approved, no A1 touch, version and patch note present, prod set-up done), then tells Anthony what changed plus 1-3 iPhone checks. Ask Anthony first when the review is not clean, A1 is touched or a prod data change is risky. Draft PRs wait for Anthony. Anthony tests live after merge, not on previews; a failed check reopens the issue.
+6. **Wrap-up:** commit cleanly, update the PR, rewrite `HANDOFF.md` (current state only, name the active `SPEC.md` ticket). A `HANDOFF.md`-only change goes on its own `docs/handoff-*` PR, merged straight away.
+- **Labels:** `needs-triage`, `needs-info` (always with a direct message), `ready-for-agent`, `ready-for-human`, `needs-merge-approval`, `needs-manual-test` (only on request), `out-of-spec`.
+- **Branching:** never commit to `main`; work on branches. Docs-only PRs get a sub-agent review (never the author), then the orchestrator merges.
+- **Budget:** aim for about 150k-180k context tokens per ticket; soft, favour finishing near-done work.
+- **Tracker:** GitHub `mp3anthony/funded` via `gh`; domain docs multi-context (`docs/agents/`).

@@ -24,8 +24,8 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
 ### A1 — Locked invariants (mandatory escalation)
 
 * **RLS mandatory:** Every Postgres table must have Row Level Security policies.
-  Established pattern — see `supabase/rls_policies.sql`,
-  `supabase/secure_rls_policies.sql`, and the various `fix_*_rls*.sql`
+  Established pattern — see `supabase/legacy/rls_policies.sql`,
+  `supabase/legacy/secure_rls_policies.sql`, and the various `fix_*_rls*.sql`
   migrations. Any new table ships with RLS from the start; no exceptions.
   (Largely subsumed by the migration escalation trigger — a new table implies a
   migration — but stated explicitly because the consequence is data exposure.)
@@ -60,7 +60,7 @@ If a rule is a genuine "should we?" question, it belongs in A1. If it is a
   * Supabase Edge Functions for some server-side logic (e.g.
     `supabase/functions/join-household`).
   * Migrations live in `supabase/migrations/` as timestamped SQL files — schema
-    changes follow that convention rather than editing `supabase/schema.sql`
+    changes follow that convention rather than editing `supabase/legacy/schema.sql`
     directly.
 * **Branching — absolute prohibition, not a gate:** never commit directly to
   `main`; work on milestone branches. Issue closure triggers merge. There is no
