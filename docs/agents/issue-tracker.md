@@ -11,7 +11,7 @@ Issues and PRDs for this repo live as GitHub issues (`mp3anthony/funded`). Use t
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
 
-Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
+Infer the repo from `git remote -v`, `gh` does this automatically when run inside a clone.
 
 ## Pull requests as a triage surface
 
@@ -23,7 +23,7 @@ When set to `yes`, PRs run through the same labels and states as issues, using t
 - **List external PRs for triage**: `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments` then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE` (drop `OWNER`/`MEMBER`/`COLLABORATOR`).
 - **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
 
-GitHub shares one number space across issues and PRs, so a bare `#42` may be either — resolve with `gh pr view 42` and fall back to `gh issue view 42`.
+GitHub shares one number space across issues and PRs, so a bare `#42` may be either, resolve with `gh pr view 42` and fall back to `gh issue view 42`.
 
 ## When a skill says "publish to the issue tracker"
 
@@ -35,11 +35,11 @@ Run `gh issue view <number> --comments`.
 
 ## Project-specific labels beyond the canonical five
 
-This repo's own liaison protocol (`CLAUDE.md`) uses three additional labels the generic skill vocabulary doesn't have roles for — apply them per `CLAUDE.md`'s own rules, not via the `triage` skill:
+This repo's own liaison protocol (`CLAUDE.md` "Workflow", `docs/workflow.md` Labels) uses three additional labels the generic skill vocabulary doesn't have roles for: apply them per those rules, not via the `triage` skill:
 
-- `needs-manual-test` — on request only (since 2026-10-11 the default is live-app checks after merge): Anthony wants a hands-on preview review before merge, e.g. one PR and one version bump covering a set of issues
+- `needs-manual-test`: on request only (since 2026-10-11 the default is live-app checks after merge): Anthony wants a hands-on preview review before merge, e.g. one PR and one version bump covering a set of issues
 - `needs-merge-approval`: only on a code PR actually waiting on Anthony (review not clean or ambiguous, A1 touch, or the orchestrator wants him to look); since 2026-11-13 a clean PR is merged by the orchestrator without it
-- `out-of-spec` — falls outside current `SPEC.md`; logged to `CHANGE-LOG.md`, not scoped until triaged
+- `out-of-spec`: falls outside current `SPEC.md`; logged to `CHANGE-LOG.md`, not scoped until triaged
 
 
 ## Issue body rule

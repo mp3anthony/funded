@@ -2,9 +2,7 @@
 
 How Funded tells members something needs attention, and where each alert takes them.
 
-## Language
-
-### The alerts
+## The alerts
 
 **Notification**:
 A single alert for a member, kept in their inbox. Every notification is shown in-app and can also be sent as a push.
@@ -15,11 +13,15 @@ A notification the app generates on its own about a bill, payday, pending pay or
 _Avoid_: Task, to-do, nudge
 
 **Reminder types**:
-Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid. A one-off autopay bill is reminded for its saved date only and gets nothing once that date has passed; a paused bill gets none, and neither does a dateless bill (no date to remind about).
+Manual bill, auto-pay, Confirm Pending Pay, payday "log your pay", and goal milestone. Bill reminders also come in a daily overdue form that repeats until the bill is paid.
+A one-off autopay bill is reminded for its saved date only and gets nothing once that date has passed; a paused bill gets none, and neither does a dateless bill (no date to remind about).
 _Avoid_: Categories, alert kinds
 
 **Confirm Pending Pay reminder**:
-The reminder, titled "Payment Requires Confirmation", that a logged pay is still pending and needs confirming. Its tap leads to the Confirm Pending Pay modal on the Payday page. The code key `lodge_payment` and some UI text still say "lodge"; that is legacy naming pending #216. It repeats daily until the pay is confirmed or deleted ("You haven't logged last week's pay"); the dedupe key ends in the day (`<pay_history id>-lodge_payment-<YYYY-MM-DD>`). The cron also creates the Pending pay itself when a pay day passes unlogged.
+The reminder, titled "Payment Requires Confirmation", that a logged pay is still pending and needs confirming. Its tap leads to the Confirm Pending Pay modal on the Payday page.
+The code key `lodge_payment` and some UI text still say "lodge"; that is legacy naming pending #216.
+It repeats daily until the pay is confirmed or deleted ("You haven't logged last week's pay"); the dedupe key ends in the day (`<pay_history id>-lodge_payment-<YYYY-MM-DD>`).
+The cron also creates the Pending pay itself when a pay day passes unlogged.
 _Avoid_: Lodge payment, payment reminder, confirm reminder
 
 **Goal milestone**:
@@ -30,7 +32,7 @@ _Avoid_: Achievement, badge, goal complete
 An email sent by Supabase Auth through Mailjet for an account action, currently Confirm signup and Reset password. It is not a Notification, which is only ever push or in-app.
 _Avoid_: Transactional email, system email
 
-### Where they appear
+## Where they appear
 
 **Push**:
 A notification delivered to a device's lock screen or notification tray, even when the app is closed.
@@ -52,7 +54,7 @@ _Avoid_: Delete, dismiss, snooze
 Where a notification takes you when tapped: a bill's popup for bill reminders, the Payday page for payday and confirmation reminders, and a goal's popup on the Goals page for milestones. The inbox and pushes always agree.
 _Avoid_: Deep link, link target, redirect
 
-### When they arrive
+## When they arrive
 
 **Notify hour**:
 The hour of day a member prefers their notifications to arrive, set per member and read in the household timezone.

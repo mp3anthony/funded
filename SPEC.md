@@ -250,7 +250,7 @@ standing lesson from #75). Label **`needs-manual-test`**.
 
 ### Slice 5: Empty-household health score display (Issue #87)
 
-**Retired.** Built as a display override on the old health score, which the Dashboard verdict (R25, #412) replaced; an empty household now reads grey "Set up your pay" (see `docs/context/money.md`).
+**Retired.** Built as a display override on the old health score, which the Dashboard verdict (R25, #412) replaced; an empty household now reads grey "Set up your pay" (see `docs/context/money/verdict.md`).
 
 ---
 

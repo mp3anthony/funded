@@ -10,8 +10,8 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-human`            | `ready-for-human`      | Requires human implementation             |
 | `wontfix`                    | `wontfix`              | Will not be actioned                      |
 
-All five already exist verbatim as GitHub labels on this repo — no renames needed.
+All five already exist verbatim as GitHub labels on this repo, no renames needed.
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
-This repo also has three project-specific labels outside these five canonical roles — see `docs/agents/issue-tracker.md`'s "Project-specific labels" section, and `CLAUDE.md` (Workflow Protocol, Labels), for `needs-manual-test` (on request only) / `needs-merge-approval` / `out-of-spec`.
+This repo also has three project-specific labels outside these five canonical roles (see `docs/agents/issue-tracker.md`'s "Project-specific labels" section, and `CLAUDE.md` "Workflow" and `docs/workflow.md` Labels), for `needs-manual-test` (on request only) / `needs-merge-approval` / `out-of-spec`.
