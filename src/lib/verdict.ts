@@ -126,7 +126,7 @@ export function weeklyUncovered(args: {
   return uncovered;
 }
 
-/** Are the household's weekly bills covered? See docs/context/money.md ("Verdict"). */
+/** Are the household's weekly bills covered? See docs/context/money/verdict.md. */
 export function verdict(input: VerdictInput): Verdict {
   const { convert } = input;
   const extra = input.extraWeekly ?? 0;

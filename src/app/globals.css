@@ -322,7 +322,7 @@ body.modal-open {
    visible area — while the background stays covered edge to edge.
 
    Padding also carries the safe-area insets: backdrops portal to document.body
-   to dodge the iOS fixed-in-overflow bug (AGENTS.md invariant #2), so they sit
+   to dodge the iOS fixed-in-overflow bug (SPEC.md Part A, Layout: fixed-position/overflow), so they sit
    outside AppShell and inherit none of its safe-area handling. Under
    viewport-fit=cover the viewport runs under the status bar, which would
    otherwise hide the card's header. */

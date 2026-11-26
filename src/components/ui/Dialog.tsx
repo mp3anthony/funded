@@ -30,7 +30,7 @@ import CloseCircle from "./CloseCircle";
      globals.css applies the mobile centered-card treatment to it.
    • It portals to document.body — a nested position:fixed inside the
      AppShell overflow-hidden wrapper is reclassified to absolute on iOS
-     WebKit (see AGENTS.md invariant #2 and the pre-existing household
+     WebKit (see SPEC.md Part A, Layout: fixed-position/overflow, and the pre-existing household
      modals that already portal for this reason).
 
    The card's height cap is `max-h-full`, NOT a dvh value. The backdrop is
