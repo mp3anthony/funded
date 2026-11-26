@@ -38,7 +38,6 @@ import { resolveNewHouseholdTimezone, isValidTimezone } from "@/lib/householdTim
 import { getPushStatus, syncPushSubscriptionIfPresent, type PushStatus } from "@/lib/pushClient";
 import { assertRowUpdated } from "@/lib/householdOwner";
 
-
 /* ═══════════════════════════════════════════════
    Types
    ═══════════════════════════════════════════════ */
@@ -904,8 +903,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         root.setAttribute("data-theme", activeTheme);
       }
 
-
-
       // Status bar / browser chrome colour follows the CHOSEN theme (F05, #468), not just the OS
       // setting that the layout's media-query meta tags see. Uses the real background token.
       const bg = getComputedStyle(root).getPropertyValue("--color-background").trim();
@@ -1092,7 +1089,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        console.log('Auth useEffect - getSession result:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
         const loadDataWillRun = willRunLoadData(session);
         resetIfUserChanged(session?.user?.id ?? null);
         lastDispatchedSessionRef.current = session;
@@ -1133,7 +1129,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('Auth useEffect - onAuthStateChange event:', _event, 'session:', session ? 'has session' : 'no session', 'user:', session?.user?.id);
       // A signed-out user has no recovery in flight (#490).
       if (_event === "SIGNED_OUT") clearRecoverySignal();
       const loadDataWillRun = willRunLoadData(session);
@@ -1320,7 +1315,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
     if (!dbHouseholdId && !isOnboarded) {
       setIsDataLoading(true);
     }
-    console.log('loadData running with authenticated session, user:', session.user.id);
     // Do we already know THIS user has a household? Declared outside the try so
     // the catch below can see it too. Deliberately consults only the user-keyed
     // ref: isOnboarded and dbHouseholdId are not user-scoped, and this render's
@@ -1418,7 +1412,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       if (ctx.gen !== loadGenerationRef.current) return;
 
-      console.log('loadData - found household:', household.id, household.name, household.is_joint_fund);
       resolvedHouseholdUserIdRef.current = session.user.id;
       dataOwnerUserIdRef.current = session.user.id;
       setDbHouseholdId(household.id);
@@ -1849,7 +1842,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const userIdToUse = currentSession?.user?.id;
-    console.log('ensureHousehold - currentSession:', currentSession ? 'exists' : 'null', 'userIdToUse:', userIdToUse);
 
     // #75 item 3, door 3 — the same trap door as createHousehold and
     // joinHousehold, reached from ~14 write paths (addBill, addFund, …). This
@@ -2052,7 +2044,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       const existingHouseholdId = existingMembership?.household_id ?? null;
 
       if (existingHouseholdId) {
-        console.warn('[createHousehold] User already belongs to household', existingHouseholdId, '— adopting it instead of creating a second one');
+        console.warn('[createHousehold] User already belongs to a household; adopting it instead of creating a second one');
         // Adopt, don't no-op: Onboarding awaits this and advances its wizard on
         // success, and setIsOnboarded(true) drops AppShell's Onboarding gate
         // altogether, so the user lands in their real household rather than
@@ -2155,8 +2147,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       const timezone = resolveNewHouseholdTimezone();
 
-      console.log('[createHousehold] Attempting insert:', { name, joinCode: joinCodeValue, userId: activeUser.id, timezone });
-
       const { data: household, error: hhError } = await supabase
         .from('households')
         .insert({
@@ -2180,8 +2170,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         console.error('[createHousehold] No data returned despite no error');
         throw new Error('Household created but no data returned');
       }
-
-      console.log('[createHousehold] Household created successfully:', household.id);
 
       // Insert member...
       const userName = activeUser.user_metadata?.full_name || activeUser.email?.split('@')[0] || 'Owner';
@@ -2366,13 +2354,9 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function updateBill(billId: string | number, billData: any, splitsData?: any[]) {
-    console.log('updateBill - Start - billId:', billId);
-    console.log('updateBill - billData input:', billData);
-    console.log('updateBill - splitsData input:', splitsData);
 
     try {
       const hId = await ensureHousehold();
-      console.log('updateBill - householdId resolved:', hId);
 
       if (!billId) {
         throw new Error("updateBill - Error: billId is undefined or empty!");
@@ -2409,8 +2393,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         ...pausedFieldForEdit(billData),
       };
 
-      console.log('updateBill - dbBillData payload:', dbBillData);
-
       const { data: updatedBill, error: billError } = await supabase
         .from("bills")
         .update(dbBillData)
@@ -2421,8 +2403,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (billError || !updatedBill) {
         console.error("updateBill - Error updating bills row:", billError);
         throw billError || new Error("Failed to update bill record.");
-      } else {
-        console.log('updateBill - successfully updated bills table row:', updatedBill);
       }
 
       // R10: `splitsData` undefined = leave the bill's splits exactly as they are.
@@ -2430,7 +2410,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
 
       // Step 2: Delete Existing Splits
       if (touchSplits) {
-        console.log('updateBill - deleting splits for bill_id:', billId);
         const { error: deleteError } = await supabase
           .from("bill_splits")
           .delete()
@@ -2439,8 +2418,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         if (deleteError) {
           console.error("updateBill - Error deleting existing bill splits:", deleteError);
           throw deleteError;
-        } else {
-          console.log('updateBill - splits deleted successfully');
         }
       }
 
@@ -2449,7 +2426,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       if (touchSplits && splitsData && splitsData.length > 0) {
         const dbSplitsData = splitsData.map((split) => {
           if (!split.member_id || split.amount === undefined || isNaN(Number(split.amount))) {
-            console.warn("updateBill - invalid split data detected:", split);
+            console.warn("updateBill - invalid split data detected");
           }
           return {
             household_id: hId,
@@ -2461,8 +2438,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
           };
         });
 
-        console.log('updateBill - inserting new splits:', dbSplitsData);
-
         const { data, error: splitsError } = await supabase
           .from("bill_splits")
           .insert(dbSplitsData)
@@ -2471,8 +2446,6 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
         if (splitsError) {
           console.error("updateBill - Error inserting new bill splits:", splitsError);
           throw splitsError;
-        } else {
-          console.log('updateBill - splits inserted successfully:', data);
         }
 
         if (data) {
@@ -2502,7 +2475,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
   async function resetBillContributions() {
     try {
       const hId = await ensureHousehold();
-      console.warn("resetBillContributions - Deleting all bill splits due to payment mode change for household:", hId);
+      console.warn("resetBillContributions - Deleting all bill splits due to payment mode change");
       const { error } = await supabase
         .from("bill_splits")
         .delete()
@@ -3820,7 +3793,7 @@ export function AppProvider({ children, initialSession = null, initialIsOnboarde
       }
 
       if (existingMembership?.household_id) {
-        console.warn("[joinHousehold] User already belongs to household", existingMembership.household_id, "— refusing join and restoring it");
+        console.warn("[joinHousehold] User already belongs to a household; refusing join and restoring it");
         const { data: existing, error: existingError } = await supabase
           .from("households")
           .select("id, name, join_code, code_expires_at, is_joint_fund, timezone")

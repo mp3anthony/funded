@@ -29,6 +29,13 @@ export interface PatchNoteEntry {
 
 export const patchNotes: PatchNoteEntry[] = [
   {
+    version: "0.1.7",
+    date: "November 2026",
+    highlights: [
+      "Behind the scenes: the app no longer writes your account and household details into the browser's developer log. No visible change.",
+    ],
+  },
+  {
     version: "0.1.6",
     date: "November 2026",
     highlights: [
